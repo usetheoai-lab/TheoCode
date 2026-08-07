@@ -155,6 +155,7 @@ async function planOneProject(
     { project, dir, entries, protegidos, idsEmDisco, idsNoRegistry },
     { maxAgeDays, now },
     planejar,
+    opts.hasLiveWriter,
   )
 
   if (liveness.state === 'VIVO') {
@@ -183,6 +184,7 @@ function planOnDiskEntries(
   st: ProjectState,
   janela: CollectionWindow,
   planejar: (c: CandidatoAll) => void,
+  hasLiveWriter: (transcriptPath: string) => boolean,
 ): void {
   for (const e of st.entries) {
     const forma = classifyEntry(e.name, e.ehDiretorio)
@@ -194,9 +196,8 @@ function planOnDiskEntries(
 
     switch (forma) {
       case 'transcript': {
-        const id = idDoTranscript(e.name)
-        if (st.protegidos.has(id)) continue
-        planejar({ project, forma, target, id, ageDays, inRegistry: st.idsNoRegistry.has(id) })
+        const candidato = planejarTranscript(e.name, { st, target, ageDays, hasLiveWriter })
+        if (candidato !== undefined) planejar(candidato)
         break
       }
       case 'lock-arquivo':
@@ -211,6 +212,39 @@ function planOnDiskEntries(
       default:
         assertNuncaForma(forma)
     }
+  }
+}
+
+/**
+ * Decide whether a stale transcript may be collected, or `undefined` when it must be kept.
+ *
+ * Two independent guards, and they see different things. `protegidos` covers the live-session
+ * pointer, `keepLast` and the registry — all id-based. The writer lease covers a session whose
+ * writer is alive but whose id none of those knows, which is precisely the case where the id-based
+ * set is silent.
+ */
+function planejarTranscript(
+  name: string,
+  ctx: {
+    st: ProjectState
+    target: string
+    ageDays: number
+    hasLiveWriter: (transcriptPath: string) => boolean
+  },
+): CandidatoAll | undefined {
+  const id = idDoTranscript(name)
+  if (ctx.st.protegidos.has(id)) return undefined
+  // B-003 — ask the SDK's cross-process lease, not just the mtime window. Before this, only mtime
+  // freshness stood between a live transcript and unlink: a heuristic standing in for a lease the
+  // caller had already wired and the plan phase never called.
+  if (ctx.hasLiveWriter(ctx.target)) return undefined
+  return {
+    project: ctx.st.project,
+    forma: 'transcript',
+    target: ctx.target,
+    id,
+    ageDays: ctx.ageDays,
+    inRegistry: ctx.st.idsNoRegistry.has(id),
   }
 }
 
@@ -269,13 +303,20 @@ function backstopRefusal(
   opts: OpcoesApplyAll,
 ): string | undefined {
   if (c.id !== undefined && ponteirosAgora.has(c.id)) {
-    return `${c.target}: refused — o ponteiro de sessão viva mudou entre o plano e o apply`
+    return `${c.target}: refused — the live-session pointer changed between plan and apply`
+  }
+  if (opts.hasLiveWriter === undefined) return undefined
+  // B-003 — transcripts are re-checked here too. The early return used to drop everything that was
+  // not a lock, so a transcript that gained a writer between plan and apply was deleted anyway.
+  if (c.forma === 'transcript') {
+    return opts.hasLiveWriter(c.target)
+      ? `${c.target}: refused — the transcript gained a live writer between plan and apply`
+      : undefined
   }
   if (c.forma !== 'lock-arquivo' && c.forma !== 'lock-diretorio') return undefined
-  if (opts.hasLiveWriter === undefined) return undefined
   const transcript = c.target.replace(/\.jsonl(\.writer)?\.lock$/, '.jsonl')
   return opts.hasLiveWriter(transcript)
-    ? `${c.target}: refused — o transcript irmão ganhou um escritor vivo entre o plano e o apply`
+    ? `${c.target}: refused — the sibling transcript gained a live writer between plan and apply`
     : undefined
 }
 
