@@ -34,6 +34,7 @@ import { createInteractiveShellTool } from './ask/index.js'
 import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
+import { projectSourceAllowed } from './config/project-source.js'
 
 export function buildChatAgent(overrides?: {
   extraTools?: readonly CustomTool[]
@@ -278,7 +279,9 @@ function withShellAndProjectEntities(
       // inside the SDK before theocode sees the roles — so the ONLY seam we control to stop an untrusted
       // repo from redirecting a subagent's model/sandbox is this toggle. Untrusted ⇒ `user` only, mirroring
       // how `.skills()` and AGENTS.md are already gated (subagents were the one disk entity that was not).
-      .settingSources(posture.allows.subagents ? ['project', 'user'] : ['user'])
+      // B-008 — the `project` source enables repository hooks too, not just subagent discovery, and
+      // those bypass TheoCode's per-hook fingerprint gate. It now requires both capabilities.
+      .settingSources(projectSourceAllowed(posture.allows) ? ['project', 'user'] : ['user'])
       .hooks(lifecycleHooks)
   )
 

@@ -54,7 +54,7 @@ export const TRUST_CAPABILITIES = [
     key: 'subagents',
     loaders: ['discoverSubagents'],
     effect:
-      'The `project` source leaves subagent discovery: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member.',
+      'The `project` source is dropped entirely: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member. The source is shared with `hooks` — enabling it also loads repository-declared hooks through the SDK — so it requires BOTH capabilities (see `config/project-source.ts`).',
   },
 ] as const satisfies readonly TrustCapability[]
 
