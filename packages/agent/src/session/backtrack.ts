@@ -1,8 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
 
 import { dirname } from 'node:path'
 
-import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
+import {
+  forkTranscript,
+  loadJsonl,
+  type TranscriptBlock,
+  transcriptPath,
+  transcriptRoot,
+} from '@theokit/agents/persistence'
 
 import { protectedSessions } from './session-ops.js'
 import type { SessionRecord } from '@theokit/agents'
@@ -15,25 +21,14 @@ function lerTranscript(src: string): readonly SessionRecord[] {
   const st = statSync(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
   if (cacheTranscript?.key === key) return cacheTranscript.records
-  const records = Object.freeze(parseTranscript(readFileSync(src, 'utf8')))
+  // B-012 — the SDK's reader. It ships the truncated-last-line tolerance as a documented opt-in and
+  // throws `JsonlParseError` carrying the 1-based line, where the hand-rolled version threw a bare
+  // SyntaxError and the surface could only report "transcript unreadable".
+  const records = Object.freeze(
+    loadJsonl<SessionRecord>(src, { tolerateTrailingPartialLine: true }),
+  )
   cacheTranscript = { key, records }
   return records
-}
-
-
-
-function parseTranscript(raw: string): SessionRecord[] {
-  const lines = raw.split('\n').filter((l) => l.trim().length > 0)
-  const out: SessionRecord[] = []
-  for (let i = 0; i < lines.length; i++) {
-    try {
-      out.push(JSON.parse(lines[i]) as SessionRecord)
-    } catch (err) {
-      if (i === lines.length - 1) break 
-      throw new SyntaxError(`transcript corrupt at line ${i + 1}: ${(err as Error).message}`)
-    }
-  }
-  return out
 }
 
 function textOf(record: SessionRecord): string {
@@ -41,14 +36,12 @@ function textOf(record: SessionRecord): string {
 }
 
 function textBlocks(record: SessionRecord): string[] {
-  const content = (record.message?.content ?? []) as ReadonlyArray<{
-    type?: unknown
-    text?: unknown
-  }>
+  // B-012 — no cast. `TranscriptMessage.content` is a discriminated union in the SDK now; widening
+  // it back erased the discriminant, so a hand-written predicate replaced narrowing the compiler
+  // does for free, and a new block variant would produce no error here.
+  const content = record.message?.content ?? []
   return content
-    .filter(
-      (p): p is { type: 'text'; text: string } => p.type === 'text' && typeof p.text === 'string',
-    )
+    .filter((p): p is Extract<TranscriptBlock, { type: 'text' }> => p.type === 'text')
     .map((p) => p.text)
 }
 
@@ -131,7 +124,6 @@ export function countUserTurnsInWindow(records: readonly SessionRecord[]): numbe
   return n
 }
 
-
 export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   let floor = -1
   for (let i = records.length - 1; i >= 0; i--) {
@@ -147,13 +139,14 @@ export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   return previews
 }
 
-
 async function lerTranscriptAsync(src: string): Promise<readonly SessionRecord[]> {
-  const { stat, readFile } = await import('node:fs/promises')
+  const { stat } = await import('node:fs/promises')
   const st = await stat(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
   if (cacheTranscript?.key === key) return cacheTranscript.records
-  const records = Object.freeze(parseTranscript(await readFile(src, 'utf8')))
+  const records = Object.freeze(
+    loadJsonl<SessionRecord>(src, { tolerateTrailingPartialLine: true }),
+  )
   cacheTranscript = { key, records }
   return records
 }
