@@ -16,7 +16,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const buildChatAgent = vi.fn(() => ({ kind: 'fake-agent' }))
-const toAgentFactory = vi.fn((factory: unknown) => factory)
+const toAgentFactory = vi.fn((factory: unknown, _options?: unknown) => factory)
+const resolveFreshCredential = vi.fn()
 
 vi.mock('./chat.js', () => ({ buildChatAgent }))
 vi.mock('@theokit/agents', () => ({
@@ -24,7 +25,7 @@ vi.mock('@theokit/agents', () => ({
   setDiagnosticsSink: vi.fn(),
 }))
 vi.mock('@theocode/shared/diagnostic-sink', () => ({ installDiagnosticSink: vi.fn() }))
-vi.mock('./auth/index.js', () => ({ resolveFreshCredential: vi.fn() }))
+vi.mock('./auth/index.js', () => ({ resolveFreshCredential }))
 
 describe('B-001 — the ACP entry declares the headless profile', () => {
   beforeEach(() => {
@@ -46,5 +47,48 @@ describe('B-001 — the ACP entry declares the headless profile', () => {
         "to the 'interactive' default and registers `request_user_input` against a bridge only the " +
         'TUI answers. Every such call stalls for the built-in 5-minute timeout.',
     ).toHaveBeenCalledWith(expect.objectContaining({ surface: 'headless' }))
+  })
+})
+
+/**
+ * B-007 — a credential failure must stay a credential failure.
+ *
+ * The entry caught every error from `resolveFreshCredential`, wrote the message to stderr and
+ * returned `''`. An empty string is a VALID value for the SDK's `apiKey` resolver, so "I could not
+ * authenticate" was handed downstream as "here is your key" — the request then fails later, at the
+ * provider, with a message that describes neither the cause nor the fix.
+ *
+ * That is Unbreakable Rule 8 in its plainest form: never degrade a typed error into a magic value.
+ * On a headless surface it is worse than on the TUI, because there is no operator watching stderr.
+ */
+describe('B-007 — credential failure is not degraded to an empty key', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  it('test_credential_failure_rejects_instead_of_returning_an_empty_key', async () => {
+    const boom = new Error('no credential found for provider openai')
+    resolveFreshCredential.mockRejectedValueOnce(boom)
+
+    await import('./chat-acp.js')
+    const options = toAgentFactory.mock.calls[0]?.[1] as { apiKey: () => Promise<string> }
+
+    await expect(
+      options.apiKey(),
+      'the ACP entry swallowed a credential error and resolved with a value. An empty key is ' +
+        'indistinguishable from a real one to the SDK, so the failure resurfaces later at the ' +
+        'provider with an irrelevant message (Unbreakable Rule 8).',
+    ).rejects.toThrow(boom)
+  })
+
+  it('test_a_resolved_credential_still_yields_its_key', async () => {
+    // Anti-vacuity floor: a resolver that always threw would satisfy the test above.
+    resolveFreshCredential.mockResolvedValueOnce({ apiKey: 'sk-real-key' })
+
+    await import('./chat-acp.js')
+    const options = toAgentFactory.mock.calls[0]?.[1] as { apiKey: () => Promise<string> }
+
+    await expect(options.apiKey()).resolves.toBe('sk-real-key')
   })
 })

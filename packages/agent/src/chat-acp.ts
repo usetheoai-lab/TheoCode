@@ -11,14 +11,12 @@ import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 
 installDiagnosticSink(setDiagnosticsSink)
 
-const resolveCredential = async (): Promise<string> => {
-  try {
-    return (await resolveFreshCredential({ env: process.env, home: homedir() })).apiKey
-  } catch (err) {
-    process.stderr.write(`${(err as Error).message}\n`)
-    return ''
-  }
-}
+// B-007 — the error propagates on purpose. Returning `''` here handed the SDK a value it cannot tell
+// apart from a real key, so an authentication failure resurfaced later at the provider with a
+// message describing neither the cause nor the fix (Unbreakable Rule 8). On a headless surface there
+// is no operator watching stderr, which is what made the swallow invisible.
+const resolveCredential = async (): Promise<string> =>
+  (await resolveFreshCredential({ env: process.env, home: homedir() })).apiKey
 
 export default toAgentFactory(
   async () => {

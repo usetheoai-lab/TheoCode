@@ -8,7 +8,7 @@ import { createSessionPtyOwner, MAX_PTY_SESSIONS } from '@theocode/agent/pty'
 import { forkSession } from '@theocode/agent/session'
 
 import { createChatTransport } from './chat-transport.js'
-import { apiKey, credential } from './credential-helpers.js'
+import { credential } from './credential-helpers.js'
 import { loadCustomCommands } from '../commands/index.js'
 import { forkCurrentSessionWith } from '../persistence/index.js'
 import { createTuiSession, type TuiSession } from './tui-session.js'
@@ -56,7 +56,6 @@ function build(): TuiRoot {
     getSessionPty: () => ptyOwner,
     takePendingImages: () => session.tomarImagens(),
     takePendingModel: () => session.takeModel(),
-    apiKey,
     credential,
   })
 

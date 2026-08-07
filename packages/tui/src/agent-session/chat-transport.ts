@@ -17,7 +17,6 @@ export interface ChatTransportDeps {
   getSessionId: () => string
   takePendingImages: () => AttachedImage[] | undefined
   takePendingModel: () => string | undefined
-  apiKey: () => string
   credential: () => ResolvedCredential | { error: Error }
   getSessionPty: () => SessionPtyOwner
 }
