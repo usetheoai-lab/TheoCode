@@ -33,9 +33,13 @@ describe('B-004 — abandoning a question settles its promise', () => {
     // Anti-vacuity floor: rejecting everything would satisfy the test above.
     const bridge = new AskBridge(() => {})
     const kept = bridge.perguntar('kept?', 'thread-a')
-    bridge.perguntar('dropped?', 'thread-b')
+    // Captured deliberately: `abandonar` now rejects, and an uncaught rejection here would be the
+    // very defect B-013 is about — a promise nobody settles quietly taking the process down.
+    const dropped = bridge.perguntar('dropped?', 'thread-b')
+    const droppedSettled = expect(dropped).rejects.toBeInstanceOf(Error)
 
     bridge.abandonar('thread-b')
+    await droppedSettled
     bridge.responder('still here', 'thread-a')
 
     await expect(kept).resolves.toBe('still here')
@@ -52,9 +56,13 @@ describe('B-004 — abandoning a question settles its promise', () => {
 
   it('test_a_second_question_on_the_same_thread_still_rejects_as_concurrent', async () => {
     const bridge = new AskBridge(() => {})
-    bridge.perguntar('first?')
+    const first = bridge.perguntar('first?')
 
     await expect(bridge.perguntar('second?')).rejects.toBeInstanceOf(ConcurrentQuestionError)
+
+    // Settle the first one too, so the test leaves no pending promise behind.
+    bridge.responder('answered')
+    await expect(first).resolves.toBe('answered')
   })
 })
 
@@ -91,7 +99,8 @@ describe('B-004 — subscribing is honest about being a single slot', () => {
 
     bridge.assinar(first)
     bridge.assinar(second)
-    bridge.perguntar('anything?')
+    const pending = bridge.perguntar('anything?')
+    bridge.responder('done')
 
     // Whatever the chosen semantics, losing a subscriber without a trace is not one of them.
     expect(
@@ -100,5 +109,6 @@ describe('B-004 — subscribing is honest about being a single slot', () => {
         'notified with no error and no warning',
     ).toBeGreaterThan(0)
     expect(second).toHaveBeenCalled()
+    return expect(pending).resolves.toBe('done')
   })
 })
