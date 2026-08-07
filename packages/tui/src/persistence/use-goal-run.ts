@@ -4,6 +4,7 @@ import { useTurnElapsed } from '@theokit/tui'
 
 import type { GoalRunState } from '../commands/index.js'
 import { loadGoalRun, persistGoalRun } from './goal-store.js'
+import { fireAndForget } from './fire-and-forget.js'
 
 export interface GoalRun {
   readonly goalRun: GoalRunState | null
@@ -20,7 +21,7 @@ export function useGoalRun(pointer: string): GoalRun {
   const goalActive = goalRun?.status === 'active'
 
   useEffect(() => {
-    void persistGoalRun(pointer, goalRun)
+    void fireAndForget(persistGoalRun(pointer, goalRun), 'the goal state')
   }, [pointer, goalRun])
 
   const goalElapsed = useTurnElapsed(goalActive)

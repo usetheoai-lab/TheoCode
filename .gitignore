@@ -59,10 +59,13 @@ bench/reports/run.log
 .heval/
 
 # M20 — per-user/project runtime config (like .theokit/, not committed)
-.theocode/
-!.theocode/
+# B-017 — `.theocode/` followed by `!.theocode/` cancelled itself: git re-included the directory and
+# everything under it, so runtime state (sessions, pointers, the resolved config) was committable
+# despite the comment above declaring it local. Ignoring the CONTENTS keeps the exception working —
+# a negation cannot re-include a file whose parent directory is excluded, which is why the previous
+# spelling needed the directory itself listed.
+.theocode/*
 !.theocode/config.example.toml
-.theocode/config.toml
 
 # Scratch probes from review agents — working files, never deliverables.
 # M98 (auditoria ADV-7) — o padrão era `.probe/` LITERAL, e a sessão de review do M98 criou
