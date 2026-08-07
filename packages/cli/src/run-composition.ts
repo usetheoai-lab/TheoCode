@@ -55,6 +55,9 @@ export function composeRun(
     mod: {
       default: buildChatAgent({
         surface: 'headless',
+        // B-015 — this root already resolved a directory (and accepts one as a seam). Passing only
+        // config+posture left the remaining reads inside buildChatAgent on process.cwd().
+        cwd,
         config: cfg,
         posture,
         ...(args.model !== undefined ? { model: args.model } : {}),

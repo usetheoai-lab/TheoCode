@@ -41,6 +41,14 @@ export function buildChatAgent(overrides?: {
   appendInstructions?: string
   baseInstructions?: string
   surface?: 'interactive' | 'headless'
+  /**
+   * B-015 — the project directory, read ONCE. It used to be `process.cwd()` at six independent
+   * points (trust posture, effective config, tool scope, project instructions, approved hooks, MCP
+   * manifest), while the CLI composition root resolved a directory and injected `config`/`posture`
+   * built from it — so a supplied directory governed two reads and was ignored by four. Nothing made
+   * the six agree; they agreed because the current callers happen not to change cwd mid-build.
+   */
+  cwd?: string
   reasoning_effort?: ReasoningEffort
   posture?: TrustPosture
   config?: EffectiveConfig
@@ -48,12 +56,12 @@ export function buildChatAgent(overrides?: {
   interactiveBackend?: InteractiveBackend
   sessionPty?: SessionPtyOwner
 }) {
-  const { posture, cfg, writePolicy, registry, modelId } = contextoDoChat(overrides)
+  const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
 
   const interactiveBackend = resolverBackendInterativo(overrides, cfg)
-  const lifecycleHooks = chatHookChain(cfg, posture)
+  const lifecycleHooks = chatHookChain(cfg, posture, cwd)
   const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
-  const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides })
+  const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
 
   const withWrites = withWriteTools(base, {
     writePolicy,
@@ -73,6 +81,7 @@ export function buildChatAgent(overrides?: {
     lifecycleHooks,
     modelId,
     writePolicy,
+    cwd,
   })
 
   const doPerfil = profileTools(overrides?.surface, ask, abandonQuestion)
@@ -84,15 +93,18 @@ function contextoDoChat(overrides?: {
   posture?: TrustPosture
   config?: EffectiveConfig
   model?: string
+  cwd?: string
 }) {
-  const posture = overrides?.posture ?? resolveTrustPosture(process.cwd())
-  const cfg = overrides?.config ?? resolveEffectiveConfig({ cwd: process.cwd() })
+  const cwd = overrides?.cwd ?? process.cwd()
+  const posture = overrides?.posture ?? resolveTrustPosture(cwd)
+  const cfg = overrides?.config ?? resolveEffectiveConfig({ cwd })
   return {
     posture,
     cfg,
     writePolicy: sandboxWritePolicy(cfg.sandbox_mode),
-    registry: new ToolRegistry(resolveToolScope(cfg, process.cwd())),
+    registry: new ToolRegistry(resolveToolScope(cfg, cwd)),
     modelId: overrides?.model ?? cfg.model,
+    cwd,
   }
 }
 
@@ -111,9 +123,9 @@ function resolverBackendInterativo(
   )
 }
 
-function projectDocument(posture: TrustPosture): string {
+function projectDocument(posture: TrustPosture, cwd: string): string {
   if (!posture.allows.agentsMd) return ''
-  return [loadAgentsMd(process.cwd()), loadRules(process.cwd()).text].filter(Boolean).join('\n\n')
+  return [loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
 
 function pluginsDoProvider(
@@ -134,11 +146,11 @@ function pluginsDoProvider(
   return [plugin]
 }
 
-function chatHookChain(cfg: EffectiveConfig, posture: TrustPosture) {
+function chatHookChain(cfg: EffectiveConfig, posture: TrustPosture, cwd: string) {
   return comVetoDoShellEmbutido(
     buildHookHandlers(parseHooks(cfg.hooks), {
       trusted: posture.allows.hooks,
-      approved: new Set([...loadApprovedHooks(process.cwd()).keys()]),
+      approved: new Set([...loadApprovedHooks(cwd).keys()]),
     }),
   )
 }
@@ -189,6 +201,7 @@ function withShellAndProjectEntities(
     lifecycleHooks: ReturnType<typeof chatHookChain>
     modelId: string
     writePolicy: ReturnType<typeof sandboxWritePolicy>
+    cwd: string
   },
 ) {
   const { registry, interactiveBackend, posture, cfg, lifecycleHooks, modelId, writePolicy } = ctx
@@ -264,7 +277,7 @@ function withShellAndProjectEntities(
       // servers as external processes at agent init, BEFORE any per-tool approval. An untrusted repo could
       // therefore get arbitrary local command execution on first build. MCP was the one disk entity left
       // ungated while skills/AGENTS.md/subagents are gated; untrusted ⇒ no MCP servers, same posture.
-      .mcp(posture.allows.mcp ? loadMcpJson(process.cwd()) : {})
+      .mcp(posture.allows.mcp ? loadMcpJson(ctx.cwd) : {})
       // M24 — skills are DISK-loaded: `.skills([...names])` resolves each name from
       // `.theokit/skills/<name>/SKILL.md` (theokit's filebase, enabled by `.settingSources` in M20). The
       // enabled list comes from config (`skills`, Codex parity). TRUST-GATED like AGENTS.md: an untrusted
@@ -301,6 +314,7 @@ function baseAgent(ctx: {
   cfg: EffectiveConfig
   modelId: string
   posture: TrustPosture
+  cwd: string
   providerPlugins: ReturnType<typeof Provider.builtins>
   registry: ToolRegistry
   overrides?: {
@@ -346,7 +360,7 @@ function baseAgent(ctx: {
       .system(
         composeInstructions(
           overrides?.baseInstructions ?? BASE_INSTRUCTIONS,
-          projectDocument(posture),
+          projectDocument(ctx.posture, ctx.cwd),
           overrides?.appendInstructions ?? '',
           { maxChars: MAX_AGREGADO, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),
