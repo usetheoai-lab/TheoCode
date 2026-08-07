@@ -1,4 +1,5 @@
 import type { TheoThemeProp } from '@theokit/tui'
+import { AGENT } from '@theocode/shared/agent'
 
 export const ACCENT = '#d97757'
 
@@ -42,6 +43,6 @@ export const THINKING_PHRASES = [
   'Marinating',
 ]
 
-export const PLACEHOLDER = 'Ask Theokit Builder anything…'
+export const PLACEHOLDER = `Ask ${AGENT.name} anything…`
 
 export const WIDE_COLS = 90

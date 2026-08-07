@@ -6,10 +6,10 @@ import {
 } from '@theokit/agents'
 
 export const AGENT = {
-  name: 'Theokit Builder',
+  name: 'TheoCode',
   model: 'gpt-5.4',
   greeting:
-    "Hi — I'm Theokit Builder, a Codex-style coding agent on @theokit/sdk. Ask me anything and I'll stream a reply.",
+    "Hi — I'm TheoCode, a Codex-style coding agent on @theokit/agents. Ask me anything and I'll stream a reply.",
 } as const
 
 export function modelContextWindow(opts: {

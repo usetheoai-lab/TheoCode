@@ -221,7 +221,7 @@ function withShellAndProjectEntities(
         ),
       )
       // M14 — interactive session as a surface-agnostic built-in from @theokit/agents/tools, backed by the
-      // injected @theokit/sdk-pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
+      // injected @theokit/agents/pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
       // `write_stdin` drives it. Both gated below. Replaces the bespoke run_shell-interactive + write_stdin.
       // M101 #188 — a NOSSA `interactive_shell`: a do SDK colapsa `MaxSessionsError` em
       // `{"ok":false,"error":"interactive_unavailable"}`, e `max`/`liveSessionIds` — a única
@@ -234,7 +234,7 @@ function withShellAndProjectEntities(
       // rendered as a □/▶/✔ checklist by the TUI's formatToolResult). Retired the bespoke local tool.
       .tool(createUpdatePlanTool())
       // A2A — delegate focused, read-only analysis to an isolated child agent. `SubAgent.create` returns a
-      // `CustomTool`, so it wires through the same `.tool()` seam. Needs `@theokit/sdk@>=4.2.10` (#142+#143).
+      // `CustomTool`, so it wires through the same `.tool()` seam. Needs `@theokit/agents@>=7.3.1` (#142+#143).
       .tool(createAnalystSubagent(modelId, registry))
       // Human-in-the-loop: gate every side-effecting / disk-mutating / command-executing tool behind an
       // approval. The run pauses and the surface shows an approval card — allow or reject — before it runs.

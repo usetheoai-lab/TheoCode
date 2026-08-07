@@ -7,6 +7,7 @@ import type { ApprovalMode } from '../consent/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 import type { ToastPayload } from '../screen-types.js'
 import type { Dispatch, SetStateAction } from 'react'
+import { AGENT } from '@theocode/shared/agent'
 
 type Consent = ReturnType<typeof import('../consent/index.js').useConsent>
 
@@ -68,7 +69,7 @@ export function TrustGate({
     <PermissionPrompt
       toolType="Trust directory"
       command={process.cwd()}
-      description="Theokit Builder will read files here and may run commands or apply patches. Trust only directories you control — an untrusted repo's AGENTS.md could try to hijack the agent. Approve to trust this directory (remembered); reject to quit."
+      description={`${AGENT.name} will read files here and may run commands or apply patches. Trust only directories you control — an untrusted repo's AGENTS.md could try to hijack the agent. Approve to trust this directory (remembered); reject to quit.`}
       onDecision={(decision) => {
         if (decision === 'yes') {
           void trustDir(process.cwd()).then(

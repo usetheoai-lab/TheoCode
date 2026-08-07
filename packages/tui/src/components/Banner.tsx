@@ -6,7 +6,7 @@ import { type ReactElement } from 'react'
 import { AGENT } from '@theocode/shared/agent'
 import { ACCENT, BANNER_TIPS, BANNER_WHATS_NEW, LOGO, WIDE_COLS } from '../theme.js'
 
-const APP_NAME = 'Theokit Builder'
+const APP_NAME = AGENT.name
 const MODEL = AGENT.model
 const CWD = process.cwd().replace(homedir(), '~')
 
