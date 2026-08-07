@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 
 import { dirname } from 'node:path'
 
@@ -7,6 +7,7 @@ import { Agent } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from './agent-list.js'
+import { readPointerId } from './gc/pointer.js'
 
 const defaultBaseDir = transcriptRoot
 
@@ -56,13 +57,12 @@ export function renameSession(agentId: string, name: string): Promise<void> {
   return Agent.rename(agentId, name)
 }
 
+// B-003 — this list is what `forkTranscript` refuses to overwrite. Swallowing a read error and
+// returning `[]` handed the SDK an empty guard, which is the one input that disables its
+// `LiveSessionError` entirely. Refusing is the safe direction on a path that writes over transcripts.
 export function protectedSessions(cwd: string, baseDir: string): string[] {
-  try {
-    const id = readFileSync(join(cwd, '.theokit', 'tui-session'), 'utf8').trim()
-    return id === '' ? [] : [transcriptPath(baseDir, cwd, id)]
-  } catch {
-    return []
-  }
+  const id = readPointerId(cwd)
+  return id === undefined ? [] : [transcriptPath(baseDir, cwd, id)]
 }
 
 export function forkSession(

@@ -1,19 +1,16 @@
-import { existsSync, readdirSync, readFileSync, statSync, promises as fsp } from 'node:fs'
+import { existsSync, readdirSync, statSync, promises as fsp } from 'node:fs'
 import { join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
 import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from '../agent-list.js'
+import { readPointerId } from './pointer.js'
 
 const defaultBaseDir = transcriptRoot
 
 export function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string {
   return join(baseDir, 'projects', encodeProjectDir(cwd))
-}
-
-function pointerFile(cwd: string): string {
-  return join(cwd, '.theokit', 'tui-session')
 }
 
 interface SessionGCCandidate {
@@ -68,7 +65,7 @@ export function resolvePointerId(readFn: () => string): string | undefined {
 }
 
 function realReadPointer(cwd: string): string | undefined {
-  return resolvePointerId(() => readFileSync(pointerFile(cwd), 'utf8'))
+  return readPointerId(cwd)
 }
 
 function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
