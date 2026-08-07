@@ -46,6 +46,23 @@ export interface InteractiveShellOptions {
   interactive: InteractiveProvider<unknown>
 }
 
+/**
+ * B-009 — this forks the SDK tool's schema and handler, and that is a defect with a known end date.
+ *
+ * The reason it exists is real and was measured: the SDK's `toErrorJson` matched
+ * `InteractiveUnavailableError` before its subclass, so a session cap arrived as
+ * `interactive_unavailable` with `max` and `liveSessionIds` discarded — the only fields the model
+ * can act on. There is no error seam to override, so recovering them meant rebuilding the tool.
+ *
+ * That defect is now FIXED upstream (`@theokit/sdk-tools`, commit "keep the session-cap fields
+ * instead of flattening them"). It is not yet released: this package resolves 0.26.1, which still
+ * flattens. So the fork stays until the dependency is bumped, and then this whole file collapses
+ * into a call to the SDK factory.
+ *
+ * Until then the cost is live: the description shown to the model comes from the SDK while the
+ * schema below is a frozen copy, so any option the SDK adds (`cwd`, `ttl_ms`, `cols`, `rows` already
+ * exist in `StartInteractiveOptions`) silently fails to reach it.
+ */
 export function createInteractiveShellTool(opts: InteractiveShellOptions): CustomTool {
   const doSdk = createSdkInteractiveShellTool(opts)
   return Tool.create({

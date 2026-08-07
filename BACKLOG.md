@@ -54,7 +54,9 @@ Next free id: **B-018**
 
 ---
 
-## B-001 — The ACP surface registers a tool it cannot answer   [ ]
+## B-001 — The ACP surface registers a tool it cannot answer   [x]
+
+fixed_in: abd9bf7
 
 domain: theocode
 repo: TheoCode
@@ -69,7 +71,9 @@ dod:
   - a test covers that the headless profile does NOT register `request_user_input`
   - the ACP surface is exercised and no tool call is left pending
 
-## B-002 — Wrong identity exposed to the end user   [ ]
+## B-002 — Wrong identity exposed to the end user   [x]
+
+fixed_in: c237f5a
 
 domain: theocode
 repo: TheoCode
@@ -85,7 +89,9 @@ dod:
   - the banner's model id stops being a divergent copy and reads the single source
   - comments citing `@theokit/sdk-pty`, `@theokit/sdk@>=4.2.10` and non-existent paths are corrected or removed
 
-## B-003 — Session-GC deletion guards fail open, with no test at all   [ ]
+## B-003 — Session-GC deletion guards fail open, with no test at all   [x]
+
+fixed_in: 21d315b
 
 domain: theocode
 repo: TheoCode
@@ -101,7 +107,9 @@ dod:
   - `liveSessionPaths` receives the three categories the SDK documents, not just the pointer
   - tests cover: `FLOOR_DAYS` refusal, pointer protection, `keepLast`, the lock/transcript sibling rule and the apply-phase backstop
 
-## B-004 — Ask-bridge: promise abandoned without settling, typed error escaping   [ ]
+## B-004 — Ask-bridge: promise abandoned without settling, typed error escaping   [x]
+
+fixed_in: 99a2df2
 
 domain: theocode
 repo: TheoCode
@@ -117,7 +125,9 @@ dod:
   - `ConcurrentQuestionError` is exported from the entrypoint so `instanceof` is possible
   - `assinar()` either supports multiple subscribers or is renamed to what it is (single slot)
 
-## B-005 — Consent store held to a weaker permission standard than the credential store   [ ]
+## B-005 — Consent store held to a weaker permission standard than the credential store   [x]
+
+fixed_in: 0631f50
 
 domain: theocode
 repo: TheoCode
@@ -132,7 +142,9 @@ dod:
   - a group/other-writable store is refused, not silently accepted
   - hook approvals and directory trust use the same canonical key (today one uses a raw string, the other a resolved path)
 
-## B-006 — The two surfaces disagree on when it is safe to stop asking   [ ]
+## B-006 — The two surfaces disagree on when it is safe to stop asking   [x]
+
+fixed_in: dfd4e8f
 
 domain: theocode
 repo: TheoCode
@@ -148,7 +160,9 @@ dod:
   - `resolveTrustPosture` reads the injected env, not ambient `process.env`
   - a missing `ToolScope.sandbox` fails loudly instead of silently omitting the sandbox
 
-## B-007 — Credential failure degraded to an empty string   [ ]
+## B-007 — Credential failure degraded to an empty string   [x]
+
+fixed_in: 47eced3
 
 domain: theocode
 repo: TheoCode
@@ -163,7 +177,9 @@ dod:
   - `ensureAuthHome` does not mutate its argument
   - the route forcing the file store does not discard variables beyond the intended ones
 
-## B-008 — Two hook execution paths active with asymmetric gating   [ ]
+## B-008 — Two hook execution paths active with asymmetric gating   [x]
+
+fixed_in: 5ca3839
 
 domain: theocode
 repo: TheoCode
@@ -179,7 +195,7 @@ dod:
   - a throwing PostToolUse hook does not lose its `block` decision to a stderr note
 uncertainty: rests on the SDK's security docstring, not on an observed spawn. If the docstring is stale, this degrades to a documentation defect.
 
-## B-009 — `interactive_shell` forks the SDK schema instead of wrapping it   [ ]
+## B-009 — `interactive_shell` forks the SDK schema instead of wrapping it   [~]
 
 domain: theocode
 repo: TheoCode
@@ -189,12 +205,17 @@ evidence: `ask/interactive-shell-tool.ts:49-78` vs `sdk-tools/index.js:1014-1034
 why_now: the SDK's Zod schema and handler body were copied verbatim, with a single divergence (`:74`); the SDK factory is called only to harvest `.name`/`.description` and the object is discarded. Result: the description shown to the model comes from the SDK while the schema is a frozen copy — `cwd`/`ttl_ms`/`cols`/`rows` already exist in `StartInteractiveOptions` and will drift silently. The motivation is legitimate and recorded (see § Upstream U-2); the form is not.
 status: triaged
 severity: HIGH
+status_note: BLOCKED on an upstream release. The cause (U-2) is fixed in `@theokit/sdk-tools`, but
+  this package resolves the published 0.26.1, which still flattens the error. Removing the fork now
+  would silently lose `max`/`liveSessionIds` again. Unblocks on the dependency bump.
 dod:
   - the tool wraps the SDK's instead of forking schema and handler
   - the divergence that motivated the fork is isolated at a single point
-  - issue U-2 is open against theokit
+  - U-2 fixed upstream — DONE (`theokit-sdk`, changeset `interactive-cap-keeps-its-fields`)
 
-## B-010 — A packaging contract that was never executed   [ ]
+## B-010 — A packaging contract that was never executed   [x]
+
+fixed_in: 4c66742
 
 domain: theocode
 repo: TheoCode
@@ -228,7 +249,9 @@ dod:
   - `BUILTIN_COMMANDS` uses the exported `SlashCommand` type, not an anonymous shape
 uncertainty: the reviewer could not determine whether the approval ledger is load-bearing (it depends on how fast the SDK mutates `thread`). Start with the safe step: remove the duplicated type declaration before touching behaviour.
 
-## B-012 — Persistence: adopt the SDK primitives and clear casts and dead surface   [ ]
+## B-012 — Persistence: adopt the SDK primitives and clear casts and dead surface   [x]
+
+fixed_in: 30724a2
 
 domain: theocode
 repo: TheoCode
@@ -245,7 +268,9 @@ dod:
   - symbols with no call site are removed or gain the tests that justify them
   - `atomic-write-temp.ts` is wired or removed — today the safer logic is the one nobody runs
 
-## B-013 — Floating promises with no handler can bring down the TUI   [ ]
+## B-013 — Floating promises with no handler can bring down the TUI   [x]
+
+fixed_in: 0de64ef
 
 domain: theocode
 repo: TheoCode
@@ -260,7 +285,9 @@ dod:
   - a test simulates a failing write and proves the TUI survives
 uncertainty: the crash claim rests on Node's default for the declared engine; the TUI was not run under a failing-write condition.
 
-## B-014 — Sandbox mode change does not reach live PTYs   [ ]
+## B-014 — Sandbox mode change does not reach live PTYs   [x]
+
+fixed_in: 4f5e1ff
 
 domain: theocode
 repo: TheoCode
@@ -290,7 +317,9 @@ dod:
   - `withShellAndProjectEntities` is decomposed or renamed to what it does
   - `hooks.ts` imports move to the top of the file
 
-## B-016 — Dead surface and orphan test affordances   [ ]
+## B-016 — Dead surface and orphan test affordances   [x]
+
+fixed_in: 4f5e1ff
 
 domain: theocode
 repo: TheoCode
@@ -306,7 +335,9 @@ dod:
   - the SDK's error guidance is consumed, or the decision not to becomes an ADR
   - the local type stops colliding by name with the SDK export
 
-## B-017 — Repository hygiene   [ ]
+## B-017 — Repository hygiene   [x]
+
+fixed_in: 0de64ef
 
 domain: theocode
 repo: TheoCode
@@ -332,7 +363,7 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 | # | Gap | Evidence | Status |
 |---|---|---|---|
 | U-1 | No session garbage-collection or retention primitive. An exhaustive grep for `gc\|prune\|cleanup\|sweep\|purge\|retention` across both packages' public and internal `.d.ts` returns only in-memory pooling and `Task.retentionMs`. The barrel exports every ingredient and no collector; the never-delete rule `forkTranscript` internalises is re-derived by hand in the consumer | `agents/persistence.d.ts:1`, `transcript-ops.d.ts:12-19` (PS-012) | open |
-| U-2 | `toErrorJson` matches the superclass first and discards `max`/`liveSessionIds` from `MaxSessionsError` — the fields `sdk-pty`'s docblock says exist "by design". There is no `onError` seam | `sdk-tools/index.js:1006`, `sdk-pty/index.d.ts:33-37` (TIP-02) | open |
+| U-2 | `toErrorJson` matched the superclass first and discarded `max`/`liveSessionIds` from `MaxSessionsError` — the fields `sdk-pty`'s docblock says exist "by design" | `sdk-tools/index.js:1006`, `sdk-pty/index.d.ts:33-37` (TIP-02) | **fixed** — structural check ahead of the superclass branch (`theokit-sdk`, changeset `interactive-cap-keeps-its-fields`); awaiting release |
 | U-3 | `ToolsetError extends Error`, outside the `TheokitAgentError` hierarchy — the SDK argues against this itself elsewhere | `agents/index.d.ts:824`, `bridge-entry:2162` (TIP-15) | open |
 | U-4 | `assertSecureModes` is private — consumers cannot apply the same permission check to their own store | (SAC-01) | open |
 | U-5 | `@theokit/agents/auth` omitted the OAuth engine that `@theokit/sdk/auth` exports | (SAC-07) | **fixed** — `ensureFreshCredential`, `persistOAuthTokens`, `refreshOAuthTokens`, `extractAccountId` now cross over (`theokit` M112, changeset `tidy-doors-open-oauth-engine`). `resolveCredential` deliberately stays out and is now locked by a test: two functions share that name with divergent semantics |
