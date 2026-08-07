@@ -4,6 +4,11 @@ import { z } from 'zod'
 
 import { hookFingerprint } from './hook-trust.js'
 import { HOOK_EVENTS, type HookEvent, type HookSpec } from './hooks-spec.js'
+import type { HookHandlers } from '@theokit/agents'
+import { HookError } from './hook-error.js'
+import { ContinuationBudget } from './continuation-budget.js'
+import { note } from './note.js'
+import { runHookCommand, type HookRun } from './hook-runner.js'
 
 const EVENTS = HOOK_EVENTS
 
@@ -222,11 +227,6 @@ class Lote {
   }
 }
 
-import type { HookHandlers } from '@theokit/agents'
-import { HookError } from './hook-error.js'
-import { ContinuationBudget } from './continuation-budget.js'
-import { note } from './note.js'
-import { runHookCommand, type HookRun } from './hook-runner.js'
 export { runHookCommand, type HookRun } from './hook-runner.js'
 
 export { HookError } from './hook-error.js'
@@ -234,10 +234,7 @@ export { ContinuationBudget, MAX_HOOK_CONTINUATIONS } from './continuation-budge
 
 export type { HookHandlers }
 
-function chainBudgetBlock(
-  name: string,
-  spec: HookSpec,
-): { block: true; message: string } {
+function chainBudgetBlock(name: string, spec: HookSpec): { block: true; message: string } {
   const tool = name.length > 0 ? `'${name}'` : 'this tool'
   note(
     `BLOCKED ${name}: hook chain budget (${String(MAX_HOOK_CHAIN_MS)}ms) exhausted at ${spec.command}`,

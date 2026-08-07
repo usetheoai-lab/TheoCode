@@ -232,7 +232,7 @@ dod:
   - subpath exports with no consumer are removed or consumed
   - the README's enforceability claim is corrected or made true (an import rule in dependency-cruiser, already installed)
 
-## B-011 — The TUI reimplements components `@theokit/tui` already ships   [ ]
+## B-011 — The TUI reimplements components `@theokit/tui` already ships   [~]
 
 domain: theocode
 repo: TheoCode
@@ -247,6 +247,11 @@ dod:
   - the approval shape has a single declaration, aligned with the SDK's
   - `Banner` adopts `WelcomeBanner` for what it covers; the remainder is gap U-7, reported upstream
   - `BUILTIN_COMMANDS` uses the exported `SlashCommand` type, not an anonymous shape
+status_note: PARTIAL. Closed: `/diff` renders through `DiffViewer` (F-tui-3, F-tui-4), the
+  slash-command list uses the SDK's `ChatComposerCommand` (F-tui-5), and the third copy of the
+  approval shape is gone (F-tui-9) — commits 91a2db8, 0107f8a. Open: the Banner (F-tui-2) waits on
+  upstream gap U-7, since no SDK component composes ASCII art with a right-hand aside; the approval
+  ledger (F-tui-8) and the selection windowing (F-tui-7) wait on the timing question below.
 uncertainty: the reviewer could not determine whether the approval ledger is load-bearing (it depends on how fast the SDK mutates `thread`). Start with the safe step: remove the duplicated type declaration before touching behaviour.
 
 ## B-012 — Persistence: adopt the SDK primitives and clear casts and dead surface   [x]
@@ -301,7 +306,9 @@ dod:
   - changing the mode terminates or re-wraps live PTYs, or the limitation is documented and surfaced to the user at switch time
   - a test covers the danger→read-only transition with a live session
 
-## B-015 — Structural debt in `chat.ts` and in surface composition   [ ]
+## B-015 — Structural debt in `chat.ts` and in surface composition   [x]
+
+fixed_in: 2c2d094
 
 domain: theocode
 repo: TheoCode
