@@ -1,6 +1,6 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react'
 
-import { PermissionPrompt } from '@theokit/tui'
+import { PermissionPrompt, type PendingApproval } from '@theokit/tui'
 
 import { formatApproval } from '../formatting/index.js'
 import type { ApprovalMode } from '../consent/index.js'
@@ -42,11 +42,9 @@ export interface InputSlotProps {
 }
 
 type SlotConsent = ReturnType<typeof import('../consent/index.js').useConsent>
-interface PendingApproval {
-  approvalId: string
-  toolName: string
-  input?: unknown
-}
+// B-011 — the SDK exports this exact shape as `PendingApproval`, and it is the shape
+// `findPendingApproval` returns. This file declared a byte-identical copy, making three independent
+// declarations of one fact; a field added upstream would reach none of them.
 
 function ApprovalCard({
   approval,
