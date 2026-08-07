@@ -20,7 +20,11 @@ export interface Approvals {
   readonly settleApproval: (approvalId: string, approved: boolean) => void
 }
 
-export function useApprovals(agent: AgentWithApproval, approvalMode: ApprovalMode): Approvals {
+export function useApprovals(
+  agent: AgentWithApproval,
+  approvalMode: ApprovalMode,
+  sandboxPosture?: { enforced: boolean; detail: string },
+): Approvals {
   const registry = useRef<ApprovalLedger>(createApprovalLedger())
   const [epoch, setEpoch] = useState(0)
 
@@ -41,10 +45,12 @@ export function useApprovals(agent: AgentWithApproval, approvalMode: ApprovalMod
   )
 
   useEffect(() => {
-    if (pendingApproval && shouldAutoApprove(approvalMode, pendingApproval.toolName)) {
+    // B-006 — auto-approval now depends on there actually being a sandbox. Without this the surface
+    // approved every command under `full-auto` while rendering `⚠ tool-gating` on the same screen.
+    if (pendingApproval && shouldAutoApprove(approvalMode, pendingApproval.toolName, sandboxPosture)) {
       settleApproval(pendingApproval.approvalId, true)
     }
-  }, [pendingApproval, approvalMode, settleApproval])
+  }, [pendingApproval, approvalMode, settleApproval, sandboxPosture])
 
   return { pendingApproval, settleApproval }
 }

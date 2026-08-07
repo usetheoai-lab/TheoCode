@@ -47,8 +47,17 @@ export class EffectiveConfig {
     return modelLabel(this.model)
   }
 
+  /**
+   * B-006 — the posture behind `sandboxLabel`. It was computed only to render the `⚠ tool-gating`
+   * warning, so the interactive surface could tell the user confinement was absent and still
+   * auto-approve every command. Exposing it lets the consent layer act on the same fact.
+   */
+  get sandboxPosture(): ReturnType<typeof resolveSandboxPosture> {
+    return resolveSandboxPosture({ mode: this.sandbox_mode })
+  }
+
   get sandboxLabel(): string {
-    const p = resolveSandboxPosture({ mode: this.sandbox_mode })
+    const p = this.sandboxPosture
     return p.enforced ? `sandbox:${p.mode}` : `sandbox:${p.mode} ⚠ tool-gating`
   }
 
