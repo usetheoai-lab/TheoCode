@@ -2,11 +2,15 @@
 interface PendingQuestion {
   question: string
   resolve: (answer: string) => void
+  // B-004 — captured so a question can be WITHDRAWN as well as answered. Without it, `abandonar()`
+  // had no way to settle the promise it was discarding, and the turn stayed blocked until timeout.
+  reject: (reason: Error) => void
 }
 
 const THREAD_PADRAO = '__default__'
 
 import { ConcurrentQuestionError } from './concurrent-question-error.js'
+import { QuestionAbandonedError } from './question-abandoned-error.js'
 export { ConcurrentQuestionError } from './concurrent-question-error.js'
 
 export class AskBridge {
@@ -23,14 +27,19 @@ export class AskBridge {
     if (this.pending.has(threadId)) {
       return Promise.reject(new ConcurrentQuestionError(threadId))
     }
-    return new Promise<string>((resolve) => {
-      this.pending.set(threadId, { question, resolve })
+    return new Promise<string>((resolve, reject) => {
+      this.pending.set(threadId, { question, resolve, reject })
       this.notificar?.()
     })
   }
 
   abandonar(threadId = THREAD_PADRAO): void {
+    const p = this.pending.get(threadId)
     this.pending.delete(threadId)
+    // B-004 — settle before notifying. Dropping the entry without rejecting left the caller's
+    // promise pending forever: the surface released the slot and the turn stayed blocked until the
+    // built-in's 5-minute timeout, which reads to the user as the UI and the model disagreeing.
+    p?.reject(new QuestionAbandonedError(threadId))
     this.notificar?.()
   }
 

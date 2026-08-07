@@ -7,8 +7,8 @@ export class ConcurrentQuestionError extends TheokitAgentError {
 
   constructor(readonly threadId: string) {
     super(
-      `Uma question já aguarda resposta nesta sessão (${threadId}). ` +
-        'Refaça esta question depois que a anterior for respondida.',
+      `A question is already awaiting an answer in this session (${threadId}). ` +
+        'Ask again once the previous one has been answered.',
       { isRetryable: false },
     )
   }
