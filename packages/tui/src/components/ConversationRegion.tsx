@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 
 import { Box, Text } from 'ink'
 
-import { AgentStreaming, AgentTimeline, Notice, Toast } from '@theokit/tui'
+import { AgentStreaming, AgentTimeline, DiffViewer, Notice, Toast } from '@theokit/tui'
 import { UsagePanel } from './UsagePanel.js'
 import { BacktrackOverlay } from '../backtrack/index.js'
 import { KeyboardHelp, DEFAULT_COMPOSER_SHORTCUTS } from '@theokit/tui'
@@ -84,6 +84,25 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
   )
 }
 
+/**
+ * B-011 — the `/diff` and `/status` panel.
+ *
+ * `DiffViewer` takes unified-diff text, which is exactly what `git diff` emits and what its own
+ * docstring names as the shape agent tools produce. The panel used to print that text as one plain
+ * blob: no gutter, no colour, no folding, and cut off by the terminal because nothing scrolled.
+ */
+function ContentPanelView({ panel }: { panel: ContentPanel }): ReactElement {
+  return (
+    <Box borderStyle="round" flexDirection="column" paddingX={1}>
+      <Text bold>{panel.titulo} (Esc to close)</Text>
+      {panel.corpo.length > 0 ? <Text>{panel.corpo}</Text> : null}
+      {panel.patch !== undefined ? (
+        <DiffViewer patch={panel.patch} maxLines={400} contextLines={3} />
+      ) : null}
+    </Box>
+  )
+}
+
 export function ConversationRegion(props: ConversationRegionProps): ReactElement {
   return (
     <>
@@ -111,12 +130,7 @@ export function ConversationRegion(props: ConversationRegionProps): ReactElement
         <Notice variant="error">{formatTurnError(props.agentError)}</Notice>
       ) : null}
       {/* `/usage` — the observability panel, from the last turn's real usage. */}
-      {props.panel !== undefined ? (
-        <Box borderStyle="round" flexDirection="column" paddingX={1}>
-          <Text bold>{props.panel.titulo} (Esc fecha)</Text>
-          <Text>{props.panel.corpo}</Text>
-        </Box>
-      ) : null}
+      {props.panel !== undefined ? <ContentPanelView panel={props.panel} /> : null}
       {props.showUsage && props.lastUsage ? (
         <UsagePanel usage={props.lastUsage} contextWindow={props.contextWindow} />
       ) : null}
