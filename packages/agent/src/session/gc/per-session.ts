@@ -43,7 +43,9 @@ export interface PlanSessionGCOptions {
   readdir?: (dir: string) => { id: string; mtimeMs: number }[]
 }
 
-function realReaddir(dir: string): { id: string; mtimeMs: number }[] {
+/** Transcripts in a project directory, newest first is the caller's job to sort. Sync by design:
+ *  the fork guard runs on a synchronous write path. */
+export function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
     .filter((f) => f.endsWith('.jsonl'))
@@ -77,7 +79,7 @@ function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
     keepLast: opts.keepLast ?? 10,
     maxAgeDays: opts.maxAgeDays ?? 30,
     listFn: opts.list ?? defaultList,
-    readdir: opts.readdir ?? realReaddir,
+    readdir: opts.readdir ?? readTranscriptDir,
     readPointer: opts.readPointer ?? realReadPointer,
   }
 }
@@ -139,7 +141,7 @@ export interface SessionGCResult {
 function resolverApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   const baseDir = opts.baseDir ?? defaultBaseDir()
-  const maisRecenteAgora = (opts.readdir ?? realReaddir)(transcriptDir(cwd, baseDir)).sort(
+  const maisRecenteAgora = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
   const intocaveis = new Set(
