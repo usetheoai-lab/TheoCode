@@ -1,0 +1,30 @@
+{
+  "name": "@theocode/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The agent and everything that composes it.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./chat": "./src/chat.ts",
+    "./chat-acp": "./src/chat-acp.ts",
+    "./ask": "./src/ask/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./config": "./src/config/index.ts",
+    "./context": "./src/context/index.ts",
+    "./delegation": "./src/delegation/index.ts",
+    "./goal": "./src/goal/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./pty": "./src/pty/index.ts",
+    "./review": "./src/review/index.ts",
+    "./session": "./src/session/index.ts",
+    "./tools": "./src/tools/index.ts"
+  },
+  "dependencies": {
+    "@theocode/shared": "*",
+    "@theokit/agents": "^7.3.1",
+    "js-yaml": "^4.3.1",
+    "smol-toml": "^1.7.0",
+    "zod": "^4.0.0"
+  }
+}

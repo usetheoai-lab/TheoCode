@@ -1,0 +1,15 @@
+{
+  "name": "@theocode/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Code both surfaces need. Neither owns it.",
+  "exports": {
+    "./agent": "./src/agent.ts",
+    "./diagnostic-sink": "./src/diagnostic-sink.ts",
+    "./shutdown": "./src/shutdown.ts"
+  },
+  "dependencies": {
+    "@theokit/agents": "^7.3.1"
+  }
+}

@@ -1,0 +1,108 @@
+node_modules/
+.pnp
+.pnp.*
+dist/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tsbuildinfo
+coverage/
+data/
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*.pem
+
+# Secrets — never commit (.env.example IS committed as a template)
+.env
+.env.local
+.env.*.local
+
+# theokit runtime state (memory sessions, agent registry) — local, not source
+.theokit/*
+# M24 — project skills are source (committed); the rest of .theokit/ is runtime state
+!.theokit/skills/
+!.theokit/agents/
+.theokit/agents/registry.json*
+
+# Claude Code cycle kit — versioned (skills/rules/hooks/commands/scripts + settings).
+# Only caches and large/generated artifacts underneath are ignored.
+.claude/**/__pycache__/
+.claude/**/*.pyc
+.claude/knowledge-base/references/**
+.claude/knowledge-base/tools/**
+.claude/knowledge-base/discoveries/snapshots/**
+.claude/agents/**
+bench/reports/run.log
+
+# MCP servers config (user/local, like Codex config) — copy .mcp.json.example to enable
+.mcp.json
+# M110 (review) — o padrao dos backups tambem. `.mcp.json` estava coberto e `.mcp.json.bak-*` nao,
+# entao um `git add -A` varreu dois deles para dentro do repo. Nao havia credencial (verificado:
+# zero hits de authorization/bearer/token/secret/key/password), mas o nome `.bak-bearer` mostra que
+# a intencao era snapshotar a variante com header de autorizacao — a proxima copia poderia ter.
+.mcp.json.bak*
+
+# Compaction snapshots (audit trail, local)
+.claude/.compaction-snapshots/
+
+# harness-comparison live fixtures (local)
+.heval/
+
+# M20 — per-user/project runtime config (like .theokit/, not committed)
+.agent-builder/
+!.agent-builder/
+!.agent-builder/config.example.toml
+.agent-builder/config.toml
+
+# Scratch probes from review agents — working files, never deliverables.
+# M98 (auditoria ADV-7) — o padrão era `.probe/` LITERAL, e a sessão de review do M98 criou
+# `.m98probe/`, que ele não cobria: a árvore ficou suja e `cycle-review.md § Pre-conditions`
+# ("no uncommitted changes") e `cycle-code-quality.md § Anti-patterns` (não auditar árvore suja)
+# passaram a ser violados por um arquivo que a regra já pretendia excluir.
+.*probe/
+.*fix/
+cross-validation-output/
+
+# M58 error-handling-gate test temp dirs (created/removed per test)
+.eh-gate-*/
+.m67-fixtures-*/
+.m104-fixture-*/
+.m104-sentinela-*/
+# Checkpoint de runtime do halt-loop — `cycle-implement.md:128` o declara gitignored.
+.claude/knowledge-base/**/.progress-*.json
+# State file do plugin loop-system-design — rascunho de sessão, nunca versionado.
+.claude/system-design-loop.local.md
+# Fixture do gate da Fase 7 — o terceiro dos três prefixos; vaza quando o worker morre.
+.m104-f7-*/
+
+# loop-system-design plugin output (relatório durável vive em knowledge-base/audits/)
+system-design-output/
+.m71-audit/
+.pr-body.md
+
+# Artefatos das ferramentas de qualidade e do ciclo de review (M1, #322).
+# `.review-runs/` são os findings JSON por pilar de UMA execução do `/review`; o que dura é o
+# relatório consolidado em `.claude/knowledge-base/reviews/`. `.pytest_cache/` e `.ruff_cache/`
+# são cache de ferramenta e nascem sempre que o gate roda.
+.review-runs/
+.pytest_cache/
+.ruff_cache/
+
+# Drivers por-invocação do halt-loop (`/implement`, `/plan-improve`). São gerados a partir de
+# `.claude/skills/*/prompts/*.md` com os placeholders substituídos, e reconstruídos a cada
+# invocação — versionar produziria diff de arquivo derivado a cada corrida.
+halt-loop-prompts/
+
+# artefato do instalador do kit — cópias datadas a cada propagação
+.claude/.patch-backups/
+
+# Skills PAREADAS geradas por `/review` (uma por revisor, por invocação). São andaime do
+# gate, não conhecimento do projeto: `spawn_reviewers.py` as recria a cada run, e versioná-las
+# encheria `skills/` de diretórios `review-{slug}-{papel}-knowledge/` mortos. O audit trail que
+# IMPORTA — as definições dos agentes e os achados — vive em `.claude/agents/review-*/`, e esse sim
+# é versionado.
+.claude/skills/review-*-knowledge/

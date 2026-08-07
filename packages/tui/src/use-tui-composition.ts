@@ -1,0 +1,403 @@
+
+import {
+  credential,
+  credentialError,
+  credentialSource,
+  makeInterruptTurn,
+  getTuiRoot,
+} from './agent-session/index.js'
+import { useComposerCommands } from './commands/index.js'
+import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
+import { useGoalRun } from './persistence/index.js'
+import { useTimeline, useScreenState } from './rendering/index.js'
+import { useTuiKeyboard } from './terminal-io/index.js'
+import { useApp, useStdout } from 'ink'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
+import { useTurnElapsed } from '@theokit/tui'
+import { useAgent } from '@theokit/agents/client/react'
+
+import { homedir } from 'node:os'
+
+import { currentQuestion, subscribe } from '@theocode/agent/ask'
+import { credentialHome } from '@theocode/agent/auth'
+
+import { useBacktrack } from './backtrack/index.js'
+import type { ReasoningEffort } from '@theocode/agent/config'
+
+process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
+
+function depsDoComposer(
+  s: ReturnType<typeof useTuiSession>,
+  screen: ReturnType<typeof useScreenState>,
+  extra: {
+    backtrack: ReturnType<typeof useBacktrack>
+    goalAbort: { current: AbortController | null }
+    lastSentMessage: { current: string | null }
+    approvalMode: ApprovalMode
+    goalRun: ReturnType<typeof useGoalRun>['goalRun']
+    goalActive: boolean
+    setGoalRun: ReturnType<typeof useGoalRun>['setGoalRun']
+    credential: Parameters<typeof useComposerCommands>[0]['credential']
+    setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
+  },
+) {
+  const {
+    backtrack,
+    goalAbort,
+    lastSentMessage,
+    approvalMode,
+    goalRun,
+    goalActive,
+    setGoalRun,
+    setApprovalMode,
+    credential,
+  } = extra
+  return {
+    agent: s.agent,
+    agentRef: s.agentRef,
+    SESSION: s.SESSION,
+    ptyOwner: s.ptyOwner,
+    customCommands: s.customCommands,
+    customCommandNames: s.customCommandNames,
+    backtrack,
+    goalAbort,
+    lastSentMessage,
+    stdout: s.stdout,
+    approvalMode,
+    goalRun,
+    goalActive,
+    currentSessionId: s.currentSessionId,
+    forkCurrentSession: s.forkCurrentSession,
+    resetSession: s.resetSession,
+    credential,
+    exit: s.exit,
+    ...screen,
+    setEffort: s.setEffort,
+    setApprovalMode,
+    setGoalRun,
+  }
+}
+
+function useConversationState(s: ReturnType<typeof useTuiSession>) {
+  const { currentSessionId, SESSION } = s
+  const consent = useConsent()
+  const trusted = consent.trusted
+  const pendingHooks = consent.pendingHooks
+
+  const [pendingQuestion, setPendingQuestion] = useState<string | undefined>(undefined)
+  useEffect(
+    () => subscribe(() => setPendingQuestion(currentQuestion(currentSessionId()))),
+    [currentSessionId],
+  )
+  const { goalRun, setGoalRun, goalActive, goalBadge } = useGoalRun(s.GOAL_POINTER)
+  const goalAbort = useRef<AbortController | null>(null)
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>(() => SESSION.cfg().approvalMode)
+  const lastSentMessage = useRef<string | null>(null)
+  return {
+    consent,
+    trusted,
+    pendingHooks,
+    pendingQuestion,
+    setPendingQuestion,
+    goalRun,
+    setGoalRun,
+    goalActive,
+    goalBadge,
+    goalAbort,
+    approvalMode,
+    setApprovalMode,
+    lastSentMessage,
+  }
+}
+
+function useTuiSession() {
+  const ROOT = getTuiRoot()
+  const SESSION = ROOT.session
+  const GOAL_POINTER = ROOT.goalPointer
+  const customCommands = ROOT.customCommands
+  const customCommandNames = ROOT.customCommandNames
+  const ptyOwner = ROOT.ptyOwner
+  const resetSession = ROOT.resetSession
+  const forkCurrentSession = ROOT.sessionFork
+  const setSessionAndPersist = ROOT.pointToSession
+  const currentSessionId = useCallback((): string => SESSION.session(), [SESSION])
+  const agent = useAgent<{ message: string }>(ROOT.transport)
+  const agentRef = useRef(agent)
+  agentRef.current = agent
+  const streaming = agent.status === 'streaming'
+  const elapsed = useTurnElapsed(streaming)
+  const { exit } = useApp()
+  const { stdout } = useStdout()
+  const [effort, setEffort] = useState<ReasoningEffort>(SESSION.effort())
+  return {
+    ROOT,
+    SESSION,
+    GOAL_POINTER,
+    customCommands,
+    customCommandNames,
+    ptyOwner,
+    resetSession,
+    forkCurrentSession,
+    setSessionAndPersist,
+    currentSessionId,
+    agent,
+    agentRef,
+    streaming,
+    elapsed,
+    exit,
+    stdout,
+    effort,
+    setEffort,
+  }
+}
+
+function turnInterrupt(d: {
+  agent: { abort: () => void }
+  streaming: boolean
+  pendingApproval: unknown
+  forkCurrentSession: ReturnType<typeof getTuiRoot>['sessionFork']
+  screen: { setToast: ReturnType<typeof useScreenState>['setToast'] }
+}) {
+  const { agent, streaming, pendingApproval, forkCurrentSession, screen } = d
+  const interruptTurn = makeInterruptTurn({
+    abort: () => {
+      agent.abort()
+    },
+    forkSession: forkCurrentSession,
+    hasActiveTurn: () => streaming,
+    hasPendingApproval: () => pendingApproval !== undefined && pendingApproval !== null,
+    onForkFailure: (e) => {
+      screen.setToast({
+        message: `Interrupt: fork failed — ${(e as Error).message}`,
+        variant: 'error',
+      })
+    },
+  })
+
+  return interruptTurn
+}
+
+function useInterrupcaoEBacktrack(d: {
+  screen: ReturnType<typeof useScreenState>
+  agent: Parameters<typeof useBacktrack>[0]['agent'] & { abort: () => void }
+  stdout: Parameters<typeof useBacktrack>[0]['stdout']
+  streaming: boolean
+  pendingApproval: unknown
+  pendingQuestion: string | undefined
+  trusted: boolean
+  goalActive: boolean
+  goalAbort: { current: AbortController | null }
+  currentSessionId: () => string
+  forkCurrentSession: ReturnType<typeof getTuiRoot>['sessionFork']
+  setSessionAndPersist: ReturnType<typeof getTuiRoot>['pointToSession']
+  setPendingQuestion: Dispatch<SetStateAction<string | undefined>>
+  exit: () => void
+}) {
+  const {
+    screen,
+    agent,
+    stdout,
+    streaming,
+    pendingApproval,
+    pendingQuestion,
+    trusted,
+    goalActive,
+    goalAbort,
+    currentSessionId,
+    setSessionAndPersist,
+    setPendingQuestion,
+    exit,
+  } = d
+  const interruptTurn = turnInterrupt(d)
+  const backtrack = useBacktrack({
+    agent,
+    stdout,
+    setToast: screen.setToast,
+    setClearEpoch: screen.setClearEpoch,
+    currentSessionId,
+    setSessionAndPersist,
+  })
+
+  useTuiKeyboard({
+    screen,
+    agent,
+    backtrack,
+    goalAbort,
+    pendingQuestion,
+    pendingApproval,
+    trusted,
+    streaming,
+    goalActive,
+    currentSessionId,
+    setPendingQuestion,
+    interruptTurn,
+    exit,
+  })
+
+  return backtrack
+}
+
+export function useTuiComposition() {
+  const s = useTuiSession()
+  const { agent, currentSessionId, stdout, streaming } = s
+  const screen = useScreenState()
+  const conv = useConversationState(s)
+  const { setMode } = screen
+  const backToChat = useCallback(() => setMode('chat'), [setMode])
+
+  const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
+  const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode)
+
+  const backtrack = useInterrupcaoEBacktrack({
+    screen,
+    agent,
+    stdout,
+    streaming,
+    pendingApproval,
+    pendingQuestion: conv.pendingQuestion,
+    trusted: conv.trusted,
+    goalActive: conv.goalActive,
+    goalAbort: conv.goalAbort,
+    currentSessionId,
+    forkCurrentSession: s.forkCurrentSession,
+    setSessionAndPersist: s.setSessionAndPersist,
+    setPendingQuestion: conv.setPendingQuestion,
+    exit: s.exit,
+  })
+
+  const { handleSubmit } = useComposerCommands(
+    depsDoComposer(s, screen, {
+      backtrack,
+      goalAbort: conv.goalAbort,
+      lastSentMessage: conv.lastSentMessage,
+      approvalMode: conv.approvalMode,
+      goalRun: conv.goalRun,
+      goalActive: conv.goalActive,
+      setGoalRun: conv.setGoalRun,
+      setApprovalMode: conv.setApprovalMode,
+      credential,
+    }),
+  )
+
+  const c = {
+    ...s,
+    ...conv,
+    screen,
+    backToChat,
+    pendingApproval,
+    settleApproval,
+    events,
+    lastUsage,
+    backtrack,
+    handleSubmit,
+    credentialError,
+    credentialSource,
+  }
+  return {
+    conversationProps: conversationProps(c),
+    propsDoSlot: propsDoSlot(c),
+    footerProps: footerProps(c),
+  }
+}
+
+type Composition = Parameters<typeof conversationProps>[0]
+
+function conversationProps(c: {
+  screen: ReturnType<typeof useScreenState>
+  events: ReturnType<typeof useTimeline>['events']
+  streaming: boolean
+  elapsed: number
+  lastUsage: ReturnType<typeof useTimeline>['lastUsage']
+  agent: { error?: Error }
+  credentialError: () => string | undefined
+  SESSION: { cfg: () => { contextWindow: { window: number } } }
+  backtrack: ReturnType<typeof useBacktrack>
+  customCommands: ReturnType<typeof getTuiRoot>['customCommands']
+}) {
+  return {
+    clearEpoch: c.screen.clearEpoch,
+    events: c.events,
+    streaming: c.streaming,
+    elapsed: c.elapsed,
+    lastUsage: c.lastUsage,
+    agentError: c.agent.error,
+    credentialError: c.credentialError,
+    panel: c.screen.panel,
+    showUsage: c.screen.showUsage,
+    reviewResult: c.screen.reviewResult,
+    goalFeed: c.screen.goalFeed,
+    toast: c.screen.toast,
+    contextWindow: c.SESSION.cfg().contextWindow.window,
+    backtrack: c.backtrack,
+    showHelp: c.screen.showHelp,
+    customCommands: c.customCommands,
+    setToast: c.screen.setToast,
+  }
+}
+
+function propsDoSlot(c: Composition & SlotExtras) {
+  return {
+    trusted: c.trusted,
+    consent: c.consent,
+    pendingHooks: c.pendingHooks,
+    pendingApproval: c.pendingApproval,
+    pendingQuestion: c.pendingQuestion,
+    loginProvider: c.screen.loginProvider,
+    mode: c.screen.mode,
+    elapsed: c.elapsed,
+    exitArmed: c.screen.exitArmed,
+    clearEpoch: c.screen.clearEpoch,
+    lastUsage: c.lastUsage,
+    backtrack: c.backtrack,
+    SESSION: c.SESSION,
+    currentSessionId: c.currentSessionId,
+    handleSubmit: c.handleSubmit,
+    settleApproval: c.settleApproval,
+    backToChat: c.backToChat,
+    exit: c.exit,
+    setToast: c.screen.setToast,
+    setComposerText: c.screen.setComposerText,
+    setPendingQuestion: c.setPendingQuestion,
+    setLoginProvider: c.screen.setLoginProvider,
+    setApprovalMode: c.setApprovalMode,
+    setEffort: c.setEffort,
+    setShowHelp: c.screen.setShowHelp,
+  }
+}
+
+function footerProps(c: Composition & FooterExtras) {
+  return {
+    SESSION: c.SESSION,
+    effort: c.effort,
+    approvalMode: c.approvalMode,
+    goalBadge: c.goalBadge,
+    credentialSource: c.credentialSource,
+    lastUsage: c.lastUsage,
+  }
+}
+
+interface SlotExtras {
+  trusted: boolean
+  consent: ReturnType<typeof useConsent>
+  pendingHooks: ReturnType<typeof useConsent>['pendingHooks']
+  pendingApproval: ReturnType<typeof useApprovals>['pendingApproval']
+  pendingQuestion: string | undefined
+  currentSessionId: () => string
+  handleSubmit: (text: string) => void
+  settleApproval: ReturnType<typeof useApprovals>['settleApproval']
+  backToChat: () => void
+  exit: () => void
+  setPendingQuestion: Dispatch<SetStateAction<string | undefined>>
+  setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
+  setEffort: Dispatch<SetStateAction<ReasoningEffort>>
+  SESSION: ReturnType<typeof getTuiRoot>['session']
+}
+
+interface FooterExtras {
+  effort: ReasoningEffort
+  approvalMode: ApprovalMode
+  goalBadge: string
+  credentialSource: () => string
+  SESSION: ReturnType<typeof getTuiRoot>['session']
+}

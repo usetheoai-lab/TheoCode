@@ -1,0 +1,67 @@
+import { useState, type Dispatch, type SetStateAction } from 'react'
+
+import type { Mode, ContentPanel, ToastPayload } from '../screen-types.js'
+export type { ContentPanel }
+
+export interface ScreenState {
+  readonly clearEpoch: number
+  readonly setClearEpoch: Dispatch<SetStateAction<number>>
+  readonly composerText: string
+  readonly setComposerText: Dispatch<SetStateAction<string>>
+  readonly showHelp: boolean
+  readonly setShowHelp: Dispatch<SetStateAction<boolean>>
+  readonly showUsage: boolean
+  readonly setShowUsage: Dispatch<SetStateAction<boolean>>
+  readonly panel: ContentPanel | undefined
+  readonly setPanel: Dispatch<SetStateAction<ContentPanel | undefined>>
+  readonly exitArmed: boolean
+  readonly setExitArmed: Dispatch<SetStateAction<boolean>>
+  readonly mode: Mode
+  readonly setMode: Dispatch<SetStateAction<Mode>>
+  readonly toast: ToastPayload | null
+  readonly setToast: Dispatch<SetStateAction<ToastPayload | null>>
+  readonly reviewResult: string | null
+  readonly setReviewResult: Dispatch<SetStateAction<string | null>>
+  readonly goalFeed: string | null
+  readonly setGoalFeed: Dispatch<SetStateAction<string | null>>
+  readonly loginProvider: string | undefined
+  readonly setLoginProvider: Dispatch<SetStateAction<string | undefined>>
+}
+
+export function useScreenState(): ScreenState {
+  const [clearEpoch, setClearEpoch] = useState(0)
+  const [composerText, setComposerText] = useState('')
+  const [showHelp, setShowHelp] = useState(false)
+  const [showUsage, setShowUsage] = useState(false)
+  const [panel, setPanel] = useState<ContentPanel | undefined>(undefined)
+  const [exitArmed, setExitArmed] = useState(false)
+  const [mode, setMode] = useState<Mode>('chat')
+  const [toast, setToast] = useState<ToastPayload | null>(null)
+  const [reviewResult, setReviewResult] = useState<string | null>(null)
+  const [goalFeed, setGoalFeed] = useState<string | null>(null)
+  const [loginProvider, setLoginProvider] = useState<string | undefined>(undefined)
+  return {
+    clearEpoch,
+    setClearEpoch,
+    composerText,
+    setComposerText,
+    showHelp,
+    setShowHelp,
+    showUsage,
+    setShowUsage,
+    panel,
+    setPanel,
+    exitArmed,
+    setExitArmed,
+    mode,
+    setMode,
+    toast,
+    setToast,
+    reviewResult,
+    setReviewResult,
+    goalFeed,
+    setGoalFeed,
+    loginProvider,
+    setLoginProvider,
+  }
+}

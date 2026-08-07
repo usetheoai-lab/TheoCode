@@ -1,0 +1,147 @@
+
+export interface EnvKnob {
+  readonly name: string
+  readonly reader: string
+  readonly default: string
+  readonly effect: string
+}
+
+const AB = 'AGENT_BUILDER_'
+
+export const ENV_MODEL = `${AB}MODEL`
+export const ENV_REASONING_EFFORT = `${AB}REASONING_EFFORT`
+export const ENV_SANDBOX_MODE = `${AB}SANDBOX_MODE`
+export const ENV_APPROVAL_POLICY = `${AB}APPROVAL_POLICY`
+export const ENV_GOAL_ORACLE = `${AB}GOAL_ORACLE`
+export const ENV_CONTEXT_WINDOW = `${AB}CONTEXT_WINDOW`
+const ENV_PROVIDER = `${AB}PROVIDER`
+export const ENV_HOME = `${AB}HOME`
+const ENV_THEOKIT_HOME = 'THEOKIT_HOME'
+const ENV_THEOKIT_AUTH_HOME = 'THEOKIT_AUTH_HOME'
+export const ENV_TRUST_ALL_DIRS = `${AB}TRUST_ALL_DIRS`
+export const ENV_TRUST_ALL_DIRS_LEGACY = 'THEOKIT_TRUST_ALL_DIRS'
+const ENV_OPENROUTER_API_KEY = 'OPENROUTER_API_KEY'
+const ENV_LIVE_MODEL = 'LIVE_MODEL'
+const ENV_SHELL = 'SHELL'
+
+const ENV_ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'
+const ENV_OPENAI_API_KEY = 'OPENAI_API_KEY'
+
+const CONFIG = 'agents/config/config.ts:resolveConfig'
+const CREDENTIALS = 'agents/auth/credentials.ts:resolveCredential'
+
+export const ENV_KNOBS: readonly EnvKnob[] = [
+  {
+    name: ENV_MODEL,
+    reader: CONFIG,
+    default: 'openai/gpt-5.4',
+    effect: 'Switches the model. Wins over every `config.toml` layer.',
+  },
+  {
+    name: ENV_REASONING_EFFORT,
+    reader: CONFIG,
+    default: 'medium',
+    effect: 'Reasoning level (`minimal` … `xhigh`). A value outside the set fails loud.',
+  },
+  {
+    name: ENV_SANDBOX_MODE,
+    reader: CONFIG,
+    default: 'workspace-write',
+    effect:
+      'Tool confinement: `read-only` registers no write tool; `danger-full-access` raises the write root to `/`.',
+  },
+  {
+    name: ENV_APPROVAL_POLICY,
+    reader: CONFIG,
+    default: 'on-request',
+    effect: 'When the human is consulted before a gated tool.',
+  },
+  {
+    name: ENV_GOAL_ORACLE,
+    reader: CONFIG,
+    default: 'judge',
+    effect:
+      'Who decides the objective is done: the LLM judge (+1 call per turn) or the `update_goal` tool the model calls itself.',
+  },
+  {
+    name: ENV_CONTEXT_WINDOW,
+    reader: CONFIG,
+    default: '—',
+    effect:
+      'The model context window, in tokens. A positive integer; absent ⇒ the window comes from the model catalogue, with the conservative floor when the catalogue does not know it.',
+  },
+  {
+    name: ENV_PROVIDER,
+    reader: CREDENTIALS,
+    default: '—',
+    effect:
+      'Declares the provider explicitly. FAIL-CLOSED: if its key is absent, resolution aborts instead of falling back to another account credential.',
+  },
+  {
+    name: ENV_HOME,
+    reader: 'agents/auth/oauth-config.ts:HOME_ENV',
+    default: '~/.agent-builder',
+    effect: 'Moves the credential store directory (`auth.json`).',
+  },
+  {
+    name: ENV_THEOKIT_HOME,
+    reader: 'agents/session/session-ops.ts:legacyRootHint',
+    default: '~/.theokit',
+    effect:
+      'Root of the runtime state, including session transcripts. Changing it moves `/sessions`, `/backtrack` and `sessions gc` along with it.',
+  },
+  {
+    name: ENV_THEOKIT_AUTH_HOME,
+    reader: 'agents/auth/credentials.ts:ensureAuthHome',
+    default: 'derived from `AGENT_BUILDER_HOME`',
+    effect:
+      'Points the SDK ambient credential store at this product one. Set at startup when absent; an explicit operator value wins.',
+  },
+  {
+    name: ENV_TRUST_ALL_DIRS,
+    reader: 'agents/config/trust-posture.ts:resolveTrustPosture',
+    default: '—',
+    effect:
+      'CI/headless escape: `=1` treats EVERY directory as trusted. It switches off the defence against a hostile repository — only in a context you already control. The resulting posture carries `source: "env"`.',
+  },
+  {
+    name: ENV_TRUST_ALL_DIRS_LEGACY,
+    reader: 'agents/config/trust-posture.ts:resolveTrustPosture',
+    default: '—',
+    effect:
+      'DEPRECATED (M97) — an alias of `AGENT_BUILDER_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Removal planned for M99.',
+  },
+  {
+    name: ENV_OPENROUTER_API_KEY,
+    reader: CREDENTIALS,
+    default: '—',
+    effect: 'Provider key. First in the precedence order (default gateway).',
+  },
+  {
+    name: ENV_ANTHROPIC_API_KEY,
+    reader: CREDENTIALS,
+    default: '—',
+    effect: 'Provider key. Second in the precedence order.',
+  },
+  {
+    name: ENV_OPENAI_API_KEY,
+    reader: CREDENTIALS,
+    default: '—',
+    effect: 'Provider key. Third in the precedence order.',
+  },
+  {
+    name: ENV_LIVE_MODEL,
+    reader: 'agents/delegation/m63-analyst.live.mts:model',
+    default: 'google/gemini-2.5-flash-lite',
+    effect: 'The model used by the live test harnesses. It does not affect the product runtime.',
+  },
+  {
+    name: ENV_SHELL,
+    reader: 'tui/commands/config-commands.ts:handleCustomCommand',
+    default: '/bin/sh',
+    effect: 'The shell used to expand a user custom command in the TUI.',
+  },
+  // M111 (desbloqueio da promoção): os quatro knobs do `theo-promptly` chegaram com a persona
+  // resolvida por serviço e nasceram fora do registry — o gate M104 os pegou, que é exatamente o que
+  // ele existe para fazer. Registrados aqui para que `docs/CONFIGURATION.md` volte a ser derivável.
+]

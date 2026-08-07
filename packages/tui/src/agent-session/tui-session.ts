@@ -1,0 +1,82 @@
+import { randomUUID } from 'node:crypto'
+
+import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/config'
+import type { AttachedImage } from '@theocode/agent/context'
+
+import { loadOrCreateSessionId } from '../persistence/index.js'
+
+export interface TuiSession {
+  cfg: () => ReturnType<typeof resolveEffectiveConfig>
+  reloadConfig: () => void
+
+  effort: () => ReasoningEffort
+  setEffort: (e: ReasoningEffort) => void
+
+  session: () => string
+  setSession: (id: string) => void
+
+  tomarImagens: () => AttachedImage[] | undefined
+  anexarImagens: (imgs: AttachedImage[] | undefined) => void
+
+  takeModel: () => string | undefined
+  setModel: (m: string | undefined) => void
+
+  sessionModel: () => string | undefined
+  setSessionModel: (m: string | undefined) => void
+}
+
+export interface SessionOptions {
+  readonly cwd?: string
+  readonly sessionPointer: string
+  readonly loadSession?: (pointer: string, novo: () => string) => string
+  readonly loadConfig?: typeof resolveEffectiveConfig
+}
+
+export function createTuiSession(opts: SessionOptions): TuiSession {
+  const loadConfig = opts.loadConfig ?? resolveEffectiveConfig
+  const loadSession = opts.loadSession ?? loadOrCreateSessionId
+  const cwd = opts.cwd ?? process.cwd()
+
+  let cfg = loadConfig({ cwd })
+  let effort: ReasoningEffort = cfg.reasoning_effort
+  let session = loadSession(opts.sessionPointer, () => `tui-${randomUUID()}`)
+  let imagens: AttachedImage[] | undefined
+  let model: string | undefined
+  let fixedModel: string | undefined
+
+  return {
+    cfg: () => cfg,
+    reloadConfig: () => {
+      cfg = loadConfig({ cwd })
+      effort = cfg.reasoning_effort
+    },
+    effort: () => effort,
+    setEffort: (e) => {
+      effort = e
+    },
+    session: () => session,
+    setSession: (id) => {
+      session = id
+    },
+    tomarImagens: () => {
+      const atual = imagens
+      imagens = undefined
+      return atual
+    },
+    anexarImagens: (imgs) => {
+      imagens = imgs
+    },
+    takeModel: () => {
+      const atual = model
+      model = undefined
+      return atual ?? fixedModel
+    },
+    sessionModel: () => fixedModel,
+    setSessionModel: (m) => {
+      fixedModel = m
+    },
+    setModel: (m) => {
+      model = m
+    },
+  }
+}

@@ -1,0 +1,72 @@
+import process from 'node:process'
+import type { ExecSessions } from '../runtime/index.js'
+
+async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
+  const { planAllProjectsNoDisco, runAllProjectsNoDisco, formatReport } =
+    await import('@theocode/agent/session')
+  let plano
+  try {
+    plano = await planAllProjectsNoDisco({
+      ...(args.keepLast !== undefined ? { keepLast: args.keepLast } : {}),
+      ...(args.maxAgeDays !== undefined ? { maxAgeDays: args.maxAgeDays } : {}),
+    })
+  } catch (err) {
+    process.stderr.write(`[sessions gc] ${err instanceof Error ? err.message : String(err)}\n`)
+    process.exit(1)
+  }
+  const resultado = await runAllProjectsNoDisco(plano, { apply: args.apply })
+  if (args.json) {
+    process.stdout.write(
+      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: resultado.dryRun, porForma: plano.totalPorForma, removed: resultado.removidos.length, kept: plano.mantidos.length, errors: [...plano.errors, ...resultado.errors] })}\n`,
+    )
+  } else {
+    for (const l of formatReport(plano, resultado)) process.stderr.write(`${l}\n`)
+  }
+  process.exit(plano.errors.length + resultado.errors.length > 0 ? 1 : 0)
+}
+
+function humanReport(
+  plan: {
+    kept: unknown[]
+    pointer?: string
+    mostRecent?: string
+    candidates: { id: string; ageDays: number; inRegistry: boolean }[]
+  },
+  result: { dryRun: boolean; removed: unknown[]; errors: string[] },
+): string[] {
+  const verbo = result.dryRun ? 'would remove' : 'removed'
+  const pointer = plan.pointer?.slice(0, 16) ?? 'none'
+  const recente = plan.mostRecent?.slice(0, 16) ?? 'none'
+  const lines = [
+    `[sessions gc] ${result.dryRun ? 'DRY-RUN' : 'APPLIED'} — ${result.removed.length} ${verbo}; ${plan.kept.length} kept (pointer=${pointer}, most-recent=${recente})`,
+    ...plan.candidates.map(
+      (c) =>
+        `  - ${c.id} (${Math.round(c.ageDays)}d, ${c.inRegistry ? 'registry' : 'orphan'}) [${verbo}]`,
+    ),
+  ]
+  if (result.dryRun && plan.candidates.length > 0) lines.push('  → re-run with --apply to delete')
+  return [...lines, ...result.errors.map((e) => `  ! ${e}`)]
+}
+
+async function gcForCurrentProject(args: ExecSessions): Promise<void> {
+  const { planSessionGC, runSessionGC } = await import('@theocode/agent/session')
+  const plan = await planSessionGC({
+    cwd: process.cwd(),
+    ...(args.keepLast !== undefined ? { keepLast: args.keepLast } : {}),
+    ...(args.maxAgeDays !== undefined ? { maxAgeDays: args.maxAgeDays } : {}),
+  })
+  const result = await runSessionGC(plan, { apply: args.apply })
+  if (args.json) {
+    process.stdout.write(
+      `${JSON.stringify({ type: 'sessions.gc', dryRun: result.dryRun, removed: result.removed, kept: plan.kept.length, pointer: plan.pointer, mostRecent: plan.mostRecent, errors: result.errors })}\n`,
+    )
+  } else {
+    for (const l of humanReport(plan, result)) process.stderr.write(`${l}\n`)
+  }
+  process.exit(result.errors.length > 0 ? 1 : 0)
+}
+
+export async function sessionsCommand(args: ExecSessions): Promise<void> {
+  if (args.allProjects) return gcAcrossAllProjects(args)
+  return gcForCurrentProject(args)
+}

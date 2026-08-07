@@ -1,0 +1,62 @@
+Theokit Builder
+Copyright (c) 2026 usetheo
+
+This product includes work adapted from OpenAI Codex.
+
+- Source project: OpenAI Codex — https://github.com/openai/codex
+- License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+- A verbatim copy of the License is distributed with this repository at `licenses/Apache-2.0.txt`,
+  per Apache-2.0 § 4(a).
+
+Components adapted:
+
+1. The `chat` agent's system-prompt persona, from the terminal-agent persona
+   (`codex-rs/core/gpt_5_codex_prompt.md`). The adaptation is a derivative work: the behavioral
+   discipline (planning nuance, editing constraints, review mindset, and concise
+   `file:line`-referenced final answers) is re-expressed and mapped to Theokit Builder's own tool
+   surface. It is NOT a verbatim copy.
+2. The patch-application sequence search, adapted from `codex-rs/apply-patch/src/seek_sequence.rs`.
+3. The cBPF seccomp filter for the sandbox backend, faithful to
+   `codex-rs/linux-sandbox/src/landlock.rs:179-216`.
+4. The clean-worktree CI check, adopted from `.github/actions/check-clean-worktree`.
+
+Attribution is retained per Apache-2.0 § 4(d).
+
+CORRECTION (M1, 2026-08-04, #322): a previous version of this file stated that a copy of the Codex
+reference "including its LICENSE and NOTICE is vendored under
+`.claude/knowledge-base/references/codex/`". That was FALSE as distributed — the path is gitignored
+(`.gitignore:35`) and was never tracked (`git log --all --diff-filter=A` over it returns nothing),
+so no recipient of this repository ever received the License text. It is now distributed at
+`licenses/Apache-2.0.txt`. Components 2-4 were documented in the CHANGELOG but absent from this
+file; they are now listed.
+
+--------------------------------------------------------------------------------
+This product includes work adapted from the Gemini CLI.
+
+- Component: the design of `scripts/gen-config-docs.mts` — source-of-truth in a TS module,
+  destination delimited by markers, prettier normalization before comparison, and the dual
+  `--check` mode. Declared in that file's own docstring as its "molde". No upstream code is
+  copied; the derivation is of design, not of text.
+- Source project: Gemini CLI, `generate-settings-doc.ts` — https://github.com/google-gemini/gemini-cli
+- License: Apache License, Version 2.0 — copy at `licenses/Apache-2.0.txt`
+
+--------------------------------------------------------------------------------
+This repository vendors the CYCLE engineering ecosystem under `.claude/`.
+
+- Content: 402 files — the cycle contracts (`rules/`), skills, hooks, commands and scripts that
+  define this project's engineering process. Installed verbatim via that project's `install.sh`.
+- Source project: cycle — an internal project by Paulo Henrique
+- License: MIT
+
+The MIT license permits this reuse with attribution. The vendored tree is excluded from this
+project's own tooling (`ruff.toml`, `knip.json`, `.prettierignore`, `vitest.config.ts`,
+`eslint.config.mjs`) precisely because it is third-party code with its own toolchain and tests.
+
+--------------------------------------------------------------------------------
+This project includes code derived from opencode (https://github.com/sst/opencode),
+licensed under the MIT license.
+Copyright (c) 2025 opencode
+
+Derived material: the OAuth device-authorization flow and the provider OAuth
+endpoint/client values, adapted from the project's GitHub Copilot and OpenAI Codex
+plugins. The MIT license permits this reuse with attribution.
