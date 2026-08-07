@@ -1,5 +1,5 @@
 import { classifyEntry, type FormaDeArtefato } from '../artefatos.js'
-import { assertNeverLiveness, type Liveness } from '../liveness-oracle.js'
+import { type Liveness } from '../liveness-oracle.js'
 
 export const FLOOR_DAYS = 1
 
@@ -88,7 +88,6 @@ async function resolverGuardas(
 ): Promise<{ protegidos: Set<string>; registry: RegistryEntry[] } | undefined> {
   const protegidos = new Set<string>()
   if (liveness.state === 'MORTO') {
-    assertDeadBranch(liveness)
     return { protegidos, registry: [] }
   }
   if (liveness.state !== 'VIVO') return { protegidos, registry: [] }
@@ -407,6 +406,3 @@ function assertNuncaForma(forma: never): never {
   throw new Error(`unhandled artifact shape: ${String(forma)}`)
 }
 
-function assertDeadBranch(v: Extract<Liveness, { state: 'MORTO' }>): void {
-  if (v.state !== 'MORTO') assertNeverLiveness(v.state)
-}

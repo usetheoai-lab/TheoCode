@@ -5,7 +5,7 @@ import type { InteractiveProvider } from '@theokit/agents/interactive'
 import { createInteractiveShellTool as createSdkInteractiveShellTool } from '@theokit/agents/tools'
 import { z } from 'zod'
 
-export const SESSION_CAP_ERROR = 'interactive_session_limit'
+const SESSION_CAP_ERROR = 'interactive_session_limit'
 
 const CODIGOS_CONHECIDOS = new Set(['interactive_unavailable', 'no_such_session'])
 
@@ -23,7 +23,7 @@ const hasCapLoad = (err: object): err is object & CapExceeded => {
   )
 }
 
-export function serializeInteractiveShellError(err: unknown): string {
+function serializeInteractiveShellError(err: unknown): string {
   if (typeof err === 'object' && err !== null) {
     if (hasCapLoad(err)) {
       return JSON.stringify({

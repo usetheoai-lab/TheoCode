@@ -10,25 +10,17 @@ import type { SessionRecord } from '@theokit/agents'
 const defaultBaseDir = transcriptRoot
 
 let cacheTranscript: { key: string; records: readonly SessionRecord[] } | undefined
-let parses = 0
 
 function lerTranscript(src: string): readonly SessionRecord[] {
   const st = statSync(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
   if (cacheTranscript?.key === key) return cacheTranscript.records
-  parses++
   const records = Object.freeze(parseTranscript(readFileSync(src, 'utf8')))
   cacheTranscript = { key, records }
   return records
 }
 
-export function resetTranscriptCache(): void {
-  cacheTranscript = undefined
-}
 
-export function transcriptParseCount(): number {
-  return parses
-}
 
 function parseTranscript(raw: string): SessionRecord[] {
   const lines = raw.split('\n').filter((l) => l.trim().length > 0)
@@ -139,16 +131,6 @@ export function countUserTurnsInWindow(records: readonly SessionRecord[]): numbe
   return n
 }
 
-export function readUserTurnCount(
-  sessionId: string,
-  opts: { cwd?: string; baseDir?: string } = {},
-): number {
-  const cwd = opts.cwd ?? process.cwd()
-  const dir = opts.baseDir ?? defaultBaseDir()
-  const src = transcriptPath(dir, cwd, sessionId)
-  if (!existsSync(src)) return 0
-  return countUserTurnsInWindow(lerTranscript(src))
-}
 
 export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   let floor = -1
@@ -165,23 +147,12 @@ export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   return previews
 }
 
-export function readUserTurnPreviews(
-  sessionId: string,
-  opts: { cwd?: string; baseDir?: string } = {},
-): string[] {
-  const cwd = opts.cwd ?? process.cwd()
-  const dir = opts.baseDir ?? defaultBaseDir()
-  const src = transcriptPath(dir, cwd, sessionId)
-  if (!existsSync(src)) return []
-  return userTurnPreviews(lerTranscript(src))
-}
 
 async function lerTranscriptAsync(src: string): Promise<readonly SessionRecord[]> {
   const { stat, readFile } = await import('node:fs/promises')
   const st = await stat(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
   if (cacheTranscript?.key === key) return cacheTranscript.records
-  parses++
   const records = Object.freeze(parseTranscript(await readFile(src, 'utf8')))
   cacheTranscript = { key, records }
   return records

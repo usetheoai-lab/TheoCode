@@ -12,4 +12,3 @@ export { ConcurrentQuestionError } from './concurrent-question-error.js'
 export { QuestionAbandonedError } from './question-abandoned-error.js'
 export { createInteractiveShellTool } from './interactive-shell-tool.js'
 
-export { lerAte } from './ler-ate.js'

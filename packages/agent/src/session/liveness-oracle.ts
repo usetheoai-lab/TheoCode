@@ -113,6 +113,3 @@ export function classifyDirectory(name: string, io: OracleIO, opts: OracleOption
   return { state: 'INDETERMINADO', reason: r.reason }
 }
 
-export function assertNeverLiveness(state: never): never {
-  throw new Error(`unhandled liveness state: ${String(state)}`)
-}
