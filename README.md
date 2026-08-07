@@ -54,6 +54,44 @@ forgotten:
 
 `agent-builder` remains intact and is where all of that still lives.
 
+## Credits — OpenAI Codex
+
+**This agent is what it is because Codex went first.**
+
+[OpenAI Codex](https://github.com/openai/codex) (Apache-2.0) was the reference this product was
+built against — not as a repository to copy from, but as an answer to questions we had not yet
+asked. Reading it changed decisions we would otherwise have made worse, and in four places it
+shaped what shipped:
+
+- **The persona.** The behavioural discipline of a terminal agent — when to plan and when to just
+  act, how to constrain editing, how to end a turn with a short `file:line`-referenced answer —
+  is Codex's. Ours re-expresses it against our own tools; it is a derivative work, and
+  `packages/agent/src/context/instructions.ts` says so on its second line.
+- **The tool contract.** `run_shell`, `apply_patch`, `edit_file`, `read_file`, `update_plan`,
+  `write_stdin`, `web_search`, `interactive_shell` — these names are what the model is trained on.
+  Diverging from them would have cost behaviour and bought nothing.
+- **The wire format.** The headless JSON protocol follows Codex's event names and `usage` shape,
+  so a consumer written against Codex reads our output without a translation layer.
+- **The vocabulary.** `/compact`, `/review`, `/goal`, `/fork`, `/archive`, the three approval
+  modes and the three sandbox modes carry Codex's semantics.
+
+Beyond what shipped, Codex was the **measuring stick**. The question "do we have parity?" only had
+an honest answer because there was a real implementation to read: 55 slash commands, 27 CLI
+subcommands, the approval and sandbox postures, the keymap. Two capability gaps we would not have
+noticed on our own — listing and stopping background PTYs — were found by comparing against it.
+
+**Nothing was copied.** The study clone lived outside the tree, gitignored, read-only, and every
+derivation above is design re-expressed in our own code. That discipline was a rule, not a habit:
+a literal copy would carry the upstream licence into this repository, which is a legal problem and
+not a stylistic one.
+
+Thank you to the Codex team. Full attribution, with the specific files, is in `NOTICE`.
+
+Credit is also due to two other projects: **[opencode](https://github.com/sst/opencode)** (MIT),
+whose OAuth device-authorization flow this product adapts, and the **Gemini CLI**
+(Apache-2.0), whose derived-documentation generator was the template for ours — that generator
+stayed behind in `agent-builder`, so it is credited there rather than here.
+
 ## Licence
 
 See `NOTICE` and `licenses/`.

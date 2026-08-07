@@ -1,62 +1,55 @@
-Theokit Builder
+TheoCode
 Copyright (c) 2026 usetheo
+
+================================================================================
+OpenAI Codex
+================================================================================
 
 This product includes work adapted from OpenAI Codex.
 
 - Source project: OpenAI Codex — https://github.com/openai/codex
 - License: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
-- A verbatim copy of the License is distributed with this repository at `licenses/Apache-2.0.txt`,
-  per Apache-2.0 § 4(a).
+- A verbatim copy of the License is distributed with this repository at
+  `licenses/Apache-2.0.txt`, per Apache-2.0 § 4(a).
 
-Components adapted:
+Components adapted, as they exist in THIS repository:
 
-1. The `chat` agent's system-prompt persona, from the terminal-agent persona
-   (`codex-rs/core/gpt_5_codex_prompt.md`). The adaptation is a derivative work: the behavioral
-   discipline (planning nuance, editing constraints, review mindset, and concise
-   `file:line`-referenced final answers) is re-expressed and mapped to Theokit Builder's own tool
-   surface. It is NOT a verbatim copy.
-2. The patch-application sequence search, adapted from `codex-rs/apply-patch/src/seek_sequence.rs`.
-3. The cBPF seccomp filter for the sandbox backend, faithful to
-   `codex-rs/linux-sandbox/src/landlock.rs:179-216`.
-4. The clean-worktree CI check, adopted from `.github/actions/check-clean-worktree`.
+1. The agent persona — `packages/agent/src/context/instructions.ts`. Derived from the Codex
+   terminal-agent persona (`codex-rs/core/gpt_5_codex_prompt.md`). It is a derivative work,
+   not a verbatim copy: the behavioural discipline (when to plan and when to just act, editing
+   constraints, review mindset, concise `file:line`-referenced answers) is re-expressed against
+   this product's own tool surface. The file declares the derivation on its second line.
+
+2. The `usage` shape of the headless JSON protocol — `packages/cli/src/runtime/events.ts`
+   (`toCodexUsage`). The event names and the token-accounting fields follow Codex's wire format
+   so that a consumer written against Codex reads this output without translation.
+
+3. The tool contract — the names the model is trained on are Codex's. Measured in this tree:
+   `run_shell` and `apply_patch` (`packages/agent/src/tools/registry.ts`), `edit_file` and
+   `read_file` (`packages/agent/src/chat.ts`), and `update_plan`, `write_stdin`, `web_search`,
+   `interactive_shell` as rendered contracts in `packages/tui/src/formatting/tool-header.ts`.
+   They are a contract with the model: diverging from them would cost behaviour, not gain
+   independence.
+
+4. The command and posture vocabulary — `/compact`, `/review`, `/goal`, `/fork`, `/archive`,
+   the three approval modes and the three sandbox modes follow Codex's semantics.
 
 Attribution is retained per Apache-2.0 § 4(d).
 
-CORRECTION (M1, 2026-08-04, #322): a previous version of this file stated that a copy of the Codex
-reference "including its LICENSE and NOTICE is vendored under
-`.claude/knowledge-base/references/codex/`". That was FALSE as distributed — the path is gitignored
-(`.gitignore:35`) and was never tracked (`git log --all --diff-filter=A` over it returns nothing),
-so no recipient of this repository ever received the License text. It is now distributed at
-`licenses/Apache-2.0.txt`. Components 2-4 were documented in the CHANGELOG but absent from this
-file; they are now listed.
+NOTE ON SCOPE (2026-08-07): the NOTICE of the repository this code was extracted from also lists
+a patch-application sequence search and a cBPF seccomp filter as adapted components. Both were
+measured as absent from this tree — they now live in the `@theokit/agents` SDK, which is consumed
+here as a dependency and carries its own attribution. Listing them here would claim a derivation
+this repository does not distribute.
 
---------------------------------------------------------------------------------
-This product includes work adapted from the Gemini CLI.
+================================================================================
+opencode
+================================================================================
 
-- Component: the design of `scripts/gen-config-docs.mts` — source-of-truth in a TS module,
-  destination delimited by markers, prettier normalization before comparison, and the dual
-  `--check` mode. Declared in that file's own docstring as its "molde". No upstream code is
-  copied; the derivation is of design, not of text.
-- Source project: Gemini CLI, `generate-settings-doc.ts` — https://github.com/google-gemini/gemini-cli
-- License: Apache License, Version 2.0 — copy at `licenses/Apache-2.0.txt`
-
---------------------------------------------------------------------------------
-This repository vendors the CYCLE engineering ecosystem under `.claude/`.
-
-- Content: 402 files — the cycle contracts (`rules/`), skills, hooks, commands and scripts that
-  define this project's engineering process. Installed verbatim via that project's `install.sh`.
-- Source project: cycle — an internal project by Paulo Henrique
-- License: MIT
-
-The MIT license permits this reuse with attribution. The vendored tree is excluded from this
-project's own tooling (`ruff.toml`, `knip.json`, `.prettierignore`, `vitest.config.ts`,
-`eslint.config.mjs`) precisely because it is third-party code with its own toolchain and tests.
-
---------------------------------------------------------------------------------
 This project includes code derived from opencode (https://github.com/sst/opencode),
 licensed under the MIT license.
 Copyright (c) 2025 opencode
 
-Derived material: the OAuth device-authorization flow and the provider OAuth
-endpoint/client values, adapted from the project's GitHub Copilot and OpenAI Codex
+Derived material: the OAuth device-authorization flow and the provider OAuth endpoint/client
+values (`packages/agent/src/auth/`), adapted from the project's GitHub Copilot and OpenAI Codex
 plugins. The MIT license permits this reuse with attribution.
