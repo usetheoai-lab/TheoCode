@@ -16,6 +16,7 @@ import {
 } from './env-knobs.js'
 import { LAYERS, foldLayers, type Layer } from './layers.js'
 import type { TrustPosture } from './trust-posture.js'
+import { applySecurityFloor } from './security-floor.js'
 
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
 const SANDBOXES = ['read-only', 'workspace-write', 'danger-full-access'] as const
@@ -201,6 +202,9 @@ export interface ConfigLayers {
 
 const ACCUMULATING_KEYS = ['hooks'] as const
 
+/** Keys whose resolution goes through `applySecurityFloor` instead of plain last-wins. */
+const SECURITY_FLOOR_KEYS = ['sandbox_mode', 'approval_policy'] as const
+
 function chosenProfile(layers: readonly z.infer<typeof configSchema>[]): {
   name: string | undefined
   values: RawScalars
@@ -264,6 +268,22 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
     })),
     ACCUMULATING_KEYS,
   )
+
+  // B-006 — `sandbox_mode` and `approval_policy` do not follow plain last-wins. `project` and `env`
+  // outrank the user's own file, so a cloned repository (or an inherited environment) could widen
+  // the sandbox or switch approvals off and the user's global setting simply lost. Same argument
+  // ACCUMULATING_KEYS records for `hooks`, applied to the two keys that decide confinement.
+  for (const key of SECURITY_FLOOR_KEYS) {
+    const resolved = applySecurityFloor(key, {
+      defaults: perLayer.defaults[key] as string | undefined,
+      user: perLayer.user[key] as string | undefined,
+      project: perLayer.project[key] as string | undefined,
+      profile: perLayer.profile[key] as string | undefined,
+      env: perLayer.env[key] as string | undefined,
+      cli: perLayer.cli[key] as string | undefined,
+    })
+    if (resolved !== undefined) folded[key] = resolved
+  }
 
   return { ...(folded as unknown as AgentConfig), profile: selectedProfile }
 }
