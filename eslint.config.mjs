@@ -11,7 +11,9 @@ export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  { ignores: ['tools/**'] },
+  // `tools/` and the dependency-cruiser config are Node CommonJS/ESM build scripts, not app source:
+  // they run under Node with `module`/`require` in scope, which the app's browser-ish globals exclude.
+  { ignores: ['tools/**', '.dependency-cruiser.cjs'] },
   {
     languageOptions: {
       globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', URL: 'readonly', fetch: 'readonly' },

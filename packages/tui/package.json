@@ -7,9 +7,6 @@
   "exports": {
     ".": "./src/main.tsx"
   },
-  "bin": {
-    "theocode": "./src/main.tsx"
-  },
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",

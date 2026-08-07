@@ -12,13 +12,11 @@
     "./auth": "./src/auth/index.ts",
     "./config": "./src/config/index.ts",
     "./context": "./src/context/index.ts",
-    "./delegation": "./src/delegation/index.ts",
     "./goal": "./src/goal/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./pty": "./src/pty/index.ts",
     "./review": "./src/review/index.ts",
-    "./session": "./src/session/index.ts",
-    "./tools": "./src/tools/index.ts"
+    "./session": "./src/session/index.ts"
   },
   "dependencies": {
     "@theocode/shared": "*",

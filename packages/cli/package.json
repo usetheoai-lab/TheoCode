@@ -7,9 +7,6 @@
   "exports": {
     ".": "./src/main.ts"
   },
-  "bin": {
-    "theocode-exec": "./src/main.ts"
-  },
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
