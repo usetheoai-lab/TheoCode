@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { TRUST_STORE, mutateConsentStore } from '../config/index.js'
 
 import type { HookSpec } from './hooks-spec.js'
+import { canonical as canonicalDir } from '../config/trust-store.js'
 
 type HookTrustStatus = 'trusted' | 'untrusted' | 'modified'
 
@@ -83,7 +84,7 @@ export function loadApprovedHooks(
   path: string = TRUST_STORE,
 ): Map<string, ApprovedHook> {
   const store = readStore(path)
-  const forDir = store.hooks?.[dir]
+  const forDir = store.hooks?.[canonicalDir(dir)]
   if (forDir === undefined) return new Map()
   return new Map(Object.entries(forDir))
 }
@@ -96,7 +97,8 @@ export async function approveHook(
   await mutateConsentStore(path, (doc) => {
     const store = doc as StoreShape
     const hooks = store.hooks ?? {}
-    const forDir = { ...(hooks[dir] ?? {}) }
+    const chave = canonicalDir(dir)
+    const forDir = { ...(hooks[chave] ?? {}) }
 
     forDir[hookFingerprint(spec)] = {
       command: spec.command,
@@ -104,6 +106,6 @@ export async function approveHook(
       approvedAt: new Date().toISOString(),
     }
 
-    return { ...doc, hooks: { ...hooks, [dir]: forDir } }
+    return { ...doc, hooks: { ...hooks, [chave]: forDir } }
   })
 }
