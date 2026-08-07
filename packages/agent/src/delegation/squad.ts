@@ -53,7 +53,7 @@ export function createDelegateToTeamTool(contexto: TeamContext) {
         parent: { model: contexto.model, reasoning_effort: contexto.reasoning_effort },
         posture: contexto.posture,
         cwd: escopo.cwd,
-        ...(escopo.sandbox ? { sandbox: escopo.sandbox } : {}),
+        sandbox: escopo.sandbox,
         writeRoot: escopo.writeRoot,
         ...(contexto.hooks !== undefined ? { hooks: contexto.hooks } : {}),
       })

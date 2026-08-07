@@ -17,7 +17,14 @@ import {
 export interface ToolScope {
   cwd: string
   writeRoot: string
-  sandbox?: SandboxBackend
+  /**
+   * B-006 — required. It used to be optional, and its absence was handled by omitting the `sandbox`
+   * option from `createShellTool` — so a scope built without one produced an UNCONFINED shell with
+   * no error and no warning. Every construction path already goes through `resolveToolScope`, which
+   * always supplies a backend, so requiring it makes the unconfined scope unrepresentable rather
+   * than merely detectable.
+   */
+  sandbox: SandboxBackend
   defaultTimeoutMs?: number
 }
 
@@ -73,7 +80,7 @@ export class ToolRegistry {
         withName(
           createShellTool({
             projectRoot: scope.cwd,
-            ...(scope.sandbox ? { sandbox: scope.sandbox } : {}),
+            sandbox: scope.sandbox,
             ...(scope.defaultTimeoutMs !== undefined
               ? { defaultTimeoutMs: scope.defaultTimeoutMs }
               : {}),

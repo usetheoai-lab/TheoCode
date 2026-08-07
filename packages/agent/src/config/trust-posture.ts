@@ -90,9 +90,16 @@ function avisarSobreOAlias(): void {
   )
 }
 
-function trustOrigin(cwd: string, store: string): TrustSource {
-  if (process.env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
-  if (process.env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
+function trustOrigin(
+  cwd: string,
+  store: string,
+  // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
+  // trust decision from that same environment. Reading the ambient one meant the posture could
+  // disagree with the config it was supposed to describe.
+  env: Record<string, string | undefined> = process.env,
+): TrustSource {
+  if (env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
+  if (env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
     avisarSobreOAlias()
     return 'env'
   }
