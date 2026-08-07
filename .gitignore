@@ -16,6 +16,11 @@ data/
 *.swo
 *.pem
 
+# Claude Code kit — LOCAL, never versioned. Ferramenta de quem desenvolve, não código do
+# produto: quem clona o TheoCode recebe o agente, não o andaime de manutenção de quem o
+# escreve. Instala-se com `bash <squad>/scripts/install.sh .` quando se quiser.
+.claude/
+
 # Secrets — never commit (.env.example IS committed as a template)
 .env
 .env.local
@@ -28,8 +33,9 @@ data/
 !.theokit/agents/
 .theokit/agents/registry.json*
 
-# Claude Code cycle kit — versioned (skills/rules/hooks/commands/scripts + settings).
-# Only caches and large/generated artifacts underneath are ignored.
+# As regras que herdamos do kit anterior, quando `.claude/` ERA versionado. Ficam por
+# redundância defensiva — `.claude/` inteiro já está ignorado acima, e uma regra que não pode
+# mais casar nada é ruído, não proteção. Se alguém reverter a decisão, estas voltam a valer.
 .claude/**/__pycache__/
 .claude/**/*.pyc
 .claude/knowledge-base/references/**
