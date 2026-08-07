@@ -198,7 +198,7 @@ function withShellAndProjectEntities(
       // atomic apply). Retired the bespoke JSON apply-patch.ts + apply-patch-core.ts.
       // M13 — single-string edit as a BUILT-IN consumed straight from `@theokit/agents/tools`, aliased to a
       // Codex name via the `withName` mechanism we upstreamed. It carries the context-tolerant matcher we
-      // also upstreamed (edit_file Strategy 3). Full circle: agent-builder reuses the ecosystem it enriched.
+      // also upstreamed (edit_file Strategy 3). Full circle: theocode reuses the ecosystem it enriched.
       // M3 — shell execution, gated behind approval below. M16: now the surface-agnostic `createShellTool`
       // built-in (catastrophic-command guard + optional SandboxProvider injection), aliased back to the
       // Codex-ish `run_shell` name so the approval gate + TUI header/render + tool contract are unchanged.
@@ -275,7 +275,7 @@ function withShellAndProjectEntities(
       // hand-rolled AGENTS.md + `.mcp.json` loaders stay for back-compat (Codex `.codex` + AGENTS.md parity).
       // M33 — TRUST-GATE the `project` source. The SDK loads `.theokit/agents/*.md` (and now honors their
       // per-agent `model`/`reasoning_effort`/`sandbox`) whenever `project` is enabled, and the loader runs
-      // inside the SDK before agent-builder sees the roles — so the ONLY seam we control to stop an untrusted
+      // inside the SDK before theocode sees the roles — so the ONLY seam we control to stop an untrusted
       // repo from redirecting a subagent's model/sandbox is this toggle. Untrusted ⇒ `user` only, mirroring
       // how `.skills()` and AGENTS.md are already gated (subagents were the one disk entity that was not).
       .settingSources(posture.allows.subagents ? ['project', 'user'] : ['user'])

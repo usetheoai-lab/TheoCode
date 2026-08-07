@@ -6,7 +6,7 @@ export interface EnvKnob {
   readonly effect: string
 }
 
-const AB = 'AGENT_BUILDER_'
+const AB = 'THEOCODE_'
 
 export const ENV_MODEL = `${AB}MODEL`
 export const ENV_REASONING_EFFORT = `${AB}REASONING_EFFORT`
@@ -27,8 +27,8 @@ const ENV_SHELL = 'SHELL'
 const ENV_ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'
 const ENV_OPENAI_API_KEY = 'OPENAI_API_KEY'
 
-const CONFIG = 'agents/config/config.ts:resolveConfig'
-const CREDENTIALS = 'agents/auth/credentials.ts:resolveCredential'
+const CONFIG = 'packages/agent/src/config/config.ts:resolveConfig'
+const CREDENTIALS = 'packages/agent/src/auth/credentials.ts:resolveCredential'
 
 export const ENV_KNOBS: readonly EnvKnob[] = [
   {
@@ -80,36 +80,36 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   {
     name: ENV_HOME,
     reader: 'agents/auth/oauth-config.ts:HOME_ENV',
-    default: '~/.agent-builder',
+    default: '~/.theocode',
     effect: 'Moves the credential store directory (`auth.json`).',
   },
   {
     name: ENV_THEOKIT_HOME,
-    reader: 'agents/session/session-ops.ts:legacyRootHint',
+    reader: 'packages/agent/src/session/session-ops.ts:legacyRootHint',
     default: '~/.theokit',
     effect:
       'Root of the runtime state, including session transcripts. Changing it moves `/sessions`, `/backtrack` and `sessions gc` along with it.',
   },
   {
     name: ENV_THEOKIT_AUTH_HOME,
-    reader: 'agents/auth/credentials.ts:ensureAuthHome',
-    default: 'derived from `AGENT_BUILDER_HOME`',
+    reader: 'packages/agent/src/auth/credentials.ts:ensureAuthHome',
+    default: 'derived from `THEOCODE_HOME`',
     effect:
       'Points the SDK ambient credential store at this product one. Set at startup when absent; an explicit operator value wins.',
   },
   {
     name: ENV_TRUST_ALL_DIRS,
-    reader: 'agents/config/trust-posture.ts:resolveTrustPosture',
+    reader: 'packages/agent/src/config/trust-posture.ts:resolveTrustPosture',
     default: '—',
     effect:
       'CI/headless escape: `=1` treats EVERY directory as trusted. It switches off the defence against a hostile repository — only in a context you already control. The resulting posture carries `source: "env"`.',
   },
   {
     name: ENV_TRUST_ALL_DIRS_LEGACY,
-    reader: 'agents/config/trust-posture.ts:resolveTrustPosture',
+    reader: 'packages/agent/src/config/trust-posture.ts:resolveTrustPosture',
     default: '—',
     effect:
-      'DEPRECATED (M97) — an alias of `AGENT_BUILDER_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Removal planned for M99.',
+      'DEPRECATED (M97) — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Removal planned for M99.',
   },
   {
     name: ENV_OPENROUTER_API_KEY,
@@ -137,7 +137,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_SHELL,
-    reader: 'tui/commands/config-commands.ts:handleCustomCommand',
+    reader: 'packages/tui/src/commands/config-commands.ts:handleCustomCommand',
     default: '/bin/sh',
     effect: 'The shell used to expand a user custom command in the TUI.',
   },

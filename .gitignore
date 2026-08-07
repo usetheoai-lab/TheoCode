@@ -53,10 +53,10 @@ bench/reports/run.log
 .heval/
 
 # M20 — per-user/project runtime config (like .theokit/, not committed)
-.agent-builder/
-!.agent-builder/
-!.agent-builder/config.example.toml
-.agent-builder/config.toml
+.theocode/
+!.theocode/
+!.theocode/config.example.toml
+.theocode/config.toml
 
 # Scratch probes from review agents — working files, never deliverables.
 # M98 (auditoria ADV-7) — o padrão era `.probe/` LITERAL, e a sessão de review do M98 criou

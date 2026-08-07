@@ -10,7 +10,7 @@ export function installDiagnosticSink(
     process.stderr.write(l)
   },
 ): boolean {
-  const destination = env.AGENT_BUILDER_DIAGNOSTICS
+  const destination = env.THEOCODE_DIAGNOSTICS
   if (destination === undefined || destination.trim().length === 0) return false
 
   if (destination === '1') {

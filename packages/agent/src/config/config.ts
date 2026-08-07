@@ -293,9 +293,9 @@ export function loadConfig(opts: {
   const projectDir = opts.projectDir ?? process.cwd()
   const userDir = opts.userDir ?? homedir()
   const env = opts.env ?? process.env
-  const user = readTomlIfPresent(join(userDir, '.agent-builder', 'config.toml'))
+  const user = readTomlIfPresent(join(userDir, '.theocode', 'config.toml'))
   const project = opts.posture.allows.projectConfig
-    ? readTomlIfPresent(join(projectDir, '.agent-builder', 'config.toml'))
+    ? readTomlIfPresent(join(projectDir, '.theocode', 'config.toml'))
     : null
   return resolveConfig({
     ...(user !== null ? { user: user } : {}),

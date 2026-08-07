@@ -3,7 +3,7 @@ import type { CredentialStoreConfig, OAuthProviderConfig } from '@theokit/agents
 
 import { ENV_HOME } from '../config/index.js'
 
-const REL_DIR = '.agent-builder'
+const REL_DIR = '.theocode'
 const REL_FILE = 'auth.json'
 const HOME_ENV = ENV_HOME
 

@@ -154,11 +154,11 @@ function storedCredentialOf(
 }
 
 function declaredProvider(env: Record<string, string | undefined>): Provider | undefined {
-  const declared = env.AGENT_BUILDER_PROVIDER?.trim()
+  const declared = env.THEOCODE_PROVIDER?.trim()
   if (declared === undefined) return undefined
   if (!(PROVIDERS as readonly string[]).includes(declared)) {
     throw new CredentialError(
-      `AGENT_BUILDER_PROVIDER is "${declared.slice(0, 12)}${declared.length > 12 ? '…' : ''}" ` +
+      `THEOCODE_PROVIDER is "${declared.slice(0, 12)}${declared.length > 12 ? '…' : ''}" ` +
         `— expected one of ${PROVIDERS.join(', ')}`,
     )
   }
@@ -180,7 +180,7 @@ function resolveDeclaredProvider(
   const armazenada = home === undefined ? undefined : storedCredentialOf(provider, home, env)
   if (armazenada !== undefined) return armazenada
   throw new CredentialError(
-    `provider "${provider}" is declared via AGENT_BUILDER_PROVIDER but no key for it was found ` +
+    `provider "${provider}" is declared via THEOCODE_PROVIDER but no key for it was found ` +
       `(looked at ${varName}${home !== undefined ? ` and ${authFilePath(home, env)}` : ''}). ` +
       `Refusing to fall back to a different provider's credential.`,
   )
@@ -252,7 +252,7 @@ export function resolveCredential(opts: {
     `No provider credential found. Tried, in order:\n` +
       attempts.map((a, i) => `  ${i + 1}. ${a}`).join('\n') +
       `\n\nSet one of those environment variables, or create the credential file:\n` +
-      `  ${home !== undefined ? authFilePath(home, env) : '~/.agent-builder/auth.json'}\n` +
+      `  ${home !== undefined ? authFilePath(home, env) : '~/.theocode/auth.json'}\n` +
       `  {"provider": "openrouter", "api_key": "sk-or-..."}   (mode 0600)`,
     attempts,
   )

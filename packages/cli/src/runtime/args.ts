@@ -56,11 +56,11 @@ export interface ExecSessions {
 
 export type ExecArgs = ExecRun | ExecReview | ExecGoal | ExecSessions | ExecUsageError
 
-export const USAGE = `Usage: agent-builder exec [OPTIONS] [PROMPT]
-       agent-builder exec resume [--last] [SESSION_ID] [PROMPT]
-       agent-builder exec review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
-       agent-builder exec goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
-       agent-builder exec sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
+export const USAGE = `Usage: theocode exec [OPTIONS] [PROMPT]
+       theocode exec resume [--last] [SESSION_ID] [PROMPT]
+       theocode exec review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
+       theocode exec goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
+       theocode exec sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
 
 Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
          -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>

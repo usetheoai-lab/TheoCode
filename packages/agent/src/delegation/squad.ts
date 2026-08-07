@@ -19,7 +19,7 @@ export async function buildTeam(
   ctx: RoleAgentContext,
 ): Promise<{ squad: Squad; members: SDKAgent[] }> {
   const members = await Promise.all(TEAM_ROLES.map((role) => buildRoleAgent(role, ctx)))
-  const squad = Squad.create({ agents: members, process: 'sequential', name: 'agent-builder-team' })
+  const squad = Squad.create({ agents: members, process: 'sequential', name: 'theocode-team' })
   return { squad, members }
 }
 

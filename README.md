@@ -42,17 +42,14 @@ node dist/theocode.mjs sessions gc
 
 ## What is deliberately not here
 
-This repository holds **production source only**. It was extracted from `agent-builder`, and the
-following were left behind by an explicit decision — stated here so nobody assumes they were
-forgotten:
+This repository holds **production source only**. The following were left out by an explicit
+decision — stated here so nobody assumes they were forgotten:
 
 - **The test suite** (152 files, 1,524 cases) and the **12 architecture gates**. `npm test` does not
   exist here. Any claim about this code's behaviour is currently unverified in this repository.
-- **The process toolchain** — the vendored CYCLE kit, its rules, its plans and its audit trail.
-- **The documentation** built against the previous structure (journey map, parity register,
+- **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
+- **The reference documentation** written against a different layout (journey map, parity register,
   configuration reference), whose paths no longer resolve.
-
-`agent-builder` remains intact and is where all of that still lives.
 
 ## Credits — OpenAI Codex
 
@@ -87,10 +84,8 @@ not a stylistic one.
 
 Thank you to the Codex team. Full attribution, with the specific files, is in `NOTICE`.
 
-Credit is also due to two other projects: **[opencode](https://github.com/sst/opencode)** (MIT),
-whose OAuth device-authorization flow this product adapts, and the **Gemini CLI**
-(Apache-2.0), whose derived-documentation generator was the template for ours — that generator
-stayed behind in `agent-builder`, so it is credited there rather than here.
+Credit is also due to **[opencode](https://github.com/sst/opencode)** (MIT), whose OAuth
+device-authorization flow this product adapts — see `NOTICE`.
 
 ## Licence
 
