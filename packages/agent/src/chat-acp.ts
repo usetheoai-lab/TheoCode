@@ -22,7 +22,12 @@ const resolveCredential = async (): Promise<string> => {
 
 export default toAgentFactory(
   async () => {
-    return buildChatAgent()
+    // B-001 — the ACP client owns the prompt, so there is no TUI subscribed to the `AskBridge`.
+    // Without an explicit surface, `profileTools` falls through to the `'interactive'` default and
+    // registers `request_user_input` against that bridge: `ask()` never resolves and every call
+    // stalls on the built-in's 5-minute timeout. `chat.ts` documents this hazard for the headless
+    // profile; this entry is the same condition. Same value `run-composition.ts` passes.
+    return buildChatAgent({ surface: 'headless' })
   },
   {
     apiKey: resolveCredential,
