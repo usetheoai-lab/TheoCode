@@ -547,7 +547,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-024 — cli/run-composition carries a dead seam, a dead parameter and a dead return field   [ ]
+## B-024 — cli/run-composition carries a dead seam, a dead parameter and a dead return field   [x]
+
+fixed_in: b38141c
+dod_verified:
+  - seams exercised by tests that fail without them — verified by mutation (ignoring `seams.store` turns the discriminating test red)
+  - `baseInstructions` deleted: no caller could supply it
+  - `RunComposition.cfg` kept — it was an unread return field and is now read, by the tests that prove the seam
 
 domain: theocode
 repo: TheoCode
@@ -789,7 +795,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-037 — B-003 left a dead, divergent second copy of the deletion-path pointer guard   [ ]
+## B-037 — B-003 left a dead, divergent second copy of the deletion-path pointer guard   [x]
+
+fixed_in: c24e026
+dod_verified:
+  - one pointer-reading implementation on the deletion path — `resolvePointerId` had no caller anywhere and is gone
+  - GC behaviour unchanged: 139 tests green, including the existing GC suite
 
 domain: theocode
 repo: TheoCode
@@ -955,7 +966,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-047 — SecretInput submits a pasted API key with its trailing newline   [ ]
+## B-047 — SecretInput submits a pasted API key with its trailing newline   [x]
+
+fixed_in: 787e140
+dod_verified:
+  - a pasted value with a trailing newline authenticates — covered, and verified by mutation (removing the trim turns 3 of 5 red)
+  - trimmed at the input boundary, in `secret-buffer.ts`, not at the consumer
+  - NOTE: tested as a pure unit, not through the component — `useInput` needs raw mode the harness's stdin does not report, and a component-level attempt produced assertions that all passed on `undefined`
 
 domain: theocode
 repo: TheoCode
@@ -1003,7 +1020,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-050 — Three workspaces declare @theokit/agents ^7.3.1 while agent declares ^7.4.0   [ ]
+## B-050 — Three workspaces declare @theokit/agents ^7.3.1 while agent declares ^7.4.0   [x]
+
+fixed_in: 92be2cb
+dod_verified:
+  - all four workspaces declare `^7.4.0`
+  - `npm ls @theokit/agents` resolves to a single 7.4.0
 
 domain: theocode
 repo: TheoCode
