@@ -44,6 +44,11 @@ const PT_WORDS = [
   'manter', 'medida', 'antes', 'cortado', 'vazio', 'assinar', 'aprovar', 'reservado', 'aninhada',
   'esforco', 'profundidade', 'divergencia', 'precedencia', 'VIVO', 'MORTO', 'NAO_ACHOU',
   'INDETERMINADO',
+  // Added after the guard reported "clean" on a file that still contained `ResultadoDFS`, `ACHOU`,
+  // `pilha`, `achado`, `codificado` and `cwdAutoVerificado` — the documented denylist gap, observed.
+  'pilha', 'achado', 'codificado', 'resultado', 'mantidos', 'planejar', 'planejou', 'candidato',
+  'idsEmDisco', 'idsNoRegistry', 'cwdsVivos', 'totalPorForma', 'assertNuncaForma', 'FormaColetavel',
+  'PlanoAll', 'CandidatoAll', 'ACHOU', 'TETO', 'FORMAS', 'coletavel', 'deletavel',
 ]
 const PT_RE = new RegExp(`\\b(?:${PT_WORDS.join('|')})[A-Za-z_]*`, 'g')
 

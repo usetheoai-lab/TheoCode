@@ -601,7 +601,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-027 — The `Blocked <cmd>` policy-veto rendering can never fire   [ ]
+## B-027 — The `Blocked <cmd>` policy-veto rendering can never fire   [x]
+
+fixed_in: a6c519b
+dod_verified:
+  - the chain is DELETED, not left half-alive — `vetoReason`, `vetoedInputs`, `BLOCKED_PREFIX`, the header branch and the orphaned `inputKey` are gone; the only surviving mention is the docstring explaining why
+  - it was NOT rewired, deliberately: a veto is `{ block: true, message }` and what that becomes on the wire the renderer sees was never measured. Guessing is how the original was written. B-055 carries the wiring with the SDK contract as its evidence
 
 domain: theocode
 repo: TheoCode
@@ -651,7 +656,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-030 — A docstring justifies an export by citing a test and an ADR that do not exist   [ ]
+## B-030 — A docstring justifies an export by citing a test and an ADR that do not exist   [x]
+
+fixed_in: 86c53a0
+dod_verified:
+  - the cited test exists under the promised name and fails when the decision is reverted — verified by mutation (`performance.now()` -> `Date.now()` turns it red)
+  - the ADR citation is removed rather than invented: there is no ADR-0023
+  - NOT met: "a check exists that would catch the next docstring citing a non-existent test path". No such checker was built. Recorded rather than claimed
 
 domain: theocode
 repo: TheoCode
@@ -738,7 +749,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-035 — subscribe() is a single-slot setter, and the test named after that guarantee cannot fail   [ ]
+## B-035 — subscribe() is a single-slot setter, and the test named after that guarantee cannot fail   [x]
+
+fixed_in: 5d19a3c
+dod_verified:
+  - the test fails when a second set replaces the first — verified by mutation, not by reading: removing the refusal turns two of three red, where the old test stayed green
+  - renamed to `setListener`; multi-subscriber was NOT built, because only the TUI listens and a multicast nobody asked for is the YAGNI failure the B-004 bullet left open
 
 domain: theocode
 repo: TheoCode
