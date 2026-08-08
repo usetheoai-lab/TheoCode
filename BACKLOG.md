@@ -684,7 +684,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-031 — B-013's fireAndForget reached 2 of 5 persist call sites   [ ]
+## B-031 — B-013's fireAndForget reached 2 of 5 persist call sites   [x]
+
+fixed_in: 4fded27
+dod_verified:
+  - all five persist call sites route through the reporting wrapper — achieved at the DEFINITION: there is no longer an exported persist function that can reject, so the four remaining `void persistSessionId(...)` sites are safe by construction rather than by review
+  - a rejected persist reports and does not crash — verified by mutation (returning the raw write turns it red)
+  - the test premise was wrong twice: `atomicWriteText` CREATES a missing directory, and the rejection alone already resolved — what was missing was the diagnostic
 
 domain: theocode
 repo: TheoCode
@@ -719,7 +725,14 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-033 — B-006's injected-env seam is unreachable from any caller   [ ]
+## B-033 — B-006's injected-env seam is unreachable from any caller   [x]
+
+fixed_in: 2c4ffd0
+dod_verified:
+  - `resolveTrustPosture` accepts an injected env from its exported entry — RED before the fix
+  - the two reads in `run-composition.ts` now come from one value
+  - `effectiveConfigUnderPosture` NOT addressed — it is a separate dead export and belongs to B-049
+  - one test was rewritten, not retried: it mutated `process.env` and made the suite flaky against `chat-cwd.test.ts` running concurrently. Three consecutive full runs green after
 
 domain: theocode
 repo: TheoCode
@@ -737,7 +750,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-034 — B-007's credential route still discards THEOCODE_HOME, and ensureAuthHome still mutates   [ ]
+## B-034 — B-007's credential route still discards THEOCODE_HOME, and ensureAuthHome still mutates   [x]
+
+fixed_in: 184c847
+dod_verified:
+  - the forced-file-store route preserves the store location — RED before the fix, with the ordinary route as a floor that always passed
+  - `ensureAuthHome` no longer mutates its argument
+  - `MissingCredentialError` is reachable from `@theocode/agent/auth`
 
 domain: theocode
 repo: TheoCode
