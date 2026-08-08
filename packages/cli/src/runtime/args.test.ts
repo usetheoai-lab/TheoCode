@@ -11,6 +11,9 @@
  * parser is pure, has no I/O, and decides whether a command runs or a model turn starts, which
  * makes it the cheapest possible thing to cover and the most expensive thing to leave uncovered.
  */
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import { USAGE, parseExecArgs } from './args.js'
@@ -98,5 +101,61 @@ describe('B-023 — a flag either changes behaviour or is rejected', () => {
     const parsed = parseExecArgs(['sessions', 'gc', '-m', 'anthropic/claude-sonnet-4-5'], false)
 
     expect(parsed.mode, '`-m` was accepted by `sessions` and silently ignored').toBe('error')
+  })
+})
+
+describe('B-025 — every declared flag is exercised, and every subcommand routes', () => {
+  /** Every flag the parser declares, with a value where it needs one. */
+  const FLAGS: [string, string[]][] = [
+    ['help', ['--help']],
+    ['json', ['--json']],
+    ['model', ['-m', 'anthropic/claude-sonnet-4-5']],
+    ['cd', ['-C', '/tmp']],
+    ['output-last-message', ['-o', '/tmp/last.txt']],
+    ['skip-git-repo-check', ['--skip-git-repo-check']],
+    ['last', ['resume', '--last']],
+    ['uncommitted', ['review', '--uncommitted']],
+    ['base', ['review', '--base', 'main']],
+    ['commit', ['review', '--commit', 'abc1234']],
+    ['max-turns', ['goal', 'ship it', '--max-turns', '5']],
+    ['token-budget', ['goal', 'ship it', '--token-budget', '1000']],
+    ['apply', ['sessions', 'gc', '--apply']],
+    ['all-projects', ['sessions', 'gc', '--all-projects']],
+    ['keep', ['sessions', 'gc', '--keep', '3']],
+    ['max-age-days', ['sessions', 'gc', '--max-age-days', '30']],
+    ['config', ['-c', 'reasoning_effort=high']],
+    ['sandbox', ['--sandbox', 'read-only']],
+    ['approval', ['--approval', 'suggest']],
+    ['effort', ['--effort', 'high']],
+  ]
+
+  it.each(FLAGS)('test_the_%s_flag_parses_without_a_usage_error', (_name, argv) => {
+    // B-025 — packages/cli shipped 1292 LOC and zero tests, and the parser is the unit that decides
+    // whether a command runs or a billable model turn starts. A flag that parses to `error` here is
+    // either misdeclared or applied to a command that cannot honour it — both were real (B-023).
+    const parsed = parseExecArgs(argv, false)
+
+    expect(
+      parsed.mode === 'error' ? parsed.message : 'ok',
+      `\`${argv.join(' ')}\` produced a usage error`,
+    ).toBe('ok')
+  })
+
+  it('test_an_unknown_flag_is_still_an_error', () => {
+    // Anti-vacuity floor: accepting everything would satisfy the assertions above.
+    expect(parseExecArgs(['--not-a-flag'], false).mode).toBe('error')
+  })
+
+  it('test_every_routed_subcommand_is_covered_by_this_file', () => {
+    // The guard against the next subcommand being added with no test: it reads the parser's own
+    // switch and fails when a case is not exercised above.
+    const source = readFileSync(fileURLToPath(new URL('./args.ts', import.meta.url)), 'utf8')
+    const routed = [...source.matchAll(/^\s{4}case '(\w+)':/gm)].map((m) => m[1] ?? '')
+    const exercised = new Set([...DOCUMENTED, ...FLAGS.map(([, a]) => a)].map((a) => a[0] ?? ''))
+
+    expect(
+      routed.filter((c) => !exercised.has(c)),
+      'the parser routes a subcommand that no test in this file exercises',
+    ).toEqual([])
   })
 })
