@@ -59,17 +59,17 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
       session = id
     },
     tomarImagens: () => {
-      const atual = imagens
+      const current = imagens
       imagens = undefined
-      return atual
+      return current
     },
     anexarImagens: (imgs) => {
       imagens = imgs
     },
     takeModel: () => {
-      const atual = model
+      const current = model
       model = undefined
-      return atual ?? fixedModel
+      return current ?? fixedModel
     },
     sessionModel: () => fixedModel,
     setSessionModel: (m) => {

@@ -2,7 +2,7 @@
 interface PendingQuestion {
   question: string
   resolve: (answer: string) => void
-  // B-004 — captured so a question can be WITHDRAWN as well as answered. Without it, `abandonar()`
+  // B-004 — captured so a question can be WITHDRAWN as well as answered. Without it, `abandon()`
   // had no way to settle the promise it was discarding, and the turn stayed blocked until timeout.
   reject: (reason: Error) => void
 }
@@ -33,7 +33,7 @@ export class AskBridge {
     })
   }
 
-  abandonar(threadId = THREAD_PADRAO): void {
+  abandon(threadId = THREAD_PADRAO): void {
     const p = this.pending.get(threadId)
     this.pending.delete(threadId)
     // B-004 — settle before notifying. Dropping the entry without rejecting left the caller's
@@ -66,7 +66,7 @@ export class AskBridge {
     return true
   }
 
-  assinar(listener: () => void): () => void {
+  subscribe(listener: () => void): () => void {
     this.notificar = listener
     return () => {
       if (this.notificar === listener) this.notificar = undefined
@@ -79,10 +79,10 @@ export const surfaceBridge = new AskBridge()
 export const ask = (question: string, threadId?: string): Promise<string> =>
   surfaceBridge.perguntar(question, threadId)
 
-export const abandonQuestion = (threadId?: string): void => surfaceBridge.abandonar(threadId)
+export const abandonQuestion = (threadId?: string): void => surfaceBridge.abandon(threadId)
 
 export const currentQuestion = (threadId: string): string | undefined =>
   surfaceBridge.currentQuestion(threadId)
 export const answerQuestion = (answer: string, threadId: string): boolean =>
   surfaceBridge.responder(answer, threadId)
-export const subscribe = (listener: () => void): (() => void) => surfaceBridge.assinar(listener)
+export const subscribe = (listener: () => void): (() => void) => surfaceBridge.subscribe(listener)

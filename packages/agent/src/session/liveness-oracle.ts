@@ -1,14 +1,14 @@
 import { encodeProjectDir } from '@theokit/agents/persistence'
 
 export type Liveness =
-  | { state: 'VIVO'; cwd: string }
-  | { state: 'MORTO'; cwd?: string }
-  | { state: 'INDETERMINADO'; reason: string }
+  | { state: 'ALIVE'; cwd: string }
+  | { state: 'DEAD'; cwd?: string }
+  | { state: 'UNDETERMINED'; reason: string }
 
 export interface OracleIO {
   listEntries(dir: string): string[]
   firstLine(file: string): string
-  ehDiretorio(path: string): boolean
+  isDirectory(path: string): boolean
 }
 
 export interface OracleOptions {
@@ -46,20 +46,20 @@ function cwdAutoVerificado(name: string, io: OracleIO, opts: OracleOptions): str
 }
 
 type ResultadoDFS =
-  { kind: 'ACHOU'; path: string } | { kind: 'NAO_ACHOU' } | { kind: 'TETO'; reason: string }
+  { kind: 'ACHOU'; path: string } | { kind: 'NOT_FOUND' } | { kind: 'TETO'; reason: string }
 
-function dfsExistencia(name: string, io: OracleIO, opts: OracleOptions): ResultadoDFS {
+function dfsExists(name: string, io: OracleIO, opts: OracleOptions): ResultadoDFS {
   let nos = 0
   const pilha: { path: string; profundidade: number }[] = [{ path: FS_ROOT, profundidade: 0 }]
   while (pilha.length > 0) {
-    const atual = pilha.pop()
+    const current = pilha.pop()
     /* c8 ignore next */
-    if (atual === undefined) break
+    if (current === undefined) break
     if (nos >= opts.maxNosDFS) {
       return { kind: 'TETO', reason: `DFS estourou o teto de ${opts.maxNosDFS} nós visitados` }
     }
     nos += 1
-    if (atual.profundidade >= opts.maxProfundidadeDFS) {
+    if (current.profundidade >= opts.maxProfundidadeDFS) {
       return {
         kind: 'TETO',
         reason: `DFS estourou o teto de profundidade ${opts.maxProfundidadeDFS}`,
@@ -67,30 +67,30 @@ function dfsExistencia(name: string, io: OracleIO, opts: OracleOptions): Resulta
     }
     let entries: string[]
     try {
-      entries = io.listEntries(atual.path)
+      entries = io.listEntries(current.path)
     } catch {
       continue
     }
-    const achado = visitEntries(name, atual, entries, io, pilha)
+    const achado = visitEntries(name, current, entries, io, pilha)
     if (achado !== undefined) return achado
   }
-  return { kind: 'NAO_ACHOU' }
+  return { kind: 'NOT_FOUND' }
 }
 
 function visitEntries(
   name: string,
-  atual: { path: string; profundidade: number },
+  current: { path: string; profundidade: number },
   entries: readonly string[],
   io: OracleIO,
   pilha: { path: string; profundidade: number }[],
 ): ResultadoDFS | undefined {
   for (const entry of entries) {
-    const path = atual.path === FS_ROOT ? `/${entry}` : `${atual.path}/${entry}`
+    const path = current.path === FS_ROOT ? `/${entry}` : `${current.path}/${entry}`
     const codificado = encodeProjectDir(path)
-    if (!io.ehDiretorio(path)) continue
+    if (!io.isDirectory(path)) continue
     if (codificado === name) return { kind: 'ACHOU', path }
     if (name.startsWith(codificado)) {
-      pilha.push({ path, profundidade: atual.profundidade + 1 })
+      pilha.push({ path, profundidade: current.profundidade + 1 })
     }
   }
   return undefined
@@ -101,15 +101,15 @@ export function classifyDirectory(name: string, io: OracleIO, opts: OracleOption
   try {
     cwd = cwdAutoVerificado(name, io, opts)
   } catch (err) {
-    return { state: 'INDETERMINADO', reason: `não foi possível ler ${name} — ${reasonOf(err)}` }
+    return { state: 'UNDETERMINED', reason: `não foi possível ler ${name} — ${reasonOf(err)}` }
   }
   if (cwd !== undefined) {
-    return io.ehDiretorio(cwd) ? { state: 'VIVO', cwd } : { state: 'MORTO', cwd }
+    return io.isDirectory(cwd) ? { state: 'ALIVE', cwd } : { state: 'DEAD', cwd }
   }
 
-  const r = dfsExistencia(name, io, opts)
-  if (r.kind === 'ACHOU') return { state: 'VIVO', cwd: r.path }
-  if (r.kind === 'NAO_ACHOU') return { state: 'MORTO' }
-  return { state: 'INDETERMINADO', reason: r.reason }
+  const r = dfsExists(name, io, opts)
+  if (r.kind === 'ACHOU') return { state: 'ALIVE', cwd: r.path }
+  if (r.kind === 'NOT_FOUND') return { state: 'DEAD' }
+  return { state: 'UNDETERMINED', reason: r.reason }
 }
 

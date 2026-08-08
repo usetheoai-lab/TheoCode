@@ -76,7 +76,7 @@ function permitirTudo(value: boolean): TrustAllows {
   return Object.fromEntries(TRUST_CAPABILITIES.map((c) => [c.key, value])) as TrustAllows
 }
 
-const MILESTONE_DE_REMOCAO = 'M99'
+const REMOVAL_MILESTONE = 'M99'
 
 let aliasJaAvisado = false
 
@@ -84,7 +84,7 @@ function avisarSobreOAlias(): void {
   if (aliasJaAvisado) return
   aliasJaAvisado = true
   process.stderr.write(
-    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} está DEPRECADO e será removido no ${MILESTONE_DE_REMOCAO}: ` +
+    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} está DEPRECADO e será removido no ${REMOVAL_MILESTONE}: ` +
       `renomeie para ${ENV_TRUST_ALL_DIRS}. Enquanto isso ele continua concedendo confiança a TODO ` +
       `diretório — a defesa contra repositório hostil segue desligada.\n`,
   )

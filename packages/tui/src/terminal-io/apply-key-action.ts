@@ -11,7 +11,7 @@ export interface KeyCapabilities {
   readonly pausarGoal: () => void
   readonly primeBacktrack: () => void
   readonly resetarBacktrack: () => void
-  readonly advanceBacktrack: (proximo: number, total: number) => void
+  readonly advanceBacktrack: (next: number, total: number) => void
   readonly confirmBacktrack: () => void
   readonly armExit: () => void
   readonly disarmExit: () => void
@@ -33,7 +33,7 @@ const EXECUTORES: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: 
     [
       'advance-backtrack',
       (c, action) => {
-        if (action.kind === 'advance-backtrack') c.advanceBacktrack(action.proximo, action.total)
+        if (action.kind === 'advance-backtrack') c.advanceBacktrack(action.next, action.total)
       },
     ],
     ['confirm-backtrack', (c) => c.confirmBacktrack()],

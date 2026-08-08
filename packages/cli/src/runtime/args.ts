@@ -212,7 +212,7 @@ function parseGoal(values: OptionValues, positionals: string[], overrides: strin
   }
 }
 
-function resolverResume(
+function resolveResume(
   values: OptionValues,
   positionals: string[],
 ): { isResume: boolean; resume: ExecRun['resume']; promptParts: string[] } | { error: string } {
@@ -254,7 +254,7 @@ function parseResumeOuPrompt(
   overrides: string[],
   stdinIsTTY: boolean,
 ): ExecArgs {
-  const r = resolverResume(values, positionals)
+  const r = resolveResume(values, positionals)
   if ('error' in r) return { mode: 'error', message: r.error }
   const { isResume, resume, promptParts } = r
 

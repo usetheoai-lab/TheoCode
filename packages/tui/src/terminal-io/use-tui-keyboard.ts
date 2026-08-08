@@ -15,7 +15,7 @@ export interface KeyboardDeps {
     total: number
     prime: () => void
     resetar: () => void
-    advance: (proximo: number, total: number) => void
+    advance: (next: number, total: number) => void
     confirm: () => void
   }
   readonly goalAbort: { current: AbortController | null }

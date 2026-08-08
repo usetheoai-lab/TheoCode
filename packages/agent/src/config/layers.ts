@@ -23,10 +23,10 @@ export const LAYERS: readonly DeclaredLayer[] = Object.freeze([
 export function verifyOrdering(layers: readonly DeclaredLayer[]): void {
   for (let i = 1; i < layers.length; i += 1) {
     const anterior = layers[i - 1]!
-    const atual = layers[i]!
-    if (atual.precedencia <= anterior.precedencia) {
+    const current = layers[i]!
+    if (current.precedencia <= anterior.precedencia) {
       throw new LayerError(
-        `camadas fora de ordem: \`${atual.layer}\` (precedência ${atual.precedencia}) vem depois de ` +
+        `camadas fora de ordem: \`${current.layer}\` (precedência ${current.precedencia}) vem depois de ` +
           `\`${anterior.layer}\` (precedência ${anterior.precedencia}), mas não a supera`,
       )
     }

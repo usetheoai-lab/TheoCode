@@ -124,7 +124,7 @@ export function runGoalLoop(
 ): void {
   const { agentRef, goalAbort, setGoalRun, setToast } = deps
   if (agentRef.current.status === 'streaming') {
-    setToast({ message: 'Aguarde o turno atual terminar antes de iniciar o goal', variant: 'info' })
+    setToast({ message: 'Aguarde o turno current terminar antes de iniciar o goal', variant: 'info' })
     return
   }
   const controller = new AbortController()

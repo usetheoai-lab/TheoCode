@@ -94,8 +94,8 @@ export async function approveHook(
   await mutateConsentStore(path, (doc) => {
     const store = doc as StoreShape
     const hooks = store.hooks ?? {}
-    const chave = canonicalDir(dir)
-    const forDir = { ...(hooks[chave] ?? {}) }
+    const key = canonicalDir(dir)
+    const forDir = { ...(hooks[key] ?? {}) }
 
     forDir[hookFingerprint(spec)] = {
       command: spec.command,
@@ -103,6 +103,6 @@ export async function approveHook(
       approvedAt: new Date().toISOString(),
     }
 
-    return { ...doc, hooks: { ...hooks, [chave]: forDir } }
+    return { ...doc, hooks: { ...hooks, [key]: forDir } }
   })
 }

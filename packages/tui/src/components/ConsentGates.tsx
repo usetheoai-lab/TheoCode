@@ -34,7 +34,7 @@ export function HooksGate({ consent, pendingHooks }: HooksGateProps): ReactEleme
       onDecision={(decision) => {
         const head = pendingHooks[0]!
         if (decision === 'yes') {
-          consent.aprovarHook(head.spec, (err) => {
+          consent.approveHookConsent(head.spec, (err) => {
             process.stderr.write(`could not persist hook approval: ${err.message}\n`)
           })
         } else consent.refuseHook(head.fingerprint)

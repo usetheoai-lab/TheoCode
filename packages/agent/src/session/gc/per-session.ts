@@ -70,7 +70,7 @@ function realReadPointer(cwd: string): string | undefined {
   return readPointerId(cwd)
 }
 
-function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
+function resolvePlanOptions(opts: PlanSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   return {
     cwd,
@@ -86,7 +86,7 @@ function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
 
 export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<SessionGCPlan> {
   const { cwd, baseDir, now, keepLast, maxAgeDays, listFn, readdir, readPointer } =
-    resolverOpcoesDePlano(opts)
+    resolvePlanOptions(opts)
 
   const onDisk = readdir(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
@@ -96,18 +96,18 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
 
   const pointer = readPointer(cwd)
   const mostRecent = onDisk[0]?.id
-  const protegidos = new Set<string>([
+  const protectedIds = new Set<string>([
     ...listed.filter((e) => e.archived !== true).map((e) => e.agentId),
     ...onDisk.slice(0, keepLast).map((x) => x.id),
   ])
-  if (pointer !== undefined) protegidos.add(pointer)
-  if (mostRecent !== undefined) protegidos.add(mostRecent)
+  if (pointer !== undefined) protectedIds.add(pointer)
+  if (mostRecent !== undefined) protectedIds.add(mostRecent)
 
   const candidates: SessionGCCandidate[] = []
   const kept: string[] = []
   for (const { id, mtimeMs } of onDisk) {
     const ageDays = (now() - mtimeMs) / 86_400_000
-    if (!protegidos.has(id) && ageDays > maxAgeDays) {
+    if (!protectedIds.has(id) && ageDays > maxAgeDays) {
       candidates.push({ id, ageDays, inRegistry: registryAll.has(id) })
     } else {
       kept.push(id)
@@ -138,7 +138,7 @@ export interface SessionGCResult {
   errors: string[]
 }
 
-function resolverApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
+function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   const baseDir = opts.baseDir ?? defaultBaseDir()
   const maisRecenteAgora = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
@@ -169,7 +169,7 @@ export async function runSessionGC(
   if (dryRun) {
     return { dryRun: true, removed: plan.candidates.map((c) => c.id), errors: [] }
   }
-  const { del, unlink, intocaveis } = resolverApply(plan, opts)
+  const { del, unlink, intocaveis } = resolveApply(plan, opts)
 
   for (const c of plan.candidates) {
     if (intocaveis.has(c.id)) {

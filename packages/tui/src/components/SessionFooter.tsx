@@ -40,7 +40,7 @@ export function SessionFooter(props: FooterProps): ReactElement {
           <Text>
             {fmtK(lastUsage.inputTokens)}/{fmtK(SESSION.cfg().contextWindow.window)} context
             {/* M94 — um orçamento de FALLBACK é palpite, e passa a se apresentar como tal.
-                  Sem entrada de catálogo a resolução cai no floor conservador, e mostrá-lo com a
+                  Sem entry de catálogo a resolução cai no floor conservador, e mostrá-lo com a
                   mesma confiança de uma medição fazia o usuário trust num número que o SDK
                   já rotula como incerto — `source` vem justamente para isso. */}
             {SESSION.cfg().contextWindow.source === 'fallback' ? ' (estimado)' : ''}

@@ -45,7 +45,7 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
         índice, e o log da arena mostrava um flood de `Encountered two children with the same
         key, '0'` durante o run. Quando a reconciliação corrompe, os `props.setGoalFeed` seguintes
         são engolidos: o loop completa (`[goal] status=completed turns=3`) com a UI MUDA, que é
-        o pior desfecho para um feed de progresso — o usuário não sabe se o loop está vivo.
+        o pior outcome para um feed de progresso — o usuário não sabe se o loop está vivo.
 
         A key é `índice + conteúdo`, não só o índice: o feed é append-only, então o índice
         sozinho já seria estável, mas duas lines idênticas em posições diferentes (dois

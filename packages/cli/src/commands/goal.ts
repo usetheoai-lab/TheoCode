@@ -88,7 +88,7 @@ function relatarDesfechoDoGoal(
   return finalStatus
 }
 
-async function resolverContextoDoGoal(args: ExecGoal) {
+async function resolveGoalContext(args: ExecGoal) {
   const { resolveCredential, resolveCredentialForModel } =
     await import('@theocode/agent/auth')
   const { TRUST_STORE, resolveEffectiveConfig, resolveTrustPosture } =
@@ -105,7 +105,7 @@ async function resolverContextoDoGoal(args: ExecGoal) {
 
 export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<void> {
   const { GOAL_DEFAULTS, runGoal, makeSignalJudge } = await import('@theocode/agent/goal')
-  const { cwd, posture, cfg, oracle, routedModel, cred } = await resolverContextoDoGoal(args)
+  const { cwd, posture, cfg, oracle, routedModel, cred } = await resolveGoalContext(args)
   const updateGoalSignal: SinalDeUpdateGoal = {}
   try {
     const goalAgent = await buildGoalAgent({

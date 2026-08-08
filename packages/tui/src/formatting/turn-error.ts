@@ -11,12 +11,12 @@ const FORMA_TRANSITORIA =
 
 function textWithCauses(err: Error): string {
   const partes: string[] = []
-  let atual: unknown = err
-  for (let i = 0; i < 8 && atual instanceof Error; i += 1) {
-    partes.push(atual.message)
-    atual = (atual as { cause?: unknown }).cause
+  let current: unknown = err
+  for (let i = 0; i < 8 && current instanceof Error; i += 1) {
+    partes.push(current.message)
+    current = (current as { cause?: unknown }).cause
   }
-  if (typeof atual === 'string') partes.push(atual)
+  if (typeof current === 'string') partes.push(current)
   return partes.join(' | ')
 }
 

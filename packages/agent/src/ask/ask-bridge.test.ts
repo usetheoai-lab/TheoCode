@@ -2,7 +2,7 @@
  * B-004 — a question that is abandoned must settle.
  *
  * `perguntar()` built its promise capturing only `resolve`, so `reject` was not merely unused — it
- * was unreachable. `abandonar()` then deleted the pending entry and returned, dropping the captured
+ * was unreachable. `abandon()` then deleted the pending entry and returned, dropping the captured
  * `resolve` on the floor. The promise it had handed the SDK never settled.
  *
  * What the user sees: pressing ESC frees the UI (the slot is released) but the turn stays blocked
@@ -19,11 +19,11 @@ describe('B-004 — abandoning a question settles its promise', () => {
     const bridge = new AskBridge(() => {})
     const answer = bridge.perguntar('which file?')
 
-    bridge.abandonar()
+    bridge.abandon()
 
     await expect(
       answer,
-      'the promise handed to the SDK never settled: `abandonar()` dropped the pending entry without ' +
+      'the promise handed to the SDK never settled: `abandon()` dropped the pending entry without ' +
         'resolving or rejecting it, so the turn stays blocked until the 5-minute timeout even though ' +
         'the UI already released the slot.',
     ).rejects.toBeInstanceOf(Error)
@@ -33,12 +33,12 @@ describe('B-004 — abandoning a question settles its promise', () => {
     // Anti-vacuity floor: rejecting everything would satisfy the test above.
     const bridge = new AskBridge(() => {})
     const kept = bridge.perguntar('kept?', 'thread-a')
-    // Captured deliberately: `abandonar` now rejects, and an uncaught rejection here would be the
+    // Captured deliberately: `abandon` now rejects, and an uncaught rejection here would be the
     // very defect B-013 is about — a promise nobody settles quietly taking the process down.
     const dropped = bridge.perguntar('dropped?', 'thread-b')
     const droppedSettled = expect(dropped).rejects.toBeInstanceOf(Error)
 
-    bridge.abandonar('thread-b')
+    bridge.abandon('thread-b')
     await droppedSettled
     bridge.responder('still here', 'thread-a')
 
@@ -97,15 +97,15 @@ describe('B-004 — subscribing is honest about being a single slot', () => {
     const first = vi.fn()
     const second = vi.fn()
 
-    bridge.assinar(first)
-    bridge.assinar(second)
+    bridge.subscribe(first)
+    bridge.subscribe(second)
     const pending = bridge.perguntar('anything?')
     bridge.responder('done')
 
     // Whatever the chosen semantics, losing a subscriber without a trace is not one of them.
     expect(
       first.mock.calls.length + second.mock.calls.length,
-      'a second `assinar()` overwrote the first listener silently, so one subscriber stopped being ' +
+      'a second `subscribe()` overwrote the first listener silently, so one subscriber stopped being ' +
         'notified with no error and no warning',
     ).toBeGreaterThan(0)
     expect(second).toHaveBeenCalled()

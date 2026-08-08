@@ -16,13 +16,13 @@ import { useEffect, useRef, useState } from 'react'
  */
 export const clock = (): number => performance.now()
 
-export function shouldDerive(agora: number, last: number | undefined, janela: number): boolean {
-  if (!Number.isFinite(janela) || janela < 0) {
-    throw new RangeError(`invalid window: ${String(janela)}`)
+export function shouldDerive(agora: number, last: number | undefined, previewWindow: number): boolean {
+  if (!Number.isFinite(previewWindow) || previewWindow < 0) {
+    throw new RangeError(`invalid window: ${String(previewWindow)}`)
   }
   if (last === undefined) return true
   if (agora < last) return true
-  return agora - last >= janela
+  return agora - last >= previewWindow
 }
 
 const NO_KEY_SENTINEL: unique symbol = Symbol('m102/sem-key')
@@ -34,7 +34,7 @@ interface State<T> {
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
-export function useCoalescedMemo<T>(computar: () => T, key: unknown, janela: number): T {
+export function useCoalescedMemo<T>(computar: () => T, key: unknown, previewWindow: number): T {
   const ref = useRef<State<T>>({
     value: undefined,
     key: NO_KEY_SENTINEL,
@@ -44,7 +44,7 @@ export function useCoalescedMemo<T>(computar: () => T, key: unknown, janela: num
   const [, forcar] = useState(0)
 
   const state = ref.current
-  if (state.key !== key && shouldDerive(clock(), state.em, janela)) {
+  if (state.key !== key && shouldDerive(clock(), state.em, previewWindow)) {
     state.value = computar()
     state.key = key
     state.em = clock()
@@ -54,7 +54,7 @@ export function useCoalescedMemo<T>(computar: () => T, key: unknown, janela: num
     const est = ref.current
     if (est.key === key) return
     if (est.timer !== undefined) return
-    const wait = Math.max(0, (est.em ?? 0) + janela - clock())
+    const wait = Math.max(0, (est.em ?? 0) + previewWindow - clock())
     est.timer = setTimeout(() => {
       est.timer = undefined
       forcar((n) => n + 1)

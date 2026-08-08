@@ -4,9 +4,9 @@ import type { ExecSessions } from '../runtime/index.js'
 async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
   const { planAllProjectsNoDisco, runAllProjectsNoDisco, formatReport } =
     await import('@theocode/agent/session')
-  let plano
+  let plan
   try {
-    plano = await planAllProjectsNoDisco({
+    plan = await planAllProjectsNoDisco({
       ...(args.keepLast !== undefined ? { keepLast: args.keepLast } : {}),
       ...(args.maxAgeDays !== undefined ? { maxAgeDays: args.maxAgeDays } : {}),
     })
@@ -14,15 +14,15 @@ async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
     process.stderr.write(`[sessions gc] ${err instanceof Error ? err.message : String(err)}\n`)
     process.exit(1)
   }
-  const resultado = await runAllProjectsNoDisco(plano, { apply: args.apply })
+  const resultado = await runAllProjectsNoDisco(plan, { apply: args.apply })
   if (args.json) {
     process.stdout.write(
-      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: resultado.dryRun, porForma: plano.totalPorForma, removed: resultado.removidos.length, kept: plano.mantidos.length, errors: [...plano.errors, ...resultado.errors] })}\n`,
+      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: resultado.dryRun, porForma: plan.totalPorForma, removed: resultado.removidos.length, kept: plan.mantidos.length, errors: [...plan.errors, ...resultado.errors] })}\n`,
     )
   } else {
-    for (const l of formatReport(plano, resultado)) process.stderr.write(`${l}\n`)
+    for (const l of formatReport(plan, resultado)) process.stderr.write(`${l}\n`)
   }
-  process.exit(plano.errors.length + resultado.errors.length > 0 ? 1 : 0)
+  process.exit(plan.errors.length + resultado.errors.length > 0 ? 1 : 0)
 }
 
 function humanReport(

@@ -36,7 +36,7 @@ export type KeyAction =
   | { readonly kind: 'pause-goal' }
   | { readonly kind: 'prime-backtrack' }
   | { readonly kind: 'reset-backtrack' }
-  | { readonly kind: 'advance-backtrack'; readonly proximo: number; readonly total: number }
+  | { readonly kind: 'advance-backtrack'; readonly next: number; readonly total: number }
   | { readonly kind: 'confirm-backtrack' }
   | { readonly kind: 'arm-exit' }
   | { readonly kind: 'sair' }
@@ -109,7 +109,7 @@ function routeEscape(state: KeyboardState): KeyAction[] {
     return [{ kind: 'prime-backtrack' }]
   }
 
-  const proximo = stepBacktrack(state.backtrackNth, state.backtrackTotal)
-  if (proximo === null) return [{ kind: 'reset-backtrack' }]
-  return [{ kind: 'advance-backtrack', proximo, total: state.backtrackTotal }]
+  const next = stepBacktrack(state.backtrackNth, state.backtrackTotal)
+  if (next === null) return [{ kind: 'reset-backtrack' }]
+  return [{ kind: 'advance-backtrack', next, total: state.backtrackTotal }]
 }

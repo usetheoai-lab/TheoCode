@@ -23,7 +23,7 @@ interface AgentInstance {
   [Symbol.asyncDispose](): Promise<void>
 }
 
-interface OpcoesDeCriacao {
+interface CreationOptions {
   agentId: string
   apiKey: string
   model: ReturnType<typeof buildModelSelection>
@@ -39,11 +39,11 @@ export interface DepsDaFabricaDeReview {
   resolveCredential: (model: string) => Promise<string>
   hooks?: HookHandlers
   registrarCleanup: (fn: () => Promise<void>) => void
-  createInstance?: (opts: OpcoesDeCriacao) => Promise<AgentInstance>
+  createInstance?: (opts: CreationOptions) => Promise<AgentInstance>
   deleteAgent?: (agentId: string) => Promise<void>
 }
 
-const defaultCreateInstance = (opts: OpcoesDeCriacao): Promise<AgentInstance> =>
+const defaultCreateInstance = (opts: CreationOptions): Promise<AgentInstance> =>
   Agent.create(opts) as unknown as Promise<AgentInstance>
 
 const defaultDeleteAgent = (agentId: string): Promise<void> =>
@@ -72,14 +72,14 @@ export function createReviewAgent(deps: DepsDaFabricaDeReview): ReviewDeps['crea
     })
 
     let descartado = false
-    const descartar = async (): Promise<void> => {
+    const dispose = async (): Promise<void> => {
       if (descartado) return
       descartado = true
       await inst[Symbol.asyncDispose]()
       await deleteAgent(agentId)
     }
-    deps.registrarCleanup(descartar)
+    deps.registrarCleanup(dispose)
 
-    return { send: (m: string) => inst.send(m), dispose: descartar }
+    return { send: (m: string) => inst.send(m), dispose: dispose }
   }
 }

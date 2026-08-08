@@ -27,7 +27,7 @@ export interface Consent {
   readonly trust: () => void
   readonly distrust: () => void
 
-  readonly aprovarHook: (spec: unknown, aoFalhar: (error: Error) => void) => void
+  readonly approveHookConsent: (spec: unknown, aoFalhar: (error: Error) => void) => void
   readonly refuseHook: (fingerprint: string) => void
   readonly markReviewed: () => void
 }
@@ -36,10 +36,10 @@ export function useConsent(cwd: string = process.cwd()): Consent {
   const [state, setState] = useState<ConsentState>(() =>
     initialState(resolveTrustPosture(cwd).level === 'trusted'),
   )
-  const { trusted, hooksRevisados, recusados, epoca } = state
+  const { trusted, hooksRevisados, recusados, epoch } = state
 
   const pendingHooks = useMemo(() => {
-    void epoca
+    void epoch
     return computePendingHooks({
       cwd,
       declined: recusados,
@@ -49,9 +49,9 @@ export function useConsent(cwd: string = process.cwd()): Consent {
       classifyHooks,
       onError: (err) => process.stderr.write(`[hooks] consent check failed: ${String(err)}\n`),
     })
-  }, [cwd, recusados, epoca])
+  }, [cwd, recusados, epoch])
 
-  const aprovarHook = useCallback(
+  const approveHookConsent = useCallback(
     (spec: unknown, aoFalhar: (error: Error) => void): void => {
       void approveHook(cwd, spec as Parameters<typeof approveHook>[1])
         .then(() => {
@@ -74,9 +74,9 @@ export function useConsent(cwd: string = process.cwd()): Consent {
     distrust: useCallback(() => {
       setState(distrustInState)
     }, []),
-    aprovarHook,
+    approveHookConsent,
     refuseHook: useCallback((fingerprint: string) => {
-      setState((atual) => refuseHookInState(atual, fingerprint))
+      setState((current) => refuseHookInState(current, fingerprint))
     }, []),
     markReviewed: useCallback(() => {
       setState(markReviewedInState)

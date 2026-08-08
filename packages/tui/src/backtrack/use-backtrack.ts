@@ -18,29 +18,29 @@ export interface BacktrackLadder {
   readonly setSeed: Dispatch<SetStateAction<string>>
 
   readonly prime: () => void
-  readonly advance: (proximo: number, total: number) => void
+  readonly advance: (next: number, total: number) => void
   readonly resetar: () => void
   readonly confirm: () => void
 }
 
-function pedirJanelaDeBacktrack(
+function requestBacktrackWindow(
   currentSessionId: DepsDeBacktrack['currentSessionId'],
   setToast: DepsDeBacktrack['setToast'],
-  aplicar: (ladder: LadderState) => void,
+  apply: (ladder: LadderState) => void,
 ): void {
-  let janela: readonly string[] = []
-  let quantos = 0
+  let previewWindow: readonly string[] = []
+  let turnCount = 0
   void primeBacktrack({
     currentSessionId,
     setRewindPreviews: (p) => {
-      janela = typeof p === 'function' ? p([...janela]) : p
+      previewWindow = typeof p === 'function' ? p([...previewWindow]) : p
     },
     setRewindCount: (n) => {
-      quantos = typeof n === 'function' ? n(quantos) : n
+      turnCount = typeof n === 'function' ? n(turnCount) : n
     },
     setRewindNth: () => undefined,
     setRewindPrimed: (v) => {
-      if (v) aplicar(armLadder(janela, quantos))
+      if (v) apply(armLadder(previewWindow, turnCount))
     },
     setToast,
   })
@@ -58,14 +58,14 @@ export function useBacktrack(deps: DepsDeBacktrack): BacktrackLadder {
   }, [])
 
   const prime = useCallback((): void => {
-    pedirJanelaDeBacktrack(currentSessionId, setToast, setLadder)
+    requestBacktrackWindow(currentSessionId, setToast, setLadder)
   }, [currentSessionId, setToast])
 
   const advance = useCallback(
-    (proximo: number, quantos: number): void => {
-      setLadder((atual) => selectTurn(atual, proximo))
+    (next: number, turnCount: number): void => {
+      setLadder((current) => selectTurn(current, next))
       setToast({
-        message: `Backtrack: message ${String(proximo + 1)}/${String(quantos)} — Enter to edit, Esc for older`,
+        message: `Backtrack: message ${String(next + 1)}/${String(turnCount)} — Enter to edit, Esc for older`,
         variant: 'info',
       })
     },

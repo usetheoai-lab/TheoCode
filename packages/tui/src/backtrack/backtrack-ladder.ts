@@ -18,6 +18,6 @@ export function armLadder(previews: readonly string[], total: number): LadderSta
   return { armed: true, nth: SENTINEL, total, previews }
 }
 
-export function selectTurn(state: LadderState, proximo: number): LadderState {
-  return { ...state, nth: proximo }
+export function selectTurn(state: LadderState, next: number): LadderState {
+  return { ...state, nth: next }
 }

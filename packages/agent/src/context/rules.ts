@@ -85,7 +85,7 @@ function absorbInput(
       st.acc.push(full)
     }
   } catch {
-    // entrada inalcançável — o mesmo desfecho de não a ter encontrado
+    // entrada inalcançável — o mesmo outcome de não a ter encontrado
   }
 }
 

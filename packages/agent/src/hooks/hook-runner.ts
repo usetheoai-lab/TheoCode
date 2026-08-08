@@ -85,7 +85,7 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
       signal: NodeJS.Signals | null,
       wasTimedOut: boolean,
     ): void => {
-      settle(desfecho(spec, coletor, code, signal, wasTimedOut))
+      settle(outcome(spec, coletor, code, signal, wasTimedOut))
     }
 
     child.stdin.on('error', () => {
@@ -95,7 +95,7 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
   })
 }
 
-function desfecho(
+function outcome(
   spec: HookSpec,
   coletor: ReturnType<typeof createOutputCollector>,
   code: number | null,

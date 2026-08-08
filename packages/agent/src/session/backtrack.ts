@@ -17,7 +17,7 @@ const defaultBaseDir = transcriptRoot
 
 let cacheTranscript: { key: string; records: readonly SessionRecord[] } | undefined
 
-function lerTranscript(src: string): readonly SessionRecord[] {
+function readTranscript(src: string): readonly SessionRecord[] {
   const st = statSync(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
   if (cacheTranscript?.key === key) return cacheTranscript.records
@@ -98,7 +98,7 @@ export function forkSessionBeforeUserTurn(
   const src = transcriptPath(dir, cwd, srcId)
   if (!existsSync(src)) return { newId, copied: false }
 
-  const records = lerTranscript(src)
+  const records = readTranscript(src)
 
   const { prefix, selectedText } = truncateRecordsBeforeUserTurn(records, nth)
 
@@ -139,7 +139,7 @@ export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   return previews
 }
 
-async function lerTranscriptAsync(src: string): Promise<readonly SessionRecord[]> {
+async function readTranscriptAsync(src: string): Promise<readonly SessionRecord[]> {
   const { stat } = await import('node:fs/promises')
   const st = await stat(src)
   const key = `${src}:${String(st.mtimeMs)}:${String(st.size)}`
@@ -164,5 +164,5 @@ export async function readUserTurnPreviewsAsync(
   } catch {
     return []
   }
-  return userTurnPreviews(await lerTranscriptAsync(src))
+  return userTurnPreviews(await readTranscriptAsync(src))
 }

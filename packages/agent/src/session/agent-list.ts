@@ -8,7 +8,7 @@ interface ListedAgent {
   cwd?: string
 }
 
-type ListagemBruta = (cwd: string) => Promise<{ items: ListedAgent[]; nextCursor?: string }>
+type RawListing = (cwd: string) => Promise<{ items: ListedAgent[]; nextCursor?: string }>
 
 export class CursorNotDrainedError extends TheokitAgentError {
   readonly name = 'CursorNotDrainedError'
@@ -23,14 +23,14 @@ export class CursorNotDrainedError extends TheokitAgentError {
   }
 }
 
-const listagemPadrao: ListagemBruta = async (cwd) => {
+const defaultListing: RawListing = async (cwd) => {
   const r = await Agent.list({ runtime: 'local', cwd })
   return { items: r.items }
 }
 
 export async function listAgents(
   cwd: string,
-  list: ListagemBruta = listagemPadrao,
+  list: RawListing = defaultListing,
 ): Promise<ListedAgent[]> {
   const r = await list(cwd)
   if (r.nextCursor !== undefined) throw new CursorNotDrainedError(r.nextCursor)

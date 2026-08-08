@@ -58,7 +58,7 @@ export function buildChatAgent(overrides?: {
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
 
-  const interactiveBackend = resolverBackendInterativo(overrides, cfg)
+  const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
   const lifecycleHooks = chatHookChain(cfg, posture, cwd)
   const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
   const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
@@ -108,7 +108,7 @@ function contextoDoChat(overrides?: {
   }
 }
 
-function resolverBackendInterativo(
+function resolveInteractiveBackend(
   overrides: { sessionPty?: SessionPtyOwner; interactiveBackend?: InteractiveBackend } | undefined,
   cfg: EffectiveConfig,
 ): InteractiveBackend {
@@ -327,10 +327,10 @@ function baseAgent(ctx: {
   return (
     AgentBuilder.create()
       .input(z.object({ message: z.string() }))
-      // M94 — a janela declarada em config atravessa até o orçamento de compactação. Sem ela, um
+      // M94 — a previewWindow declarada em config atravessa até o orçamento de compactação. Sem ela, um
       // model de 400k sem entrada de catálogo (o caso do OpenRouter) era orçado contra o floor de
       // 128k e compactava ~3× mais do que precisava.
-      // M98 — o insumo passou a ter UM path nomeado (`janelaDeclarada`), e é ele que se entrega ao
+      // M98 — o insumo passou a ter UM path nomeado (`declaredWindow`), e é ele que se entrega ao
       // runtime, CRU. Medido: o SDK guarda este número e aplica a margem por dentro, então passar a
       // projeção (`contextWindow.window`, já com margem) aplicaria a margem duas vezes. Este é o único
       // consumidor do insumo em produção, e um gate conta.

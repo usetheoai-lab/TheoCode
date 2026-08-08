@@ -42,7 +42,7 @@ const io: OracleIO = {
       closeSync(fd)
     }
   },
-  ehDiretorio(path) {
+  isDirectory(path) {
     try {
       return statSync(path).isDirectory()
     } catch {
@@ -59,14 +59,14 @@ function listRealProject(root: string, project: string): ProjectEntry[] {
       mtimeMs = statSync(join(dir, e.name)).mtimeMs
     } catch {
       // O nó sumiu entre o `readdir` e o `stat`. `mtimeMs = 0` o torna "infinitamente velho" e
-      // portanto candidato — e o `unlink` correspondente devolverá `ENOENT`, que o coletor já trata
+      // portanto candidate — e o `unlink` correspondente devolverá `ENOENT`, que o coletor já trata
       // como sucesso idempotente. Nenhuma decisão de deleção depende deste valor sozinho.
     }
-    return { name: e.name, ehDiretorio: e.isDirectory(), mtimeMs }
+    return { name: e.name, isDirectory: e.isDirectory(), mtimeMs }
   })
 }
 
-interface OpcoesCLI {
+interface CliOptions {
   apply?: boolean
   keepLast?: number
   maxAgeDays?: number
@@ -79,7 +79,7 @@ export async function listProjectRegistry(
   return listAgents(cwd)
 }
 
-export async function planAllProjectsNoDisco(opts: OpcoesCLI = {}): Promise<PlanoAll> {
+export async function planAllProjectsNoDisco(opts: CliOptions = {}): Promise<PlanoAll> {
   const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
   return planSessionGCAllProjects({
     projectsRoot: root,
@@ -92,7 +92,7 @@ export async function planAllProjectsNoDisco(opts: OpcoesCLI = {}): Promise<Plan
             .map((e) => e.name)
         : [],
     listProject: (p) => listRealProject(root, p),
-    classificar: (p) =>
+    classify: (p) =>
       classifyDirectory(p, io, {
         projectsRoot: root,
         maxProfundidadeDFS: MAX_PROFUNDIDADE_DFS,
@@ -105,11 +105,11 @@ export async function planAllProjectsNoDisco(opts: OpcoesCLI = {}): Promise<Plan
 }
 
 export async function runAllProjectsNoDisco(
-  plano: PlanoAll,
-  opts: OpcoesCLI = {},
+  plan: PlanoAll,
+  opts: CliOptions = {},
 ): Promise<ResultadoAll> {
   const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
-  return runSessionGCAllProjects(plano, {
+  return runSessionGCAllProjects(plan, {
     ...(opts.apply === true ? { apply: true } : {}),
     unlink: (path) => fsp.unlink(path),
     rmdir: (path) => fsp.rmdir(path),
@@ -120,7 +120,7 @@ export async function runAllProjectsNoDisco(
       try {
         return listRealProject(root, p)
       } catch {
-        return [{ name: '<ilegível>', ehDiretorio: false, mtimeMs: 0 }]
+        return [{ name: '<ilegível>', isDirectory: false, mtimeMs: 0 }]
       }
     },
   })
@@ -128,13 +128,13 @@ export async function runAllProjectsNoDisco(
 
 const ROTULO: Record<FormaColetavel, string> = {
   transcript: 'transcript',
-  registry: 'entrada de registry',
+  registry: 'entry de registry',
   'lock-arquivo': 'lock órfão (arquivo)',
   'lock-diretorio': 'lock órfão (diretório)',
   tmp: 'temporário interrompido',
 }
 
-export function formatReport(plano: PlanoAll, resultado: ResultadoAll): string[] {
+export function formatReport(plan: PlanoAll, resultado: ResultadoAll): string[] {
   const lines: string[] = []
   lines.push(
     resultado.dryRun
@@ -142,18 +142,18 @@ export function formatReport(plano: PlanoAll, resultado: ResultadoAll): string[]
       : `APLICADO — ${String(resultado.removidos.length)} artefato(s) removido(s)`,
   )
   lines.push('')
-  lines.push('por forma:')
-  for (const [forma, n] of Object.entries(plano.totalPorForma) as [FormaColetavel, number][]) {
-    if (n > 0) lines.push(`  ${ROTULO[forma].padEnd(24)} ${String(n).padStart(7)}`)
+  lines.push('por kind:')
+  for (const [kind, n] of Object.entries(plan.totalPorForma) as [FormaColetavel, number][]) {
+    if (n > 0) lines.push(`  ${ROTULO[kind].padEnd(24)} ${String(n).padStart(7)}`)
   }
   const perProject = new Map<string, number>()
-  for (const c of plano.candidatos) perProject.set(c.project, (perProject.get(c.project) ?? 0) + 1)
+  for (const c of plan.candidates) perProject.set(c.project, (perProject.get(c.project) ?? 0) + 1)
   lines.push('')
   lines.push(
-    `projetos: ${String(perProject.size)} com candidatos, ${String(plano.mantidos.length)} mantidos inteiros`,
+    `projetos: ${String(perProject.size)} com candidates, ${String(plan.mantidos.length)} mantidos inteiros`,
   )
-  for (const e of plano.errors) lines.push(`  ! ${e}`)
+  for (const e of plan.errors) lines.push(`  ! ${e}`)
   for (const e of resultado.errors) lines.push(`  ! ${e}`)
-  if (plano.candidatos.length === 0) lines.push('nada a coletar')
+  if (plan.candidates.length === 0) lines.push('nada a coletar')
   return lines
 }

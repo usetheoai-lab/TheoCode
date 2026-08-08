@@ -331,7 +331,7 @@ async function anexarFeedbackDeUmHook(
   return false
 }
 
-function cargaDoEvento(event: HookEvent, tool: ToolContext): Record<string, unknown> {
+function eventPayload(event: HookEvent, tool: ToolContext): Record<string, unknown> {
   if (event !== 'PostToolUse') return { event }
   return { event, name: tool.name ?? '', args: tool.args ?? {}, result: tool.result }
 }
@@ -344,7 +344,7 @@ async function dispararObservacionais(
   const tool = (ctx ?? {}) as ToolContext
   for (const spec of list) {
     if (event === 'PostToolUse' && !appliesTo(spec, tool.name ?? '')) continue
-    const payload = cargaDoEvento(event, tool)
+    const payload = eventPayload(event, tool)
     try {
       const run = await runHookCommand(spec, payload)
       if (!run.ok) note(`${event} hook failed (ignored): ${spec.command} — ${run.output}`)

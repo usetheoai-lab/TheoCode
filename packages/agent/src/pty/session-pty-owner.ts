@@ -47,16 +47,16 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
 
   let modoAtual: SandboxMode = modoInicial
 
-  const novoBackend = (): BackendComPosse =>
+  const newBackend = (): BackendComPosse =>
     createBackend({
       wrapCommand: (command, cwd) => createWrap({ mode: modoAtual })(command, cwd),
       maxSessions,
     })
 
-  let atual = novoBackend()
+  let current = newBackend()
 
   return {
-    backend: () => atual,
+    backend: () => current,
     setMode: (mode) => {
       // B-014 — `wrapCommand` reads the mode at call time, so a NEW command always runs under the
       // current confinement. A process already spawned does not: its wrap was fixed when it started.
@@ -69,16 +69,16 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
       const endurecendo = permissiveness(mode) < permissiveness(modoAtual)
       modoAtual = mode
       if (endurecendo) {
-        atual.killAll()
-        atual = novoBackend()
+        current.killAll()
+        current = newBackend()
       }
     },
     rotate: () => {
-      atual.killAll()
-      atual = novoBackend()
+      current.killAll()
+      current = newBackend()
     },
     shutdown: () => {
-      atual.killAll()
+      current.killAll()
     },
   }
 }
