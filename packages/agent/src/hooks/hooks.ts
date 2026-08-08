@@ -146,9 +146,19 @@ function parseFeedback(spec: HookSpec, run: HookRun): HookFeedback | undefined {
   return Object.keys(out).length > 0 ? out : undefined
 }
 
+/**
+ * B-021 — a matcher is a TOOL-NAME scope, so a context with no tool name is outside it.
+ *
+ * `toolName === ''` is reached deliberately: `targetOf` passes it for a PostToolUse result that is a
+ * plain string rather than an array of tool parts, and there is no name to match. The branch used to
+ * return true for EVERY spec, so a hook declared as `matcher: "^run_shell$"` ran its command in a
+ * context its author never scoped it to, with an empty tool name.
+ *
+ * A hook that declared NO matcher still applies — that is the first line, and the fix must not reach
+ * it. Deleting the branch is the whole change.
+ */
 function appliesTo(spec: HookSpec, toolName: string): boolean {
   if (spec.matcher === undefined) return true
-  if (toolName === '') return true
   return new RegExp(`^(?:${spec.matcher})$`).test(toolName)
 }
 
@@ -378,7 +388,10 @@ async function transformarResultado<T>(
 
 export function buildHookHandlers(
   specs: readonly HookSpec[],
-  opts: { trusted: boolean; approved?: ReadonlySet<string> },
+  // B-021 — `approved` is REQUIRED. It used to be optional, and the absent-value branch installed
+  // every parsed spec with no sha256 fingerprint check — the gate B-008 exists to enforce, disabled
+  // by omission and typechecking cleanly. Fail-safe defaults: the default is the denial.
+  opts: { trusted: boolean; approved: ReadonlySet<string> },
 ): HookHandlers {
   if (!opts.trusted) {
     if (specs.length > 0) {
@@ -387,10 +400,7 @@ export function buildHookHandlers(
     return {}
   }
 
-  const permitted =
-    opts.approved === undefined
-      ? specs
-      : specs.filter((s) => opts.approved!.has(hookFingerprint(s)))
+  const permitted = specs.filter((s) => opts.approved.has(hookFingerprint(s)))
 
   const by = (event: HookEvent): HookSpec[] => permitted.filter((s) => s.event === event)
   const handlers: HookHandlers = {}

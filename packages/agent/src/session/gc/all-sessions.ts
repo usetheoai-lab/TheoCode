@@ -58,8 +58,10 @@ interface ApplyAllOptions {
   unlink: (path: string) => Promise<void>
   rmdir: (path: string) => Promise<void>
   deleteAgent: (id: string) => Promise<void>
-  readPointer?: (cwd: string) => string | undefined
-  hasLiveWriter?: (transcriptPath: string) => boolean
+  readPointer: (cwd: string) => string | undefined
+  // B-021 — REQUIRED, matching the sibling PlanAllOptions. Optional made the apply-phase TOCTOU
+  // backstop opt-in, and backstopRefusal returned undefined outright when it was absent.
+  hasLiveWriter: (transcriptPath: string) => boolean
   listProject?: (project: string) => ProjectEntry[]
 }
 
