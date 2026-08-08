@@ -65,7 +65,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-055**
+Next free id: **B-056**
 
 ---
 
@@ -1077,3 +1077,20 @@ dod:
   - a run that hits whatever bound replaces it reports UNDETERMINED for the projects it could not classify, per B-020, rather than silently treating them as DEAD
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `sessions-gc-all-projects-never-returns`).
+
+## B-055 — A hook veto is invisible in the TUI   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: measured 2026-08-08 against the SDK's own declaration. A veto is `PreToolCallDecision = { block: true; message: string }` (`@theokit/sdk/dist/agent-BzZwYFiw.d.ts:1369`), returned from `pre_tool_call`, and the SDK docstring says it "surfaces `message` to the model". `packages/agent/src/hooks/hooks.ts` produces exactly that shape in `chainBudgetBlock` and `bloqueioPorPolitica`. What the renderer receives for a vetoed call was NOT measured.
+why_now: B-027 deleted the `Blocked <cmd>` rendering rather than repair it, because it detected `{ exitCode: 126 }` — a shell convention this product never emits — and rewiring it would have meant guessing the real wire shape. The user-visible gap is now explicit rather than disguised: a hook CAN block a tool call, and the terminal shows the user nothing that says so. The information exists at the point of veto, inside our own process; it is the transport to the surface that is missing.
+status: triaged
+severity: MEDIUM
+dod:
+  - a hook-vetoed tool call is visibly marked in the TUI, covered by a test that fails on the current code
+  - the signal travels from the veto site rather than being reverse-engineered from a rendered tool result — the shape of that result is the SDK's to change, and reading it was what made the old code unreachable
+  - no detection keyed on a message prefix or an exit-code convention this product does not emit
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `hook-veto-invisible-in-tui`).
