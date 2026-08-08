@@ -19,14 +19,14 @@
  * The fourth finding in this item is `appliesTo` returning true for an empty tool name. That is not
  * a default-polarity problem — see the test at the bottom for why the fix is a deletion.
  */
-import { existsSync, mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { buildHookHandlers } from './hooks.js'
 import { hookFingerprint } from './hook-trust.js'
+import { ctxTurn, tmp } from './hooks-test-helpers.js'
 import { resolveHeadlessApproval } from '../config/approval-policy.js'
 import type { HookSpec } from './hooks-spec.js'
 
@@ -90,7 +90,7 @@ describe('B-021 — a matcher scopes a hook to tool names, so a result with no t
    * this codebase is already trying to shrink (B-049).
    */
   async function hookRanFor(matcher: string | undefined): Promise<boolean> {
-    const marker = join(mkdtempSync(join(tmpdir(), 'theocode-hook-')), 'ran')
+    const marker = join(tmp(), 'ran')
     const s: HookSpec = {
       command: `touch ${marker}`,
       event: 'PostToolUse',
@@ -99,9 +99,7 @@ describe('B-021 — a matcher scopes a hook to tool names, so a result with no t
     }
     const handlers = buildHookHandlers([s], { trusted: true, approved: new Set([hookFingerprint(s)]) })
 
-    await handlers.transform_tool_result?.('a plain string result', {
-      toolCalls: [],
-    } as never)
+    await handlers.transform_tool_result?.('a plain string result', ctxTurn())
 
     return existsSync(marker)
   }
