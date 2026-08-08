@@ -19,7 +19,7 @@ import { useAgent } from '@theokit/agents/client/react'
 
 import { homedir } from 'node:os'
 
-import { currentQuestion, subscribe } from '@theocode/agent/ask'
+import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { credentialHome } from '@theocode/agent/auth'
 
 import { useBacktrack } from './backtrack/index.js'
@@ -87,7 +87,7 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
 
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>(undefined)
   useEffect(
-    () => subscribe(() => setPendingQuestion(currentQuestion(currentSessionId()))),
+    () => setListener(() => setPendingQuestion(currentQuestion(currentSessionId()))),
     [currentSessionId],
   )
   const { goalRun, setGoalRun, goalActive, goalBadge } = useGoalRun(s.GOAL_POINTER)

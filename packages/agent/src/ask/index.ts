@@ -3,7 +3,7 @@ export {
   answerQuestion,
   ask,
   currentQuestion,
-  subscribe,
+  setListener,
 } from './ask-bridge.js'
 // B-004 — surfaces import from `@theocode/agent/ask`, never from the module directly. While this
 // class was absent here, no consumer could write `instanceof` against it: a typed error nobody can
@@ -11,4 +11,4 @@ export {
 export { ConcurrentQuestionError } from './concurrent-question-error.js'
 export { QuestionAbandonedError } from './question-abandoned-error.js'
 export { createInteractiveShellTool } from './interactive-shell-tool.js'
-
+export { ConcurrentListenerError } from './concurrent-listener-error.js'

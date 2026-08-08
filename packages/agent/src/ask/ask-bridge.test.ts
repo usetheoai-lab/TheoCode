@@ -1,7 +1,7 @@
 /**
  * B-004 — a question that is abandoned must settle.
  *
- * `perguntar()` built its promise capturing only `resolve`, so `reject` was not merely unused — it
+ * `ask()` built its promise capturing only `resolve`, so `reject` was not merely unused — it
  * was unreachable. `abandon()` then deleted the pending entry and returned, dropping the captured
  * `resolve` on the floor. The promise it had handed the SDK never settled.
  *
@@ -17,7 +17,7 @@ import { ConcurrentQuestionError } from './concurrent-question-error.js'
 describe('B-004 — abandoning a question settles its promise', () => {
   it('test_abandon_rejects_the_pending_question', async () => {
     const bridge = new AskBridge(() => {})
-    const answer = bridge.perguntar('which file?')
+    const answer = bridge.ask('which file?')
 
     bridge.abandon()
 
@@ -32,36 +32,36 @@ describe('B-004 — abandoning a question settles its promise', () => {
   it('test_abandon_does_not_disturb_another_thread', async () => {
     // Anti-vacuity floor: rejecting everything would satisfy the test above.
     const bridge = new AskBridge(() => {})
-    const kept = bridge.perguntar('kept?', 'thread-a')
+    const kept = bridge.ask('kept?', 'thread-a')
     // Captured deliberately: `abandon` now rejects, and an uncaught rejection here would be the
     // very defect B-013 is about — a promise nobody settles quietly taking the process down.
-    const dropped = bridge.perguntar('dropped?', 'thread-b')
+    const dropped = bridge.ask('dropped?', 'thread-b')
     const droppedSettled = expect(dropped).rejects.toBeInstanceOf(Error)
 
     bridge.abandon('thread-b')
     await droppedSettled
-    bridge.responder('still here', 'thread-a')
+    bridge.answer('still here', 'thread-a')
 
     await expect(kept).resolves.toBe('still here')
   })
 
   it('test_answering_still_resolves', async () => {
     const bridge = new AskBridge(() => {})
-    const answer = bridge.perguntar('which file?')
+    const answer = bridge.ask('which file?')
 
-    expect(bridge.responder('src/index.ts')).toBe(true)
+    expect(bridge.answer('src/index.ts')).toBe(true)
 
     await expect(answer).resolves.toBe('src/index.ts')
   })
 
   it('test_a_second_question_on_the_same_thread_still_rejects_as_concurrent', async () => {
     const bridge = new AskBridge(() => {})
-    const first = bridge.perguntar('first?')
+    const first = bridge.ask('first?')
 
-    await expect(bridge.perguntar('second?')).rejects.toBeInstanceOf(ConcurrentQuestionError)
+    await expect(bridge.ask('second?')).rejects.toBeInstanceOf(ConcurrentQuestionError)
 
     // Settle the first one too, so the test leaves no pending promise behind.
-    bridge.responder('answered')
+    bridge.answer('answered')
     await expect(first).resolves.toBe('answered')
   })
 })
@@ -91,24 +91,56 @@ describe('B-004 — the concurrent-question error is reachable and readable', ()
   })
 })
 
-describe('B-004 — subscribing is honest about being a single slot', () => {
-  it('test_a_second_subscriber_does_not_silently_replace_the_first', () => {
+describe('B-035 — the single slot is named for what it is, and a second set fails loudly', () => {
+  /**
+   * B-035 — the test that used to live here was VACUOUS, and it carried the name of the guarantee it
+   * failed to encode. It asserted `first.calls + second.calls > 0` and that `second` was called.
+   * Both hold PRECISELY when the first listener is silently replaced; `first` was never asserted on.
+   * The comment above it said "losing a subscriber without a trace is not one of them" and the
+   * assertions permitted exactly that.
+   *
+   * The B-004 bullet offered two exits: support multiple subscribers, or rename to what it is. Only
+   * the TUI ever subscribes, so building a multicast nobody asked for is the YAGNI failure. It is
+   * `setListener` now, and setting a second one over a live one throws rather than winning silently.
+   */
+  it('test_setting_a_second_listener_over_a_live_one_throws', () => {
     const bridge = new AskBridge(() => {})
     const first = vi.fn()
-    const second = vi.fn()
 
-    bridge.subscribe(first)
-    bridge.subscribe(second)
-    const pending = bridge.perguntar('anything?')
-    bridge.responder('done')
+    bridge.setListener(first)
 
-    // Whatever the chosen semantics, losing a subscriber without a trace is not one of them.
     expect(
-      first.mock.calls.length + second.mock.calls.length,
-      'a second `subscribe()` overwrote the first listener silently, so one subscriber stopped being ' +
-        'notified with no error and no warning',
-    ).toBeGreaterThan(0)
-    expect(second).toHaveBeenCalled()
-    return expect(pending).resolves.toBe('done')
+      () => bridge.setListener(vi.fn()),
+      'a second setListener() replaced a live one, so a surface stopped being notified with no ' +
+        'error and no warning',
+    ).toThrow(/listener/i)
+  })
+
+  it('test_the_first_listener_keeps_receiving_after_a_rejected_second', async () => {
+    // The assertion the old test should have made: `first` is still the one notified.
+    const bridge = new AskBridge(() => {})
+    const first = vi.fn()
+    bridge.setListener(first)
+    try {
+      bridge.setListener(vi.fn())
+    } catch {
+      // expected — asserted above
+    }
+
+    const pending = bridge.ask('anything?')
+    bridge.answer('done')
+
+    expect(first, 'the surviving listener was not the first one').toHaveBeenCalled()
+    await expect(pending).resolves.toBe('done')
+  })
+
+  it('test_disposing_frees_the_slot_for_a_new_listener', () => {
+    // Anti-vacuity floor: throwing on every second call would make the bridge unusable across a
+    // surface restart, which is a real flow (the TUI unmounts and remounts).
+    const bridge = new AskBridge(() => {})
+    const dispose = bridge.setListener(vi.fn())
+    dispose()
+
+    expect(() => bridge.setListener(vi.fn())).not.toThrow()
   })
 })
