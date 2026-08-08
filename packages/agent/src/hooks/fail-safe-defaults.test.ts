@@ -19,7 +19,7 @@
  * The fourth finding in this item is `appliesTo` returning true for an empty tool name. That is not
  * a default-polarity problem — see the test at the bottom for why the fix is a deletion.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -117,5 +117,31 @@ describe('B-021 — a matcher scopes a hook to tool names, so a result with no t
     // Anti-vacuity floor, and the boundary the fix must not cross: a hook that declared NO scope
     // still applies. Deleting the branch outright would have disabled these too.
     expect(await hookRanFor(undefined), 'an unscoped hook stopped running').toBe(true)
+  })
+})
+
+describe('B-044 — a PostToolUse hook receives what the tool was actually called with', () => {
+  it('test_the_tool_arguments_reach_the_hook_payload', async () => {
+    // `args` was a hardcoded `{}` on the reachable path, while the code that WOULD have supplied it
+    // sat in a branch of `eventPayload` that PostToolUse never reaches. So a hook could see which
+    // tool ran and what it returned, and never what it was asked to do — the one field a policy
+    // hook needs to judge the call.
+    const out = join(tmp(), 'payload.json')
+    const s: HookSpec = { command: `cat > ${out}`, event: 'PostToolUse', timeout_ms: 5000 }
+    const handlers = buildHookHandlers([s], { trusted: true, approved: new Set([hookFingerprint(s)]) })
+
+    await handlers.transform_tool_result?.(
+      [{ toolUseId: 'call-1', content: 'the result' }],
+      ctxTurn({ toolCalls: [{ id: 'call-1', name: 'run_shell', args: { command: 'rm -rf /' } }] }),
+    )
+
+    const payload = JSON.parse(readFileSync(out, 'utf8')) as {
+      name: string
+      args: Record<string, unknown>
+    }
+    expect(payload.name).toBe('run_shell')
+    expect(payload.args, 'the hook was told nothing about what the tool was called with').toEqual({
+      command: 'rm -rf /',
+    })
   })
 })

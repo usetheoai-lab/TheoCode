@@ -4,6 +4,15 @@ import type { HookSpec } from './hooks-spec.js'
 
 const MAX_OUTPUT_BYTES = 1024 * 1024
 
+/**
+ * How long to keep reading after the hook process exits, waiting for `close`.
+ *
+ * B-044 — this replaces a bare `20` with a name and a reason. `detached: true` means a background
+ * grandchild can hold the pipe open indefinitely, so the wait must be bounded; but hook stdout is
+ * the decision channel, so the bound must be generous enough that an ordinary hook is never cut off.
+ */
+const DRAIN_BUDGET_MS = 2_000
+
 export interface HookRun {
   ok: boolean
   output: string
@@ -19,6 +28,10 @@ function createOutputCollector() {
     get truncated(): boolean {
       return truncated
     },
+    /** B-044 — the drain budget elapsed with a writer still holding the pipe. */
+    markTruncated(): void {
+      truncated = true
+    },
     collect(buf: Buffer): void {
       if (size >= MAX_OUTPUT_BYTES) {
         truncated = true
@@ -29,7 +42,7 @@ function createOutputCollector() {
     },
     text(): string {
       const out = Buffer.concat(chunks).toString('utf8').trim()
-      return truncated ? `${out}\n[output truncated at ${String(MAX_OUTPUT_BYTES)} bytes]` : out
+      return truncated ? `${out}\n[output truncated — a writer held the pipe, or ${String(MAX_OUTPUT_BYTES)} bytes were exceeded]` : out
     },
   }
 }
@@ -38,9 +51,9 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
   return new Promise<HookRun>((resolve) => {
     const child = spawn(spec.command, { shell: true, detached: true, stdio: 'pipe' })
 
-    const coletor = createOutputCollector()
+    const collector = createOutputCollector()
     const collect = (buf: Buffer): void => {
-      coletor.collect(buf)
+      collector.collect(buf)
     }
     let timedOut = false
     let settled = false
@@ -67,17 +80,41 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
       if (settled) return
       settled = true
       clearTimeout(timer)
+      if (drainTimer !== undefined) clearTimeout(drainTimer)
       resolve(run)
     }
 
     child.on('error', (err) => {
-      settle({ ok: false, timedOut: false, truncated: coletor.truncated, output: err.message })
+      settle({ ok: false, timedOut: false, truncated: collector.truncated, output: err.message })
     })
+
+    // B-044 — settle on `close`, not on `exit` plus a sleep.
+    //
+    // Node documents `exit` as possibly preceding the closing of the stdio streams; `close` fires
+    // once every writer has released the pipe. Hook stdout is the DECISION channel — `parseFeedback`
+    // reads `decision: block` out of it, and a PreToolUse non-zero exit turns it into the veto
+    // reason — so settling early can downgrade a block to an empty output.
+    //
+    // `close` alone is not safe either: `detached: true` puts the hook in its own process group, so
+    // a background grandchild can hold the pipe open indefinitely. The wait is therefore BOUNDED,
+    // with a named budget instead of the bare `20` that used to be here, and a run that hits the
+    // bound reports truncation rather than pretending it read everything.
+    let exited: { code: number | null; signal: NodeJS.Signals | null } | undefined
+    let drainTimer: NodeJS.Timeout | undefined
 
     child.on('exit', (code, signal) => {
       clearTimeout(timer)
-      const wasTimedOut = timedOut
-      setTimeout(() => finish(code, signal, wasTimedOut), 20)
+      exited = { code, signal }
+      drainTimer = setTimeout(() => {
+        collector.markTruncated()
+        finish(code, signal, timedOut)
+      }, DRAIN_BUDGET_MS)
+    })
+
+    child.on('close', (code, signal) => {
+      if (drainTimer !== undefined) clearTimeout(drainTimer)
+      clearTimeout(timer)
+      finish(exited?.code ?? code, exited?.signal ?? signal, timedOut)
     })
 
     const finish = (
@@ -85,7 +122,7 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
       signal: NodeJS.Signals | null,
       wasTimedOut: boolean,
     ): void => {
-      settle(outcome(spec, coletor, code, signal, wasTimedOut))
+      settle(outcome(spec, collector, code, signal, wasTimedOut))
     }
 
     child.stdin.on('error', () => {
@@ -97,7 +134,7 @@ export function runHookCommand(spec: HookSpec, payload: unknown): Promise<HookRu
 
 function outcome(
   spec: HookSpec,
-  coletor: ReturnType<typeof createOutputCollector>,
+  collector: ReturnType<typeof createOutputCollector>,
   code: number | null,
   signal: NodeJS.Signals | null,
   wasTimedOut: boolean,
@@ -106,10 +143,10 @@ function outcome(
     return {
       ok: false,
       timedOut: true,
-      truncated: coletor.truncated,
+      truncated: collector.truncated,
       output: [
         `hook timed out after ${spec.timeout_ms}ms and was killed: ${spec.command}`,
-        coletor.text(),
+        collector.text(),
       ]
         .filter(Boolean)
         .join('\n'),
@@ -119,9 +156,9 @@ function outcome(
     return {
       ok: false,
       timedOut: false,
-      truncated: coletor.truncated,
+      truncated: collector.truncated,
       output: `hook was killed by ${signal ?? 'an unknown signal'}: ${spec.command}`,
     }
   }
-  return { ok: code === 0, timedOut: false, truncated: coletor.truncated, output: coletor.text() }
+  return { ok: code === 0, timedOut: false, truncated: collector.truncated, output: collector.text() }
 }

@@ -175,6 +175,8 @@ interface ToolResultTurnContext {
 interface Target {
   indice: number
   name: string
+  /** B-044 — the tool call's own arguments, so a PostToolUse hook receives what actually ran. */
+  args: Record<string, unknown>
 }
 
 class Lote {
@@ -183,28 +185,44 @@ class Lote {
   private constructor(
     private readonly partes: Array<{ toolUseId?: string; content?: unknown }> | undefined,
     private readonly nameById: ReadonlyMap<string, string>,
+    private readonly argsById: ReadonlyMap<string, Record<string, unknown>>,
     private text: string | undefined,
   ) {}
 
-  static de(results: unknown, nameById: ReadonlyMap<string, string>): Lote {
+  static de(
+    results: unknown,
+    nameById: ReadonlyMap<string, string>,
+    argsById: ReadonlyMap<string, Record<string, unknown>> = new Map(),
+  ): Lote {
     return Array.isArray(results)
       ? new Lote(
           [...(results as Array<{ toolUseId?: string; content?: unknown }>)],
           nameById,
+          argsById,
           undefined,
         )
-      : new Lote(undefined, nameById, typeof results === 'string' ? results : undefined)
+      : new Lote(
+          undefined,
+          nameById,
+          argsById,
+          typeof results === 'string' ? results : undefined,
+        )
   }
 
   targetOf(spec: HookSpec): Target | undefined {
     if (this.partes === undefined) {
-      return this.text !== undefined && appliesTo(spec, '') ? { indice: -1, name: '' } : undefined
+      return this.text !== undefined && appliesTo(spec, '')
+        ? { indice: -1, name: '', args: {} }
+        : undefined
     }
     let escolhido: Target | undefined
     for (const [i, parte] of this.partes.entries()) {
-      const name = this.nameById.get(parte.toolUseId ?? '') ?? ''
+      const id = parte.toolUseId ?? ''
+      const name = this.nameById.get(id) ?? ''
       if (!appliesTo(spec, name)) continue
-      if (typeof parte.content === 'string') escolhido = { indice: i, name }
+      if (typeof parte.content === 'string') {
+        escolhido = { indice: i, name, args: this.argsById.get(id) ?? {} }
+      }
     }
     return escolhido
   }
@@ -312,7 +330,11 @@ async function anexarFeedbackDeUmHook(
   const run = await runHookCommand(spec, {
     event: 'PostToolUse',
     name: target.name,
-    args: {},
+    // B-044 — the tool's real arguments. This was a hardcoded `{}`, so a PostToolUse hook could see
+    // WHICH tool ran and its result but never what it was called with. The args were available all
+    // along: `ToolCallSummary` carries them and `transformarResultado` was already reading the same
+    // array to build its name map.
+    args: target.args,
     result: results,
   })
   const fb = parseFeedback(spec, run)
@@ -341,9 +363,17 @@ async function anexarFeedbackDeUmHook(
   return false
 }
 
-function eventPayload(event: HookEvent, tool: ToolContext): Record<string, unknown> {
-  if (event !== 'PostToolUse') return { event }
-  return { event, name: tool.name ?? '', args: tool.args ?? {}, result: tool.result }
+/**
+ * B-044 — the payload for the OBSERVATIONAL events (`Stop`, `SessionStart`), which carry no tool.
+ *
+ * This used to branch on `PostToolUse` and build a `{name, args, result}` payload for it. That
+ * branch was unreachable: PostToolUse hooks run through `transform_tool_result`, never through
+ * `dispararObservacionais`, which is this function's only caller. Meanwhile the reachable
+ * PostToolUse path passed a hardcoded `args: {}` — so the code that would have supplied the
+ * arguments was dead, and the code that ran did not have them.
+ */
+function eventPayload(event: HookEvent): Record<string, unknown> {
+  return { event }
 }
 
 async function dispararObservacionais(
@@ -354,7 +384,7 @@ async function dispararObservacionais(
   const tool = (ctx ?? {}) as ToolContext
   for (const spec of list) {
     if (event === 'PostToolUse' && !appliesTo(spec, tool.name ?? '')) continue
-    const payload = eventPayload(event, tool)
+    const payload = eventPayload(event)
     try {
       const run = await runHookCommand(spec, payload)
       if (!run.ok) note(`${event} hook failed (ignored): ${spec.command} — ${run.output}`)
@@ -372,7 +402,8 @@ async function transformarResultado<T>(
   const budget = new ContinuationBudget()
   const turn = (ctx ?? {}) as ToolResultTurnContext
   const nameById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.name]))
-  const lote = Lote.de(results, nameById)
+  const argsById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.args ?? {}]))
+  const lote = Lote.de(results, nameById, argsById)
 
   for (const spec of allPost) {
     const target = lote.targetOf(spec)
