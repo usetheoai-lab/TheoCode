@@ -5,7 +5,9 @@ import { Box, Text } from 'ink'
 import { AgentStreaming, AgentTimeline, DiffViewer, Notice, Toast } from '@theokit/tui'
 import { UsagePanel } from './UsagePanel.js'
 import { BacktrackOverlay } from '../backtrack/index.js'
-import { KeyboardHelp, DEFAULT_COMPOSER_SHORTCUTS } from '@theokit/tui'
+import { KeyboardHelp } from '@theokit/tui'
+
+import { composerShortcuts } from './composer-shortcuts.js'
 
 import { formatTurnError } from '../formatting/index.js'
 import { THINKING_PHRASES } from '../theme.js'
@@ -72,7 +74,9 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
       {props.showHelp ? (
         <KeyboardHelp
           shortcuts={[
-            ...DEFAULT_COMPOSER_SHORTCUTS,
+            // B-028 — `shell: false` because `ChatComposer` below is not given `onShellCommand`.
+            // See `composer-shortcuts.ts` for why wiring it is a separate, security-relevant call.
+            ...composerShortcuts({ shell: false }),
             ...[...props.customCommands.values()].map((c) => ({
               keys: `/${c.name}${c.hints.length > 0 ? ` ${c.hints.join(' ')}` : ''}`,
               description: c.description ?? 'custom command',

@@ -65,7 +65,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-056**
+Next free id: **B-057**
 
 ---
 
@@ -1151,3 +1151,20 @@ dod:
   - no detection keyed on a message prefix or an exit-code convention this product does not emit
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `hook-veto-invisible-in-tui`).
+
+## B-056 — Decide whether `!cmd` may run outside the agent's confinement   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: measured 2026-08-08. `@theokit/tui` gates the shortcut on an `onShellCommand` prop (`dist/index.js:4390`) that this app does not pass. Wiring it needs an execution path the TUI does not have: `run_shell` in `packages/tui` is a RENDERER for the agent's tool calls (`formatting/tool-header.ts:141`), and the only shell execution in this product goes through the agent — where it passes the approval gate, `resolveToolScope`'s sandbox `workDir`, and any PreToolUse hook veto.
+why_now: B-028 stopped the help panel advertising `!`, which removes the false promise. It does not answer whether the feature should exist. A composer-driven shell run that bypassed the three gates above would be the same class as B-019 and B-021 — a path to execution that skips the confinement every other path has — and shipping it quickly to close a checkbox is how that class is created.
+status: triaged
+severity: MEDIUM
+dod:
+  - a decision is recorded (ADR or a note in this item) on whether `!cmd` runs confined, unconfined-with-consent, or not at all
+  - if it ships, it passes the same approval gate and sandbox scope as an agent-issued `run_shell`, covered by a test that fails when either is bypassed
+  - `composerShortcuts({ shell: true })` restores the help line with no further edit — the filter is already keyed on the capability
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `shell-shortcut-confinement-decision`).
