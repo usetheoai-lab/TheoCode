@@ -94,6 +94,20 @@ export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
     exitCriterion:
       'Never for convenience. Only if accumulation and reviewability are preserved by another mechanism, decided in its own ADR.',
   },
+  {
+    key: 'profiles',
+    reason:
+      'A table of named tables. An environment variable is a string, and any encoding of a nested table into one (JSON, dotted keys) invents a syntax nobody asked for, for a value that is edited once and read forever.',
+    exitCriterion:
+      'A consumer that needs to define a profile per environment rather than per machine — at which point the encoding is chosen against a real use case instead of by guesswork.',
+  },
+  {
+    key: 'profile',
+    reason:
+      'Selecting a profile from the environment is reasonable and is NOT implemented. B-041 surfaced this the first time the detector was actually run: the key was neither reachable nor exempt, which is the gap the detector exists to find.',
+    exitCriterion:
+      'The first request to switch profiles per shell rather than per file. It is a small change — one entry in ENV_KNOBS and one read — and it is deliberately not made on speculation.',
+  },
 ]
 
 export function keysWithoutEnvPath(
@@ -210,26 +224,31 @@ function chosenProfile(layers: readonly z.infer<typeof configSchema>[]): {
   values: RawScalars
 } {
   let name: string | undefined
-  let perfis: Partial<Record<string, RawScalars>> = {}
+  let profiles: Partial<Record<string, RawScalars>> = {}
   for (const layer of layers) {
     if (layer.profile !== undefined) name = layer.profile
-    if (layer.profiles !== undefined) perfis = layer.profiles
+    // B-041 — MERGE per name, not replace. This was an assignment, so a project defining any
+    // profile erased every profile the user had defined globally — and the failure is hard: the
+    // profile they selected then resolves to nothing and `chosenProfile` throws for a config they
+    // did not write. Last-wins is the right rule for a scalar; `profiles` is a table, and last-wins
+    // belongs at the level of its entries.
+    if (layer.profiles !== undefined) profiles = { ...profiles, ...layer.profiles }
   }
   if (name === undefined) return { name, values: {} }
-  const escolhido = perfis[name]
-  if (escolhido === undefined) {
+  const chosen = profiles[name]
+  if (chosen === undefined) {
     throw new ConfigError(`config.toml: unknown profile "${name}" [profile]`)
   }
-  return { name, values: escolhido }
+  return { name, values: chosen }
 }
 
 export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
-  const fromFile = (raw: unknown, onde: string): z.infer<typeof configSchema> => {
+  const fromFile = (raw: unknown, where: string): z.infer<typeof configSchema> => {
     if (raw === null || raw === undefined) return {}
     try {
       return configSchema.parse(raw)
     } catch (err) {
-      throw toConfigError(err, onde)
+      throw toConfigError(err, where)
     }
   }
   const user = fromFile(layers.user, 'config.toml')

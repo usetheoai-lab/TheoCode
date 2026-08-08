@@ -79,7 +79,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_HOME,
-    reader: 'agents/auth/oauth-config.ts:HOME_ENV',
+    reader: 'packages/agent/src/auth/oauth-config.ts:HOME_ENV',
     default: '~/.theocode',
     effect: 'Moves the credential store directory (`auth.json`).',
   },
@@ -131,7 +131,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_LIVE_MODEL,
-    reader: 'agents/delegation/m63-analyst.live.mts:model',
+    reader: 'packages/agent/src/delegation/roles.ts:resolveEffort',
     default: 'google/gemini-2.5-flash-lite',
     effect: 'The model used by the live test harnesses. It does not affect the product runtime.',
   },
