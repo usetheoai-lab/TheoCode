@@ -16,6 +16,7 @@ import {
 import { isTransientError } from '@theokit/agents'
 import { z } from 'zod'
 
+import { ENV_HOME } from '../config/index.js'
 import { OPENAI_OAUTH_CONFIG, credentialStore } from './oauth-config.js'
 
 const PROVIDERS = ['openrouter', 'anthropic', 'openai'] as const
@@ -44,8 +45,26 @@ export function credentialHome(home: string, env: Record<string, string | undefi
 export const authFilePath = (home: string, env: Record<string, string | undefined> = {}): string =>
   authFilePathDoStore(credentialStore(home), env)
 
+/** The variables that say WHERE the credential store is — never which key to use. */
+function storeLocationOnly(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const kept: Record<string, string | undefined> = {}
+  for (const name of [ENV_HOME, 'THEOKIT_HOME', 'THEOKIT_AUTH_HOME']) {
+    if (env[name] !== undefined) kept[name] = env[name]
+  }
+  return kept
+}
+
+/**
+ * B-034 — returns the auth home and no longer WRITES it into the caller's environment.
+ *
+ * This was `env.THEOKIT_AUTH_HOME ??= credentialHome(home, env)`: a getter that mutated its
+ * argument. A caller passing `process.env` had the process environment changed as a side effect of
+ * asking a question, and a caller passing a scoped environment had it silently widened.
+ */
 export function ensureAuthHome(env: Record<string, string | undefined>, home: string): string {
-  return (env.THEOKIT_AUTH_HOME ??= credentialHome(home, env))
+  return env.THEOKIT_AUTH_HOME ?? credentialHome(home, env)
 }
 
 export { CredentialError }
@@ -357,7 +376,15 @@ export async function resolveCredentialForModel(
   },
 ): Promise<ResolvedCredential> {
   if (model !== undefined && model.startsWith('openai-chatgpt/')) {
-    return resolveFreshCredential({ ...opts, env: {} })
+    // B-034 — `env: {}` forces the FILE store by hiding the api-key environment variables. It was
+    // also hiding the variable that LOCATES that store: `ENV_HOME` is the credential store's
+    // `homeEnvVar` (`oauth-config.ts`), so the routed resolution looked in the default home while
+    // the ordinary one looked in the overridden one. Asymmetric and user-visible: the first
+    // resolution finds the credential, the second does not.
+    //
+    // B-007 closed on the bullet "does not discard variables beyond the intended ones"; the commit
+    // it named as its fix never touched this file.
+    return resolveFreshCredential({ ...opts, env: storeLocationOnly(opts.env) })
   }
   return resolveFreshCredential(opts)
 }

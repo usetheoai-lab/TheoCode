@@ -1,5 +1,9 @@
 
 export {
+  // B-034 — exported so a consumer can `instanceof` it. Same class of defect B-004 fixed for its
+  // sibling: a typed error nobody can catch by type is an untyped error with extra steps.
+  MissingCredentialError,
+  authFilePath,
   credentialHome,
   ensureAuthHome,
   resolveCredential,

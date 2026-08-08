@@ -9,6 +9,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A custom `THEOCODE_HOME` is now honoured when resolving an `openai-chatgpt/*` credential. That route looked in the default home while every other route looked in the overridden one, so the same credential was found by one and missed by the other (B-034)
+- `ensureAuthHome` no longer writes into the environment it was given. Asking where the auth home is had the side effect of changing the caller's environment (B-034)
+
 - A caller that resolves configuration from an explicit environment now gets its trust decision from that same environment. The seam existed but was unreachable, so a single run could take the posture from the ambient environment and the configuration from an injected one (B-033)
 
 - A session pointer that cannot be written degrades with a diagnostic instead of terminating the terminal UI. Three of the five paths that write it — `/new`, `/clear`, `/fork`, the Esc interrupt and the backtrack confirm — were still unprotected (B-031)
