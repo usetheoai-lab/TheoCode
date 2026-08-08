@@ -43,12 +43,15 @@ export function composeRun(
   const cwd = seams.cwd ?? process.cwd()
   const store = seams.store ?? TRUST_STORE
 
-  const posture = resolveTrustPosture(cwd, store)
+  // B-033 — the same environment that feeds config resolution below. These used to be two
+  // sources in one run: the posture from the ambient environment, the config from `seams.env`.
+  const env = seams.env ?? process.env
+  const posture = resolveTrustPosture(cwd, store, env)
   const cfg = resolveEffectiveConfig({
     cwd,
     store,
     ...(seams.userDir !== undefined ? { userDir: seams.userDir } : {}),
-    ...(seams.env !== undefined ? { env: seams.env } : {}),
+    env,
     cli: args.overrides,
   })
 

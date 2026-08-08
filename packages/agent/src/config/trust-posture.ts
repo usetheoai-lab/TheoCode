@@ -106,8 +106,21 @@ function trustOrigin(
   return isTrusted(cwd, store) ? 'store' : 'default'
 }
 
-export function resolveTrustPosture(cwd: string, store: string = TRUST_STORE): TrustPosture {
-  const source = trustOrigin(cwd, store)
+/**
+ * B-033 — `env` reaches HERE, which is the only entry any caller can use.
+ *
+ * B-006 added the parameter to the private `trustOrigin` and this function kept calling it with two
+ * arguments, so the seam existed and was unreachable: all nine production call sites read the
+ * ambient environment. `cli/run-composition.ts` then took the posture from the ambient environment
+ * and passed `seams.env` into config resolution on the next line — one run, two sources, for the
+ * decision that governs whether a repository's hooks and AGENTS.md are honoured.
+ */
+export function resolveTrustPosture(
+  cwd: string,
+  store: string = TRUST_STORE,
+  env: Record<string, string | undefined> = process.env,
+): TrustPosture {
+  const source = trustOrigin(cwd, store, env)
   const level: TrustLevel = source === 'default' ? 'untrusted' : 'trusted'
   return { level, source, allows: permitirTudo(level === 'trusted') }
 }
