@@ -11,7 +11,7 @@
     "@theocode/agent": "*",
     "@theocode/shared": "*",
     "@theokit/agents": "^7.3.1",
-    "@theokit/tui": "^0.49.1",
+    "@theokit/tui": "^0.50.0",
     "figlet": "^1.7.0",
     "ink": "^7.1.0",
     "js-yaml": "^4.3.1",

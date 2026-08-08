@@ -250,9 +250,18 @@ dod:
   - `BUILTIN_COMMANDS` uses the exported `SlashCommand` type, not an anonymous shape
 status_note: PARTIAL. Closed: `/diff` renders through `DiffViewer` (F-tui-3, F-tui-4), the
   slash-command list uses the SDK's `ChatComposerCommand` (F-tui-5), and the third copy of the
-  approval shape is gone (F-tui-9) — commits 91a2db8, 0107f8a. Open: the Banner (F-tui-2) waits on
-  upstream gap U-7, since no SDK component composes ASCII art with a right-hand aside; the approval
-  ledger (F-tui-8) and the selection windowing (F-tui-7) wait on the timing question below.
+  approval shape is gone (F-tui-9) — commits 91a2db8, 0107f8a.
+  .
+  The Banner (F-tui-2) was ATTEMPTED and reverted. Gap U-7 was fixed upstream and released
+  (`@theokit/tui@0.50.0` adds `art` to `WelcomeBanner`), but adopting it revealed the fix is
+  incomplete: with an `aside` present the main column is `flexGrow={1}` with no width reserved for
+  the art, so a ~38-column wordmark is compressed and the tagline/hints are pushed out of frame.
+  Measured with a render probe, not guessed. `Banner.test.tsx` now locks the current output, so a
+  second attempt has a baseline that fails loudly instead of degrading quietly. The remaining
+  upstream work is U-7b: `WelcomeBanner` must size the art column when an aside is present.
+  .
+  The approval ledger (F-tui-8) and the selection windowing (F-tui-7) still wait on the timing
+  question below.
 uncertainty: the reviewer could not determine whether the approval ledger is load-bearing (it depends on how fast the SDK mutates `thread`). Start with the safe step: remove the duplicated type declaration before touching behaviour.
 
 ## B-012 — Persistence: adopt the SDK primitives and clear casts and dead surface   [x]

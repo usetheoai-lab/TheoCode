@@ -49,5 +49,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The welcome banner has a test suite locking what it renders — the ASCII wordmark, the product name, the model, and both right-hand panels (B-011)
+
 - `BACKLOG.md` — the single maintenance registry for TheoCode, seeded with 17 items derived from the TheoCode ↔ theokit cross-validation of 2026-08-07 (`.claude/knowledge-base/reviews/theokit-crossval-review-2026-08-07.md`)
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
