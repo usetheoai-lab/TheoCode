@@ -65,7 +65,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-053**
+Next free id: **B-054**
 
 ---
 
@@ -456,7 +456,14 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-020 — The session collector resolves every unknown toward 'delete'   [ ]
+## B-020 — The session collector resolves every unknown toward 'delete'   [x]
+
+fixed_in: b1611fc
+dod_verified:
+  - unreadable directory / unstat-able cwd / unstat-able transcript each yield UNDETERMINED — three tests in `gc/fail-open.test.ts`, all RED before the fix
+  - keepLast protects the newest N of a DEAD project — RED before the fix, with an anti-vacuity floor asserting a DEAD project still collects beyond the slice
+  - a run that could not list any project reports the error — RED before the fix (`errors` was empty and the renderer printed "nothing to collect")
+  - **bullet 4 REFUTED, not met.** It read "listagemPadrao forwards nextCursor". `@theokit/agents` narrows `Agent.list` to a non-paginated overload (`ListOptionsSemPaginacao`: `limit?: never; cursor?: never`) returning `Omit<ListResult, 'nextCursor'>` — the field does not exist on that surface, so forwarding it would have been fabricating one. The guard is documented as currently unreachable and kept as an SDK-upgrade tripwire, covered by two tests through the injected seam. The DoD was written from the finding's premise; the source refuted it.
 
 domain: theocode
 repo: TheoCode
@@ -1014,3 +1021,20 @@ dod:
   - a check exists that fails on the next Portuguese identifier introduced
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-portuguese-identifiers`).
+
+## B-053 — @theokit/agents exports Portuguese type names on its public API   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `node_modules/@theokit/agents/dist/index.d.ts:1121` — `ListOptionsSemPaginacao`, `:1125` `AgentComListaEstreitada`, and `ToolComNome` in the export list at `:1130`. Found while measuring B-020: the SDK's own narrowing of `Agent.list` is what refuted that item's fourth DoD bullet, and reading it required parsing a Portuguese type name.
+why_now: TheoCode now enforces English-only in its own source (`tools/check-english-only.mjs`, B-052), and the rule it enforces cannot hold at the boundary: a consumer writing `const o: ListOptionsSemPaginacao = …` reintroduces Portuguese into an English file, through a name it does not own. This is upstream work in `theokit-framework`, filed here because this repo is where it was measured and where it bites.
+status: raw
+severity: LOW
+dod:
+  - the three names are renamed in `@theokit/agents` with the old ones kept as deprecated aliases for one minor version
+  - TheoCode's english-only guard needs no allowlist entry for an SDK type name
+note: routing caveat — the fix belongs to `theokit-framework`, which `cycle-backlog.md § Domain routing` places OUTSIDE this install (a dependency, not a governed repo). Gate G1 would normally refuse it. It is registered here deliberately, marked, because the alternative is the orphaned-finding the single-registry rule exists to prevent; it must be carried to the theokit install rather than worked from this one.
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theokit-portuguese-public-types`).
