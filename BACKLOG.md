@@ -525,7 +525,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-023 — Five CLI flags are parsed and then silently discarded, and there is no --help   [ ]
+## B-023 — Five CLI flags are parsed and then silently discarded, and there is no --help   [x]
+
+fixed_in: 6c0a04b, 0eb61e2
+dod_verified:
+  - each flag changes behaviour or is rejected — one RED test per flag (`--uncommitted` reaching the target, `--last` and `-m` rejected off-command), plus a floor asserting `--base`/`--commit` still work
+  - `theocode --help` exits 0 and prints usage — `help` is its own mode; it used to be reachable only through the error path
+  - the fifth finding (`-C/--cd` not reaching `.env`) shares a root cause with B-026 and was fixed there, in one commit rather than split across two
 
 domain: theocode
 repo: TheoCode
@@ -573,7 +579,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-026 — CLI bootstrap statements interleaved with ESM imports run after every import   [ ]
+## B-026 — CLI bootstrap statements interleaved with ESM imports run after every import   [x]
+
+fixed_in: 0eb61e2
+dod_verified:
+  - the bootstrap runs inside `main`, after `chdir` — so `.env` belongs to the directory `-C` selected
+  - covered by a STRUCTURAL test that says so in its own docstring, because the end-to-end route needs a non-sovereign observable variable and none exists on a command that makes no model call. The first attempt used `THEOKIT_HOME`, which `project-env.ts:2` deliberately makes non-overridable from a project `.env`; that test could not fail and was discarded rather than kept
+  - detection power verified by mutation: one bootstrap call back in the import block turns it red
 
 domain: theocode
 repo: TheoCode
