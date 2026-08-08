@@ -27,6 +27,7 @@ export interface InputSlotProps {
     reloadConfig: () => void
     effort: () => ReasoningEffort
   }
+  readonly customCommands: ReadonlyMap<string, { name: string; description?: string }>
   readonly currentSessionId: () => string
   readonly handleSubmit: (text: string) => void
   readonly settleApproval: (approvalId: string, approved: boolean) => void

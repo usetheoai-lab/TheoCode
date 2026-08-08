@@ -339,6 +339,7 @@ function conversationProps(c: {
 
 function propsDoSlot(c: Composition & SlotExtras) {
   return {
+    customCommands: c.customCommands,
     trusted: c.trusted,
     consent: c.consent,
     pendingHooks: c.pendingHooks,
