@@ -719,7 +719,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-032 — B-015's single injected working directory was applied to packages/agent only   [ ]
+## B-032 — B-015's single injected working directory was applied to packages/agent only   [x]
+
+fixed_in: 1a4a7c5
+dod_verified:
+  - `delegate_to_team` is confined to the injected cwd — RED before the fix; `resolveToolScope` derives both the writeRoot and the sandbox workDir from it, which made this the one B-015 bypass with a confinement consequence
+  - `TuiRoot.initialPosture` deleted — a seam built for this work that never gained a consumer, and therefore read as though the TUI honoured an injected posture
+  - the TUI half NOT done, with a measured reason: 23 `process.cwd()` sites across 13 files, latent because the TUI parses no directory flag. Registered as B-057 with that count as evidence
 
 domain: theocode
 repo: TheoCode
@@ -1099,7 +1105,15 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-049 — Dead exports across the tree: 146 of 492 exported symbols have no external reference   [ ]
+## B-049 — Dead exports across the tree: 146 of 492 exported symbols have no external reference   [x]
+
+fixed_in: 0ebc989
+dod_verified:
+  - composition measured before deleting: 82 interfaces / 21 const / 20 functions / 9 types / 2 classes. The type surface is an API contract and was left alone
+  - two dead functions deleted, 22 internal-only exports un-exported (code kept, promise withdrawn), 141 -> 120
+  - `@theocode/cli` no longer exposes an importable entry — importing it RAN the CLI
+  - `@theocode/agent`'s `./chat-acp` KEPT after checking: it is the external ACP integration surface, not an orphan
+  - NOT clean: 120 survivors remain, almost all type surface. Recorded rather than claimed
 
 domain: theocode
 repo: TheoCode
