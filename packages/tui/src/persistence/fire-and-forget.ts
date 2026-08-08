@@ -1,7 +1,10 @@
 /**
  * B-013 — run a background write to completion, reporting failure instead of crashing.
  *
- * The two persistence calls that use this were fired with a bare `void`. `enqueue` attaches its
+ * B-031 — this said "the two persistence calls" and there were FIVE; see `session-store.ts` for
+ * why the guarantee moved to the exported function rather than to its call sites.
+ *
+ * The persistence calls that use this were fired with a bare `void`. `enqueue` attaches its
  * `catch` to the tail it stores, not to the promise it returns, so a rejection arrived at the `void`
  * with no handler at all. `atomicWriteText` does reject (ENOSPC, EACCES, EROFS, EXDEV) and the
  * declared engine is `node >=22`, where the default is `--unhandled-rejections=throw`: a failed
