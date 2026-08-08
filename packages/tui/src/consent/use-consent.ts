@@ -18,6 +18,7 @@ import {
   type ConsentState,
 } from './consent-state.js'
 import { computePendingHooks } from './hook-consent.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface Consent {
   readonly trusted: boolean
@@ -37,7 +38,7 @@ export interface Consent {
   readonly markReviewed: () => void
 }
 
-export function useConsent(cwd: string = process.cwd()): Consent {
+export function useConsent(cwd: string = workingDirectory()): Consent {
   const [state, setState] = useState<ConsentState>(() =>
     initialState(resolveTrustPosture(cwd).level === 'trusted'),
   )

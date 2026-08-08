@@ -12,6 +12,7 @@ import {
 } from '@theocode/agent/auth'
 import type { AttachedImage } from '@theocode/agent/context'
 import type { SessionPtyOwner } from '@theocode/agent/pty'
+import { workingDirectory } from '../working-directory.js'
 export interface ChatTransportDeps {
   getEffort: () => ReasoningEffort
   getSessionId: () => string
@@ -30,7 +31,7 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
         const commandModel = deps.takePendingModel()
         const model =
           commandModel ??
-          routeToCredential(c, resolveEffectiveConfig({ cwd: process.cwd() }).model)
+          routeToCredential(c, resolveEffectiveConfig({ cwd: workingDirectory() }).model)
         const key = (await resolveCredentialForModel(model, { env: process.env, home: homedir() }))
           .apiKey
         yield* streamAgentTurnInProcess(

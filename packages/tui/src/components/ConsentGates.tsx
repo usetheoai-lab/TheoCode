@@ -9,6 +9,7 @@ import type { ToastPayload } from '../screen-types.js'
 import type { Dispatch, SetStateAction } from 'react'
 import { AGENT } from '@theocode/shared/agent'
 import { applyHookDecision } from '../consent/hook-decision.js'
+import { workingDirectory } from '../working-directory.js'
 
 type Consent = ReturnType<typeof import('../consent/index.js').useConsent>
 
@@ -71,11 +72,11 @@ export function TrustGate({
   return (
     <PermissionPrompt
       toolType="Trust directory"
-      command={process.cwd()}
+      command={workingDirectory()}
       description={`${AGENT.name} will read files here and may run commands or apply patches. Trust only directories you control — an untrusted repo's AGENTS.md could try to hijack the agent. Approve to trust this directory (remembered); reject to quit.`}
       onDecision={(decision) => {
         if (decision === 'yes') {
-          void trustDir(process.cwd()).then(
+          void trustDir(workingDirectory()).then(
             () => {
               try {
                 SESSION.reloadConfig()

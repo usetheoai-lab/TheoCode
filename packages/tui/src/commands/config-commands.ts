@@ -15,6 +15,7 @@ import {
   readImageAttachment,
 } from '@theocode/agent/context'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
 export interface EffortDeps {
@@ -125,7 +126,7 @@ function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemp
     readFile: (fileName) => {
       const path = fileName.startsWith('~/')
         ? join(homedir(), fileName.slice(2))
-        : resolve(process.cwd(), fileName)
+        : resolve(workingDirectory(), fileName)
       try {
         return statSync(path).isFile() ? readFileSync(path, 'utf8') : undefined
       } catch {
@@ -144,7 +145,7 @@ function comInstrucaoDeDelegacao(
 ): string {
   const agentExists =
     command.agent !== undefined &&
-    existsSync(join(process.cwd(), '.theokit', 'agents', `${command.agent}.md`))
+    existsSync(join(workingDirectory(), '.theokit', 'agents', `${command.agent}.md`))
   if (command.agent !== undefined && !agentExists) {
     setToast({
       message: `/${name}: subagent "${command.agent}" not found in .theokit/agents/ — running in main context`,

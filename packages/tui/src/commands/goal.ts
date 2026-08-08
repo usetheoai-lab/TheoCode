@@ -5,6 +5,7 @@ import { useAgent } from '@theokit/agents/client/react'
 import type { ResolvedCredential } from '@theocode/agent/auth'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface GoalRunState {
   objective: string
@@ -73,7 +74,7 @@ async function conduzirGoal(
   const { agentRef, setGoalFeed, setToast, credential } = deps
   const { GOAL_DEFAULTS, routeGoalModel, runGoal } = await import('@theocode/agent/goal')
   const { createStoreGoalAgent } = await import('./goal-store-agent.js')
-  const cfg = resolveEffectiveConfig({ cwd: process.cwd() })
+  const cfg = resolveEffectiveConfig({ cwd: workingDirectory() })
   const cred = credential()
   if ('error' in cred) throw cred.error
   const storeAgent = createStoreGoalAgent({

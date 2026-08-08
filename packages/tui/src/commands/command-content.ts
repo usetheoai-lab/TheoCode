@@ -10,6 +10,7 @@ import type {
   PtysTheInterpreterUses,
   SessionTheInterpreterUses,
 } from './command-capabilities.js'
+import { workingDirectory } from '../working-directory.js'
 
 export function sendMessage(
   text: string,
@@ -25,7 +26,7 @@ export function sendMessage(
     })
     return
   }
-  const { message, attached } = resolveMentions(text, process.cwd())
+  const { message, attached } = resolveMentions(text, workingDirectory())
   if (attached.length > 0) {
     setToast({ message: `Attached: ${attached.join(', ')}`, variant: 'info' })
   }
@@ -70,7 +71,7 @@ export function statusPanel(
       `effort:     ${SESSION.effort()}`,
       `approval:   ${approvalMode}`,
       `sandbox:    ${c.sandboxLabel}`,
-      `cwd:        ${process.cwd()}`,
+      `cwd:        ${workingDirectory()}`,
       `session:    ${currentSessionId()}`,
       `shells:     ${String(ptyOwner.backend().activeSessionCount())} in background`,
     ].join('\n'),
@@ -78,9 +79,9 @@ export function statusPanel(
 }
 
 export function diffPanel(): ContentPanel | undefined {
-  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
+  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
   if (r.status !== 0) return undefined
-  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
+  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
   const stat = r.stdout.trim()
   const patch = detail.stdout
   if (stat.length === 0 && patch.trim().length === 0) {

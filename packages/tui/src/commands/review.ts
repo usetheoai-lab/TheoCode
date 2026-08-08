@@ -9,6 +9,7 @@ import type { Shutdown } from '@theocode/shared/shutdown'
 import { createReviewAgent } from '@theocode/agent/review'
 import { runReview } from '@theocode/agent/review'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface ReviewCommandDeps {
   setReviewResult: (r: string | null) => void
@@ -47,8 +48,8 @@ async function hookChain(hooks: ReturnType<typeof resolveEffectiveConfig>['hooks
     await import('@theocode/agent/hooks')
   const { resolveTrustPosture } = await import('@theocode/agent/config')
   return buildHookHandlers(parseHooks(hooks), {
-    trusted: resolveTrustPosture(process.cwd()).allows.hooks,
-    approved: new Set([...loadApprovedHooks(process.cwd()).keys()]),
+    trusted: resolveTrustPosture(workingDirectory()).allows.hooks,
+    approved: new Set([...loadApprovedHooks(workingDirectory()).keys()]),
   })
 }
 
@@ -58,7 +59,7 @@ export async function runReviewCommand(
   deps: ReviewCommandDeps,
 ): Promise<void> {
   const { setToast, setReviewResult } = deps
-  const cfgDoReview = resolveEffectiveConfig({ cwd: process.cwd() })
+  const cfgDoReview = resolveEffectiveConfig({ cwd: workingDirectory() })
   setToast({ message: `>> Code review started <<`, variant: 'info' })
   const encerramento = encerramentoDaReview(setToast)
   const desanexar = instalarSinal(encerramento)
@@ -78,7 +79,7 @@ export async function runReviewCommand(
       },
       createAgent: createReviewAgent({
         config: cfgDoReview,
-        cwd: process.cwd(),
+        cwd: workingDirectory(),
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,

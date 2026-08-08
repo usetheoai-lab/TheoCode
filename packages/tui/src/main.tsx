@@ -10,6 +10,7 @@ import { App } from './App.js'
 import { setDiagnosticsSink } from '@theokit/agents'
 
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
+import { setWorkingDirectory, workingDirectory } from './working-directory.js'
 
 installDiagnosticSink(setDiagnosticsSink)
 
@@ -21,7 +22,13 @@ if (typeof process.loadEnvFile === 'function') {
   }
 }
 
-installStderrGuard(join(process.cwd(), '.theokit', 'tui-stderr.log'))
+// B-057 — chosen ONCE, here, before anything reads it. The TUI has no directory flag yet, so this
+// is the process directory today; when a `--cd` arrives it becomes a one-line change instead of
+// twenty-three, and a second write throws rather than leaving trust and configuration describing
+// different directories.
+setWorkingDirectory(process.cwd())
+
+installStderrGuard(join(workingDirectory(), '.theokit', 'tui-stderr.log'))
 const instancia = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
 
 await instancia.waitUntilExit()

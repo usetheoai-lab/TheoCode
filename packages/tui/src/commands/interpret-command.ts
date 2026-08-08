@@ -38,6 +38,7 @@ import {
 import { handleGoalVerb } from './goal.js'
 import { runReviewCommand } from './review.js'
 import type { CommandAction } from './registry.js'
+import { workingDirectory } from '../working-directory.js'
 
 export function interpretCommand(
   action: CommandAction,
@@ -205,7 +206,7 @@ function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilit
       return true
     }
     case 'initAgents': {
-      if (existsSync(join(process.cwd(), 'AGENTS.md'))) {
+      if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
         setToast({
           message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
           variant: 'info',

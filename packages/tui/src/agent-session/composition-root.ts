@@ -13,6 +13,7 @@ import { loadCustomCommands } from '../commands/index.js'
 import { forkCurrentSessionWith } from '../persistence/index.js'
 import { createTuiSession, type TuiSession } from './tui-session.js'
 import { persistSessionId } from '../persistence/index.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface TuiRoot {
   readonly session: TuiSession
@@ -29,7 +30,7 @@ export interface TuiRoot {
 }
 
 function build(): TuiRoot {
-  const cwd = process.cwd()
+  const cwd = workingDirectory()
   const sessionPointer = join(cwd, '.theokit', 'tui-session')
   const resumeOnStartup = existsSync(sessionPointer)
 

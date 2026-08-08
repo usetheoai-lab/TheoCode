@@ -6,9 +6,16 @@ import { type ReactElement } from 'react'
 import { AGENT } from '@theocode/shared/agent'
 import { WelcomeBanner } from '@theokit/tui'
 import { ACCENT, BANNER_TIPS, BANNER_WHATS_NEW, LOGO, WIDE_COLS } from '../theme.js'
+import { workingDirectory } from '../working-directory.js'
 
 const MODEL = AGENT.model
-const CWD = process.cwd().replace(homedir(), '~')
+/**
+ * B-057 — read at RENDER, not at import. A module constant is evaluated when the module is first
+ * imported, and ESM hoists every import before the first statement runs — so it would capture the
+ * directory before `setWorkingDirectory` had a chance to choose one. That is the same shape B-026
+ * fixed in the CLI's bootstrap.
+ */
+const shortCwd = (): string => workingDirectory().replace(homedir(), '~')
 
 /** One heading plus its dim rows — the shape both aside sections share. */
 function AsideSection({ title, rows }: { title: string; rows: readonly string[] }): ReactElement {
@@ -56,7 +63,7 @@ export function Banner(): ReactElement {
       name={AGENT.name}
       art={LOGO}
       tagline={`✻ Welcome to ${AGENT.name}`}
-      hints={[MODEL, `cwd: ${CWD}`]}
+      hints={[MODEL, `cwd: ${shortCwd()}`]}
       {...(wide
         ? {
             aside: (

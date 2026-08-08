@@ -21,6 +21,7 @@ import {
 } from '@theocode/agent/auth'
 import type { AuthMethod } from '@theokit/agents/auth'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
@@ -189,8 +190,8 @@ export function handleRename(
 }
 
 export function handleMemoryInfo(setToast: SetToast): void {
-  const memPath = join(process.cwd(), '.theokit', 'memory', 'MEMORY.md')
-  const memTrusted = resolveTrustPosture(process.cwd()).allows.memory
+  const memPath = join(workingDirectory(), '.theokit', 'memory', 'MEMORY.md')
+  const memTrusted = resolveTrustPosture(workingDirectory()).allows.memory
   let factCount = 0
   try {
     factCount = countMemoryFacts(readFileSync(memPath, 'utf8'))

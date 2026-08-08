@@ -3,8 +3,9 @@ import { join } from 'node:path'
 
 import { describeSource, dotenvNames } from '@theocode/agent/auth'
 import { resolveCredential, type ResolvedCredential } from '@theocode/agent/auth'
+import { workingDirectory } from '../working-directory.js'
 
-const DOTENV_PATH = join(process.cwd(), '.env')
+const DOTENV_PATH = join(workingDirectory(), '.env')
 const DOTENV_KEYS = dotenvNames(DOTENV_PATH)
 
 export const credential = (): ResolvedCredential | { error: Error } => {
