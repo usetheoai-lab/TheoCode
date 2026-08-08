@@ -65,7 +65,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-054**
+Next free id: **B-055**
 
 ---
 
@@ -1048,3 +1048,20 @@ dod:
 note: routing caveat — the fix belongs to `theokit-framework`, which `cycle-backlog.md § Domain routing` places OUTSIDE this install (a dependency, not a governed repo). Gate G1 would normally refuse it. It is registered here deliberately, marked, because the alternative is the orphaned-finding the single-registry rule exists to prevent; it must be carried to the theokit install rather than worked from this one.
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theokit-portuguese-public-types`).
+
+## B-054 — `sessions gc --all-projects` never returns on a real installation   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-live-test
+evidence: measured 2026-08-08 by execution, not by reading. `npx tsx packages/cli/src/main.ts sessions gc --all-projects --json` exits 124 under `timeout 25` — with and without `-C`, and identically at `b1611fc^`, so it PREDATES the B-020 work. Cause: `~/.theokit/projects` holds **13,269 project directories** on this machine (`ls ~/.theokit/projects | wc -l`); `planOneProject` calls `classify` for each, and for every project whose recorded cwd no longer resolves, `dfsExists` walks the filesystem from `/` up to `MAX_NOS_DFS = 20_000` nodes (`gc/filesystem.ts:29`). The upper bound is ~265 million readdir/stat calls for one run.
+why_now: the collector exists BECAUSE that accumulation happens, and the flag that collects across all of it is the one that cannot finish. The single-project path (`sessions gc`) returns fine, which is why this survived: the documented invocation for the problem the tool was built for is the broken one. Found while testing whether `-C` reaches `.env` (B-023 / B-026); the hang is not related to `-C`.
+status: triaged
+severity: HIGH
+dod:
+  - `sessions gc --all-projects --json` completes on a home with 13,000+ projects, under a stated time budget, covered by a test that fails on the current code
+  - the per-project filesystem walk is bounded by something that does not scale with the number of projects — or is not run per project at all
+  - a run that hits whatever bound replaces it reports UNDETERMINED for the projects it could not classify, per B-020, rather than silently treating them as DEAD
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `sessions-gc-all-projects-never-returns`).
