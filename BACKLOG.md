@@ -916,7 +916,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-041 — Config: a project file replaces the user profiles table wholesale, and five drift-detectors are never called   [ ]
+## B-041 — Config: a project file replaces the user profiles table wholesale, and five drift-detectors are never called   [x]
+
+fixed_in: 50fafe2
+dod_verified:
+  - a project config merges into the user profiles table — RED with the exact predicted failure (`unknown profile "fast"`)
+  - each drift-detector has a caller: a TEST, which is what makes it a detector. Running the first one surfaced a real gap — `profile`/`profiles` were neither reachable nor exempt — now recorded in the opt-out list with a reason and an exit criterion
+  - every path cited in `env-knobs.ts` resolves, checked mechanically
 
 domain: theocode
 repo: TheoCode
@@ -977,7 +983,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-044 — Hook output is harvested on `exit` plus a 20 ms sleep instead of `close`   [ ]
+## B-044 — Hook output is harvested on `exit` plus a 20 ms sleep instead of `close`   [x]
+
+fixed_in: 115c88f
+dod_verified:
+  - hook output is harvested on `close`, bounded by a NAMED budget because `detached` means a grandchild can hold the pipe forever; a run that hits the bound reports truncation
+  - the reproduction is a grandchild writing after the shell exits — a 300 KiB burst did NOT reproduce it, which is what makes a sleep the wrong instrument
+  - a PostToolUse hook receives the tool's real args — verified by mutation (restoring `args: {}` turns it red)
 
 domain: theocode
 repo: TheoCode
