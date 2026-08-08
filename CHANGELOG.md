@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A clean shutdown exits 0. Ctrl-C, a cleanup that failed, and a cleanup that timed out all returned the same failure code, so nothing wrapping the process could tell them apart (B-045)
+
 - Attaching an image that cannot be read now fails with the same typed error as every other image failure, instead of an untyped one a caller written against the contract would let through (B-051)
 
 - The keyboard help no longer advertises `!` for running a shell command. The shortcut was never wired, so `!npm test` was sent to the model as prose (B-028)
