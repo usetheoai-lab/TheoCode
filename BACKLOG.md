@@ -252,7 +252,7 @@ status_note: PARTIAL. Closed: `/diff` renders through `DiffViewer` (F-tui-3, F-t
   slash-command list uses the SDK's `ChatComposerCommand` (F-tui-5), and the third copy of the
   approval shape is gone (F-tui-9) — commits 91a2db8, 0107f8a.
   .
-  The Banner (F-tui-2) was ATTEMPTED and reverted. Gap U-7 was fixed upstream and released
+  The Banner (F-tui-2) is DONE, on the third attempt. Gap U-7 was fixed upstream and released
   (`@theokit/tui@0.50.0` adds `art` to `WelcomeBanner`), but adopting it revealed the fix is
   incomplete: with an `aside` present the main column is `flexGrow={1}` with no width reserved for
   the art, so a ~38-column wordmark is compressed and the tagline/hints are pushed out of frame.

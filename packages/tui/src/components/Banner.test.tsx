@@ -56,6 +56,24 @@ describe('B-011 — the banner still shows everything it showed before', () => {
     expect(frame()).toContain(AGENT.name)
   })
 
+  it('test_the_welcome_line_keeps_its_glyph', () => {
+    // Caught by a render probe, not by this suite: migrating to WelcomeBanner I typed the wrong
+    // Unicode escape and ✻ (U+273B) silently became ✛ (U+271B). Every presence assertion still
+    // passed, because "Welcome to TheoCode" was there — the glyph is part of the identity too.
+    expect(frame()).toContain('✻ Welcome to')
+  })
+
+  it('test_no_row_runs_past_the_border', () => {
+    // Containment, not presence. The previous migration attempt passed every presence test while
+    // the aside overflowed the right border — the text was there, just outside the frame.
+    const rows = frame()
+      .split('\n')
+      .filter((l) => l.trim().length > 0)
+    const border = rows.find((l) => l.includes('╭')) ?? ''
+
+    expect(Math.max(...rows.map((l) => l.length))).toBeLessThanOrEqual(border.length)
+  })
+
   it('test_the_model_is_rendered', () => {
     expect(frame()).toContain(AGENT.model)
   })
