@@ -52,6 +52,17 @@ export class MissingCredentialError extends CredentialError {
   }
 }
 
+/**
+ * Deliberately NARROWER than the SDK's `ResolvedCredential`, which is otherwise identical.
+ *
+ * The SDK generalises to `provider: string` on purpose — it has no list of providers to know. This
+ * application does, so it narrows to `Provider` and gets exhaustiveness on every switch over it.
+ * That is a refinement, not a duplicated declaration, and it is recorded here because a surface
+ * review reads the two shapes as the same fact written twice (finding SAC-07).
+ *
+ * The half of that finding which WAS a real gap — `@theokit/agents/auth` not re-exporting the OAuth
+ * engine — is fixed upstream and released in `@theokit/agents@7.4.0`.
+ */
 export interface ResolvedCredential {
   kind: 'api' | 'oauth'
   provider: Provider
