@@ -69,7 +69,14 @@ Next free id: **B-058**
 
 ---
 
-## B-018 — Nineteen touched files still have no sibling test   [ ]
+## B-018 — Nineteen touched files still have no sibling test   [x]
+
+fixed_in: 33e5e6e
+dod_verified:
+  - every entry the gate lists is now either covered or carries an explicit note — `packages/tui/TEST-EXEMPTIONS.md`, split into genuinely exempt and simply owed
+  - two entries gained tests: `turn-error.ts` (decides whether /retry is offered) and `tools/registry.ts` (a name contract three layers depend on)
+  - the gate was NOT lowered — the note re-derives its list with the gate's own rule
+  - HONEST LIMIT: the registry test pins the invariant, not the constructor's guard. Disabling the guard leaves it green. Measured by mutation and written into the file rather than left implied
 
 domain: theocode
 repo: TheoCode
@@ -569,7 +576,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-025 — packages/cli ships 1292 LOC and zero tests, including a 329-LOC pure parser   [ ]
+## B-025 — packages/cli ships 1292 LOC and zero tests, including a 329-LOC pure parser   [x]
+
+fixed_in: aae39cb, b7f8770
+dod_verified:
+  - the parser has a test per subcommand and per documented flag — 20 flags exercised, unknown-flag as the floor
+  - the suite fails if `exec` routing regresses, and the last test reads the parser's own switch so a NEW unrouted subcommand fails too — verified by mutation (adding `case 'newthing'` turns it red)
 
 domain: theocode
 repo: TheoCode
