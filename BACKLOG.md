@@ -1254,7 +1254,15 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `sessions-gc-all-projects-never-returns`).
 
-## B-055 — A hook veto is invisible in the TUI   [ ]
+## B-055 — A hook veto is invisible in the TUI   [x]
+
+fixed_in: aa81d76
+dod_verified:
+  - a hook-vetoed tool call is visibly marked in the TUI — a toast naming the tool and the reason
+  - the signal travels FROM THE VETO SITE, which is the bullet that mattered: measured against the SDK's own declaration, a veto reaches the wire as a `tool_result` with `isError: false` and the message as content, so a blocked call is indistinguishable from a successful one BY DESIGN. That is why B-027's renderer was unreachable
+  - no detection keyed on a message prefix or an exit-code convention this product does not emit
+  - the relay QUEUES vetoes until the surface has a toast, so a block during startup is not announced to nobody
+  - verified by mutation: dropping the announce turns the test red; the floor (a passing hook announces nothing) stays green, so a `Blocked` toast cannot appear under a tool that ran
 
 domain: theocode
 repo: TheoCode
