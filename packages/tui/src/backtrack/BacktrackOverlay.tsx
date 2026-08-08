@@ -13,6 +13,19 @@ export interface OverlayWindow {
   hiddenAfter: number
 }
 
+/**
+ * B-011 — deliberately NOT the SDK's `windowFor`, and here is why, so the two do not drift silently.
+ *
+ * `windowFor` is a TRAILING window: it keeps the active row at the BOTTOM, which is the slash-menu
+ * behaviour where new matches arrive below. This is a history scrubber: the selection belongs in the
+ * MIDDLE, because moving through turns means wanting to see what sits on either side of you.
+ *
+ * `WindowView` also reports overflow as `overflowUp`/`overflowDown` booleans, and the overlay renders
+ * "N hidden" — a boolean cannot be turned back into a count. That half is an SDK gap (U-10).
+ *
+ * `backtrack-window.test.ts` pins both properties, so migrating to `windowFor` would fail loudly
+ * instead of quietly changing how the overlay reads.
+ */
 export function windowAroundSelection(
   previews: string[],
   selected: number,
