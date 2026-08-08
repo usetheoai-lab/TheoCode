@@ -482,7 +482,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-021 — Three security gates are optional parameters whose default is fully open   [ ]
+## B-021 — Three security gates are optional parameters whose default is fully open   [x]
+
+fixed_in: 9574463
+dod_verified:
+  - the three parameters are required — proven by a never-invoked function whose two `@ts-expect-error` directives `tsc` must find NECESSARY; with the parameters optional again tsc reports both as unused, which was the RED
+  - a matcher-scoped hook no longer fires for an empty tool name — covered by running the hook for real and checking the marker file it writes, with a floor asserting an unscoped hook still runs
 
 domain: theocode
 repo: TheoCode
@@ -499,7 +504,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-022 — Every documented CLI invocation carries an `exec` subcommand the parser never routes   [ ]
+## B-022 — Every documented CLI invocation carries an `exec` subcommand the parser never routes   [x]
+
+fixed_in: aae39cb
+dod_verified:
+  - `theocode sessions gc` routes to the collector — one test per documented invocation, plus a floor asserting a bare prompt still runs a turn
+  - the third test parses USAGE itself and fails on any taught token the parser does not route, so the next drift of this shape is caught by the suite
 
 domain: theocode
 repo: TheoCode
