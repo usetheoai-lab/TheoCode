@@ -870,7 +870,14 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-039 — The stderr guard can silently discard every diagnostic the TUI emits   [ ]
+## B-039 — The stderr guard can silently discard every diagnostic the TUI emits   [x]
+
+fixed_in: a4f8b19
+dod_verified:
+  - a diagnostic that cannot be written reaches the user — carried to teardown and reported there, because falling back to stderr mid-frame corrupts the display this guard exists to protect
+  - the log rotates during a long session, on accumulated bytes rather than a stat per write
+  - a malformed hooks config produces a visible diagnostic instead of a silently closed consent gate
+  - the `stderr-guard.ts:12` citation (a closing brace) is gone
 
 domain: theocode
 repo: TheoCode
@@ -887,7 +894,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-040 — A failed hook approval closes the consent gate as if it had succeeded   [ ]
+## B-040 — A failed hook approval closes the consent gate as if it had succeeded   [x]
+
+fixed_in: af6ed7b
+dod_verified:
+  - a rejected approval leaves the gate open and toasts — verified by mutation (hoisting markReviewed above the await turns 2 of 4 red)
+  - `markReviewed` runs only after the persist resolves; `approveHookConsent` returns a promise instead of taking an on-failure callback
+  - tested as a pure unit (`hook-decision.ts`) because the ink harness does not deliver interaction — same constraint as B-047
 
 domain: theocode
 repo: TheoCode
@@ -990,7 +1003,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-046 — Eleven user-visible strings cite milestones, docs and changelog entries that do not exist   [ ]
+## B-046 — Eleven user-visible strings cite milestones, docs and changelog entries that do not exist   [x]
+
+fixed_in: e0e9925
+dod_verified:
+  - every milestone / doc / changelog reference in a user-visible string resolves — enforced by a test that scans non-comment lines across packages/
+  - the shortcut hint is shown only when the shortcut works, using the same condition input-router gates the key on
+  - the guard also asserts ROADMAP.md is still absent, so adding one fails loudly instead of passing quietly
 
 domain: theocode
 repo: TheoCode
