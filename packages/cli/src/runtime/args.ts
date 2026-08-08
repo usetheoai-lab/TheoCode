@@ -56,11 +56,15 @@ export interface ExecSessions {
 
 export type ExecArgs = ExecRun | ExecReview | ExecGoal | ExecSessions | ExecUsageError
 
-export const USAGE = `Usage: theocode exec [OPTIONS] [PROMPT]
-       theocode exec resume [--last] [SESSION_ID] [PROMPT]
-       theocode exec review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
-       theocode exec goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
-       theocode exec sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
+// B-022 — no `exec` here. It is the npm SCRIPT name (`npm run exec`), not a subcommand of the
+// built binary, and the parser has no branch for it: the token fell through to the PROMPT, so
+// following this text started a billable model turn instead of running the command. `README.md`
+// had the correct form all along.
+export const USAGE = `Usage: theocode [OPTIONS] [PROMPT]
+       theocode resume [--last] [SESSION_ID] [PROMPT]
+       theocode review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
+       theocode goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
+       theocode sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
 
 Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
          -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>
