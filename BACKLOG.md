@@ -808,7 +808,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-036 — B-012: the compact_boundary window scan is still triplicated and readJsonlTail unadopted   [ ]
+## B-036 — B-012: the compact_boundary window scan is still triplicated and readJsonlTail unadopted   [x]
+
+fixed_in: dce5b6d
+dod_verified:
+  - the window scan exists in exactly one place — `compact_boundary` appears once in code (plus its docstring)
+  - `countUserTurnsInWindow` deleted: after the extraction it was `indices.length`, and it had no caller
+  - `readJsonlTail` NOT adopted, with a MEASURED reason recorded in the file: `sinceMarker` substring-matches the raw line so a user message containing `compact_boundary` would silently shrink the window, and the largest transcript across 23,100 on a real machine is 186 KiB — there is no cost to trade against
 
 domain: theocode
 repo: TheoCode
@@ -1071,7 +1077,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-048 — Banner.test.tsx leaks process.stdout.columns and never exercises the branch it exists for   [ ]
+## B-048 — Banner.test.tsx leaks process.stdout.columns and never exercises the branch it exists for   [x]
+
+fixed_in: a8046f2, e2003c7
+dod_verified:
+  - the test restores `process.stdout.columns` both ways — the old cleanup leaked exactly ONCE, on the first probe, and every later restore then looked correct
+  - the narrow branch is exercised, with a wide case as the floor
+  - the FIRST version of this test was vacuous and its mutation run reported ten passes; the anchor has to be captured at module load, which is the only vantage point that can see the leak
 
 domain: theocode
 repo: TheoCode
