@@ -628,7 +628,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-028 — The `!` shell shortcut is documented in the help panel and never wired   [ ]
+## B-028 — The `!` shell shortcut is documented in the help panel and never wired   [x]
+
+fixed_in: 0fe98e8
+dod_verified:
+  - the `!` line is gone from the help panel — the filter is keyed on the CAPABILITY, so the next unwired shortcut cannot be advertised either
+  - NOT wired, deliberately: the TUI has no shell execution path of its own, so a composer-driven run would bypass the approval gate, the sandbox workDir and any hook veto. B-056 carries that decision
 
 domain: theocode
 repo: TheoCode
@@ -644,7 +649,14 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-029 — Esc-rewind arms with total=0 and previews=[]: the backtrack feature is dead   [ ]
+## B-029 — Esc-rewind arms with total=0 and previews=[]: the backtrack feature is dead   [x]
+
+fixed_in: 2df6f0e
+dod_verified:
+  - arming yields the real turn count and previews — the test asserts the ORDER, because every setter did eventually run and an end-state test passed on the broken code; end-to-end probe went from `{total:0,previews:[]}` to `{total:3,previews:[a,b,c]}`
+  - a failure after the fork is surfaced instead of becoming an unhandled rejection
+  - the backtrack test asserts the exact turn count (2), not `> 0`
+  - the feature speaks one language — the header was Portuguese while the toast for the same keypress was English; the guard missed it and was extended
 
 domain: theocode
 repo: TheoCode
@@ -836,7 +848,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-038 — B-016: hooks-test-helpers.ts is still a fixture file for a suite that does not exist   [ ]
+## B-038 — B-016: hooks-test-helpers.ts is still a fixture file for a suite that does not exist   [x]
+
+fixed_in: ed060fc
+dod_verified:
+  - the helper file supports a real suite: `ctxTurn` and `tmp` are used by `fail-safe-defaults.test.ts`
+  - `ctxPre` and `ctxVoid` deleted — nothing exercises those contexts yet, and a fixture for a test nobody wrote is the same defect one file smaller
 
 domain: theocode
 repo: TheoCode
@@ -952,7 +969,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-045 — runShutdown exits 1 on every path, so a clean SIGINT looks like a failed cleanup   [ ]
+## B-045 — runShutdown exits 1 on every path, so a clean SIGINT looks like a failed cleanup   [x]
+
+fixed_in: 677a427
+dod_verified:
+  - a clean shutdown exits 0 and a failed/timed-out one exits non-zero — one test per path, RED on the clean case
+  - `runShutdown` stays public with its reason written down: its consumer is the test, and the alternative is sending a real signal to the test process
 
 domain: theocode
 repo: TheoCode
@@ -1060,7 +1082,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-051 — readImageAttachment can throw an untyped error, breaking its own typed-error contract   [ ]
+## B-051 — readImageAttachment can throw an untyped error, breaking its own typed-error contract   [x]
+
+fixed_in: ed060fc
+dod_verified:
+  - every throw is the declared typed error — three failure paths covered, two RED before the fix
+  - the code union gains `unreadable` rather than reusing `not_found`: 'it is not there' and 'I could not read it' are different facts
 
 domain: theocode
 repo: TheoCode
