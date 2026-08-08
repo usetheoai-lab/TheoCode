@@ -11,6 +11,15 @@ import {
   type EffectiveConfig,
 } from '@theocode/agent/config'
 
+/**
+ * B-024 — the injection points for composition, exercised by `run-composition.test.ts`.
+ *
+ * The single production caller passes none of these, which is why the item flagged them as a dead
+ * seam. They are kept rather than deleted because they are the ONLY way to compose against a
+ * throwaway trust store and directory instead of the developer's real `~/.theokit` — a test that
+ * reads the real store answers differently on every machine. `baseInstructions` was deleted with
+ * this change: no caller could supply it, and unlike these it bought nothing back.
+ */
 export interface CompositionSeams {
   readonly cwd?: string
   readonly store?: string
@@ -28,7 +37,6 @@ export function composeRun(
   args: {
     readonly overrides: CliOverrides
     readonly model?: string
-    readonly baseInstructions?: string
   },
   seams: CompositionSeams = {},
 ): RunComposition {
@@ -61,7 +69,6 @@ export function composeRun(
         config: cfg,
         posture,
         ...(args.model !== undefined ? { model: args.model } : {}),
-        ...(args.baseInstructions !== undefined ? { baseInstructions: args.baseInstructions } : {}),
       }),
     },
   }
