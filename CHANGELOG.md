@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A pasted API key is no longer submitted with its trailing newline. The credential was stored as-is and authentication failed later with a provider message that said nothing about whitespace (B-047)
+
 - Setting a second listener on the ask bridge now fails with a typed error instead of silently replacing the first. A surface could stop receiving questions with no error and no warning (B-035)
 
 ### Removed
