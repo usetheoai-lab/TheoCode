@@ -20,6 +20,15 @@ import { Banner } from './Banner.js'
 import { AGENT } from '@theocode/shared/agent'
 import { BANNER_TIPS, LOGO } from '../theme.js'
 
+/**
+ * The state of `process.stdout.columns` BEFORE any test in this file touched it. Captured at module
+ * load because that is the only vantage point that can see the leak: the old cleanup leaked exactly
+ * ONCE, on the first probe in the worker, and every later restore then looked correct. A test that
+ * captured its own `before` compared the leaked value to itself and passed on the defect — measured
+ * with a standalone probe rather than assumed (B-048).
+ */
+const PRISTINE_COLUMNS = Object.getOwnPropertyDescriptor(process.stdout, 'columns')
+
 // eslint-disable-next-line no-control-regex
 const ANSI = /\[[0-9;]*m/g
 const strip = (s: string): string => s.replace(ANSI, '')
@@ -114,14 +123,17 @@ describe('B-048 — the narrow branch is exercised, and the width probe leaves n
     expect(frame(120)).toContain(BANNER_TIPS[0] ?? '@@no-tips@@')
   })
 
-  it('test_the_width_probe_restores_the_original_state', () => {
-    const before = Object.getOwnPropertyDescriptor(process.stdout, 'columns')
-
+  it('test_the_width_probe_leaves_no_trace_in_the_worker', () => {
     frame(200)
 
+    // Captured at MODULE LOAD, before any frame() call — which is the only vantage point that can
+    // see this. The old cleanup leaked exactly ONCE, on the first probe in the worker: after that
+    // `original` was the leaked value and every later restore looked correct. A test that captured
+    // its own `before` therefore compared 120 to 120 and passed on the defect. Measured with a
+    // standalone probe rather than assumed.
     expect(
       Object.getOwnPropertyDescriptor(process.stdout, 'columns'),
       'the probe left process.stdout.columns defined for whatever runs next in this worker',
-    ).toEqual(before)
+    ).toEqual(PRISTINE_COLUMNS)
   })
 })
