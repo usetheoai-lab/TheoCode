@@ -13,8 +13,9 @@ packages/
 
 The direction of dependency is the whole design: `tui` and `cli` consume `agent`, `agent` never
 consumes a surface, and the two surfaces never consume each other. The layout makes that visible;
-the `exports` map in each `package.json` makes it enforceable — a domain is reached through its
-declared entry, not by a path into its internals.
+`npm run depcruise` enforces it — the `exports` map alone does not, because `tsconfig.json` maps
+`@theocode/agent/*` straight onto `packages/agent/src/*` and TypeScript resolves through that
+mapping without ever consulting `exports`.
 
 ## Running it
 

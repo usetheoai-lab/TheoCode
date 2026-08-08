@@ -247,7 +247,8 @@ export function useTuiComposition() {
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
   const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
-  const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode)
+  const posture = s.SESSION.cfg().sandboxPosture
+  const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
 
   const backtrack = useInterrupcaoEBacktrack({
     screen,
@@ -338,6 +339,7 @@ function conversationProps(c: {
 
 function propsDoSlot(c: Composition & SlotExtras) {
   return {
+    customCommands: c.customCommands,
     trusted: c.trusted,
     consent: c.consent,
     pendingHooks: c.pendingHooks,

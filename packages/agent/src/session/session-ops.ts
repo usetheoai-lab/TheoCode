@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 
 import { dirname } from 'node:path'
 
@@ -7,6 +7,8 @@ import { Agent } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from './agent-list.js'
+import { readPointerId } from './gc/pointer.js'
+import { readTranscriptDir, transcriptDir } from './gc/per-session.js'
 
 const defaultBaseDir = transcriptRoot
 
@@ -56,13 +58,30 @@ export function renameSession(agentId: string, name: string): Promise<void> {
   return Agent.rename(agentId, name)
 }
 
+// B-003 — this list is what `forkTranscript` refuses to overwrite. Swallowing a read error and
+// returning `[]` handed the SDK an empty guard, which is the one input that disables its
+// `LiveSessionError` entirely. Refusing is the safe direction on a path that writes over transcripts.
+//
+// The SDK documents three categories: the live pointer, the most recent transcript, and any active
+// registry entry. The first two are resolvable synchronously and are covered here. The registry is
+// NOT: `listAgents` is async and both callers (`forkSession` and the backtrack fork) are synchronous
+// write paths, so including it would turn two write paths async for a guard that is already
+// backstopped -- `forkTranscript` opens the destination with `wx`, so an existing transcript cannot
+// be overwritten regardless. What the missing category costs is the typed `LiveSessionError` in
+// place of a bare EEXIST, not the protection itself.
 export function protectedSessions(cwd: string, baseDir: string): string[] {
-  try {
-    const id = readFileSync(join(cwd, '.theokit', 'tui-session'), 'utf8').trim()
-    return id === '' ? [] : [transcriptPath(baseDir, cwd, id)]
-  } catch {
-    return []
-  }
+  const live = new Set<string>()
+
+  const pointed = readPointerId(cwd)
+  if (pointed !== undefined) live.add(pointed)
+
+  // The most recent transcript is the session a running TUI is most likely still appending to.
+  const newest = readTranscriptDir(transcriptDir(cwd, baseDir)).sort(
+    (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
+  )[0]?.id
+  if (newest !== undefined) live.add(newest)
+
+  return [...live].map((id) => transcriptPath(baseDir, cwd, id))
 }
 
 export function forkSession(

@@ -1,19 +1,16 @@
-import { existsSync, readdirSync, readFileSync, statSync, promises as fsp } from 'node:fs'
+import { existsSync, readdirSync, statSync, promises as fsp } from 'node:fs'
 import { join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
 import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from '../agent-list.js'
+import { readPointerId } from './pointer.js'
 
 const defaultBaseDir = transcriptRoot
 
 export function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string {
   return join(baseDir, 'projects', encodeProjectDir(cwd))
-}
-
-function pointerFile(cwd: string): string {
-  return join(cwd, '.theokit', 'tui-session')
 }
 
 interface SessionGCCandidate {
@@ -46,7 +43,9 @@ export interface PlanSessionGCOptions {
   readdir?: (dir: string) => { id: string; mtimeMs: number }[]
 }
 
-function realReaddir(dir: string): { id: string; mtimeMs: number }[] {
+/** Transcripts in a project directory, newest first is the caller's job to sort. Sync by design:
+ *  the fork guard runs on a synchronous write path. */
+export function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
     .filter((f) => f.endsWith('.jsonl'))
@@ -68,7 +67,7 @@ export function resolvePointerId(readFn: () => string): string | undefined {
 }
 
 function realReadPointer(cwd: string): string | undefined {
-  return resolvePointerId(() => readFileSync(pointerFile(cwd), 'utf8'))
+  return readPointerId(cwd)
 }
 
 function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
@@ -80,7 +79,7 @@ function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
     keepLast: opts.keepLast ?? 10,
     maxAgeDays: opts.maxAgeDays ?? 30,
     listFn: opts.list ?? defaultList,
-    readdir: opts.readdir ?? realReaddir,
+    readdir: opts.readdir ?? readTranscriptDir,
     readPointer: opts.readPointer ?? realReadPointer,
   }
 }
@@ -142,7 +141,7 @@ export interface SessionGCResult {
 function resolverApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   const baseDir = opts.baseDir ?? defaultBaseDir()
-  const maisRecenteAgora = (opts.readdir ?? realReaddir)(transcriptDir(cwd, baseDir)).sort(
+  const maisRecenteAgora = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
   const intocaveis = new Set(

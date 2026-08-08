@@ -4,6 +4,7 @@ import { PtyInteractiveBackend } from '@theokit/agents/pty'
 import type { PtyInteractiveBackendOptions } from '@theokit/agents/pty'
 import { interactiveWrapCommand } from '@theokit/agents/sandbox'
 import type { InteractiveWrapOptions, SandboxMode } from '@theokit/agents/sandbox'
+import { MORE_PERMISSIVE } from '../config/security-floor.js'
 
 export interface BackendComPosse extends InteractiveBackend {
   killAll(): void
@@ -24,6 +25,11 @@ export interface SessionPtyOwnerOptions {
   maxSessions: number
   createWrap?: (opts: InteractiveWrapOptions) => (command: string, cwd: string) => string | null
   createBackend?: (opts: PtyInteractiveBackendOptions) => BackendComPosse
+}
+
+/** Index in the shared most-confined-first ordering; -1 for an unknown mode. */
+function permissiveness(mode: SandboxMode): number {
+  return (MORE_PERMISSIVE.sandbox_mode as readonly string[]).indexOf(mode)
 }
 
 export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyOwner {
@@ -52,7 +58,20 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
   return {
     backend: () => atual,
     setMode: (mode) => {
+      // B-014 — `wrapCommand` reads the mode at call time, so a NEW command always runs under the
+      // current confinement. A process already spawned does not: its wrap was fixed when it started.
+      // So a `bash -i` launched under danger-full-access survived a switch to read-only, alive and
+      // interactive under the permissive wrap.
+      //
+      // Tightening therefore ends live sessions; loosening does not. A session confined MORE than
+      // the current mode is not a hazard, and killing the user's REPL to grant it more access would
+      // be gratuitous. Reuses the permissiveness order the config security floor already defines.
+      const endurecendo = permissiveness(mode) < permissiveness(modoAtual)
       modoAtual = mode
+      if (endurecendo) {
+        atual.killAll()
+        atual = novoBackend()
+      }
     },
     rotate: () => {
       atual.killAll()

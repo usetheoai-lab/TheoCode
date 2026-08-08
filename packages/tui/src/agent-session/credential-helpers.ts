@@ -15,11 +15,6 @@ export const credential = (): ResolvedCredential | { error: Error } => {
   }
 }
 
-export const apiKey = (): string => {
-  const c = credential()
-  return 'error' in c ? '' : c.apiKey
-}
-
 export const credentialError = (): string | undefined => {
   const c = credential()
   return 'error' in c ? c.error.message : undefined

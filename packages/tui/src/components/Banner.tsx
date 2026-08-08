@@ -4,68 +4,71 @@ import { Box, Text } from 'ink'
 import { type ReactElement } from 'react'
 
 import { AGENT } from '@theocode/shared/agent'
+import { WelcomeBanner } from '@theokit/tui'
 import { ACCENT, BANNER_TIPS, BANNER_WHATS_NEW, LOGO, WIDE_COLS } from '../theme.js'
 
-const APP_NAME = 'Theokit Builder'
 const MODEL = AGENT.model
 const CWD = process.cwd().replace(homedir(), '~')
 
-export function Banner(): ReactElement {
-  const cols = process.stdout.columns ?? 80
-  const wide = cols >= WIDE_COLS
+/** One heading plus its dim rows — the shape both aside sections share. */
+function AsideSection({ title, rows }: { title: string; rows: readonly string[] }): ReactElement {
   return (
-    <Box
-      width={cols - 2}
-      marginX={1}
-      marginY={1}
-      paddingX={2}
-      paddingY={1}
-      borderStyle="round"
-      borderColor={ACCENT}
-      flexDirection="row"
-    >
-      {/* Fixed-width left column (fits the 34-wide wordmark) so a long cwd truncates instead of pushing
-          the right column off-screen — the box stays full width, the content stays grouped on the left. */}
-      <Box flexDirection="column" width={38} flexShrink={0}>
-        <Text color={ACCENT}>{LOGO}</Text>
-        <Box marginTop={1} flexDirection="column">
-          <Text color={ACCENT} bold wrap="truncate-end">
-            ✻ Welcome to {APP_NAME}
+    <Box flexDirection="column">
+      <Text color={ACCENT} bold>
+        {title}
+      </Text>
+      <Box marginTop={1} flexDirection="column">
+        {rows.map((row) => (
+          <Text key={row} dimColor>
+            {row}
           </Text>
-          <Text dimColor wrap="truncate-end">
-            {MODEL}
-          </Text>
-          <Text dimColor wrap="truncate-start">
-            cwd: {CWD}
-          </Text>
-        </Box>
+        ))}
       </Box>
-      {wide ? (
-        <Box flexDirection="column" flexShrink={0} marginLeft={4}>
-          <Text color={ACCENT} bold>
-            Tips for getting started
-          </Text>
-          <Box marginTop={1} flexDirection="column">
-            {BANNER_TIPS.map((tip) => (
-              <Text key={tip} dimColor>
-                {tip}
-              </Text>
-            ))}
-          </Box>
-          <Box marginTop={1} flexDirection="column">
-            <Text color={ACCENT} bold>
-              What&apos;s new
-            </Text>
-            <Box marginTop={1} flexDirection="column">
-              {BANNER_WHATS_NEW.map((line) => (
-                <Text key={line} dimColor>
-                  {line}
-                </Text>
-              ))}
-            </Box>
-          </Box>
-        </Box>
-      ) : null}
     </Box>
+  )
+}
+
+/**
+ * B-011 — the SDK's `WelcomeBanner`, not a hand-rolled copy of it.
+ *
+ * This used to rebuild the whole two-column welcome box: the bordered frame, the fixed-width left
+ * column, the gutter and the right-hand panel. The SDK component does all of that, and the docstring
+ * of its `aside` prop names the two headings below — the prop was built for this layout.
+ *
+ * Adopting it took three upstream fixes, every one found by rendering rather than by reading:
+ * U-7 added `art` (this had `aside` and no art, `Banner` had art and no `aside`, so neither could
+ * draw both), U-7b sized the art column so an aside cannot compress it, and U-7c stopped the box
+ * capping itself at a width sized for the single-column layout, which let content run past the
+ * border. Released as `@theokit/tui@0.50.2`.
+ *
+ * `art` replaces the bold `name` header — the `Banner` idiom U-7 followed — so the welcome line goes
+ * in `tagline`, rendered under the art where it sat before.
+ *
+ * Known limitation, deliberately unchanged: the width gate below reads `process.stdout.columns`
+ * globally rather than Ink's `useStdout`, so this component cannot be sized by its renderer.
+ * Changing it is a behaviour change to the responsive gate, not part of adopting a component —
+ * `Banner.test.tsx` has to set the global to reach the wide path, which keeps the smell visible.
+ */
+export function Banner(): ReactElement {
+  const wide = (process.stdout.columns ?? 80) >= WIDE_COLS
+  return (
+    <WelcomeBanner
+      name={AGENT.name}
+      art={LOGO}
+      tagline={`✻ Welcome to ${AGENT.name}`}
+      hints={[MODEL, `cwd: ${CWD}`]}
+      {...(wide
+        ? {
+            aside: (
+              <Box flexDirection="column">
+                <AsideSection title="Tips for getting started" rows={BANNER_TIPS} />
+                <Box marginTop={1}>
+                  <AsideSection title="What's new" rows={BANNER_WHATS_NEW} />
+                </Box>
+              </Box>
+            ),
+          }
+        : {})}
+    />
   )
 }

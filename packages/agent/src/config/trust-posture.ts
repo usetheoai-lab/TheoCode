@@ -54,7 +54,7 @@ export const TRUST_CAPABILITIES = [
     key: 'subagents',
     loaders: ['discoverSubagents'],
     effect:
-      'The `project` source leaves subagent discovery: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member.',
+      'The `project` source is dropped entirely: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member. The source is shared with `hooks` — enabling it also loads repository-declared hooks through the SDK — so it requires BOTH capabilities (see `config/project-source.ts`).',
   },
 ] as const satisfies readonly TrustCapability[]
 
@@ -90,9 +90,16 @@ function avisarSobreOAlias(): void {
   )
 }
 
-function trustOrigin(cwd: string, store: string): TrustSource {
-  if (process.env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
-  if (process.env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
+function trustOrigin(
+  cwd: string,
+  store: string,
+  // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
+  // trust decision from that same environment. Reading the ambient one meant the posture could
+  // disagree with the config it was supposed to describe.
+  env: Record<string, string | undefined> = process.env,
+): TrustSource {
+  if (env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
+  if (env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
     avisarSobreOAlias()
     return 'env'
   }

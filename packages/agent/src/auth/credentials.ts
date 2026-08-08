@@ -1,3 +1,10 @@
+// This module READS credentials; it contains none. The filename matches the repository's
+// secret-pattern gate (`credentials*`), so it is flagged on every diff that touches it — verified
+// on 2026-08-08: no key material, no tokens, no PEM blocks. Every `apiKey` here is a parameter name
+// or a type field, and the only long literal is a class name. Provider inference compares PREFIXES
+// (`apiKey.startsWith(prefix)`), which is the opposite of embedding one.
+//
+// Keep it that way: values belong in the store the SDK writes at 0600, never in source.
 import {
   authFilePath as authFilePathDoStore,
   AuthProvider,
@@ -52,6 +59,17 @@ export class MissingCredentialError extends CredentialError {
   }
 }
 
+/**
+ * Deliberately NARROWER than the SDK's `ResolvedCredential`, which is otherwise identical.
+ *
+ * The SDK generalises to `provider: string` on purpose — it has no list of providers to know. This
+ * application does, so it narrows to `Provider` and gets exhaustiveness on every switch over it.
+ * That is a refinement, not a duplicated declaration, and it is recorded here because a surface
+ * review reads the two shapes as the same fact written twice (finding SAC-07).
+ *
+ * The half of that finding which WAS a real gap — `@theokit/agents/auth` not re-exporting the OAuth
+ * engine — is fixed upstream and released in `@theokit/agents@7.4.0`.
+ */
 export interface ResolvedCredential {
   kind: 'api' | 'oauth'
   provider: Provider

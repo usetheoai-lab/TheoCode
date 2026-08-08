@@ -1,3 +1,4 @@
+import type { ChatComposerCommand } from '@theokit/tui'
 
 type DemoMode = 'plan' | 'ask' | 'select' | 'progress'
 
@@ -41,44 +42,46 @@ export type CommandAction =
   | { kind: 'goal'; arg: string }
   | { kind: 'send'; text: string }
 
-export const BUILTIN_COMMANDS: readonly { readonly name: string; readonly description: string }[] =
-  [
-    { name: 'clear', description: 'clear the conversation' },
-    { name: 'new', description: 'start a fresh conversation (M21)' },
-    { name: 'help', description: 'toggle the keyboard shortcuts panel' },
-    { name: 'usage', description: 'toggle the token-usage panel' },
-    { name: 'retry', description: 're-send the last message' },
-    { name: 'fork', description: 'branch the current session into a new one (M39)' },
-    { name: 'sessions', description: 'list your sessions (M39)' },
-    { name: 'logout', description: 'remove the stored credential' },
-    { name: 'plan', description: 'demo: plan approval card' },
-    { name: 'ask', description: 'demo: question prompt' },
-    { name: 'select', description: 'demo: multi-select list' },
-    { name: 'progress', description: 'demo: multi-step progress' },
-    { name: 'approval', description: 'approval mode: suggest | auto-edit | full-auto' },
-    { name: 'effort', description: 'reasoning effort: minimal|low|medium|high|xhigh' },
-    { name: 'login', description: 'authenticate a provider: /login <provider>' },
-    { name: 'image', description: 'attach an image to the NEXT turn: /image <path> (M35)' },
-    { name: 'archive', description: 'archive a session [id] (M39)' },
-    { name: 'rename', description: 'rename the current session (M39)' },
-    { name: 'memory', description: 'durable-memory status (M49)' },
-    { name: 'compact', description: 'summarize the conversation to free context (M50)' },
-    { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
-    { name: 'quit', description: 'exit the TUI' },
-    {
-      name: 'status',
-      description: 'show the session state: model, effort, approval, sandbox, cwd',
-    },
-    { name: 'diff', description: 'show the uncommitted changes in the working tree' },
-    { name: 'model', description: 'switch the model for this session (no argument reports it)' },
-    { name: 'ps', description: 'list the background shell sessions this conversation owns' },
-    {
-      name: 'stop',
-      description: 'terminate every background shell session this conversation owns',
-    },
-    { name: 'review', description: 'review changes [base <ref> | commit <sha>] (M51)' },
-    { name: 'goal', description: 'run an autonomous goal loop until done/budget (M55)' },
-  ]
+// B-011 — the SDK exports this shape as `SlashCommand` (re-exported as `ChatComposerCommand`, the
+// name `ChatComposer` consumes). Declaring an identical anonymous type meant the composer's contract
+// and this list could drift apart with nothing to catch it.
+export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
+  { name: 'clear', description: 'clear the conversation' },
+  { name: 'new', description: 'start a fresh conversation (M21)' },
+  { name: 'help', description: 'toggle the keyboard shortcuts panel' },
+  { name: 'usage', description: 'toggle the token-usage panel' },
+  { name: 'retry', description: 're-send the last message' },
+  { name: 'fork', description: 'branch the current session into a new one (M39)' },
+  { name: 'sessions', description: 'list your sessions (M39)' },
+  { name: 'logout', description: 'remove the stored credential' },
+  { name: 'plan', description: 'demo: plan approval card' },
+  { name: 'ask', description: 'demo: question prompt' },
+  { name: 'select', description: 'demo: multi-select list' },
+  { name: 'progress', description: 'demo: multi-step progress' },
+  { name: 'approval', description: 'approval mode: suggest | auto-edit | full-auto' },
+  { name: 'effort', description: 'reasoning effort: minimal|low|medium|high|xhigh' },
+  { name: 'login', description: 'authenticate a provider: /login <provider>' },
+  { name: 'image', description: 'attach an image to the NEXT turn: /image <path> (M35)' },
+  { name: 'archive', description: 'archive a session [id] (M39)' },
+  { name: 'rename', description: 'rename the current session (M39)' },
+  { name: 'memory', description: 'durable-memory status (M49)' },
+  { name: 'compact', description: 'summarize the conversation to free context (M50)' },
+  { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
+  { name: 'quit', description: 'exit the TUI' },
+  {
+    name: 'status',
+    description: 'show the session state: model, effort, approval, sandbox, cwd',
+  },
+  { name: 'diff', description: 'show the uncommitted changes in the working tree' },
+  { name: 'model', description: 'switch the model for this session (no argument reports it)' },
+  { name: 'ps', description: 'list the background shell sessions this conversation owns' },
+  {
+    name: 'stop',
+    description: 'terminate every background shell session this conversation owns',
+  },
+  { name: 'review', description: 'review changes [base <ref> | commit <sha>] (M51)' },
+  { name: 'goal', description: 'run an autonomous goal loop until done/budget (M55)' },
+]
 
 export const BUILTIN_COMMAND_NAMES: ReadonlySet<string> = new Set(
   BUILTIN_COMMANDS.map((c) => c.name),

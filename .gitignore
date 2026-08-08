@@ -16,6 +16,11 @@ data/
 *.swo
 *.pem
 
+# Claude Code kit — LOCAL, never versioned. Ferramenta de quem desenvolve, não código do
+# produto: quem clona o TheoCode recebe o agente, não o andaime de manutenção de quem o
+# escreve. Instala-se com `bash <squad>/scripts/install.sh .` quando se quiser.
+.claude/
+
 # Secrets — never commit (.env.example IS committed as a template)
 .env
 .env.local
@@ -28,8 +33,9 @@ data/
 !.theokit/agents/
 .theokit/agents/registry.json*
 
-# Claude Code cycle kit — versioned (skills/rules/hooks/commands/scripts + settings).
-# Only caches and large/generated artifacts underneath are ignored.
+# As regras que herdamos do kit anterior, quando `.claude/` ERA versionado. Ficam por
+# redundância defensiva — `.claude/` inteiro já está ignorado acima, e uma regra que não pode
+# mais casar nada é ruído, não proteção. Se alguém reverter a decisão, estas voltam a valer.
 .claude/**/__pycache__/
 .claude/**/*.pyc
 .claude/knowledge-base/references/**
@@ -53,10 +59,13 @@ bench/reports/run.log
 .heval/
 
 # M20 — per-user/project runtime config (like .theokit/, not committed)
-.theocode/
-!.theocode/
+# B-017 — `.theocode/` followed by `!.theocode/` cancelled itself: git re-included the directory and
+# everything under it, so runtime state (sessions, pointers, the resolved config) was committable
+# despite the comment above declaring it local. Ignoring the CONTENTS keeps the exception working —
+# a negation cannot re-include a file whose parent directory is excluded, which is why the previous
+# spelling needed the directory itself listed.
+.theocode/*
 !.theocode/config.example.toml
-.theocode/config.toml
 
 # Scratch probes from review agents — working files, never deliverables.
 # M98 (auditoria ADV-7) — o padrão era `.probe/` LITERAL, e a sessão de review do M98 criou

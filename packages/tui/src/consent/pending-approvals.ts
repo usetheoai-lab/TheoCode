@@ -12,6 +12,19 @@ interface Input {
   settled: boolean
 }
 
+/**
+ * B-011 — measured to be load-bearing, not a duplicate of the SDK's `findPendingApproval`.
+ *
+ * `findPendingApproval(messages)` is STATELESS: it derives the answer from the thread on every call.
+ * This ledger is STATEFUL — it records that an approval was settled locally. The two differ in
+ * exactly one window, and it is the window that matters: between the user answering and the SDK's
+ * thread reflecting it. A stateless derivation re-reports the same approval during that window,
+ * because the thread still shows it pending — so the card the user just dismissed comes back, and a
+ * second answer is sent for an approval already answered.
+ *
+ * `pending-approvals.test.ts` pins that. If a future SDK settles the thread synchronously, the
+ * suppression test passes with this file removed — that is the signal it can go.
+ */
 export interface ApprovalLedger {
   inFlight: Map<string, Input>
   varridasComoFinais: number

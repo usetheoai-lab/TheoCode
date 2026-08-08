@@ -1,7 +1,6 @@
 import {
   existsSync,
   readdirSync,
-  readFileSync,
   statSync,
   openSync,
   readSync,
@@ -23,6 +22,7 @@ import {
   type PlanoAll,
   type ResultadoAll,
 } from './all-sessions.js'
+import { readPointerId } from './pointer.js'
 
 const FIRST_LINE_CAP = 64 * 1024
 const MAX_PROFUNDIDADE_DFS = 12
@@ -100,14 +100,7 @@ export async function planAllProjectsNoDisco(opts: OpcoesCLI = {}): Promise<Plan
       }),
     listRegistry: (cwd) => listProjectRegistry(cwd),
     hasLiveWriter: (transcript) => sessionHasWriter(transcript),
-    readPointer: (cwd) => {
-      try {
-        const id = readFileSync(join(cwd, '.theokit', 'tui-session'), 'utf8').trim()
-        return id === '' ? undefined : id
-      } catch {
-        return undefined
-      }
-    },
+    readPointer: (cwd) => readPointerId(cwd),
   })
 }
 
@@ -122,14 +115,7 @@ export async function runAllProjectsNoDisco(
     rmdir: (path) => fsp.rmdir(path),
     deleteAgent: (id) => Agent.delete(id),
     hasLiveWriter: (transcript) => sessionHasWriter(transcript),
-    readPointer: (cwd) => {
-      try {
-        const id = readFileSync(join(cwd, '.theokit', 'tui-session'), 'utf8').trim()
-        return id === '' ? undefined : id
-      } catch {
-        return undefined
-      }
-    },
+    readPointer: (cwd) => readPointerId(cwd),
     listProject: (p) => {
       try {
         return listRealProject(root, p)

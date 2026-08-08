@@ -29,7 +29,12 @@ export interface RoleAgentContext {
   parent: ParentDefaults
   cwd?: string
   writeRoot?: string
-  sandbox?: SandboxBackend
+  /**
+   * B-006 — required, like `ToolScope.sandbox`. While it was optional, a delegated squad member
+   * could be handed tools with the sandbox silently omitted: an unconfined shell for a sub-agent,
+   * with no error. Every caller builds it from `resolveToolScope`, which always supplies one.
+   */
+  sandbox: SandboxBackend
   posture: TrustPosture
   hooks?: HookHandlers
 }
