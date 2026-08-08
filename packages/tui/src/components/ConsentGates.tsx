@@ -8,15 +8,19 @@ import type { ReasoningEffort } from '@theocode/agent/config'
 import type { ToastPayload } from '../screen-types.js'
 import type { Dispatch, SetStateAction } from 'react'
 import { AGENT } from '@theocode/shared/agent'
+import { applyHookDecision } from '../consent/hook-decision.js'
 
 type Consent = ReturnType<typeof import('../consent/index.js').useConsent>
 
 export interface HooksGateProps {
   readonly consent: Consent
   readonly pendingHooks: Consent['pendingHooks']
+  // B-040 — the sibling TrustGate already takes this. A persist failure the user cannot see is a
+  // persist failure that reads as success.
+  readonly setToast: Dispatch<SetStateAction<ToastPayload | null>>
 }
 
-export function HooksGate({ consent, pendingHooks }: HooksGateProps): ReactElement {
+export function HooksGate({ consent, pendingHooks, setToast }: HooksGateProps): ReactElement {
   return (
     <PermissionPrompt
       toolType="Review hook"
@@ -32,13 +36,12 @@ export function HooksGate({ consent, pendingHooks }: HooksGateProps): ReactEleme
         '\n\nThis command runs on every matching tool call. Approve only what you recognise — ' +
         'declining leaves it inert, and you will be asked again next launch.')(pendingHooks[0]!)}
       onDecision={(decision) => {
-        const head = pendingHooks[0]!
-        if (decision === 'yes') {
-          consent.approveHookConsent(head.spec, (err) => {
-            process.stderr.write(`could not persist hook approval: ${err.message}\n`)
-          })
-        } else consent.refuseHook(head.fingerprint)
-        if (pendingHooks.length <= 1) consent.markReviewed()
+        void applyHookDecision(decision === 'yes' ? 'yes' : 'no', pendingHooks[0]!, pendingHooks.length, {
+          approve: (spec) => consent.approveHookConsent(spec),
+          refuse: (fp) => consent.refuseHook(fp),
+          markReviewed: () => consent.markReviewed(),
+          toast: (message) => setToast({ message, variant: 'error' }),
+        })
       }}
     />
   )

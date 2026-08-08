@@ -27,7 +27,12 @@ export interface Consent {
   readonly trust: () => void
   readonly distrust: () => void
 
-  readonly approveHookConsent: (spec: unknown, aoFalhar: (error: Error) => void) => void
+  /**
+   * B-040 — returns a promise so the caller can sequence on it. It used to take an on-failure
+   * callback, which let the gate run `markReviewed()` synchronously while the persist was still in
+   * flight and close as if it had succeeded.
+   */
+  readonly approveHookConsent: (spec: unknown) => Promise<void>
   readonly refuseHook: (fingerprint: string) => void
   readonly markReviewed: () => void
 }
@@ -52,14 +57,9 @@ export function useConsent(cwd: string = process.cwd()): Consent {
   }, [cwd, recusados, epoch])
 
   const approveHookConsent = useCallback(
-    (spec: unknown, aoFalhar: (error: Error) => void): void => {
-      void approveHook(cwd, spec as Parameters<typeof approveHook>[1])
-        .then(() => {
-          setState(persistedApproval)
-        })
-        .catch((err: unknown) => {
-          aoFalhar(err as Error)
-        })
+    async (spec: unknown): Promise<void> => {
+      await approveHook(cwd, spec as Parameters<typeof approveHook>[1])
+      setState(persistedApproval)
     },
     [cwd],
   )
