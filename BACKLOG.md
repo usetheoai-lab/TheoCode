@@ -933,7 +933,12 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-042 — AGENTS.md import confinement is vacuous outside a git repo and ignores symlinks   [ ]
+## B-042 — AGENTS.md import confinement is vacuous outside a git repo and ignores symlinks   [x]
+
+fixed_in: 994f6c7
+dod_verified:
+  - an import outside the project is refused with no git repo present — the boundary was the FILESYSTEM ROOT, which permitted reading any file on the machine into the system prompt; worse than the finding recorded
+  - a symlink pointing outside the project is refused — containment is checked on the real path, verified by mutation (dropping realpath turns the symlink case red while the relative case stays green)
 
 domain: theocode
 repo: TheoCode
@@ -949,7 +954,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
-## B-043 — The review tool fails open on an unparseable response, and a failed dispose leaks the reviewer   [ ]
+## B-043 — The review tool fails open on an unparseable response, and a failed dispose leaks the reviewer   [x]
+
+fixed_in: d8bfdca
+dod_verified:
+  - an unparseable response raises a typed error instead of an empty finding list — both callers already catch and report, so the CLI exits 1 with the reason instead of 0 with a clean verdict
+  - a failed dispose leaves the reviewer disposable again (the flag is set after the work, not before)
+  - a cleanup failure no longer replaces the delegation result — `allSettled` in the `finally`, each failure reported
 
 domain: theocode
 repo: TheoCode
