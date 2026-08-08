@@ -42,6 +42,17 @@ export const REGISTRY_TOOL_NAMES = [
 
 export type RegistryToolName = (typeof REGISTRY_TOOL_NAMES)[number]
 
+/**
+ * Bridges `ToolsetError` into the SDK's error hierarchy, and has an end date.
+ *
+ * `ToolsetError` extended `Error` directly, so a caller catching `TheokitAgentError` missed it and
+ * had to match on name or message. Rather than do that here, this translates it once at the
+ * boundary (upstream gap U-3, finding TIP-15).
+ *
+ * Fixed upstream — `ToolsetError` now extends `TheokitAgentError` (`theokit` commit `92b962ad`) —
+ * but NOT released: this package resolves `@theokit/agents@7.4.0`, which predates it. Delete this on
+ * the next bump, not before: removing it now changes which error type callers actually receive.
+ */
 function translateError<T>(fn: () => T): T {
   try {
     return fn()
