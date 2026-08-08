@@ -57,10 +57,33 @@ export interface TruncationResult {
   selectedText: string
 }
 
-export function truncateRecordsBeforeUserTurn(
-  records: readonly SessionRecord[],
-  nth: number,
-): TruncationResult {
+/**
+ * B-036 — `readJsonlTail` is NOT adopted here, and this is the measured reason rather than an
+ * omission.
+ *
+ * The SDK offers it to read the last records of a JSONL without loading the file, and its
+ * `sinceMarker` option looks like an exact fit for `compact_boundary`. Two things argue against it:
+ *
+ *  - `sinceMarker` is a SUBSTRING match on the raw line. A user message containing the literal text
+ *    `compact_boundary` would end the read early and silently shrink the backtrack window — a
+ *    correctness defect traded for a performance win.
+ *  - There is no performance win to trade for. Measured 2026-08-08 across the 23,100 transcripts on
+ *    a real machine: the LARGEST is 186 KiB. Loading that to show a few turn previews is not a cost.
+ *
+ * If a transcript ever grows to where this matters, `maxRecords` alone (no marker) is the safe form,
+ * and the trade is then against a number instead of a guess.
+ */
+
+/**
+ * The indices of the real user turns in the CURRENT window — everything after the last
+ * `compact_boundary`, or the whole transcript when there is none.
+ *
+ * B-036 — one definition. This loop appeared verbatim three times (truncate, count, previews), which
+ * is duplicated KNOWLEDGE rather than duplicated code: "the current window" is one rule, and three
+ * copies means changing it takes three edits and one of them gets missed. That is the shape B-012
+ * asked to close and did not.
+ */
+function userTurnIndicesInWindow(records: readonly SessionRecord[]): number[] {
   let floor = -1
   for (let i = records.length - 1; i >= 0; i--) {
     if (records[i].type === 'system' && records[i].subtype === 'compact_boundary') {
@@ -68,10 +91,18 @@ export function truncateRecordsBeforeUserTurn(
       break
     }
   }
-  const userIdx: number[] = []
+  const indices: number[] = []
   for (let i = floor + 1; i < records.length; i++) {
-    if (isRealUserTurn(records[i])) userIdx.push(i)
+    if (isRealUserTurn(records[i])) indices.push(i)
   }
+  return indices
+}
+
+export function truncateRecordsBeforeUserTurn(
+  records: readonly SessionRecord[],
+  nth: number,
+): TruncationResult {
+  const userIdx = userTurnIndicesInWindow(records)
   if (!Number.isInteger(nth) || nth < 0 || nth >= userIdx.length) {
     throw new RangeError(
       `backtrack: nth=${nth} out of range — ${userIdx.length} user turn(s) in the window`,
@@ -111,32 +142,8 @@ export function forkSessionBeforeUserTurn(
   return { newId, copied: true, selectedText }
 }
 
-export function countUserTurnsInWindow(records: readonly SessionRecord[]): number {
-  let floor = -1
-  for (let i = records.length - 1; i >= 0; i--) {
-    if (records[i].type === 'system' && records[i].subtype === 'compact_boundary') {
-      floor = i
-      break
-    }
-  }
-  let n = 0
-  for (let i = floor + 1; i < records.length; i++) if (isRealUserTurn(records[i])) n++
-  return n
-}
-
 export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
-  let floor = -1
-  for (let i = records.length - 1; i >= 0; i--) {
-    if (records[i].type === 'system' && records[i].subtype === 'compact_boundary') {
-      floor = i
-      break
-    }
-  }
-  const previews: string[] = []
-  for (let i = floor + 1; i < records.length; i++) {
-    if (isRealUserTurn(records[i])) previews.push(textOf(records[i]))
-  }
-  return previews
+  return userTurnIndicesInWindow(records).map((i) => textOf(records[i]))
 }
 
 async function readTranscriptAsync(src: string): Promise<readonly SessionRecord[]> {
