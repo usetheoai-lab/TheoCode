@@ -18,7 +18,6 @@ export interface TuiRoot {
   readonly session: TuiSession
   readonly ptyOwner: ReturnType<typeof createSessionPtyOwner>
   readonly transport: ReturnType<typeof createChatTransport>
-  readonly initialPosture: ReturnType<typeof resolveTrustPosture>
   readonly sessionPointer: string
   readonly goalPointer: string
   readonly resumeOnStartup: boolean
@@ -36,6 +35,9 @@ function build(): TuiRoot {
 
   const session = createTuiSession({ cwd, sessionPointer })
 
+  // B-032 — resolved ONCE here and consumed locally. It used to be exposed on `TuiRoot` as well,
+  // where nothing read it: a seam built for the injected-directory work that never gained a
+  // consumer, and therefore read as though the TUI honoured an injected posture when it does not.
   const initialPosture = resolveTrustPosture(cwd)
 
   const ptyOwner = createSessionPtyOwner({
@@ -63,7 +65,6 @@ function build(): TuiRoot {
     session,
     ptyOwner,
     transport,
-    initialPosture,
     sessionPointer,
     goalPointer: join(cwd, '.theokit', 'tui-goal.json'),
     resumeOnStartup,

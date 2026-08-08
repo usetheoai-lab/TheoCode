@@ -65,7 +65,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-057**
+Next free id: **B-058**
 
 ---
 
@@ -1249,3 +1249,21 @@ dod:
   - `composerShortcuts({ shell: true })` restores the help line with no further edit — the filter is already keyed on the capability
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `shell-shortcut-confinement-decision`).
+
+## B-057 — The TUI reads the working directory from the process at 23 sites   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: measured 2026-08-08 — `grep -rn 'process\.cwd()' packages/tui/src` returns **23 non-test sites** across 13 files (`main.tsx`, `interpret-command.ts`, `use-consent.ts`, `composition-root.ts`, `Banner.tsx`, `chat-transport.ts`, `credential-helpers.ts`, `tui-session.ts`, `ConsentGates.tsx`, `session-commands.ts`, `command-content.ts`, `review.ts`, `config-commands.ts`, `goal.ts`). `composition-root.ts:33` already resolves it once; the other 22 do not use that.
+why_now: B-015 gave `packages/agent` one injected working directory and B-032 closed the last bypass there (`delegate_to_team`). The TUI never got the same treatment. It is LATENT rather than active — the TUI parses no `--cd`, so all 23 reads agree today, which is why the review filed it MEDIUM and its `ConsentGates` instance LOW. It becomes a defect the moment the TUI gains a directory flag, and the failure then is silent: trust resolved for one directory, config for another.
+status: triaged
+severity: MEDIUM
+dod:
+  - `grep -rn 'process\.cwd()' packages/tui/src` returns one site outside tests — the composition root
+  - the resolved directory reaches the command handlers through their existing `deps` object rather than a new global
+  - a test asserts that an injected directory reaches trust resolution, config resolution and the credential path, mirroring `chat-cwd.test.ts`
+note: B-032 removed the dead `TuiRoot.initialPosture` field — a seam built for exactly this work that never gained a consumer, and therefore read as though the TUI already honoured an injected posture.
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `tui-ambient-working-directory`).

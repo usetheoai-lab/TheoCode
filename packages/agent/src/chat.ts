@@ -70,6 +70,7 @@ export function buildChatAgent(overrides?: {
     cfg,
     posture,
     lifecycleHooks,
+    cwd,
     reasoning_effort: overrides?.reasoning_effort,
   })
 
@@ -164,10 +165,12 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
     cfg: EffectiveConfig
     posture: TrustPosture
     lifecycleHooks: ReturnType<typeof chatHookChain>
+    /** B-032 — threaded through so the delegated team is confined to the same tree as the root. */
+    cwd: string
     reasoning_effort?: ReasoningEffort
   },
 ): T {
-  const { writePolicy, registry, modelId, cfg, posture, lifecycleHooks } = ctx
+  const { writePolicy, registry, modelId, cfg, posture, lifecycleHooks, cwd } = ctx
   const overrides = { reasoning_effort: ctx.reasoning_effort }
   return writePolicy.writes
     ? base
@@ -185,6 +188,8 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
             reasoning_effort: overrides?.reasoning_effort ?? cfg.reasoning_effort,
             sandbox_mode: cfg.sandbox_mode,
             posture,
+            // B-032 — the same directory every other resolution in this builder uses.
+            cwd,
             hooks: lifecycleHooks,
           }),
         )

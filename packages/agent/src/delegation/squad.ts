@@ -28,10 +28,19 @@ export interface TeamContext {
   reasoning_effort: AgentConfig['reasoning_effort']
   sandbox_mode: AgentConfig['sandbox_mode']
   posture: TrustPosture
+  /**
+   * B-032 — the directory the ROOT resolved, not `process.cwd()`.
+   *
+   * `resolveToolScope` derives BOTH the `writeRoot` and the sandbox `workDir` from this, so a team
+   * built against the process directory confines its worker to a tree the caller did not choose.
+   * B-015 gave `buildChatAgent` a single injected directory and this handler kept re-deriving one,
+   * which made it the only bypass with a CONFINEMENT consequence rather than a configuration one.
+   */
+  cwd: string
   hooks?: HookHandlers
 }
 
-export function createDelegateToTeamTool(contexto: TeamContext) {
+export function createDelegateToTeamTool(context: TeamContext) {
   return Tool.create({
     name: 'delegate_to_team',
     description:
@@ -46,16 +55,16 @@ export function createDelegateToTeamTool(contexto: TeamContext) {
         .describe('The task for the team (the explorer investigates it, the worker executes it).'),
     }),
     handler: async ({ task }: { task: string }) => {
-      const escopo = resolveToolScope({ sandbox_mode: contexto.sandbox_mode }, process.cwd())
+      const scope = resolveToolScope({ sandbox_mode: context.sandbox_mode }, context.cwd)
       const { squad, members } = await buildTeam({
         apiKey: () =>
           resolveFreshCredential({ env: process.env, home: homedir() }).then((c) => c.apiKey),
-        parent: { model: contexto.model, reasoning_effort: contexto.reasoning_effort },
-        posture: contexto.posture,
-        cwd: escopo.cwd,
-        sandbox: escopo.sandbox,
-        writeRoot: escopo.writeRoot,
-        ...(contexto.hooks !== undefined ? { hooks: contexto.hooks } : {}),
+        parent: { model: context.model, reasoning_effort: context.reasoning_effort },
+        posture: context.posture,
+        cwd: scope.cwd,
+        sandbox: scope.sandbox,
+        writeRoot: scope.writeRoot,
+        ...(context.hooks !== undefined ? { hooks: context.hooks } : {}),
       })
       try {
         const run = await withDelegationCap(squad.run(task))
