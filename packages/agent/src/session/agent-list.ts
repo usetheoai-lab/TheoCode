@@ -16,8 +16,8 @@ export class CursorNotDrainedError extends TheokitAgentError {
 
   constructor(cursor: string) {
     super(
-      `a listagem de agentes devolveu um cursor (${cursor}) que esta versão não sabe drain — ` +
-        `recusando devolver uma página parcial, porque o chamador a usaria como população completa`,
+      `the agent listing returned a cursor (${cursor}) this version cannot drain — ` +
+        `refusing to return a partial page, because the caller would use it as the complete population`,
     )
     this.cursor = cursor
   }

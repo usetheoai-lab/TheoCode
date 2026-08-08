@@ -50,11 +50,11 @@ export function switchModel(
   setToast({ message: `this session's model: ${target}`, variant: 'success' })
 }
 
-export const PEDIDO_DE_AGENTS_MD =
-  'Leia este repositório (estrutura, manifestos, scripts, testes) e escreva um AGENTS.md ' +
-  'na raiz descrevendo: o que o projeto é, como rodar/testar/buildar, as convenções de ' +
-  'código observadas no próprio código, e as fronteiras que não devem ser cruzadas. ' +
-  'Baseie cada afirmação no que você leu — não invente convenção que o código não mostra.'
+export const AGENTS_MD_REQUEST =
+  'Read this repository (structure, manifests, scripts, tests) and write an AGENTS.md at the ' +
+  'root describing: what the project is, how to run/test/build it, the code conventions observed ' +
+  'in the code itself, and the boundaries that must not be crossed. ' +
+  'Base every statement on what you read — do not invent a convention the code does not show.'
 
 export function statusPanel(
   SESSION: SessionTheInterpreterUses,
@@ -64,15 +64,15 @@ export function statusPanel(
 ): ContentPanel {
   const c = SESSION.cfg()
   return {
-    titulo: 'status da sessão',
-    corpo: [
+    title: 'session status',
+    body: [
       `model:     ${SESSION.sessionModel() ?? c.modelLabel}`,
-      `esforço:    ${SESSION.effort()}`,
-      `aprovação:  ${approvalMode}`,
+      `effort:     ${SESSION.effort()}`,
+      `approval:   ${approvalMode}`,
       `sandbox:    ${c.sandboxLabel}`,
       `cwd:        ${process.cwd()}`,
-      `sessão:     ${currentSessionId()}`,
-      `shells:     ${String(ptyOwner.backend().activeSessionCount())} em background`,
+      `session:    ${currentSessionId()}`,
+      `shells:     ${String(ptyOwner.backend().activeSessionCount())} in background`,
     ].join('\n'),
   }
 }
@@ -84,11 +84,11 @@ export function diffPanel(): ContentPanel | undefined {
   const stat = r.stdout.trim()
   const patch = detalhe.stdout
   if (stat.length === 0 && patch.trim().length === 0) {
-    return { titulo: 'working tree diff', corpo: 'clean working tree — no uncommitted changes' }
+    return { title: 'working tree diff', body: 'clean working tree — no uncommitted changes' }
   }
   return {
-    titulo: 'working tree diff',
-    corpo: stat,
+    title: 'working tree diff',
+    body: stat,
     ...(patch.trim().length > 0 ? { patch } : {}),
   }
 }

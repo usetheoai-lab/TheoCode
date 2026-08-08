@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 /**
  * The coalescing clock. **`performance.now()`, not `Date.now()`, and this is a bug fix, not a style
  * choice:** `Date.now()` is not monotonic — an NTP adjustment backwards (or a resume from suspend)
- * torna `agora - ultima` negativo e a timeline **congelaria** pelo tamanho do desvio.
+ * makes `now - last` negative and the timeline would **freeze** for the size of the skew.
  * `performance.now()` is monotonic by specification.
  *
  * **Exported even though the only importer is a test, and this is the reason:** the symbol is

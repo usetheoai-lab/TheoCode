@@ -14,7 +14,7 @@ export interface OracleIO {
 export interface OracleOptions {
   projectsRoot: string
   maxProfundidadeDFS: number
-  maxNosDFS: number
+  maxDfsNodes: number
   transcriptSamples?: number
 }
 
@@ -46,23 +46,23 @@ function cwdAutoVerificado(name: string, io: OracleIO, opts: OracleOptions): str
 }
 
 type ResultadoDFS =
-  { kind: 'ACHOU'; path: string } | { kind: 'NOT_FOUND' } | { kind: 'TETO'; reason: string }
+  { kind: 'ACHOU'; path: string } | { kind: 'NOT_FOUND' } | { kind: 'CEILING'; reason: string }
 
 function dfsExists(name: string, io: OracleIO, opts: OracleOptions): ResultadoDFS {
-  let nos = 0
-  const pilha: { path: string; profundidade: number }[] = [{ path: FS_ROOT, profundidade: 0 }]
+  let nodes = 0
+  const pilha: { path: string; depth: number }[] = [{ path: FS_ROOT, depth: 0 }]
   while (pilha.length > 0) {
     const current = pilha.pop()
     /* c8 ignore next */
     if (current === undefined) break
-    if (nos >= opts.maxNosDFS) {
-      return { kind: 'TETO', reason: `DFS estourou o teto de ${opts.maxNosDFS} nós visitados` }
+    if (nodes >= opts.maxDfsNodes) {
+      return { kind: 'CEILING', reason: `DFS exceeded the ceiling of ${opts.maxDfsNodes} visited nodes` }
     }
-    nos += 1
-    if (current.profundidade >= opts.maxProfundidadeDFS) {
+    nodes += 1
+    if (current.depth >= opts.maxProfundidadeDFS) {
       return {
-        kind: 'TETO',
-        reason: `DFS estourou o teto de profundidade ${opts.maxProfundidadeDFS}`,
+        kind: 'CEILING',
+        reason: `DFS estourou o teto de depth ${opts.maxProfundidadeDFS}`,
       }
     }
     let entries: string[]
@@ -79,10 +79,10 @@ function dfsExists(name: string, io: OracleIO, opts: OracleOptions): ResultadoDF
 
 function visitEntries(
   name: string,
-  current: { path: string; profundidade: number },
+  current: { path: string; depth: number },
   entries: readonly string[],
   io: OracleIO,
-  pilha: { path: string; profundidade: number }[],
+  pilha: { path: string; depth: number }[],
 ): ResultadoDFS | undefined {
   for (const entry of entries) {
     const path = current.path === FS_ROOT ? `/${entry}` : `${current.path}/${entry}`
@@ -90,7 +90,7 @@ function visitEntries(
     if (!io.isDirectory(path)) continue
     if (codificado === name) return { kind: 'ACHOU', path }
     if (name.startsWith(codificado)) {
-      pilha.push({ path, profundidade: current.profundidade + 1 })
+      pilha.push({ path, depth: current.depth + 1 })
     }
   }
   return undefined
@@ -101,7 +101,7 @@ export function classifyDirectory(name: string, io: OracleIO, opts: OracleOption
   try {
     cwd = cwdAutoVerificado(name, io, opts)
   } catch (err) {
-    return { state: 'UNDETERMINED', reason: `não foi possível ler ${name} — ${reasonOf(err)}` }
+    return { state: 'UNDETERMINED', reason: `could not read ${name} — ${reasonOf(err)}` }
   }
   if (cwd !== undefined) {
     return io.isDirectory(cwd) ? { state: 'ALIVE', cwd } : { state: 'DEAD', cwd }

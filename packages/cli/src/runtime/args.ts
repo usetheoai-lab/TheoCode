@@ -239,13 +239,13 @@ function resolveInput(
   rawPrompt: string,
   stdinIsTTY: boolean,
 ): { prompt: string | undefined; stdinBehavior: StdinBehavior } | { error: string } {
-  const bruto = rawPrompt.length > 0 ? rawPrompt : undefined
-  if (bruto === '-') return { prompt: undefined, stdinBehavior: 'forced' }
-  if (bruto === undefined) {
+  const raw = rawPrompt.length > 0 ? rawPrompt : undefined
+  if (raw === '-') return { prompt: undefined, stdinBehavior: 'forced' }
+  if (raw === undefined) {
     if (stdinIsTTY) return { error: 'No prompt provided' }
     return { prompt: undefined, stdinBehavior: 'required' }
   }
-  return { prompt: bruto, stdinBehavior: stdinIsTTY ? 'none' : 'append' }
+  return { prompt: raw, stdinBehavior: stdinIsTTY ? 'none' : 'append' }
 }
 
 function parseResumeOuPrompt(
@@ -279,16 +279,16 @@ function parseResumeOuPrompt(
 }
 
 function translateApproval(values: OptionValues): string | undefined {
-  if (values.approval === 'auto-edit') return AUTO_EDIT_SEM_POLITICA
+  if (values.approval === 'auto-edit') return AUTO_EDIT_HAS_NO_POLICY
   if (values.approval !== undefined && values.approval in MODO_PARA_POLITICA) {
     values.approval = MODO_PARA_POLITICA[values.approval]
   }
   return undefined
 }
 
-const AUTO_EDIT_SEM_POLITICA =
-  '--approval auto-edit: esse modo existe apenas na TUI (auto-aprova edição, gateia shell) e não ' +
-  'tem política equivalente no runtime. Use `suggest` (= on-request) ou `full-auto` (= never).'
+const AUTO_EDIT_HAS_NO_POLICY =
+  '--approval auto-edit: this mode exists only in the TUI (auto-approves edits, gates shell) and has ' +
+  'no equivalent policy in the runtime. Use `suggest` (= on-request) or `full-auto` (= never).'
 
 export function parseExecArgs(argv: string[], stdinIsTTY: boolean): ExecArgs {
   let parsed: ReturnType<typeof parseArgs<{ options: typeof OPTIONS; allowPositionals: true }>>

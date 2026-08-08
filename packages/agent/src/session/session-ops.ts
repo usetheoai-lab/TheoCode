@@ -44,9 +44,9 @@ export function legacyRootHint(encontradas: number, legacyRoot: string): string 
   }
   if (projects.length === 0) return undefined
   return (
-    `Nenhuma sessão em ${newRoot} (THEOKIT_HOME). ` +
-    `Há ${projects.length} projeto(s) com sessões na raiz anterior ${legacyRoot} — ` +
-    `desdefina THEOKIT_HOME para voltar a vê-las, ou mova o conteúdo.`
+    `No sessions in ${newRoot} (THEOKIT_HOME). ` +
+    `There are ${projects.length} project(s) with sessions under the previous root ${legacyRoot} — ` +
+    `unset THEOKIT_HOME to see them again, or move the contents.`
   )
 }
 

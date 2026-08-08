@@ -109,8 +109,8 @@ const CORPOS_POR_TOOL: ReadonlyMap<
   string,
   (p: ResultadoParseado) => { output: string } | undefined
 > = new Map([
-  ['interactive_shell', corpoDeTerminal],
-  ['write_stdin', corpoDeTerminal],
+  ['interactive_shell', terminalBody],
+  ['write_stdin', terminalBody],
   [
     'edit_file',
     (p) => {
@@ -155,18 +155,18 @@ const CORPOS_POR_TOOL: ReadonlyMap<
       return { output: lines.length > 0 ? lines.join('\n') : '(no matches)' }
     },
   ],
-  ['update_plan', corpoDePlano],
-  ['run_shell', corpoDeShell],
+  ['update_plan', planBody],
+  ['run_shell', shellBody],
 ])
 
-function corpoDeTerminal(p: ResultadoParseado): { output: string } | undefined {
+function terminalBody(p: ResultadoParseado): { output: string } | undefined {
   if (p.ok === false) return { output: `error: ${errorText(p)}` }
   return typeof p.output === 'string'
     ? { output: p.output.replace(/\r\n/g, '\n').replace(/\r/g, '') }
     : undefined
 }
 
-function corpoDePlano(p: ResultadoParseado): { output: string } | undefined {
+function planBody(p: ResultadoParseado): { output: string } | undefined {
   if (p.ok === false || !Array.isArray(p.steps)) return undefined
   const glyph: Record<string, string> = { completed: '✔', in_progress: '▶', pending: '□' }
   const lines = (p.steps as Array<{ step?: unknown; status?: unknown }>).map((s) => {
@@ -178,7 +178,7 @@ function corpoDePlano(p: ResultadoParseado): { output: string } | undefined {
   return { output: lines.join('\n') }
 }
 
-function corpoDeShell(p: ResultadoParseado): { output: string } | undefined {
+function shellBody(p: ResultadoParseado): { output: string } | undefined {
   if (p.ok === false) return { output: `run_shell: ${errorText(p)}` }
   const body = [p.stdout, p.stderr]
     .map((s) =>

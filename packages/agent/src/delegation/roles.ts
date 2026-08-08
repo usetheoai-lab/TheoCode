@@ -56,38 +56,38 @@ export function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
   }
 }
 
-function wireEffort(bruto: string, name: string): ReasoningEffort {
-  const nivel = parseEffort(bruto)
-  if (nivel === null) {
+function wireEffort(raw: string, name: string): ReasoningEffort {
+  const level = parseEffort(raw)
+  if (level === null) {
     throw new ConfigurationError(
-      `role "${name}": reasoning_effort "${bruto}" não é um nível aceito. Os níveis são ` +
-        `${EFFORT_LEVELS.join(', ')}. Corrija o \`reasoning_effort:\` em ` +
-        `.theokit/agents/${name}.md — o papel NÃO é materializado com um esforço herdado em ` +
-        'silêncio, porque isso faria o subagente rodar com um esforço diferente do declarado sem ' +
-        'nada avisar.',
+      `role "${name}": reasoning_effort "${raw}" is not an accepted level. The levels are ` +
+        `${EFFORT_LEVELS.join(', ')}. Fix the \`reasoning_effort:\` in ` +
+        `.theokit/agents/${name}.md — the role is NOT materialised with a silently inherited effort, ` +
+        'because that would run the subagent at an effort different from the declared one with ' +
+        'no warning at all.',
       { code: 'role_reasoning_effort_invalid' },
     )
   }
-  return nivel
+  return level
 }
 
 function unresolvedRole(name: string, posture: TrustPosture): ConfigurationError {
   if (!posture.allows.subagents) {
     return new ConfigurationError(
-      `role "${name}" não pôde ser carregado: a fonte \`project\` de subagentes está DESLIGADA ` +
-        `porque este diretório NÃO é trusted. Nesse state um \`.theokit/agents/${name}.md\` do ` +
-        `repositório não é lido — exista ele ou não. Conceda confiança a este diretório (a TUI ` +
-        `question na primeira execução) para habilitar papéis de projeto; o escape para CI está em ` +
+      `role "${name}" could not be loaded: the \`project\` subagent source is OFF ` +
+        `because this directory is NOT trusted. In that state a repository \`.theokit/agents/${name}.md\` ` +
+        `is not read — whether it exists or not. Trust this directory (the TUI asks on the first ` +
+        `run) to enable project roles; the CI escape hatch is in ` +
         `docs/CONFIGURATION.md § Escapes.`,
       { code: 'role_source_untrusted' },
     )
   }
-  return new ConfigurationError(`role "${name}" não está em .theokit/agents`, {
+  return new ConfigurationError(`role "${name}" is not in .theokit/agents`, {
     code: 'role_not_found',
   })
 }
 
-function herdarDoPai(
+function inheritFromParent(
   role: ReturnType<typeof roleConfigFrom>,
   ctx: RoleAgentContext,
 ): { cwd: string; writeRoot: string; modelId: string; effort: string } {
@@ -119,7 +119,7 @@ export async function roleAgentOptions(
   const def = encontrados[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
-  const { cwd, writeRoot, modelId, effort } = herdarDoPai(role, ctx)
+  const { cwd, writeRoot, modelId, effort } = inheritFromParent(role, ctx)
   const pluginDeHooks = ctx.hooks !== undefined ? hooksParaMembro(ctx.hooks) : undefined
   return {
     apiKey: requireResolvedCredential(ctx.apiKey),

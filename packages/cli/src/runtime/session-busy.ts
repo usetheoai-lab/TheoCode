@@ -7,23 +7,23 @@ function forkIdForBusySession(original: string): string {
 }
 
 export async function consumirComForkSeOcupada(
-  sessionIdInicial: string,
+  initialSessionId: string,
   abrir: (sessionId: string) => AsyncIterable<unknown>,
   consumir: (chunk: unknown) => void,
   warning: (line: string) => void,
 ): Promise<string> {
-  const first = await consumirDetectandoDisputa(abrir(sessionIdInicial), consumir)
-  if (!first.disputa) return sessionIdInicial
+  const first = await consumirDetectandoDisputa(abrir(initialSessionId), consumir)
+  if (!first.disputa) return initialSessionId
 
-  const novoId = forkIdForBusySession(sessionIdInicial)
+  const newId = forkIdForBusySession(initialSessionId)
   warning(
-    `[exec] sessão ${sessionIdInicial} está sendo escrita por outro processo — forkando para ${novoId}\n`,
+    `[exec] session ${initialSessionId} is being written by another process — forking to ${newId}\n`,
   )
-  const segunda = await consumirDetectandoDisputa(abrir(novoId), consumir, { emitir: true })
+  const segunda = await consumirDetectandoDisputa(abrir(newId), consumir, { emitir: true })
   if (segunda.disputa) {
-    throw new Error(`[exec] the forked session ${novoId} is busy too`)
+    throw new Error(`[exec] the forked session ${newId} is busy too`)
   }
-  return novoId
+  return newId
 }
 
 interface ResultadoDaPassagem {

@@ -54,7 +54,7 @@ export function SecretInput({
         {'> '}
         {'•'.repeat(buffer.length)}
       </Text>
-      <Text dimColor>enter confirma · esc cancela · a key não é ecoada</Text>
+      <Text dimColor>enter confirms · esc cancels · the key is not echoed</Text>
     </Box>
   )
 }

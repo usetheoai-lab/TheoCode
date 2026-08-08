@@ -52,10 +52,10 @@ export class AskBridge {
     if (p === undefined) {
       const abertas = [...this.pending.keys()]
       this.#aoDivergir(
-        `[ask-bridge] resposta para "${threadId}" sem question pendente` +
+        `[ask-bridge] answer for "${threadId}" with no pending question` +
           (abertas.length > 0
             ? ` — pending em: ${abertas.join(', ')}`
-            : ' — nenhuma question aberta') +
+            : ' — no open question') +
           ' (sob a TUI este aviso vai para .theokit/tui-stderr.log)',
       )
       return false

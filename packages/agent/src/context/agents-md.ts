@@ -179,41 +179,41 @@ function withinBudget(
 
   if (total() > opts.maxChars) {
     const { rules, agentsMd } = separarProjectDoc(doc)
-    const cortadoRules = trimBlocksFromStart(
+    const truncatedRules = trimBlocksFromStart(
       rules,
       Math.max(0, rules.length - (total() - opts.maxChars)),
     )
-    if (cortadoRules.length !== rules.length) {
+    if (truncatedRules.length !== rules.length) {
       opts.warn(
-        `[instructions] fonte 'rules' cortada de ${String(rules.length)} para ` +
-          `${String(cortadoRules.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+        `[instructions] source 'rules' truncated from ${String(rules.length)} to ` +
+          `${String(truncatedRules.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(cortadoRules, agentsMd)
+    doc = juntarProjectDoc(truncatedRules, agentsMd)
   }
   if (total() > opts.maxChars) {
     const { rules, agentsMd } = separarProjectDoc(doc)
-    const cortadoMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
-    if (cortadoMd.length !== agentsMd.length) {
+    const truncatedMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
+    if (truncatedMd.length !== agentsMd.length) {
       opts.warn(
-        `[instructions] fonte 'agentsMd' cortada de ${String(agentsMd.length)} para ` +
-          `${String(cortadoMd.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+        `[instructions] source 'agentsMd' truncated from ${String(agentsMd.length)} to ` +
+          `${String(truncatedMd.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(rules, cortadoMd)
+    doc = juntarProjectDoc(rules, truncatedMd)
   }
   if (total() > opts.maxChars && surface.length > 0) {
-    const antes = surface.length
-    surface = surface.slice(-Math.max(0, antes - (total() - opts.maxChars)))
+    const before = surface.length
+    surface = surface.slice(-Math.max(0, before - (total() - opts.maxChars)))
     opts.warn(
-      `[instructions] fonte 'appendInstructions' cortada de ${String(antes)} para ` +
-        `${String(surface.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+      `[instructions] source 'appendInstructions' truncated from ${String(before)} to ` +
+        `${String(surface.length)} chars (aggregate budget ${String(opts.maxChars)})`,
     )
   }
   if (total() > opts.maxChars) {
     opts.warn(
-      `[instructions] BASE_INSTRUCTIONS sozinho excede o orçamento agregado ` +
-        `(${String(total())} > ${String(opts.maxChars)}) — nada foi cortado`,
+      `[instructions] BASE_INSTRUCTIONS alone exceeds the aggregate budget ` +
+        `(${String(total())} > ${String(opts.maxChars)}) — nothing was truncated`,
     )
   }
   return build(base, doc, surface)

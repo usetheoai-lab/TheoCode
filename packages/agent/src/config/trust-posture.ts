@@ -84,9 +84,9 @@ function avisarSobreOAlias(): void {
   if (aliasJaAvisado) return
   aliasJaAvisado = true
   process.stderr.write(
-    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} está DEPRECADO e será removido no ${REMOVAL_MILESTONE}: ` +
-      `renomeie para ${ENV_TRUST_ALL_DIRS}. Enquanto isso ele continua concedendo confiança a TODO ` +
-      `diretório — a defesa contra repositório hostil segue desligada.\n`,
+    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} is DEPRECATED and will be removed in ${REMOVAL_MILESTONE}: ` +
+      `rename it to ${ENV_TRUST_ALL_DIRS}. Until then it keeps granting trust to EVERY ` +
+      `directory — the defence against a hostile repository stays off.\n`,
   )
 }
 

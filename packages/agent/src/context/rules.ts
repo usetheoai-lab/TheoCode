@@ -9,48 +9,48 @@ const MAX_CHARS = 64_000
 const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
 export interface TraversalBudget {
-  maxProfundidade: number
+  maxDepth: number
   maxFiles: number
 }
 
-const DEFAULT_BUDGET: TraversalBudget = { maxProfundidade: 32, maxFiles: 2_000 }
+const DEFAULT_BUDGET: TraversalBudget = { maxDepth: 32, maxFiles: 2_000 }
 
 export function varrerMarkdownComGuardas(
   dir: string,
-  orc: TraversalBudget = DEFAULT_BUDGET,
+  budget: TraversalBudget = DEFAULT_BUDGET,
   warn: WarnFn = () => {},
 ): string[] {
   const acc: string[] = []
-  descer(dir, { orc, warn, vistos: new Set(), acc }, 0)
+  descer(dir, { budget, warn, seen: new Set(), acc }, 0)
   return acc
 }
 
-function jaVisitado(dir: string, vistos: Set<string>, warn: WarnFn): boolean {
+function jaVisitado(dir: string, seen: Set<string>, warn: WarnFn): boolean {
   try {
     const st = statSync(dir)
     const key = `${String(st.dev)}:${String(st.ino)}`
-    if (vistos.has(key)) {
-      warn(`[rules] ${dir}: já visitado (mesmo inode) — ciclo interrompido`)
+    if (seen.has(key)) {
+      warn(`[rules] ${dir}: already visited (same inode) — cycle broken`)
       return true
     }
-    vistos.add(key)
+    seen.add(key)
   } catch {
-    // Ver o docblock: seguir sem key é a decisão, e os tetos garantem a terminação.
+    // See the docblock: continuing without a key is the decision, and the ceilings guarantee termination.
   }
   return false
 }
 
 interface WalkState {
-  readonly orc: TraversalBudget
+  readonly budget: TraversalBudget
   readonly warn: WarnFn
-  readonly vistos: Set<string>
+  readonly seen: Set<string>
   readonly acc: string[]
 }
 
-function descer(dir: string, st: WalkState, profundidade: number): void {
-  if (profundidade > st.orc.maxProfundidade) {
+function descer(dir: string, st: WalkState, depth: number): void {
+  if (depth > st.budget.maxDepth) {
     st.warn(
-      `[rules] ${dir}: profundidade máxima de ${String(st.orc.maxProfundidade)} atingida — descida interrompida`,
+      `[rules] ${dir}: maximum depth of ${String(st.budget.maxDepth)} reached — descent stopped`,
     )
     return
   }
@@ -60,15 +60,15 @@ function descer(dir: string, st: WalkState, profundidade: number): void {
   } catch {
     return
   }
-  if (jaVisitado(dir, st.vistos, st.warn)) return
+  if (jaVisitado(dir, st.seen, st.warn)) return
   for (const entry of entries.sort()) {
-    if (st.acc.length >= st.orc.maxFiles) {
+    if (st.acc.length >= st.budget.maxFiles) {
       st.warn(
-        `[rules] ${dir}: teto de ${String(st.orc.maxFiles)} arquivos atingido — varredura interrompida`,
+        `[rules] ${dir}: ceiling of ${String(st.budget.maxFiles)} files reached — sweep stopped`,
       )
       return
     }
-    absorbInput(join(dir, entry), entry, st, profundidade)
+    absorbInput(join(dir, entry), entry, st, depth)
   }
 }
 
@@ -76,16 +76,16 @@ function absorbInput(
   full: string,
   entry: string,
   st: WalkState,
-  profundidade: number,
+  depth: number,
 ): void {
   try {
     if (statSync(full).isDirectory()) {
-      descer(full, st, profundidade + 1)
+      descer(full, st, depth + 1)
     } else if (entry.endsWith('.md')) {
       st.acc.push(full)
     }
   } catch {
-    // entrada inalcançável — o mesmo outcome de não a ter encontrado
+    // unreachable entry — the same outcome as never having found it
   }
 }
 
@@ -119,10 +119,10 @@ function blocoDeRegra(file: string, raw: string, warn: WarnFn): string | undefin
 }
 
 function requirePositiveBudget(budget: TraversalBudget): void {
-  if (budget.maxProfundidade <= 0 || budget.maxFiles <= 0) {
+  if (budget.maxDepth <= 0 || budget.maxFiles <= 0) {
     throw new RangeError(
-      `orçamento de travessia inválido: maxProfundidade=${String(budget.maxProfundidade)}, ` +
-        `maxArquivos=${String(budget.maxFiles)} — ambos precisam ser > 0`,
+      `invalid traversal budget: maxDepth=${String(budget.maxDepth)}, ` +
+        `maxFiles=${String(budget.maxFiles)} — both must be > 0`,
     )
   }
 }

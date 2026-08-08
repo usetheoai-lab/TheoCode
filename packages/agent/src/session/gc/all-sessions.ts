@@ -77,7 +77,7 @@ function lockId(name: string): string {
 }
 
 function empty(): Record<FormaColetavel, number> {
-  return { transcript: 0, 'lock-arquivo': 0, 'lock-diretorio': 0, tmp: 0, registry: 0 }
+  return { transcript: 0, 'lock-file': 0, 'lock-directory': 0, tmp: 0, registry: 0 }
 }
 
 async function resolveGuards(
@@ -124,7 +124,7 @@ async function planOneProject(
   try {
     entries = opts.listProject(project)
   } catch (err) {
-    errors.push(`${project}: não foi possível listar — ${(err as Error).message}`)
+    errors.push(`${project}: could not list — ${(err as Error).message}`)
     return
   }
 
@@ -136,7 +136,7 @@ async function planOneProject(
 
   const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
   if (guards === undefined) {
-    errors.push(`${project}: registry indisponível — projeto pulado`)
+    errors.push(`${project}: registry unavailable — project skipped`)
     return
   }
   const { protectedIds, registry } = guards
@@ -199,8 +199,8 @@ function planOnDiskEntries(
         if (candidate !== undefined) planejar(candidate)
         break
       }
-      case 'lock-arquivo':
-      case 'lock-diretorio': {
+      case 'lock-file':
+      case 'lock-directory': {
         if (st.idsEmDisco.has(lockId(e.name))) continue
         planejar({ project, kind, target, ageDays })
         break
@@ -267,8 +267,8 @@ export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<Pl
   const maxAgeDays = opts.maxAgeDays ?? DEFAULT_WINDOW_DAYS
   if (maxAgeDays < FLOOR_DAYS) {
     throw new RangeError(
-      `maxAgeDays=${String(maxAgeDays)} está abaixo do floor de ${String(FLOOR_DAYS)} dia(s) — ` +
-        `recusando: normalizar em silêncio apagaria a sessão de ontem`,
+      `maxAgeDays=${String(maxAgeDays)} is below the floor of ${String(FLOOR_DAYS)} day(s) — ` +
+        `refusing: silently normalising would delete yesterday's session`,
     )
   }
   const now = opts.now ?? Date.now
@@ -312,7 +312,7 @@ function backstopRefusal(
       ? `${c.target}: refused — the transcript gained a live writer between plan and apply`
       : undefined
   }
-  if (c.kind !== 'lock-arquivo' && c.kind !== 'lock-diretorio') return undefined
+  if (c.kind !== 'lock-file' && c.kind !== 'lock-directory') return undefined
   const transcript = c.target.replace(/\.jsonl(\.writer)?\.lock$/, '.jsonl')
   return opts.hasLiveWriter(transcript)
     ? `${c.target}: refused — the sibling transcript gained a live writer between plan and apply`
@@ -328,11 +328,11 @@ async function removeCandidate(c: CandidatoAll, opts: ApplyAllOptions): Promise<
     case 'registry':
       await opts.deleteAgent(c.target)
       return
-    case 'lock-arquivo':
+    case 'lock-file':
     case 'tmp':
       await opts.unlink(c.target)
       return
-    case 'lock-diretorio':
+    case 'lock-directory':
       await opts.rmdir(c.target)
       return
     default:

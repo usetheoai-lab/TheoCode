@@ -56,12 +56,12 @@ export type SchemaKey = (typeof CONFIG_SCHEMA_KEYS)[number]
 
 interface EnvPath {
   readonly knob: string
-  readonly coagir: (bruto: string) => unknown
+  readonly coagir: (raw: string) => unknown
 }
 
-function numeroDeEnv(bruto: string): unknown {
-  const n = Number(bruto)
-  return bruto.trim().length > 0 && Number.isFinite(n) ? n : bruto
+function numeroDeEnv(raw: string): unknown {
+  const n = Number(raw)
+  return raw.trim().length > 0 && Number.isFinite(n) ? n : raw
 }
 
 export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
@@ -83,16 +83,16 @@ export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
   {
     key: 'skills',
     reason:
-      'Array de nomes: uma variável de ambiente é uma string, e toda coerção óbvia (vírgula, espaço, JSON) escolhe um separador que um name de skill legítimo pode conter.',
+      'Array of names: an environment variable is a string, and every obvious coercion (comma, space, JSON) picks a separator a legitimate skill name may contain.',
     exitCriterion:
-      'O primeiro consumidor que peça a lista de skills por ambiente — aí o separador é escolhido com um caso de uso real em vez de por adivinhação.',
+      'The first consumer that asks for the skill list by environment — then the separator is chosen against a real use case instead of by guesswork.',
   },
   {
     key: 'hooks',
     reason:
-      'Array de objetos, e a ÚNICA key que acumula entre camadas. Uma variável de ambiente que injetasse hooks seria execução arbitrária de código declarada fora de qualquer arquivo revisável, contornando a acumulação que impede um projeto de deslocar o guard global do usuário.',
+      'Array of objects, and the ONLY key that accumulates across layers. An environment variable injecting hooks would be arbitrary code execution declared outside any reviewable file, bypassing the accumulation that stops a project from displacing the user global guard.',
     exitCriterion:
-      'Nunca por conveniência. Só se a acumulação e a revisibilidade forem preservadas por outro mecanismo, decidido em ADR própria.',
+      'Never for convenience. Only if accumulation and reviewability are preserved by another mechanism, decided in its own ADR.',
   },
 ]
 
@@ -148,7 +148,7 @@ export class ConfigError extends TheokitAgentError {
 
 const scalarSchema = z
   .object({
-    model: z.string().min(1, 'model: id de model vazio — informe `provider/model`').optional(),
+    model: z.string().min(1, 'model: empty model id — supply `provider/model`').optional(),
     reasoning_effort: z.enum(EFFORTS).optional(),
     sandbox_mode: z.enum(SANDBOXES).optional(),
     approval_policy: z.enum(POLICIES).optional(),
@@ -224,10 +224,10 @@ function chosenProfile(layers: readonly z.infer<typeof configSchema>[]): {
 }
 
 export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
-  const fromFile = (bruto: unknown, onde: string): z.infer<typeof configSchema> => {
-    if (bruto === null || bruto === undefined) return {}
+  const fromFile = (raw: unknown, onde: string): z.infer<typeof configSchema> => {
+    if (raw === null || raw === undefined) return {}
     try {
-      return configSchema.parse(bruto)
+      return configSchema.parse(raw)
     } catch (err) {
       throw toConfigError(err, onde)
     }
@@ -243,8 +243,8 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
   for (const key of CONFIG_SCHEMA_KEYS) {
     const path = ENV_BY_KEY[key]
     if (path === undefined) continue 
-    const bruto = env[path.knob]
-    if (bruto !== undefined) envScalars[key] = path.coagir(bruto)
+    const raw = env[path.knob]
+    if (raw !== undefined) envScalars[key] = path.coagir(raw)
   }
   let envParsed: RawScalars
   try {

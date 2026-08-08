@@ -26,9 +26,9 @@ export type CommandAction =
   | { kind: 'memoryInfo' }
   // M50 — manual context compaction (Codex /compact parity).
   | { kind: 'compact' }
-  // Paridade com o Codex (`/ps`, `/stop`): inventário e parada dos PTYs em background. Criávamos
-  // sessões de shell interativo e não dávamos ao usuário como vê-las ou pará-las — a lacuna que a
-  // comparação lado a lado nomeou como a de maior consequência.
+  // Codex parity (`/ps`, `/stop`): inventory and stop for background PTYs. We were creating
+  // interactive shell sessions and giving the user no way to see or stop them — the gap the
+  // side-by-side comparison named as the most consequential.
   | { kind: 'model'; arg: string }
   | { kind: 'showDiff' }
   | { kind: 'showStatus' }
@@ -36,9 +36,9 @@ export type CommandAction =
   | { kind: 'quit' }
   | { kind: 'listPtys' }
   | { kind: 'stopPtys' }
-  // M51 — review mode (Codex /review parity): arg = alvo (vazio=uncommitted | base <ref> | commit <sha> | custom).
+  // M51 — review mode (Codex /review parity): arg = target (empty=uncommitted | base <ref> | commit <sha> | custom).
   | { kind: 'review'; arg: string }
-  // M55 — goal autônomo (Codex ext/goal parity): arg = objetivo em linguagem natural.
+  // M55 — autonomous goal (Codex ext/goal parity): arg = objective in natural language.
   | { kind: 'goal'; arg: string }
   | { kind: 'send'; text: string }
 

@@ -141,7 +141,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: '/bin/sh',
     effect: 'The shell used to expand a user custom command in the TUI.',
   },
-  // M111 (desbloqueio da promoção): os quatro knobs do `theo-promptly` chegaram com a persona
-  // resolvida por serviço e nasceram fora do registry — o gate M104 os pegou, que é exatamente o que
-  // ele existe para fazer. Registrados aqui para que `docs/CONFIGURATION.md` volte a ser derivável.
+  // M111 (promotion unblock): the four `theo-promptly` knobs arrived with the persona resolved
+  // per service and were born outside the registry — the M104 gate caught them, which is exactly what
+  // it exists to do. Registered here so `docs/CONFIGURATION.md` is derivable again.
 ]

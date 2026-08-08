@@ -12,8 +12,8 @@ export function App(): ReactElement {
   const tui = useTuiComposition()
   return (
     <TheoTUIProvider theme={THEME}>
-      {/* `InkInputProvider` faz a ponte do stdin do Ink para as superfícies interativas; `Stack` dá
-          a cadência do Claude Code. */}
+      {/* `InkInputProvider` bridges Ink's stdin to the interactive surfaces; `Stack` supplies the
+          Claude Code cadence. */}
       <InkInputProvider>
         <Stack gap={1}>
           <ConversationRegion {...tui.conversationProps} />

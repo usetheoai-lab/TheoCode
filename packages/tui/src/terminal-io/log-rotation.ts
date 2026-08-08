@@ -9,7 +9,7 @@ function exigirArgumentosValidos(capBytes: number, keep: number): void {
     throw new RangeError(`invalid cap: ${String(capBytes)}`)
   }
   if (!Number.isInteger(keep) || keep < 1) {
-    throw new RangeError(`manter deve ser >= 1 (0 equivale a truncar): ${String(keep)}`)
+    throw new RangeError(`keep deve ser >= 1 (0 equivale a truncar): ${String(keep)}`)
   }
 }
 
@@ -25,9 +25,9 @@ export function rotate(path: string, capBytes: number, keep: number): void {
     }
     renameSync(path, `${path}.0`)
   } catch {
-    // Fail-clear, não fail-fast: `stderr-guard.ts:12` estabelece que um log não pode derrubar a app,
-    // e subir sem rotacionar é estritamente melhor que não subir. Não é swallow de erro de domínio —
-    // é um erro de AMBIENTE (disco cheio, permissão) num path best-effort.
-    // Sunset: revisitar se a rotação ganhar telemetria própria.
+    // Fail-clear, not fail-fast: `stderr-guard.ts` establishes that a log cannot bring the app down,
+    // and starting without rotating is strictly better than not starting. This is not swallowing a
+    // domain error — it is an ENVIRONMENT error (disk full, permissions) on a best-effort path.
+    // Sunset: revisit if rotation gains telemetry of its own.
   }
 }

@@ -58,9 +58,9 @@ function listRealProject(root: string, project: string): ProjectEntry[] {
     try {
       mtimeMs = statSync(join(dir, e.name)).mtimeMs
     } catch {
-      // O nó sumiu entre o `readdir` e o `stat`. `mtimeMs = 0` o torna "infinitamente velho" e
-      // portanto candidate — e o `unlink` correspondente devolverá `ENOENT`, que o coletor já trata
-      // como sucesso idempotente. Nenhuma decisão de deleção depende deste valor sozinho.
+      // The node vanished between `readdir` and `stat`. `mtimeMs = 0` makes it "infinitely old" and
+      // therefore a candidate — and the matching `unlink` returns `ENOENT`, which the collector already
+      // treats as idempotent success. No deletion decision rests on this value alone.
     }
     return { name: e.name, isDirectory: e.isDirectory(), mtimeMs }
   })
@@ -96,7 +96,7 @@ export async function planAllProjectsNoDisco(opts: CliOptions = {}): Promise<Pla
       classifyDirectory(p, io, {
         projectsRoot: root,
         maxProfundidadeDFS: MAX_PROFUNDIDADE_DFS,
-        maxNosDFS: MAX_NOS_DFS,
+        maxDfsNodes: MAX_NOS_DFS,
       }),
     listRegistry: (cwd) => listProjectRegistry(cwd),
     hasLiveWriter: (transcript) => sessionHasWriter(transcript),
@@ -120,7 +120,7 @@ export async function runAllProjectsNoDisco(
       try {
         return listRealProject(root, p)
       } catch {
-        return [{ name: '<ilegível>', isDirectory: false, mtimeMs: 0 }]
+        return [{ name: '<unreadable>', isDirectory: false, mtimeMs: 0 }]
       }
     },
   })
@@ -128,17 +128,17 @@ export async function runAllProjectsNoDisco(
 
 const ROTULO: Record<FormaColetavel, string> = {
   transcript: 'transcript',
-  registry: 'entry de registry',
-  'lock-arquivo': 'lock órfão (arquivo)',
-  'lock-diretorio': 'lock órfão (diretório)',
-  tmp: 'temporário interrompido',
+  registry: 'registry entry',
+  'lock-file': 'orphaned lock (file)',
+  'lock-directory': 'orphaned lock (directory)',
+  tmp: 'interrupted temporary',
 }
 
 export function formatReport(plan: PlanoAll, resultado: ResultadoAll): string[] {
   const lines: string[] = []
   lines.push(
     resultado.dryRun
-      ? 'DRY-RUN — nada foi removido; use --apply para executar'
+      ? 'DRY-RUN — nothing was removed; use --apply to execute'
       : `APLICADO — ${String(resultado.removidos.length)} artefato(s) removido(s)`,
   )
   lines.push('')
@@ -154,6 +154,6 @@ export function formatReport(plan: PlanoAll, resultado: ResultadoAll): string[] 
   )
   for (const e of plan.errors) lines.push(`  ! ${e}`)
   for (const e of resultado.errors) lines.push(`  ! ${e}`)
-  if (plan.candidates.length === 0) lines.push('nada a coletar')
+  if (plan.candidates.length === 0) lines.push('nothing to collect')
   return lines
 }
