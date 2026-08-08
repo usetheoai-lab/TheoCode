@@ -61,10 +61,10 @@ export function foldLayers(
   for (const { values } of entries) {
     for (const [key, value] of Object.entries(values)) {
       if (value === undefined) continue
-      const pilha = acumulado.get(key)
-      if (pilha !== undefined && Array.isArray(value)) {
-        pilha.push(...(value as unknown[]))
-        combinado[key] = pilha
+      const stack = acumulado.get(key)
+      if (stack !== undefined && Array.isArray(value)) {
+        stack.push(...(value as unknown[]))
+        combinado[key] = stack
         continue
       }
       combinado[key] = value

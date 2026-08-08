@@ -111,14 +111,14 @@ export function handleFork(
   forkCurrentSession: () => { newId: string; copied: boolean },
   setToast: SetToast,
 ): void {
-  let resultado: { newId: string; copied: boolean }
+  let result: { newId: string; copied: boolean }
   try {
-    resultado = forkCurrentSession()
+    result = forkCurrentSession()
   } catch (e) {
     setToast({ message: `Fork failed: ${(e as Error).message}`, variant: 'error' })
     return
   }
-  const { newId, copied } = resultado
+  const { newId, copied } = result
   setToast({
     message: copied
       ? `Forked → ${newId} — the context was copied; this session continues from it.`

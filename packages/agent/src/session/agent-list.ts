@@ -23,6 +23,24 @@ export class CursorNotDrainedError extends TheokitAgentError {
   }
 }
 
+/**
+ * B-020 — this listing CANNOT produce a cursor, and that is the SDK's guarantee rather than an
+ * omission here.
+ *
+ * `@theokit/agents` narrows `Agent.list` to a non-paginated overload (`ListOptionsSemPaginacao`:
+ * `limit?: never; cursor?: never`) whose return type is `Omit<ListResult, 'nextCursor'>`. There is
+ * no cursor to forward, and asking for a page is a type error.
+ *
+ * The B-012 finding read this as "the guard was defeated by dropping a field". Measured against the
+ * SDK's declaration, that is wrong: the field does not exist on this surface. Forwarding it would
+ * have been inventing one.
+ *
+ * `CursorNotDrainedError` therefore cannot fire through this path today. It is kept — rather than
+ * deleted as dead — because it is a tripwire on an SDK UPGRADE: the moment that narrowing is lifted,
+ * a paginated reply starts truncating a set that guards DELETION (the GC builds its protection set
+ * from this listing), and the guard turns a silent truncation into a refusal. What it must not do is
+ * read as live protection, which is what this comment is for.
+ */
 const defaultListing: RawListing = async (cwd) => {
   const r = await Agent.list({ runtime: 'local', cwd })
   return { items: r.items }

@@ -3,13 +3,13 @@ const caudas = new Map<string, Promise<unknown>>()
 
 export function enqueue<T>(key: string, op: () => Promise<T>): Promise<T> {
   const previous = caudas.get(key) ?? Promise.resolve()
-  const resultado = previous.then(op)
+  const result = previous.then(op)
   caudas.set(
     key,
     // eslint-disable-next-line no-restricted-syntax -- ver racional acima
-    resultado.catch(() => undefined),
+    result.catch(() => undefined),
   )
-  return resultado
+  return result
 }
 
 export async function drain(key: string): Promise<void> {

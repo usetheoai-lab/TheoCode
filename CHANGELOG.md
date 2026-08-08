@@ -7,6 +7,12 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The session collector no longer treats "I could not check" as "it is gone". A directory it cannot read, a working directory it cannot stat, and a transcript whose timestamp it cannot read now each leave the project untouched instead of clearing every retention guard (B-020)
+- `--keep-last` now applies to projects whose working directory no longer exists — the only projects the collector actually deletes from. It previously had no effect there (B-020)
+- A collector run that could not list any project reports the failure instead of "nothing to collect" (B-020)
+
 ### Changed
 
 - Every message the product shows is in English. Ninety-two strings were in Portuguese, among them the login and goal toasts, the background-shell summary, the config and delegation errors, and the deprecation warning for a trust environment variable (B-052)

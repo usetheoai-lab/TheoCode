@@ -222,7 +222,7 @@ class Lote {
     this.partes[target.indice] = { ...parte, content: `${parte.content}${trecho}` }
   }
 
-  resultado(): unknown {
+  result(): unknown {
     return this.partes ?? this.text
   }
 }
@@ -373,7 +373,7 @@ async function transformarResultado<T>(
       note(`PostToolUse hook errored (ignored): ${spec.command} — ${String(err)}`)
     }
   }
-  return lote.resultado() as T
+  return lote.result() as T
 }
 
 export function buildHookHandlers(

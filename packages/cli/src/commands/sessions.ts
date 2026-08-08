@@ -14,15 +14,15 @@ async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
     process.stderr.write(`[sessions gc] ${err instanceof Error ? err.message : String(err)}\n`)
     process.exit(1)
   }
-  const resultado = await runAllProjectsNoDisco(plan, { apply: args.apply })
+  const result = await runAllProjectsNoDisco(plan, { apply: args.apply })
   if (args.json) {
     process.stdout.write(
-      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: resultado.dryRun, porForma: plan.totalPorForma, removed: resultado.removidos.length, kept: plan.mantidos.length, errors: [...plan.errors, ...resultado.errors] })}\n`,
+      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: result.dryRun, porForma: plan.totalByKind, removed: result.removidos.length, kept: plan.kept.length, errors: [...plan.errors, ...result.errors] })}\n`,
     )
   } else {
-    for (const l of formatReport(plan, resultado)) process.stderr.write(`${l}\n`)
+    for (const l of formatReport(plan, result)) process.stderr.write(`${l}\n`)
   }
-  process.exit(plan.errors.length + resultado.errors.length > 0 ? 1 : 0)
+  process.exit(plan.errors.length + result.errors.length > 0 ? 1 : 0)
 }
 
 function humanReport(
