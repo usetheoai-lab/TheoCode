@@ -233,7 +233,7 @@ dod:
   - subpath exports with no consumer are removed or consumed
   - the README's enforceability claim is corrected or made true (an import rule in dependency-cruiser, already installed)
 
-## B-011 — The TUI reimplements components `@theokit/tui` already ships   [~]
+## B-011 — The TUI reimplements components `@theokit/tui` already ships   [x]
 
 domain: theocode
 repo: TheoCode
@@ -262,7 +262,9 @@ status_note: PARTIAL. Closed: `/diff` renders through `DiffViewer` (F-tui-3, F-t
   .
   The approval ledger (F-tui-8) and the selection windowing (F-tui-7) still wait on the timing
   question below.
-uncertainty: the reviewer could not determine whether the approval ledger is load-bearing (it depends on how fast the SDK mutates `thread`). Start with the safe step: remove the duplicated type declaration before touching behaviour.
+resolved_uncertainty: the reviewer could not determine whether the approval ledger was load-bearing,
+  since it depends on how fast the SDK mutates `thread`. Settled by test: it is. See
+  `packages/tui/src/consent/pending-approvals.test.ts`.
 
 ## B-012 — Persistence: adopt the SDK primitives and clear casts and dead surface   [x]
 
