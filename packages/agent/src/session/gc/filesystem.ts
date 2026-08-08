@@ -13,20 +13,35 @@ import { Agent } from '@theokit/agents'
 import { sessionHasWriter, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from '../agent-list.js'
-import { classifyDirectory, type OracleIO } from '../liveness-oracle.js'
+import {
+  classifyDirectory,
+  createDfsBudget,
+  type Liveness,
+  type OracleIO,
+} from '../liveness-oracle.js'
 import {
   planSessionGCAllProjects,
   runSessionGCAllProjects,
   type ProjectEntry,
   type CollectableKind,
   type AllPlan,
-  type ResultadoAll,
+  type AllResult,
 } from './all-sessions.js'
 import { readPointerId } from './pointer.js'
 
 const FIRST_LINE_CAP = 64 * 1024
 const MAX_DFS_DEPTH = 12
-const MAX_NOS_DFS = 20_000
+const MAX_DFS_NODES = 20_000
+
+/**
+ * B-054 — the whole `--all-projects` sweep shares ONE filesystem-search budget.
+ *
+ * Ten times the per-project ceiling: generous enough that the handful of projects which genuinely
+ * need the search still get it, bounded so 13 269 projects cannot multiply it into ~64 million
+ * readdir calls. Whatever the sweep cannot classify within it is UNDETERMINED and therefore KEPT
+ * (B-020) — the safe direction on the only path that deletes user data.
+ */
+const SWEEP_DFS_NODES = MAX_DFS_NODES * 10
 
 const io: OracleIO = {
   listEntries: (dir) => readdirSync(dir),
@@ -87,7 +102,7 @@ async function listProjectRegistry(
   return listAgents(cwd)
 }
 
-export async function planAllProjectsNoDisco(opts: CliOptions = {}): Promise<AllPlan> {
+export async function planAllProjectsOnDisk(opts: CliOptions = {}): Promise<AllPlan> {
   const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
   return planSessionGCAllProjects({
     projectsRoot: root,
@@ -100,22 +115,32 @@ export async function planAllProjectsNoDisco(opts: CliOptions = {}): Promise<All
             .map((e) => e.name)
         : [],
     listProject: (p) => listRealProject(root, p),
-    classify: (p) =>
-      classifyDirectory(p, io, {
-        projectsRoot: root,
-        maxDfsDepth: MAX_DFS_DEPTH,
-        maxDfsNodes: MAX_NOS_DFS,
-      }),
+    classify: sweepClassifier(root, io),
     listRegistry: (cwd) => listProjectRegistry(cwd),
     hasLiveWriter: (transcript) => sessionHasWriter(transcript),
     readPointer: (cwd) => readPointerId(cwd),
   })
 }
 
-export async function runAllProjectsNoDisco(
+/**
+ * A `classify` bound to one shared search budget, so the cost of a sweep does not scale with the
+ * number of projects. A single-project run does not use this and keeps its own ceiling.
+ */
+function sweepClassifier(root: string, io: OracleIO): (project: string) => Liveness {
+  const dfsBudget = createDfsBudget(SWEEP_DFS_NODES)
+  return (project) =>
+    classifyDirectory(project, io, {
+      projectsRoot: root,
+      maxDfsDepth: MAX_DFS_DEPTH,
+      maxDfsNodes: MAX_DFS_NODES,
+      dfsBudget,
+    })
+}
+
+export async function runAllProjectsOnDisk(
   plan: AllPlan,
   opts: CliOptions = {},
-): Promise<ResultadoAll> {
+): Promise<AllResult> {
   const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
   return runSessionGCAllProjects(plan, {
     ...(opts.apply === true ? { apply: true } : {}),
@@ -142,7 +167,7 @@ const ROTULO: Record<CollectableKind, string> = {
   tmp: 'interrupted temporary',
 }
 
-export function formatReport(plan: AllPlan, result: ResultadoAll): string[] {
+export function formatReport(plan: AllPlan, result: AllResult): string[] {
   const lines: string[] = []
   lines.push(
     result.dryRun

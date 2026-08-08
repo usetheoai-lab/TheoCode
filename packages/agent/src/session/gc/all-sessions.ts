@@ -65,7 +65,7 @@ interface ApplyAllOptions {
   listProject?: (project: string) => ProjectEntry[]
 }
 
-export interface ResultadoAll {
+export interface AllResult {
   dryRun: boolean
   removidos: string[]
   errors: string[]
@@ -377,7 +377,7 @@ async function removeCandidate(c: AllCandidate, opts: ApplyAllOptions): Promise<
 export async function runSessionGCAllProjects(
   plan: AllPlan,
   opts: ApplyAllOptions,
-): Promise<ResultadoAll> {
+): Promise<AllResult> {
   if (opts.apply !== true) {
     return { dryRun: true, removidos: plan.candidates.map((c) => c.target), errors: [] }
   }
