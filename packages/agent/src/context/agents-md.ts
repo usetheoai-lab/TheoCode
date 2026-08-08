@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 const MAX_CHARS = 64_000
@@ -14,8 +14,25 @@ function maskCodeSpans(text: string): string {
     .replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length))
 }
 
+/**
+ * B-042 — containment is checked on the REAL path, after symlinks.
+ *
+ * This compared `relative()` on a path built with `resolve()`, which does not follow symlinks. A
+ * link inside the project pointing anywhere on the filesystem passed the check as a string, and the
+ * read then followed it out — into the agent's system prompt, from a repository that may be
+ * untrusted.
+ */
 function insideRoot(target: string, rootDir: string): boolean {
-  const rel = relative(rootDir, target)
+  let real: string
+  let realRoot: string
+  try {
+    real = realpathSync(target)
+    realRoot = realpathSync(rootDir)
+  } catch {
+    // A path we cannot resolve is a path we cannot vouch for.
+    return false
+  }
+  const rel = relative(realRoot, real)
   return rel !== '' && !rel.startsWith('..') && !rel.includes('..')
 }
 
@@ -27,6 +44,12 @@ function expandableTarget(
   warn: WarnFn,
 ): string | undefined {
   const target = name.startsWith('~/') ? name : resolve(dirname(filePath), name)
+  // The existence check moved ABOVE the containment check: `insideRoot` resolves symlinks, and a
+  // path that is not there cannot be resolved.
+  if (!name.startsWith('~/') && !existsSync(target)) {
+    warn(`[agents-md] ${filePath}: import @${name} not found — kept literal`)
+    return undefined
+  }
   if (name.startsWith('~/') || !insideRoot(target, rootDir)) {
     warn(
       `[agents-md] ${filePath}: import @${name} resolves outside the project root — kept literal`,
@@ -34,10 +57,6 @@ function expandableTarget(
     return undefined
   }
   if (visited.has(target)) return undefined
-  if (!existsSync(target)) {
-    warn(`[agents-md] ${filePath}: import @${name} not found — kept literal`)
-    return undefined
-  }
   return target
 }
 
@@ -99,7 +118,11 @@ export function loadAgentsMd(
     }
     const parent = dirname(dir)
     if (parent === dir) {
-      rootDir = dir
+      // B-042 — reaching the FILESYSTEM ROOT used to set `rootDir = '/'`, which makes
+      // `insideRoot(anything, '/')` true: outside a git repository the confinement did not merely
+      // stop working, it permitted reading any file on the machine into the system prompt. With no
+      // repository to bound it, the project IS the working directory.
+      rootDir = cwd
       break
     }
     dir = parent

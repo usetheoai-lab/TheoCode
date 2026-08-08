@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- An `AGENTS.md` import can no longer reach outside the project. Outside a git repository the boundary was the filesystem root, so any file on the machine could be pulled into the agent's instructions; and a symlink inside the project was followed out of it, because containment was checked on the path text rather than on where it actually points (B-042)
+
 ### Fixed
 
 - Command descriptions no longer carry milestone identifiers. Ten of them cited milestones this repository has no roadmap for, and the deprecation warning for a trust variable promised removal at one that does not exist (B-046)
