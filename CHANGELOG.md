@@ -39,6 +39,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Removed
 
+- The forked copy of the interactive-shell tool: 48 lines that existed only to recover the session-limit details the SDK used to discard. Fixed upstream and released, so the tool is now the SDK's own (B-009)
+
 - Two package entry points nobody imported, and the two broken `bin` declarations (B-010)
 
 - Dead surface: an unused drain helper, an orphan temp-file sweeper that hard-coded a private SDK naming convention, a statically unreachable assertion, and four exported readers with no callers — 174 lines (B-016)

@@ -195,7 +195,7 @@ dod:
   - a throwing PostToolUse hook does not lose its `block` decision to a stderr note
 uncertainty: rests on the SDK's security docstring, not on an observed spawn. If the docstring is stale, this degrades to a documentation defect.
 
-## B-009 — `interactive_shell` forks the SDK schema instead of wrapping it   [~]
+## B-009 — `interactive_shell` forks the SDK schema instead of wrapping it   [x]
 
 domain: theocode
 repo: TheoCode
@@ -205,9 +205,10 @@ evidence: `ask/interactive-shell-tool.ts:49-78` vs `sdk-tools/index.js:1014-1034
 why_now: the SDK's Zod schema and handler body were copied verbatim, with a single divergence (`:74`); the SDK factory is called only to harvest `.name`/`.description` and the object is discarded. Result: the description shown to the model comes from the SDK while the schema is a frozen copy — `cwd`/`ttl_ms`/`cols`/`rows` already exist in `StartInteractiveOptions` and will drift silently. The motivation is legitimate and recorded (see § Upstream U-2); the form is not.
 status: triaged
 severity: HIGH
-status_note: BLOCKED on an upstream release. The cause (U-2) is fixed in `@theokit/sdk-tools`, but
-  this package resolves the published 0.26.1, which still flattens the error. Removing the fork now
-  would silently lose `max`/`liveSessionIds` again. Unblocks on the dependency bump.
+status_note: CLOSED. U-2 was fixed at the source and released as `@theokit/sdk-tools@0.26.2`; this
+  package now resolves it, the fork is gone (74 lines to 26), and a test asserts the behaviour the
+  fork existed to provide. Verified by reverting the fix in the installed dist: the test goes red,
+  so it detects the regression rather than passing by accident.
 dod:
   - the tool wraps the SDK's instead of forking schema and handler
   - the divergence that motivated the fork is isolated at a single point
@@ -370,7 +371,7 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 | # | Gap | Evidence | Status |
 |---|---|---|---|
 | U-1 | No session garbage-collection or retention primitive. An exhaustive grep for `gc\|prune\|cleanup\|sweep\|purge\|retention` across both packages' public and internal `.d.ts` returns only in-memory pooling and `Task.retentionMs`. The barrel exports every ingredient and no collector; the never-delete rule `forkTranscript` internalises is re-derived by hand in the consumer | `agents/persistence.d.ts:1`, `transcript-ops.d.ts:12-19` (PS-012) | open |
-| U-2 | `toErrorJson` matched the superclass first and discarded `max`/`liveSessionIds` from `MaxSessionsError` — the fields `sdk-pty`'s docblock says exist "by design" | `sdk-tools/index.js:1006`, `sdk-pty/index.d.ts:33-37` (TIP-02) | **fixed** — structural check ahead of the superclass branch (`theokit-sdk`, changeset `interactive-cap-keeps-its-fields`); awaiting release |
+| U-2 | `toErrorJson` matched the superclass first and discarded `max`/`liveSessionIds` from `MaxSessionsError` — the fields `sdk-pty`'s docblock says exist "by design" | `sdk-tools/index.js:1006`, `sdk-pty/index.d.ts:33-37` (TIP-02) | **fixed** — structural check ahead of the superclass branch (`theokit-sdk`, changeset `interactive-cap-keeps-its-fields`); **released as 0.26.2** |
 | U-3 | `ToolsetError extends Error`, outside the `TheokitAgentError` hierarchy — the SDK argues against this itself elsewhere | `agents/index.d.ts:824`, `bridge-entry:2162` (TIP-15) | open |
 | U-4 | `assertSecureModes` is private — consumers cannot apply the same permission check to their own store | (SAC-01) | open |
 | U-5 | `@theokit/agents/auth` omitted the OAuth engine that `@theokit/sdk/auth` exports | (SAC-07) | **fixed** — `ensureFreshCredential`, `persistOAuthTokens`, `refreshOAuthTokens`, `extractAccountId` now cross over (`theokit` M112, changeset `tidy-doors-open-oauth-engine`). `resolveCredential` deliberately stays out and is now locked by a test: two functions share that name with divergent semantics |
