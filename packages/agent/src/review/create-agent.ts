@@ -14,7 +14,7 @@ export const TOOLS_DO_REVIEWER = ['git_diff', 'read_file', 'grep', 'run_shell'] 
 export type ConfigDoReviewer = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
 
-export function escopoDoReviewer(cfg: ConfigDoReviewer, cwd: string): ToolScope {
+function reviewerScope(cfg: ConfigDoReviewer, cwd: string): ToolScope {
   return { ...resolveToolScope(cfg, cwd), defaultTimeoutMs: REVIEWER_SHELL_CAP }
 }
 
@@ -54,7 +54,7 @@ const defaultDeleteAgent = (agentId: string): Promise<void> =>
 export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAgent'] {
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
-  const registry = new ToolRegistry(escopoDoReviewer(deps.config, deps.cwd))
+  const registry = new ToolRegistry(reviewerScope(deps.config, deps.cwd))
   const pluginDeHooks = deps.hooks !== undefined ? hooksParaMembro(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {

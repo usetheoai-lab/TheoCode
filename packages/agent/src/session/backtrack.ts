@@ -98,7 +98,7 @@ function userTurnIndicesInWindow(records: readonly SessionRecord[]): number[] {
   return indices
 }
 
-export function truncateRecordsBeforeUserTurn(
+function truncateRecordsBeforeUserTurn(
   records: readonly SessionRecord[],
   nth: number,
 ): TruncationResult {
@@ -142,7 +142,7 @@ export function forkSessionBeforeUserTurn(
   return { newId, copied: true, selectedText }
 }
 
-export function userTurnPreviews(records: readonly SessionRecord[]): string[] {
+function userTurnPreviews(records: readonly SessionRecord[]): string[] {
   return userTurnIndicesInWindow(records).map((i) => textOf(records[i]))
 }
 

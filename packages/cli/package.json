@@ -4,9 +4,6 @@
   "private": true,
   "type": "module",
   "description": "Surface 2 — the headless CLI.",
-  "exports": {
-    ".": "./src/main.ts"
-  },
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",

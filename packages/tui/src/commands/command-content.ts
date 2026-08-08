@@ -80,9 +80,9 @@ export function statusPanel(
 export function diffPanel(): ContentPanel | undefined {
   const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
   if (r.status !== 0) return undefined
-  const detalhe = spawnSync('git', ['diff', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
+  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
   const stat = r.stdout.trim()
-  const patch = detalhe.stdout
+  const patch = detail.stdout
   if (stat.length === 0 && patch.trim().length === 0) {
     return { title: 'working tree diff', body: 'clean working tree — no uncommitted changes' }
   }

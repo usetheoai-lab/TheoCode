@@ -49,7 +49,7 @@ export function windowAroundSelection(
   return { rows, hiddenBefore: start, hiddenAfter: total - (start + maxRows) }
 }
 
-export function overlayHeader(selected: number, count: number): string {
+function overlayHeader(selected: number, count: number): string {
   return selected >= 0
     ? `↑ backtrack: message ${String(selected + 1)}/${String(count)} — Enter to edit · Esc for older`
     : `↑ backtrack: ${String(count)} message(s) — Esc selects (newest first)`

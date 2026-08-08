@@ -12,7 +12,7 @@ export {
   type ResolvedCredential,
 } from './credentials.js'
 
-export { login, logout, metodosDe, oauthDeviceLogin, provedoresConhecidos } from './login.js'
+export { login, logout, methodsFor, oauthDeviceLogin, knownProviders } from './login.js'
 
 export { describeSource, dotenvNames } from './credential-provenance.js'
 

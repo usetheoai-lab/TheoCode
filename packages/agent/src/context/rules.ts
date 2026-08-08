@@ -89,7 +89,7 @@ function absorbInput(
   }
 }
 
-function escopoDoFrontmatter(yamlBruto: string, file: string, warn: WarnFn): string[] | undefined {
+function frontmatterScope(yamlBruto: string, file: string, warn: WarnFn): string[] | undefined {
   try {
     const parsed = yaml.load(yamlBruto)
     if (parsed === null || typeof parsed !== 'object') return []
@@ -109,7 +109,7 @@ function blocoDeRegra(file: string, raw: string, warn: WarnFn): string | undefin
     warn(`[rules] ${file}: frontmatter opened but never closed (missing ---) — rule skipped`)
     return undefined
   }
-  const paths = fm === null ? [] : escopoDoFrontmatter(fm[1] ?? '', file, warn)
+  const paths = fm === null ? [] : frontmatterScope(fm[1] ?? '', file, warn)
   if (paths === undefined) return undefined
   const trimmed = (fm === null ? raw : raw.slice(fm[0].length)).trim()
   if (trimmed.length === 0) return undefined

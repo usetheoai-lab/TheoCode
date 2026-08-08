@@ -326,11 +326,11 @@ export function writeCredential(
   )
 }
 
-export function classifyRefreshFailure(err: unknown): {
-  readonly transiente: boolean
-  readonly causa: unknown
+function classifyRefreshFailure(err: unknown): {
+  readonly transient: boolean
+  readonly cause: unknown
 } {
-  return { transiente: isTransientError(err), causa: err }
+  return { transient: isTransientError(err), cause: err }
 }
 
 export async function resolveFreshCredential(opts: {
@@ -358,8 +358,8 @@ export async function resolveFreshCredential(opts: {
       opts.env,
     )
   } catch (err) {
-    const { transiente } = classifyRefreshFailure(err)
-    if (!transiente) throw err
+    const { transient } = classifyRefreshFailure(err)
+    if (!transient) throw err
     return resolved
   }
   return { ...fresh, provider: resolved.provider }

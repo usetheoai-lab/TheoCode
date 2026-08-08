@@ -12,7 +12,7 @@ import {
 
 interface AgentWithApproval {
   thread: Parameters<typeof ingest>[1]
-  approve: (approvalId: string, decisao: { approved: boolean }) => unknown
+  approve: (approvalId: string, decision: { approved: boolean }) => unknown
 }
 
 export interface Approvals {

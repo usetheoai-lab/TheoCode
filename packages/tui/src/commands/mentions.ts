@@ -12,7 +12,7 @@ const MAX_MENTION_TOKENS = 2000
 
 export const MAX_TOTAL_MENTION_TOKENS = 20_000
 
-export function parseMentions(text: string): string[] {
+function parseMentions(text: string): string[] {
   return Array.from(text.matchAll(MENTION_RE), (m) => m[1])
 }
 

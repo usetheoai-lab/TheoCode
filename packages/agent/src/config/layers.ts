@@ -1,6 +1,6 @@
 import { TheokitAgentError } from '@theokit/agents'
 
-export class LayerError extends TheokitAgentError {
+class LayerError extends TheokitAgentError {
   override readonly name = 'LayerError'
 }
 
@@ -20,7 +20,7 @@ export const LAYERS: readonly DeclaredLayer[] = Object.freeze([
   Object.freeze({ layer: 'cli' as const, precedence: 60 }),
 ])
 
-export function verifyOrdering(layers: readonly DeclaredLayer[]): void {
+function verifyOrdering(layers: readonly DeclaredLayer[]): void {
   for (let i = 1; i < layers.length; i += 1) {
     const previous = layers[i - 1]!
     const current = layers[i]!
@@ -39,7 +39,7 @@ const PRECEDENCE_PER_LAYER: ReadonlyMap<string, number> = new Map(
   LAYERS.map((c) => [c.layer, c.precedence]),
 )
 
-export function precedenceOf(layer: Layer): number {
+function precedenceOf(layer: Layer): number {
   const p = PRECEDENCE_PER_LAYER.get(layer)
   if (p === undefined) throw new LayerError(`camada desconhecida: \`${layer}\``)
   return p

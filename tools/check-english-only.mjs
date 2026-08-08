@@ -52,6 +52,12 @@ const PT_WORDS = [
   // Added after `{hiddenBefore} mais antiga(s)` shipped in the backtrack overlay: an unaccented
   // Portuguese phrase in a user-facing string, invisible to both detectors.
   'mais', 'antiga', 'antigo', 'recente', 'semente', 'rotacionando', 'DepsDe', 'sementeDo',
+  // Third denylist extension, after `loginComMetodo`, `metodosDe` and `provedoresConhecidos`
+  // survived two earlier passes. The pattern is compound identifiers whose Portuguese half carries
+  // no accent — the documented gap, observed for the third time.
+  'metodo', 'metodos', 'provedor', 'provedores', 'ComMetodo', 'conhecidos', 'transiente',
+  'detalhe', 'aoFalhar', 'jaAvisado', 'trecho', 'cercado', 'envelope', 'lote', 'partes',
+  'anuncio', 'escopo', 'escopoDo', 'anuncioDe', 'DeLogin', 'DoReviewer',
 ]
 const PT_RE = new RegExp(`\\b(?:${PT_WORDS.join('|')})[A-Za-z_]*`, 'g')
 

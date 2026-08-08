@@ -15,38 +15,38 @@ import {
 import { resolveTrustPosture } from '@theocode/agent/config'
 import {
   logout,
-  metodosDe,
+  methodsFor,
   oauthDeviceLogin,
-  provedoresConhecidos,
+  knownProviders,
 } from '@theocode/agent/auth'
 import type { AuthMethod } from '@theokit/agents/auth'
 import type { ToastPayload } from '../screen-types.js'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
-const PROVIDERS_CONHECIDOS = provedoresConhecidos()
+const PROVIDERS_CONHECIDOS = knownProviders()
 
-function metodosConhecidosDe(name: string): readonly AuthMethod[] | undefined {
+function knownMethodsFor(name: string): readonly AuthMethod[] | undefined {
   const p = PROVIDERS_CONHECIDOS.includes(name) ? name : undefined
-  return p === undefined ? undefined : metodosDe(p)
+  return p === undefined ? undefined : methodsFor(p)
 }
 
-export function anuncioDeLogin(arg: string): {
+function loginAnnouncement(arg: string): {
   provider: string
   message: string
   podeDevice: boolean
 } {
   const provider = arg.trim().length > 0 ? arg.trim() : 'openai'
-  const metodos = metodosConhecidosDe(provider)
-  if (metodos === undefined) {
+  const methods = knownMethodsFor(provider)
+  if (methods === undefined) {
     return {
       provider,
       message: `unknown provider "${provider}". Known: ${PROVIDERS_CONHECIDOS.join(', ')}.`,
       podeDevice: false,
     }
   }
-  const rotulos = metodos.map((m) => m.label).join(' · ')
-  const podeDevice = metodos.some((m) => m.type === 'oauth')
+  const rotulos = methods.map((m) => m.label).join(' · ')
+  const podeDevice = methods.some((m) => m.type === 'oauth')
   return {
     provider,
     message: podeDevice
@@ -72,23 +72,23 @@ export function handleLogin(
   askForKey?: (provider: string) => void,
   deps?: { oauth?: typeof oauthDeviceLogin },
 ): void {
-  const partes = arg
+  const parts = arg
     .trim()
     .split(/\s+/)
     .filter((t) => t.length > 0)
-  const askedForKey = partes.at(-1)?.toLowerCase() === 'key'
-  const semSeletor = (askedForKey ? partes.slice(0, -1) : partes).join(' ')
+  const askedForKey = parts.at(-1)?.toLowerCase() === 'key'
+  const semSeletor = (askedForKey ? parts.slice(0, -1) : parts).join(' ')
 
-  const anuncio = anuncioDeLogin(semSeletor)
-  setToast({ message: anuncio.message, variant: 'info' })
+  const announcement = loginAnnouncement(semSeletor)
+  setToast({ message: announcement.message, variant: 'info' })
 
-  if (askedForKey || !anuncio.podeDevice) {
-    if (askForKey !== undefined) askForKey(anuncio.provider)
+  if (askedForKey || !announcement.podeDevice) {
+    if (askForKey !== undefined) askForKey(announcement.provider)
     return
   }
 
   const start = deps?.oauth ?? oauthDeviceLogin
-  void start(anuncio.provider as Parameters<typeof oauthDeviceLogin>[0], homedir(), {
+  void start(announcement.provider as Parameters<typeof oauthDeviceLogin>[0], homedir(), {
     onPrompt: ({ userCode, verificationUri }) =>
       setToast({
         message: `Open ${verificationUri} and enter code: ${userCode}`,

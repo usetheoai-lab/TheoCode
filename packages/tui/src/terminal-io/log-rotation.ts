@@ -9,7 +9,7 @@ function exigirArgumentosValidos(capBytes: number, keep: number): void {
     throw new RangeError(`invalid cap: ${String(capBytes)}`)
   }
   if (!Number.isInteger(keep) || keep < 1) {
-    throw new RangeError(`keep deve ser >= 1 (0 equivale a truncar): ${String(keep)}`)
+    throw new RangeError(`keep deve ser >= 1 (0 equivale a truncate): ${String(keep)}`)
   }
 }
 

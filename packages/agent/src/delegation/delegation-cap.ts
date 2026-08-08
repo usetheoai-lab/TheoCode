@@ -2,7 +2,7 @@ import { TheokitAgentError } from '@theokit/agents'
 
 export const DELEGATION_CAP_MS = 15 * 60_000
 
-export class DelegationExpiredError extends TheokitAgentError {
+class DelegationExpiredError extends TheokitAgentError {
   override readonly name = 'DelegationExpiredError'
 
   constructor(capMs: number) {

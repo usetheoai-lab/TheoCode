@@ -243,14 +243,14 @@ function withinBudget(
 }
 
 function build(base: string, projectDoc: string, surfaceDoc: string): string {
-  const partes = [base]
+  const parts = [base]
   if (projectDoc.trim()) {
-    partes.push(
+    parts.push(
       `## Project instructions (from AGENTS.md — follow these for THIS project)\n${projectDoc}`,
     )
   }
   if (surfaceDoc.trim()) {
-    partes.push(`## Surface instructions (how THIS run is being driven)\n${surfaceDoc}`)
+    parts.push(`## Surface instructions (how THIS run is being driven)\n${surfaceDoc}`)
   }
-  return partes.join('\n\n')
+  return parts.join('\n\n')
 }

@@ -45,8 +45,8 @@ export function headlessApprovalPosture(
   policy: ApprovalPolicy,
   sandbox: SandboxPosture,
 ): ApprovalPosture {
-  const decisao = resolveHeadlessApproval(policy, sandbox)
-  return decisao.approved
-    ? { kind: 'auto-approve', reason: decisao.reason }
-    : { kind: 'auto-reject', reason: decisao.reason }
+  const decision = resolveHeadlessApproval(policy, sandbox)
+  return decision.approved
+    ? { kind: 'auto-approve', reason: decision.reason }
+    : { kind: 'auto-reject', reason: decision.reason }
 }

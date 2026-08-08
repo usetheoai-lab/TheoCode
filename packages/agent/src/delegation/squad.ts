@@ -1,21 +1,15 @@
 import { homedir } from 'node:os'
 
-import { Agent, type HookHandlers, type SDKAgent, Squad, Tool } from '@theokit/agents'
+import { type HookHandlers, type SDKAgent, Squad, Tool } from '@theokit/agents'
 import { z } from 'zod'
 
 import { type AgentConfig, type TrustPosture } from '../config/index.js'
 import { resolveFreshCredential } from '../auth/index.js'
 import { resolveToolScope } from '../tools/index.js'
-import { buildRoleAgent, roleAgentOptions, TEAM_ROLES, type RoleAgentContext } from './roles.js'
+import { buildRoleAgent, TEAM_ROLES, type RoleAgentContext } from './roles.js'
 import { withDelegationCap } from './delegation-cap.js'
 
-export async function teamMemberOptions(
-  ctx: RoleAgentContext,
-): Promise<Parameters<typeof Agent.create>[0][]> {
-  return Promise.all(TEAM_ROLES.map((role) => roleAgentOptions(role, ctx)))
-}
-
-export async function buildTeam(
+async function buildTeam(
   ctx: RoleAgentContext,
 ): Promise<{ squad: Squad; members: SDKAgent[] }> {
   const members = await Promise.all(TEAM_ROLES.map((role) => buildRoleAgent(role, ctx)))

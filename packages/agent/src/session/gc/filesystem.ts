@@ -81,7 +81,7 @@ interface CliOptions {
   projectsRoot?: string
 }
 
-export async function listProjectRegistry(
+async function listProjectRegistry(
   cwd: string,
 ): Promise<Awaited<ReturnType<typeof listAgents>>> {
   return listAgents(cwd)

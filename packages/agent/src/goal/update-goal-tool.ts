@@ -13,7 +13,7 @@ export const updateGoalSchema = z.object({
     ),
 })
 
-export function makeUpdateGoalHandler(signal: UpdateGoalSignal) {
+function makeUpdateGoalHandler(signal: UpdateGoalSignal) {
   return async ({ status }: { status: 'complete' | 'blocked' }): Promise<string> => {
     signal.status = status
     return JSON.stringify({ ok: true, status })

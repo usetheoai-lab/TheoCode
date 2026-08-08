@@ -39,11 +39,11 @@ export interface RoleAgentContext {
   hooks?: HookHandlers
 }
 
-export function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
+function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
   return new ToolRegistry(opts).resolve(names)
 }
 
-export function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
+function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
   const model = def.model
   const selecao = typeof model === 'string' ? undefined : model
   const efforto = selecao === undefined ? undefined : reasoningEffortOf(selecao)
@@ -109,7 +109,7 @@ function requireResolvedCredential(apiKey: unknown): string {
   return apiKey
 }
 
-export async function roleAgentOptions(
+async function roleAgentOptions(
   name: string,
   ctx: RoleAgentContext,
 ): Promise<Parameters<typeof Agent.create>[0]> {
