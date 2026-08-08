@@ -1208,7 +1208,13 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-portuguese-identifiers`).
 
-## B-053 — @theokit/agents exports Portuguese type names on its public API   [ ]
+## B-053 — @theokit/agents exports Portuguese type names on its public API   [x]
+
+fixed_in: 94fd582e (theokit)
+dod_verified:
+  - the three names are renamed in `@theokit/agents` with deprecated aliases kept for one minor — `packages/agents/src/{index.ts,capability/{index,toolset}.ts}`, typecheck + lint clean, 896 tests across 122 files pass
+  - NOT YET EFFECTIVE HERE: TheoCode consumes the PUBLISHED `@theokit/agents@7.4.0`, so the rename reaches this repo only on the next release. The english-only guard needs no allowlist entry today because the SDK type names are not written in TheoCode's own source
+  - the migration path collided with two of theokit's own lint rules (`redundant-type-aliases`, `no-deprecated`) — three targeted disables carry a reason and a sunset; a fourth was written and removed once measured as unnecessary
 
 domain: theocode
 repo: TheoCode
@@ -1225,7 +1231,13 @@ note: routing caveat — the fix belongs to `theokit-framework`, which `cycle-ba
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theokit-portuguese-public-types`).
 
-## B-054 — `sessions gc --all-projects` never returns on a real installation   [ ]
+## B-054 — `sessions gc --all-projects` never returns on a real installation   [x]
+
+fixed_in: 1578995
+dod_verified:
+  - `sessions gc --all-projects --json` completes in **7.5s** on a home with 13,269 projects, from never returning (measured `timeout 25` before, and identically at b1611fc^ so it predated B-020)
+  - the search is bounded by the WORK: the ceiling counted popped directories while `visitEntries` stats every entry — measured 40 projects producing 87 `listEntries` and 547,019 `isDirectory`, ~181M projected. Charged per entry now, plus one budget shared by the whole sweep instead of one per project
+  - what the budget cannot classify is UNDETERMINED, never DEAD — asserted in the test; the run kept all 13,269 and collected nothing
 
 domain: theocode
 repo: TheoCode
@@ -1276,7 +1288,14 @@ dod:
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `shell-shortcut-confinement-decision`).
 
-## B-057 — The TUI reads the working directory from the process at 23 sites   [ ]
+## B-057 — The TUI reads the working directory from the process at 23 sites   [x]
+
+fixed_in: 6bd459c
+dod_verified:
+  - `grep process.cwd() packages/tui/src` returns ONE site outside tests: `main.tsx`, which is the point of choice
+  - the seam is a settable slot, not a module constant — a constant is evaluated at import time and ESM hoists imports before the first statement, the exact defect B-026 fixed. Banner's `CWD` was such a constant and now reads at render
+  - a second, DIFFERENT write throws (the B-035 lesson); an idempotent one is allowed so composition order is not load-bearing
+  - NOT met: no test asserts an injected directory reaches trust/config/credential resolution end-to-end. The seam is unit-tested; the 14 call sites are verified by grep and typecheck, not by a mirror of `chat-cwd.test.ts`
 
 domain: theocode
 repo: TheoCode
