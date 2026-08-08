@@ -50,7 +50,24 @@ They enter as `status: triaged` and `source: discover-review` because they alrea
 
 ## Items
 
-Next free id: **B-018**
+Next free id: **B-019**
+
+---
+
+## B-018 — Nineteen touched files still have no sibling test   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
+why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
+status: raw
+severity: MEDIUM
+dod:
+  - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
+  - the hook gate's list is empty, or its remaining entries are ones a human decided to exempt
+  - no entry is silenced by lowering the gate
 
 ---
 
