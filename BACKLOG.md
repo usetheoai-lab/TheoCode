@@ -48,9 +48,24 @@ They enter as `status: triaged` and `source: discover-review` because they alrea
 
 ---
 
+### Second review — 2026-08-08
+
+Items **B-019..B-051** derive from a second, independent pass: `/loop-code-review` over `packages/`, **185/185 files inspected**, 87 findings.
+
+- Report: [`code-review-output/final_report.md`](code-review-output/final_report.md)
+- Evidence database: `code-review-output/code-review.db` (every finding carries `file`/`line` as columns)
+
+Of the 87 findings: **78 actionable** (the 33 items below, coverage asserted by script — every actionable id in exactly one item, no duplicate, no orphan) and **9 `info` clean verdicts** — measured statements that nothing is wrong, which produce no item because there is nothing to fix, exactly as the 17 `ok` verdicts above did.
+
+They enter as `status: triaged` / `source: discover-review` for the same reason the first batch did: they arrive with the evidence intake is not allowed to require. The producer was `/loop-code-review`, not `/discover --sweep` — the value `discover-review` denotes the shape (a review sweep of our own code, evidence attached), and the actual producer is named here so the provenance is not overstated.
+
+**`reopens: B-NNN`** appears on 11 of them. It is a provenance field in the family `cycle-backlog.md § Step 2` already sanctions (`supersedes:`, `regression_of:`), introduced here for a case neither covers: an item that was closed with a Definition-of-done bullet the code never satisfied. That is not a regression — it never worked — and it is not a supersession. Naming it precisely is the point: **7 of the 17 items closed on 2026-08-07 have unmet bullets, and the single `critical` finding of the second review is one of them.**
+
+---
+
 ## Items
 
-Next free id: **B-019**
+Next free id: **B-053**
 
 ---
 
@@ -414,3 +429,588 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 **AC-13 — no guardrails wired** (`chat.ts:311`, SDK at `agents/index.d.ts:229`). The SDK offers `promptInjectionDetector`, `piiDetector`, `runInputGuards`, `outputModeration` and `costGuard`; TheoCode uses none. The reviewer measured and concluded that **for three of the five detectors, not wiring them is the correct call** in a local terminal agent — the user is the operator, not an untrusted third party.
 
 It does not become a `B-NNN` because there is no defect to fix, and it does not become an upstream issue because the SDK ships what it should. It becomes an **ADR**: the choice is made in fact and unrecorded, so the next maintainer cannot tell decision from oversight. The ADR should name which two detectors were left out without a measured justification.
+
+---
+
+## B-019 — Hook-approval store is read without the permission gate B-005 installed   [x]
+
+fixed_in: c468809
+dod_verified:
+  - one gated reader — `grep readFileSync packages/agent/src` shows a single read of TRUST_STORE (trust-store.ts:92); the copy in hook-trust.ts is gone
+  - refusal covered — `test_a_group_or_world_writable_store_is_refused` was RED before the fix, and restoring the ungated reader turns 3 of 5 tests red (mutation)
+  - directory checked — `assertNotWritableByOthers(dirname(store), 0o002, ...)`; narrowed to world-write on measurement (umask 002 yields 0775; ~/.theokit is 0775 on a real machine), covered both ways by two tests
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #68, #79 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-005
+why_now: The 2026-08-08 review measured that `assertPrivate()` landed in `trust-store.ts` `lerDocumento()` while `hook-trust.ts:74` keeps its own `readStore()` on the SAME file with a bare `readFileSync`. Directory trust is gated; the hook-approval set is not — and that set decides which command lines reach `spawn(cmd, {shell:true, detached:true})` (`hook-runner.ts:39`). B-005's own docstring names hook execution as the threat it defends, and B-005's own `evidence` field already cited `hooks/hook-trust.ts:73,81`. `assertPrivate` is module-private, which is why the second consumer duplicated the read instead of reusing the gate.
+status: triaged
+severity: CRITICAL
+dod:
+  - every reader of TRUST_STORE goes through one gated reader — proven by grep returning a single `readFileSync` of that path
+  - a group/world-writable store makes `loadApprovedHooks` refuse, covered by a test that fails on the current code
+  - the gate validates the containing directory's mode, not only the file's
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-020 — The session collector resolves every unknown toward 'delete'   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #69, #70, #71, #72, #73, #81, #85, #86 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-003, B-012
+why_now: Five independent swallowed-error sites on the only code path that deletes user data all fail in the same direction. `dfsExistencia` continues past an unreadable directory and returns NAO_ACHOU -> MORTO; `ehDiretorio` maps any statSync failure to false -> MORTO; `listRealProject` maps any statSync failure to mtimeMs=0, which is infinitely old AND sorts last so `keepLast` cannot protect it; `resolverGuardas` returns an EMPTY protection set for MORTO, so `--keep-last` has no effect on exactly the projects the collector deletes from; and `listagemPadrao` drops `nextCursor` so the registry guard is page one. `classifyDirectory` already has INDETERMINADO for 'I cannot tell' and uses it on one branch only. Both existing tests force VIVO or keepLast:0, so a green suite cannot see any of it.
+status: triaged
+severity: HIGH
+dod:
+  - an unreadable directory, an unstat-able cwd and an unstat-able transcript each produce INDETERMINADO, never MORTO — one failing test per site
+  - `keepLast` protects the newest N transcripts in a MORTO project, covered by a test that fails today
+  - a collector run that could not list any project reports an error rather than `nada a coletar`
+  - `listagemPadrao` forwards `nextCursor`, so `CursorNotDrainedError` can fire
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-021 — Three security gates are optional parameters whose default is fully open   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #74, #77 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-008
+why_now: `buildHookHandlers(opts.approved?)` installs every parsed spec with no sha256 fingerprint check when the argument is omitted — the gate B-008 exists to enforce. `OpcoesApplyAll.hasLiveWriter?`/`readPointer?` make the apply-phase TOCTOU backstops opt-in, and `backstopRefusal` returns undefined outright when `hasLiveWriter` is absent. `resolveHeadlessApproval(policy, posture?)` returns `approved:true` for full-auto when `posture` is omitted, skipping the enforced-sandbox refusal that is its stated purpose. Callers pass them today, so nothing is broken now — the defect is that the TYPE permits the unsafe call and the default branch is the permissive one. The sibling `OpcoesPlanoAll.hasLiveWriter` is required, which shows the correct polarity was already known here. Separately, `appliesTo` returns true for an empty tool name, so a matcher-scoped hook fires out of scope.
+status: triaged
+severity: HIGH
+dod:
+  - the three parameters are required, or their absent-value branch is the refusing one — typecheck fails on the unsafe call
+  - a hook with a matcher does not fire for an empty tool name, covered by a failing-first test
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-022 — Every documented CLI invocation carries an `exec` subcommand the parser never routes   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #6 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: All five USAGE lines in `args.ts:59` teach `theocode exec <sub>`; the parser has no `exec` branch, so the token becomes the PROMPT. Following the CLI's own documentation fires a billable model turn instead of running `sessions gc` / `review` / `goal`. Reproduced by running the parser: `exec sessions gc` yields `mode=run, prompt="exec sessions gc"`. `README.md:32` shows the correct form, so the drift is in the text the user is shown at the moment they are already wrong.
+status: triaged
+severity: HIGH
+dod:
+  - `theocode exec sessions gc` either runs the collector or exits with a usage error — never starts a model turn
+  - a test asserts the parser's behaviour for each of the five documented invocations
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-023 — Five CLI flags are parsed and then silently discarded, and there is no --help   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #7, #8, #9, #10, #20 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `--uncommitted` is parsed and validated but never reaches the review target; `-m/--model` and `-o/--output-last-message` are documented globally but ignored by `review` and `sessions`; `--last` is accepted outside `resume` and ignored; `-C/--cd` does not affect .env resolution; and there is no `--help`/`-h` at all — the usage text is reachable only by triggering an error. A flag that parses and does nothing is worse than an unknown flag, which at least errors.
+status: triaged
+severity: MEDIUM
+dod:
+  - each flag either changes behaviour or is rejected where it does not apply — one test per flag
+  - `theocode --help` exits 0 and prints usage
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-024 — cli/run-composition carries a dead seam, a dead parameter and a dead return field   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #11, #12, #15 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `composeRun`'s `CompositionSeams` parameter has no caller and no test — the injection seam built for testability is itself untested and unused. `baseInstructions` is accepted but no caller can supply it. `RunComposition.cfg` is computed and returned and never read. Three separate pieces of scaffolding for a use that never arrived.
+status: triaged
+severity: MEDIUM
+dod:
+  - each of the three is either exercised by a test that would fail without it, or deleted
+  - `npm run lint` still passes and the CLI behaviour is unchanged (no behaviour is in scope here)
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-025 — packages/cli ships 1292 LOC and zero tests, including a 329-LOC pure parser   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #13 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: The argument parser is pure, has no I/O, and decides whether a command runs or a billable model turn starts (see the `exec` drift). It is the cheapest possible thing to test and has no test at all. DISTINCT FROM B-018, which is scoped to the 19 `packages/agent` files the TDD gate lists because they were TOUCHED during the B-001..B-017 remediation: `packages/cli` was never touched, so it is in neither the gate's list nor B-018's DoD. Working B-018 to completion leaves this untouched, and vice versa.
+status: triaged
+severity: MEDIUM
+dod:
+  - the parser has a test covering every subcommand and every documented flag
+  - the suite fails if the `exec` routing regresses
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-026 — CLI bootstrap statements interleaved with ESM imports run after every import   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #14 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `main.ts:8` places bootstrap statements between import declarations, which reads as ordered setup but is not: ESM hoists every import and evaluates all of them before any statement runs. Any import with a side effect that depends on the bootstrap sees the pre-bootstrap state. The intent expressed by the source order is not the intent achieved.
+status: triaged
+severity: MEDIUM
+dod:
+  - bootstrap runs before any module that depends on it, proven by a test that observes the ordering
+  - or the ordering dependency is removed and the source no longer implies one
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-027 — The `Blocked <cmd>` policy-veto rendering can never fire   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #2 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `vetoReason()` is unreachable on three independent counts: it bails on `'ok' in p` and every SDK tool result carries `ok`; it reads `p.exitCode` where results use `exit_code` (the sibling at `:189` gets it right); and nothing in repo or SDK produces exit code 126. The hook veto path DOES fire, so the user loses the one signal built to tell them a hook blocked their tool.
+status: triaged
+severity: HIGH
+dod:
+  - a hook-vetoed tool call renders `Blocked`, covered by a test that fails on the current code
+  - or the feature is deleted along with its docstring — not left half-alive
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-028 — The `!` shell shortcut is documented in the help panel and never wired   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #24 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `ConversationSlot.tsx:150` documents `!` = 'Run a shell command'. `ChatComposer` never receives `onShellCommand`, and the SDK gates the feature on that prop, so `!npm test` is sent to the model as prose. The capability is fully present — `ptyOwner`, `run_shell`, `/ps`, `/stop` all exist — only the wiring is missing, which makes this a wire-up rather than a feature.
+status: triaged
+severity: HIGH
+dod:
+  - `!cmd` runs a shell command, covered by a test asserting the composer receives the handler
+  - or the line is removed from the help panel
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-029 — Esc-rewind arms with total=0 and previews=[]: the backtrack feature is dead   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #30, #53, #60, #65, #67 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `primeBacktrack` calls `setRewindPrimed(true)` BEFORE `setRewindCount`/`setRewindPreviews`, and the adapter builds the ladder inside `setRewindPrimed` — so it captures unset state. Verified by execution, not by reading: a probe returning 3 previews prints `{"armed":true,"nth":-1,"total":0,"previews":[]}`. The overlay returns null on the empty list so nothing draws, and the second Esc emits `reset-backtrack`. Around it: `resetBacktrack()` has no caller, `confirmBacktrack`'s post-fork statements sit in a try with no catch while the caller voids the promise, the instructions render in Portuguese and the toast for the same keypress in English, and the existing test asserts `length > 0` where the contract is 'you lose the partial line and nothing else'.
+status: triaged
+severity: HIGH
+dod:
+  - arming the rewind yields the real turn count and previews, covered by a test that fails on the current ordering
+  - a failure inside `confirmBacktrack` after the fork is surfaced, not voided
+  - the backtrack test asserts the exact expected turn count, not `> 0`
+  - the feature's user-visible strings are in one language
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-030 — A docstring justifies an export by citing a test and an ADR that do not exist   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #1 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `coalesced-memo.ts:11` cites `test_the_clock_is_monotonic_non_decreasing` and `ADR-0023` as the reason an export must stay. Neither exists anywhere in the tree. The comment pre-emptively disarms the dead-code detector, so the export survives on the strength of an artifact nobody checked — the same shape as a fabricated citation in a plan, at the code level.
+status: triaged
+severity: HIGH
+dod:
+  - the cited test exists and fails when the export is removed, or the citation and the export are both deleted
+  - a check exists that would catch the next docstring citing a non-existent test path
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-031 — B-013's fireAndForget reached 2 of 5 persist call sites   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #29 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-013
+why_now: The remediation's own docstring says 'the two persistence calls'; there are five. Protected: the startup path (`session-store.ts:18`) and the goal store (`use-goal-run.ts:24`). Unprotected: `composition-root.ts:75, 84, 89`, which are `/new`, `/clear`, `/fork`, the Esc-interrupt and the backtrack confirm — the hot paths. Those hand a bare `void` to a promise whose rejection is uncaught by construction (`write-queue.ts:10` catches the stored tail, `:12` returns the uncaught one) under `node >=22`, where the default is `--unhandled-rejections=throw`. B-013's `fixed_in` commit touched none of the three files its own evidence field named.
+status: triaged
+severity: HIGH
+dod:
+  - all five persist call sites route through the reporting wrapper — proven by grep finding no bare `void persist`
+  - a rejected persist on the `/new` path is reported and does not crash the process, covered by a test
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-032 — B-015's single injected working directory was applied to packages/agent only   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #27, #39, #47, #54 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-015
+why_now: `squad.ts:49` still calls `resolveToolScope(..., process.cwd())` and `TeamContext` has no `cwd` field, so `delegate_to_team` escapes the injection — and `resolveToolScope` derives both `writeRoot` and the sandbox `workDir` from that argument, which makes this the one bypass with a confinement consequence. The TUI half was never done: it re-resolves config and posture ambiently at 7 sites and `TuiRoot.initialPosture`, the seam built for exactly this, has no reader. `ConsentGates.tsx:71` re-derives `process.cwd()` twice (latent — the root is itself `process.cwd()` today). `withShellAndProjectEntities` was neither decomposed nor renamed, which was also a B-015 bullet.
+status: triaged
+severity: HIGH
+dod:
+  - `delegate_to_team` confines a worker to the injected cwd, covered by a test that fails on the current code
+  - `TuiRoot.initialPosture` has a reader, or is deleted
+  - grep finds no `process.cwd()` in the TUI outside the composition root
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-033 — B-006's injected-env seam is unreachable from any caller   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #26, #40 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-006
+why_now: The `env` parameter was added to the PRIVATE `trustOrigin`; the only exported entry calls it with two arguments, so all 10 production call sites read ambient env. The disagreement is reachable today: `run-composition.ts:38` takes the posture from ambient env while `:42` passes `seams.env` into config resolution — the same run, two sources. Adjacent and same fix unit: an injected trust posture does not reach config resolution at all, and `effectiveConfigUnderPosture`, which exists for that, is dead.
+status: triaged
+severity: HIGH
+dod:
+  - `resolveTrustPosture` accepts an injected env from its exported entry, covered by a test that fails today
+  - the two reads in `run-composition.ts` come from one source
+  - `effectiveConfigUnderPosture` has a caller or is deleted
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-034 — B-007's credential route still discards THEOCODE_HOME, and ensureAuthHome still mutates   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #3, #28, #31 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-007, B-004
+why_now: `credentials.ts:360` forces the file store with `env: {}`, which discards THEOCODE_HOME — the variable that LOCATES that store. The result is asymmetric and user-visible: the first resolution finds the credential, the routed second one does not. `git show 47eced3 --stat` proves the commit named as the fix never touched `credentials.ts`. `ensureAuthHome` still mutates its argument, also a B-007 bullet. Same file, same class as B-004: `MissingCredentialError` is unreachable by consumers — the sibling instance of the defect B-004 fixed once.
+status: triaged
+severity: HIGH
+dod:
+  - the forced-file-store route preserves THEOCODE_HOME, covered by a test that fails on the current code
+  - `ensureAuthHome` does not mutate its argument
+  - `MissingCredentialError` is reachable by a consumer, or removed
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-035 — subscribe() is a single-slot setter, and the test named after that guarantee cannot fail   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #35 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-004
+why_now: The B-004 bullet asked that `assinar()` either support multiple subscribers or be renamed to what it is. Neither happened. Worse, `ask-bridge.test.ts:95` — `test_a_second_subscriber_does_not_silently_replace_the_first` — asserts `first.calls + second.calls > 0` and that `second` was called. Both hold PRECISELY when the first subscriber IS silently replaced; `first` is never asserted on. The comment directly above states the intent the assertions fail to encode. A vacuous test is worse than a missing one: the missing test shows up in the gate output.
+status: triaged
+severity: MEDIUM
+dod:
+  - the test fails when a second subscribe replaces the first — verified by mutation, not by reading
+  - `subscribe` supports multiple listeners or is renamed to `setListener`
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-036 — B-012: the compact_boundary window scan is still triplicated and readJsonlTail unadopted   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #36, #42 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-012
+why_now: Both were explicit B-012 bullets and neither was done. `countUserTurnsInWindow` is an exported function with no caller and no test, which is the third copy still standing.
+status: triaged
+severity: MEDIUM
+dod:
+  - the window scan exists in exactly one place — proven by grep
+  - `readJsonlTail` is the reader used on that path, or the plan records why it is not
+  - `countUserTurnsInWindow` has a caller or is deleted
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-037 — B-003 left a dead, divergent second copy of the deletion-path pointer guard   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #41 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-003
+why_now: `per-session.ts:55` `resolvePointerId` is a second copy of the pointer guard that B-003 unified — dead, and divergent from the surviving one. A dead copy that has drifted is the worst kind: the next reader cannot tell which is authoritative, and the class of bug B-003 fixed can be reintroduced by copying the wrong one.
+status: triaged
+severity: LOW
+dod:
+  - one pointer-reading implementation exists on the deletion path — proven by grep
+  - the deletion path's behaviour is unchanged, covered by the existing GC tests
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-038 — B-016: hooks-test-helpers.ts is still a fixture file for a suite that does not exist   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #44 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+reopens: B-016
+why_now: The B-016 bullet asked for this to be resolved. The fixture file remains and the suite it was written for was never created, so the file is dead weight that reads as coverage.
+status: triaged
+severity: LOW
+dod:
+  - the helper file supports a real suite, or is deleted
+  - no test file imports a helper for a suite that does not exist
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-039 — The stderr guard can silently discard every diagnostic the TUI emits   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #58, #61, #62, #63 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `stderr-guard.ts:17` has an empty `catch` and returns true unconditionally, and `mkdirSync` failure is already commented as 'guarded writes below will no-op'. This is the SOLE output channel of the B-013 remediation (`fire-and-forget.ts:22` defaults `report` to `process.stderr.write`), of hook-approval failures, and of the backtrack fork trace. On a non-writable cwd the TUI runs with every diagnostic dead and nothing says so. `shared/diagnostic-sink.ts:24-29` already solves the identical problem by falling back to stderr, and the pre-guard writer is held at `:7` and unused for this. Around it: the log is rotated once at startup and never again so a long session grows past CAP_BYTES unbounded; `rotate()` justifies swallowing its errors by citing `stderr-guard.ts:12`, a closing brace; and `HookError` is caught and discarded with no diagnostic, so a malformed hooks config disables the consent gate silently.
+status: triaged
+severity: MEDIUM
+dod:
+  - a diagnostic that cannot be written to the log file reaches stderr, covered by a test that fails today
+  - the log is rotated during a long session, not only at startup
+  - a malformed hooks config produces a visible diagnostic rather than a silently disabled gate
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-040 — A failed hook approval closes the consent gate as if it had succeeded   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #38, #57 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `consent.markReviewed()` runs synchronously after `aprovarHook` is INITIATED, but `aprovarHook` is async. On a rejected approve, `hooksRevisados` is already true, `InputSlot.tsx:70` stops rendering the gate for the session, `epoca` never bumps so `pendingHooks` never recomputes, and the only report goes to the redirected log (see the stderr-guard item). On the LAST pending hook this silently closes the gate as if approval had succeeded. The sibling `TrustGate` in the same file does the opposite for the identical failure class — toast plus state revert — so the correct shape is already present five lines away. Filed independently by two reviewers (#38, #57) on adjacent lines of the same defect.
+status: triaged
+severity: MEDIUM
+dod:
+  - a rejected hook approval leaves the gate open and surfaces a toast, covered by a test that fails today
+  - `markReviewed` runs only after the persist resolves
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-041 — Config: a project file replaces the user profiles table wholesale, and five drift-detectors are never called   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #32, #34, #80 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: A project `config.toml` replaces the user profiles table instead of merging it, so a project-level file silently removes user-level profiles. Five exported config drift-detectors are never called, which means the invariants they encode are documented and unenforced. `ENV_KNOBS` and `measuredPrecedenceChain` cite three source paths that do not resolve — a fabricated citation inside the config layer's own documentation of itself.
+status: triaged
+severity: MEDIUM
+dod:
+  - a project config merges into the user profiles table, covered by a test that fails today
+  - each drift-detector has a caller or is deleted
+  - every path cited in `env-knobs.ts` resolves — checked mechanically
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-042 — AGENTS.md import confinement is vacuous outside a git repo and ignores symlinks   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #78 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: The confinement that keeps an `AGENTS.md` import inside the project depends on a git root; outside a repo there is no boundary, and it does not resolve symlinks, so a link out of the tree is followed. The check exists, which means the threat was recognised — it just does not hold in the two cases where it matters.
+status: triaged
+severity: MEDIUM
+dod:
+  - an import outside the project is refused with no git repo present, covered by a failing-first test
+  - a symlink pointing outside the project is refused
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-043 — The review tool fails open on an unparseable response, and a failed dispose leaks the reviewer   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #82, #83, #84 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `parse.ts:56` degrades an unparseable reviewer response to `{findings: [], overall_correctness: ""}` — a clean verdict and a parse failure produce identical structured data, on a tool whose entire purpose is reporting defects. `runReview` compounds it: `result.result ?? ""` sends a run that returned nothing down the same path. `create-agent.ts:78` `descartar` marks itself done BEFORE the work, so a failed dispose permanently leaks the reviewer. `squad.ts:71` uses `Promise.all` over member disposal, so one cleanup failure overwrites the delegation result the user was waiting for.
+status: triaged
+severity: MEDIUM
+dod:
+  - an unparseable response produces a typed error, not an empty finding list — covered by a failing-first test
+  - a failed dispose leaves the reviewer disposable again
+  - a cleanup failure does not replace the delegation's own result
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-044 — Hook output is harvested on `exit` plus a 20 ms sleep instead of `close`   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #75, #76 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `hook-runner.ts:80` settles from the `exit` event deferred by a fixed 20 ms timer. Node documents `exit` as possibly preceding stdio close; `close` is the event that guarantees drained pipes. The 20 ms is a sleep, not a synchronisation, and it is a bare literal with no name. What can be lost is the DECISION channel: `parseFeedback` reads `decision: block` and `reason` out of hook stdout, and a PreToolUse non-zero exit turns its stdout into the veto reason — so a hook writing past the 64 KiB pipe buffer, or scheduled out under load, can have its block silently downgraded to empty output. `detached:true` widens the window. Same file: `cargaDoEvento`'s PostToolUse branch is unreachable, so PostToolUse hooks never receive args.
+status: triaged
+severity: MEDIUM
+dod:
+  - hook output is harvested on `close`, covered by a test with a hook that writes more than the pipe buffer
+  - a PostToolUse hook receives its args, covered by a failing-first test
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-045 — runShutdown exits 1 on every path, so a clean SIGINT looks like a failed cleanup   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #19, #66 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `shutdown.ts:44` returns exit code 1 unconditionally, so a clean Ctrl-C is indistinguishable from a cleanup that timed out — to a shell, to CI, and to anything wrapping the process. It is also on the public interface with no external caller, so the contract is both wrong and unexercised.
+status: triaged
+severity: MEDIUM
+dod:
+  - a clean shutdown exits 0 and a timed-out cleanup exits non-zero, covered by a test per path
+  - `runShutdown` has an external caller or leaves the public interface
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-046 — Eleven user-visible strings cite milestones, docs and changelog entries that do not exist   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #25, #33, #49, #50 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `commands/registry.ts` renders eleven strings citing M21/M35/M39/M49/M50/M51/M55/M64 — none resolve — and one instructs the user to read a CHANGELOG entry that was never written. A rendered error directs the user to `docs/CONFIGURATION.md`, which does not exist. A deprecation promises removal in M99 and no roadmap declaring M99 exists. `SessionFooter` advertises '? for shortcuts' unconditionally, but `?` only works while the ChatComposer is mounted with an empty buffer. Every one of these is the product telling the user something untrue at the moment they are already looking for help.
+status: triaged
+severity: MEDIUM
+dod:
+  - every milestone, doc path and changelog reference in a user-visible string resolves — checked mechanically
+  - the shortcut hint is shown only when the shortcut works
+  - a check exists that would fail on the next unresolvable user-facing reference
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-047 — SecretInput submits a pasted API key with its trailing newline   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #64 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: `SecretInput.tsx:42` stores the raw input chunk, so a key pasted with a trailing newline is submitted un-trimmed to `login()`. The failure is remote, delayed and opaque: the credential is stored, and authentication fails later with a message that says nothing about whitespace.
+status: triaged
+severity: MEDIUM
+dod:
+  - a pasted value with a trailing newline authenticates, covered by a test that fails on the current code
+  - the submitted value is trimmed at the input boundary, not at the consumer
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-048 — Banner.test.tsx leaks process.stdout.columns and never exercises the branch it exists for   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #37 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: The test sets `columns: 120` under a non-TTY and never restores it, leaking into the worker for whatever runs next. It also never exercises the narrow branch — which is the branch the test exists to keep visible, and the one that broke three times in a row during the 2026-08-07 remediation.
+status: triaged
+severity: MEDIUM
+dod:
+  - the test restores `process.stdout.columns` in a teardown
+  - the narrow branch is exercised and fails when the banner overflows its border
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-049 — Dead exports across the tree: 146 of 492 exported symbols have no external reference   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #4, #16, #17, #18, #43, #45, #46 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: A deterministic scan (tests counted as referencing files, so this is not the weaker 'no test reaches it' claim) finds 146 of 492 exported symbols with no reference outside their defining file. Named instances: `teamMemberOptions`; `readSecret`, a complete echo-disabled secret reader with no caller and no CLI login command; `ToolRegistry.names()` and `ContinuationBudget.used`; three symbols in `drained-output.ts`. Also two package-surface defects: `@theocode/agent` declares a `./chat-acp` subpath with zero importers, and `@theocode/cli` exports `.` -> `main.ts`, which RUNS the CLI on import.
+status: triaged
+severity: LOW
+dod:
+  - the exported surface of each package is the surface something consumes — a dead-export scan returns zero public orphans, or each survivor is allowlisted with a reason
+  - importing `@theocode/cli` does not execute the CLI
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-050 — Three workspaces declare @theokit/agents ^7.3.1 while agent declares ^7.4.0   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #21 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: A version-range floor divergence inside one repo means npm may resolve two copies, and the surface each workspace is typed against is not the surface it runs against. This is the kind of skew that produces a defect nobody can reproduce locally.
+status: triaged
+severity: LOW
+dod:
+  - all four workspaces declare the same floor for `@theokit/agents`
+  - `npm ls @theokit/agents` shows one resolved version
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-051 — readImageAttachment can throw an untyped error, breaking its own typed-error contract   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `code-review-output/code-review.db` findings #87 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+why_now: The function documents and mostly honours a typed-error contract, then has a path that throws an untyped error — so a caller written against the contract cannot handle it. A contract that holds on most paths is a contract callers will trust on all of them.
+status: triaged
+severity: LOW
+dod:
+  - every throw from `readImageAttachment` is the declared typed error, covered by a test per failure path
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
+
+## B-052 — Forty-five source files carry Portuguese identifiers   [x]
+
+fixed_in: f3a9e26, 006d773
+dod_verified:
+  - zero Portuguese remaining — `node tools/check-english-only.mjs` exits 0; the scan is re-runnable by hand and wired into `npm run lint`
+  - typecheck OK, 95 tests pass (count unchanged), lint clean
+  - renames isolated — f3a9e26 is 299 insertions / 299 deletions, a symmetry that is itself the evidence it changed no behaviour; prose and the guard landed separately in 006d773
+  - guard exists — `tools/check-english-only.mjs` fails the lint on the next Portuguese identifier; it caught 15 that the accent scan alone had missed
+note: the measurement in `evidence` UNDERSTATED the work. It counted identifiers only; a second pass found 92 user-facing strings and 57 comments in Portuguese as well, which is a product defect rather than a style one. Scope was widened accordingly rather than reported as complete against the smaller number.
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-08 across `packages/**/*.ts{,x}` — **45 files of 185, 287 occurrences, 56 distinct tokens**. Heaviest: `session/gc/all-sessions.ts` (63), `session/liveness-oracle.ts` (26), `tui/backtrack/use-backtrack.ts` (18), `session/gc/filesystem.ts` (12), `config/trust-store.ts` (12), `config/cli-overrides.ts` (12). Most frequent tokens: `atual` (40), `proximo` (22), `janela` (21), `protegidos` (18), `ehDiretorio` (16), `arquivo` (11), `epoca` (9), `abandonar` (9), `VIVO`/`MORTO`/`NAO_ACHOU`/`INDETERMINADO` (21 combined).
+why_now: the project rule is that everything written in the repository is in English; only the conversation is in Portuguese. This was never enforced mechanically, so the two languages interleave inside single functions — `resolverGuardas` returns `protegidos`, `classificar` returns `MORTO`. Finding #67 caught the user-visible half of the same problem (the backtrack feature renders its instructions in Portuguese and its toast in English) and is filed under B-029. This item is the source-identifier half. Doing it EARLY is deliberate: the six heaviest files are the ones B-020 and B-029 are about to rewrite, so renaming afterwards would touch them twice.
+status: raw
+severity: MEDIUM
+dod:
+  - zero Portuguese identifiers in `packages/**` — proven by a scan that a human can re-run, not by inspection
+  - `npm run typecheck`, `npm test` and `npm run lint` all pass, and the test count does not drop
+  - no behaviour change in the same commit as a rename — the diff is renames only
+  - a check exists that fails on the next Portuguese identifier introduced
+
+> Registered 2026-08-08 by `/backlog-item` (slug: `theocode-portuguese-identifiers`).
