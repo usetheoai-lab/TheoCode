@@ -7,25 +7,28 @@ import { useEffect, useRef, useState } from 'react'
  * `performance.now()` is monotonic by specification.
  *
  * **Exported even though the only importer is a test, and this is the reason:** the symbol is
- * consumed three times inside this file, and the `export` exists solely so
- * `test_the_clock_is_monotonic_non_decreasing` exercises the clock choice DIRECTLY. Un-exporting
- * would delete the only assertion pinning the `performance.now` over `Date.now` decision — which is
- * a bug fix, not a style choice. The class is the one `ADR-0023` already records for `ConfigError`:
- * knip counts a test file as an `entry`, so this is not a detector finding; it is a written
- * decision, and it lives here.
+ * consumed three times inside this file, and the `export` exists so
+ * `test_the_clock_is_monotonic_non_decreasing` (`coalesced-memo.test.ts`) exercises the clock choice
+ * DIRECTLY. Un-exporting would delete the only assertion pinning `performance.now` over `Date.now`.
+ *
+ * B-030 — that test did not exist when this paragraph first claimed it, and neither did the
+ * `ADR-0023` the paragraph cited. The comment disarmed the dead-code detector on the strength of two
+ * artifacts nobody checked. The test is written now, and its detection power is verified by
+ * mutation: swapping in `Date.now()` turns it red. The ADR reference is gone rather than invented —
+ * the reasoning above stands without one.
  */
 export const clock = (): number => performance.now()
 
-export function shouldDerive(agora: number, last: number | undefined, previewWindow: number): boolean {
+export function shouldDerive(now: number, last: number | undefined, previewWindow: number): boolean {
   if (!Number.isFinite(previewWindow) || previewWindow < 0) {
     throw new RangeError(`invalid window: ${String(previewWindow)}`)
   }
   if (last === undefined) return true
-  if (agora < last) return true
-  return agora - last >= previewWindow
+  if (now < last) return true
+  return now - last >= previewWindow
 }
 
-const NO_KEY_SENTINEL: unique symbol = Symbol('m102/sem-key')
+const NO_KEY_SENTINEL: unique symbol = Symbol('m102/no-key')
 
 interface State<T> {
   value: T | undefined
