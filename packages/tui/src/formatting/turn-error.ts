@@ -6,7 +6,7 @@ export interface TurnErrorView {
   hint?: string
 }
 
-const FORMA_TRANSITORIA =
+const TRANSIENT_SHAPE =
   /\b(408|429|500|502|503|504|529|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|EPIPE|socket hang up)\b/i
 
 function textWithCauses(err: Error): string {
@@ -23,10 +23,10 @@ function textWithCauses(err: Error): string {
 const RETRY_HINT = '/retry resends the last message'
 
 function classifyTurnError(err: Error): TurnErrorView {
-  const message = err.message.trim() === '' ? 'Erro sem mensagem' : err.message.trim()
+  const message = err.message.trim() === '' ? 'the turn failed with no message' : err.message.trim()
   if (isTransientError(err)) return { kind: 'transient', message, hint: RETRY_HINT }
   if (err instanceof TheokitAgentError) return { kind: 'fatal', message }
-  if (FORMA_TRANSITORIA.test(textWithCauses(err)))
+  if (TRANSIENT_SHAPE.test(textWithCauses(err)))
     return { kind: 'transient', message, hint: RETRY_HINT }
   return { kind: 'fatal', message }
 }
