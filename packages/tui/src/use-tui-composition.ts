@@ -376,6 +376,10 @@ function footerProps(c: Composition & FooterExtras) {
     goalBadge: c.goalBadge,
     credentialSource: c.credentialSource,
     lastUsage: c.lastUsage,
+    // B-046 — the same condition `input-router.ts` gates `?` on. The footer advertised the shortcut
+    // unconditionally, including while another surface was mounted or the composer had text, when
+    // pressing it does nothing.
+    shortcutsAvailable: c.screen.composerText.trim().length === 0,
   }
 }
 

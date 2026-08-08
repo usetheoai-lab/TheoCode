@@ -22,6 +22,8 @@ export interface FooterProps {
   readonly goalBadge: string
   readonly credentialSource: () => string
   readonly lastUsage: { inputTokens: number } | undefined
+  /** B-046 — whether pressing `?` actually does anything right now. */
+  readonly shortcutsAvailable: boolean
 }
 
 export function SessionFooter(props: FooterProps): ReactElement {
@@ -47,7 +49,7 @@ export function SessionFooter(props: FooterProps): ReactElement {
           </Text>
         ) : undefined
       }
-      hint="? for shortcuts"
+      hint={props.shortcutsAvailable ? '? for shortcuts' : undefined}
     />
   )
 }

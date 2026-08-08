@@ -72,21 +72,22 @@ export interface TrustPosture {
   readonly allows: TrustAllows
 }
 
-function permitirTudo(value: boolean): TrustAllows {
+function allowEverything(value: boolean): TrustAllows {
   return Object.fromEntries(TRUST_CAPABILITIES.map((c) => [c.key, value])) as TrustAllows
 }
 
-const REMOVAL_MILESTONE = 'M99'
+let aliasAlreadyWarned = false
 
-let aliasJaAvisado = false
-
-function avisarSobreOAlias(): void {
-  if (aliasJaAvisado) return
-  aliasJaAvisado = true
+function warnAboutTheAlias(): void {
+  if (aliasAlreadyWarned) return
+  aliasAlreadyWarned = true
   process.stderr.write(
-    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} is DEPRECATED and will be removed in ${REMOVAL_MILESTONE}: ` +
-      `rename it to ${ENV_TRUST_ALL_DIRS}. Until then it keeps granting trust to EVERY ` +
-      `directory — the defence against a hostile repository stays off.\n`,
+    // B-046 — this used to promise removal "in M99". There is no ROADMAP.md in this repository and
+    // no milestone by that name, so the promise named a date that did not exist. A deprecation
+    // warning that cites nothing is more honest than one that cites a fiction.
+    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} is DEPRECATED: rename it to ${ENV_TRUST_ALL_DIRS}. ` +
+      `Until you do, it keeps granting trust to EVERY directory — the defence against a hostile ` +
+      `repository stays off.\n`,
   )
 }
 
@@ -100,7 +101,7 @@ function trustOrigin(
 ): TrustSource {
   if (env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
   if (env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
-    avisarSobreOAlias()
+    warnAboutTheAlias()
     return 'env'
   }
   return isTrusted(cwd, store) ? 'store' : 'default'
@@ -122,5 +123,5 @@ export function resolveTrustPosture(
 ): TrustPosture {
   const source = trustOrigin(cwd, store, env)
   const level: TrustLevel = source === 'default' ? 'untrusted' : 'trusted'
-  return { level, source, allows: permitirTudo(level === 'trusted') }
+  return { level, source, allows: allowEverything(level === 'trusted') }
 }

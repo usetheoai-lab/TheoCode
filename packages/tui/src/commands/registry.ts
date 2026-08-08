@@ -47,12 +47,12 @@ export type CommandAction =
 // and this list could drift apart with nothing to catch it.
 export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'clear', description: 'clear the conversation' },
-  { name: 'new', description: 'start a fresh conversation (M21)' },
+  { name: 'new', description: 'start a fresh conversation' },
   { name: 'help', description: 'toggle the keyboard shortcuts panel' },
   { name: 'usage', description: 'toggle the token-usage panel' },
   { name: 'retry', description: 're-send the last message' },
-  { name: 'fork', description: 'branch the current session into a new one (M39)' },
-  { name: 'sessions', description: 'list your sessions (M39)' },
+  { name: 'fork', description: 'branch the current session into a new one' },
+  { name: 'sessions', description: 'list your sessions' },
   { name: 'logout', description: 'remove the stored credential' },
   { name: 'plan', description: 'demo: plan approval card' },
   { name: 'ask', description: 'demo: question prompt' },
@@ -61,11 +61,11 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'approval', description: 'approval mode: suggest | auto-edit | full-auto' },
   { name: 'effort', description: 'reasoning effort: minimal|low|medium|high|xhigh' },
   { name: 'login', description: 'authenticate a provider: /login <provider>' },
-  { name: 'image', description: 'attach an image to the NEXT turn: /image <path> (M35)' },
-  { name: 'archive', description: 'archive a session [id] (M39)' },
-  { name: 'rename', description: 'rename the current session (M39)' },
-  { name: 'memory', description: 'durable-memory status (M49)' },
-  { name: 'compact', description: 'summarize the conversation to free context (M50)' },
+  { name: 'image', description: 'attach an image to the NEXT turn: /image <path>' },
+  { name: 'archive', description: 'archive a session [id]' },
+  { name: 'rename', description: 'rename the current session' },
+  { name: 'memory', description: 'durable-memory status' },
+  { name: 'compact', description: 'summarize the conversation to free context' },
   { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
   { name: 'quit', description: 'exit the TUI' },
   {
@@ -79,8 +79,8 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
     name: 'stop',
     description: 'terminate every background shell session this conversation owns',
   },
-  { name: 'review', description: 'review changes [base <ref> | commit <sha>] (M51)' },
-  { name: 'goal', description: 'run an autonomous goal loop until done/budget (M55)' },
+  { name: 'review', description: 'review changes [base <ref> | commit <sha>]' },
+  { name: 'goal', description: 'run an autonomous goal loop until done/budget' },
 ]
 
 export const BUILTIN_COMMAND_NAMES: ReadonlySet<string> = new Set(

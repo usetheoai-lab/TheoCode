@@ -77,8 +77,8 @@ function unresolvedRole(name: string, posture: TrustPosture): ConfigurationError
       `role "${name}" could not be loaded: the \`project\` subagent source is OFF ` +
         `because this directory is NOT trusted. In that state a repository \`.theokit/agents/${name}.md\` ` +
         `is not read — whether it exists or not. Trust this directory (the TUI asks on the first ` +
-        `run) to enable project roles; the CI escape hatch is in ` +
-        `docs/CONFIGURATION.md § Escapes.`,
+        `run) to enable project roles. For CI, set the trust-all-directories environment ` +
+        `variable — see \`config/env-knobs.ts\`, which is the registry of every knob.`,
       { code: 'role_source_untrusted' },
     )
   }

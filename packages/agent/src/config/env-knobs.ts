@@ -109,7 +109,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     reader: 'packages/agent/src/config/trust-posture.ts:resolveTrustPosture',
     default: '—',
     effect:
-      'DEPRECATED (M97) — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Removal planned for M99.',
+      'DEPRECATED — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Slated for removal; no date is promised, because this repository has no roadmap to promise one against.',
   },
   {
     name: ENV_OPENROUTER_API_KEY,
