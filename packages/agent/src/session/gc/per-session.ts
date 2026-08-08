@@ -52,20 +52,6 @@ export function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[
     .map((f) => ({ id: f.slice(0, -6), mtimeMs: statSync(join(dir, f)).mtimeMs }))
 }
 
-export function resolvePointerId(readFn: () => string): string | undefined {
-  let raw: string
-  try {
-    raw = readFn()
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    throw new Error(
-      `cannot read the live-session pointer — refusing to GC (would risk the live session): ${(err as Error).message}`,
-    )
-  }
-  const id = raw.trim()
-  return id === '' ? undefined : id
-}
-
 function realReadPointer(cwd: string): string | undefined {
   return readPointerId(cwd)
 }
