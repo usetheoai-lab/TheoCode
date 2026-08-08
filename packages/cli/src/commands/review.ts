@@ -46,7 +46,7 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
-        registrarCleanup: shutdown.registerCleanup,
+        registerCleanup: shutdown.registerCleanup,
       }),
     })
     if (args.json) {

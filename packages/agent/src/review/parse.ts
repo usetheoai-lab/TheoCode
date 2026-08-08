@@ -51,7 +51,29 @@ export function parseReviewOutput(raw: string): ReviewOutput {
       // fall through
     }
   }
-  return { findings: [], overall_correctness: '', overall_explanation: raw.trim() }
+  // B-043 — an unparseable response used to degrade to `{ findings: [], overall_correctness: '' }`,
+  // which is the SAME structured value a clean review produces. A caller branching on
+  // `findings.length` or on `overall_correctness` could not tell "the reviewer found nothing" from
+  // "the reviewer's answer could not be read" — on a tool whose entire purpose is reporting
+  // defects. The rendered string did carry a hint, so the failure was visible to a human reading
+  // prose and invisible to anything reading the object.
+  throw new ReviewOutputUnparseableError(raw)
+}
+
+/** The reviewer answered, and the answer was not a review. */
+export class ReviewOutputUnparseableError extends Error {
+  override readonly name = 'ReviewOutputUnparseableError'
+  readonly code = 'review_output_unparseable' as const
+  readonly raw: string
+
+  constructor(raw: string) {
+    super(
+      'the reviewer\'s response could not be parsed as a review. This is NOT "no findings": the ' +
+        `answer was ${String(raw.trim().length)} characters and did not contain a usable JSON ` +
+        'object.',
+    )
+    this.raw = raw
+  }
 }
 
 function prioridade(f: ReviewOutput['findings'][number]): string {

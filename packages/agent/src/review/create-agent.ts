@@ -33,12 +33,12 @@ interface CreationOptions {
   plugins?: Parameters<typeof Agent.create>[0]['plugins']
 }
 
-export interface DepsDaFabricaDeReview {
+export interface ReviewFactoryDeps {
   config: ConfigDoReviewer
   cwd: string
   resolveCredential: (model: string) => Promise<string>
   hooks?: HookHandlers
-  registrarCleanup: (fn: () => Promise<void>) => void
+  registerCleanup: (fn: () => Promise<void>) => void
   createInstance?: (opts: CreationOptions) => Promise<AgentInstance>
   deleteAgent?: (agentId: string) => Promise<void>
 }
@@ -51,7 +51,7 @@ const defaultDeleteAgent = (agentId: string): Promise<void> =>
     process.stderr.write(`[review] Agent.delete(${agentId}) failed: ${String(err)}\n`)
   })
 
-export function createReviewAgent(deps: DepsDaFabricaDeReview): ReviewDeps['createAgent'] {
+export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAgent'] {
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
   const registry = new ToolRegistry(escopoDoReviewer(deps.config, deps.cwd))
@@ -71,14 +71,17 @@ export function createReviewAgent(deps: DepsDaFabricaDeReview): ReviewDeps['crea
         : {}),
     })
 
-    let descartado = false
+    // B-043 — the flag is set AFTER the work, not before. Marking first meant a dispose that threw
+    // left the reviewer permanently leaked: the guard said it had already been disposed, so no
+    // retry and no cleanup could ever reach it again.
+    let disposed = false
     const dispose = async (): Promise<void> => {
-      if (descartado) return
-      descartado = true
+      if (disposed) return
       await inst[Symbol.asyncDispose]()
       await deleteAgent(agentId)
+      disposed = true
     }
-    deps.registrarCleanup(dispose)
+    deps.registerCleanup(dispose)
 
     return { send: (m: string) => inst.send(m), dispose: dispose }
   }

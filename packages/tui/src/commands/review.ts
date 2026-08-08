@@ -82,7 +82,7 @@ export async function runReviewCommand(
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
-        registrarCleanup: (fn) => {
+        registerCleanup: (fn) => {
           encerramento.registerCleanup(fn)
         },
       }),

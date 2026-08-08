@@ -66,7 +66,18 @@ export function createDelegateToTeamTool(contexto: TeamContext) {
           steps: run.steps.length,
         })
       } finally {
-        await Promise.all(members.map((m) => m[Symbol.asyncDispose]()))
+        // B-043 — `allSettled`, not `all`. In a `finally`, a rejection REPLACES the value the try
+        // block produced, so one member failing to dispose threw away the delegation result the
+        // user was waiting for. A cleanup failure is worth reporting and is not worth losing the
+        // work over.
+        const disposals = await Promise.allSettled(members.map((m) => m[Symbol.asyncDispose]()))
+        for (const d of disposals) {
+          if (d.status === 'rejected') {
+            process.stderr.write(
+              `[delegation] a team member failed to dispose: ${String(d.reason)}\n`,
+            )
+          }
+        }
       }
     },
   })
