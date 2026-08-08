@@ -27,6 +27,35 @@ export interface TuiRoot {
   readonly resetSession: () => void
   readonly sessionFork: () => { newId: string; copied: boolean }
   readonly pointToSession: (id: string) => void
+  /** B-055 — install the surface's veto renderer; queued vetoes are replayed into it. */
+  readonly onHookVeto: (listen: (veto: { tool: string; reason: string }) => void) => void
+}
+
+interface HookVeto {
+  tool: string
+  reason: string
+}
+
+/**
+ * B-055 — holds vetoes until the surface has somewhere to show them.
+ *
+ * The agent is composed before the terminal has a toast, so a hook that blocks during startup would
+ * otherwise be announced to nobody. Queueing is the difference between a signal that exists and one
+ * the user actually sees.
+ */
+function createVetoRelay(): {
+  emit: (veto: HookVeto) => void
+  install: (listen: (veto: HookVeto) => void) => void
+} {
+  const queued: HookVeto[] = []
+  let listener: ((veto: HookVeto) => void) | undefined
+  return {
+    emit: (veto) => (listener === undefined ? queued.push(veto) : listener(veto)),
+    install: (listen) => {
+      listener = listen
+      for (const v of queued.splice(0)) listen(v)
+    },
+  }
 }
 
 function build(): TuiRoot {
@@ -53,7 +82,10 @@ function build(): TuiRoot {
     warn: (m) => process.stderr.write(`${m}\n`),
   })
 
+  const vetoRelay = createVetoRelay()
+
   const transport = createChatTransport({
+    onHookVeto: vetoRelay.emit,
     getEffort: () => session.effort(),
     getSessionId: () => session.session(),
     getSessionPty: () => ptyOwner,
@@ -67,6 +99,7 @@ function build(): TuiRoot {
     ptyOwner,
     transport,
     sessionPointer,
+    onHookVeto: vetoRelay.install,
     goalPointer: join(cwd, '.theokit', 'tui-goal.json'),
     resumeOnStartup,
     customCommands,

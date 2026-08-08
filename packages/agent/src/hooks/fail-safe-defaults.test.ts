@@ -147,3 +147,41 @@ describe('B-044 — a PostToolUse hook receives what the tool was actually calle
     })
   })
 })
+
+describe('B-055 — a hook veto reaches the surface', () => {
+  it('test_a_vetoed_tool_call_announces_its_reason', async () => {
+    // Measured against the SDK's own declaration: a veto makes the loop "surface a tool_result with
+    // isError: false, content: message so the LLM can self-correct". On the wire a blocked call is
+    // therefore INDISTINGUISHABLE from a successful one — deliberately — which is why B-027 deleted
+    // the renderer that tried to recognise it there. The signal has to leave from the veto site.
+    const seen: { tool: string; reason: string }[] = []
+    const denier: HookSpec = { command: 'exit 1', event: 'PreToolUse', timeout_ms: 5000 }
+    const handlers = buildHookHandlers([denier], {
+      trusted: true,
+      approved: new Set([hookFingerprint(denier)]),
+      onVeto: (v) => seen.push(v),
+    })
+
+    const decision = await handlers.pre_tool_call?.({ name: 'run_shell', args: {} } as never)
+
+    expect(decision, 'the hook did not block').toMatchObject({ block: true })
+    expect(seen, 'the veto blocked the call and told nobody').toHaveLength(1)
+    expect(seen[0]?.tool).toBe('run_shell')
+    expect(seen[0]?.reason.length).toBeGreaterThan(0)
+  })
+
+  it('test_a_passing_hook_announces_nothing', async () => {
+    // Anti-vacuity floor: announcing on every call would put a "blocked" toast under a tool that ran.
+    const seen: unknown[] = []
+    const allower: HookSpec = { command: 'exit 0', event: 'PreToolUse', timeout_ms: 5000 }
+    const handlers = buildHookHandlers([allower], {
+      trusted: true,
+      approved: new Set([hookFingerprint(allower)]),
+      onVeto: (v) => seen.push(v),
+    })
+
+    await handlers.pre_tool_call?.({ name: 'run_shell', args: {} } as never)
+
+    expect(seen).toEqual([])
+  })
+})

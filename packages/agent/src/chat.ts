@@ -24,7 +24,7 @@ import {
 } from './config/index.js'
 import { interactiveWrapCommand } from '@theokit/agents/sandbox'
 import { loadApprovedHooks } from './hooks/index.js'
-import { buildHookHandlers, comVetoDoShellEmbutido, parseHooks } from './hooks/index.js'
+import { buildHookHandlers, withBuiltinShellVeto, parseHooks } from './hooks/index.js'
 import { sandboxWritePolicy } from './config/index.js'
 import { resolveTrustPosture, type TrustPosture } from './config/index.js'
 import { BASE_INSTRUCTIONS } from './context/index.js'
@@ -36,7 +36,11 @@ import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { projectSourceAllowed } from './config/project-source.js'
 
+/** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
+export type HookVetoListener = (veto: { tool: string; reason: string }) => void
+
 export function buildChatAgent(overrides?: {
+  onHookVeto?: HookVetoListener
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -59,7 +63,10 @@ export function buildChatAgent(overrides?: {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
-  const lifecycleHooks = chatHookChain(cfg, posture, cwd)
+  // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
+  // site because on the wire a blocked call is indistinguishable from a successful one, by the
+  // SDK's design (see `buildHookHandlers`).
+  const lifecycleHooks = chatHookChain(cfg, posture, cwd, overrides?.onHookVeto)
   const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
   const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
 
@@ -147,11 +154,17 @@ function pluginsDoProvider(
   return [plugin]
 }
 
-function chatHookChain(cfg: EffectiveConfig, posture: TrustPosture, cwd: string) {
-  return comVetoDoShellEmbutido(
+function chatHookChain(
+  cfg: EffectiveConfig,
+  posture: TrustPosture,
+  cwd: string,
+  onVeto?: HookVetoListener,
+) {
+  return withBuiltinShellVeto(
     buildHookHandlers(parseHooks(cfg.hooks), {
       trusted: posture.allows.hooks,
       approved: new Set([...loadApprovedHooks(cwd).keys()]),
+      ...(onVeto === undefined ? {} : { onVeto }),
     }),
   )
 }

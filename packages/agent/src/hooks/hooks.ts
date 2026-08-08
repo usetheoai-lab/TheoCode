@@ -297,14 +297,19 @@ function policyBlock(
 async function vetoDePreToolUse(
   pre: readonly HookSpec[],
   ctx: { name?: string; args?: Record<string, unknown> },
+  onVeto?: (veto: { tool: string; reason: string }) => void,
 ) {
+  const announce = <T extends { message: string }>(block: T, tool: string): T => {
+    onVeto?.({ tool, reason: block.message })
+    return block
+  }
   const name = ctx.name ?? ''
   const deadline = Date.now() + MAX_HOOK_CHAIN_MS
   for (const spec of pre) {
     if (!appliesTo(spec, name)) continue
     const decision = decideBudget(deadline - Date.now(), spec.timeout_ms)
     if (decision.kind === 'exceeded') {
-      return chainBudgetBlock(name, spec)
+      return announce(chainBudgetBlock(name, spec), name)
     }
     const run = await runHookCommand(
       { ...spec, timeout_ms: decision.effectiveTimeout },
@@ -312,9 +317,9 @@ async function vetoDePreToolUse(
     )
     if (!run.ok) {
       if (run.timedOut && decision.effectiveTimeout < spec.timeout_ms) {
-        return chainBudgetBlock(name, spec)
+        return announce(chainBudgetBlock(name, spec), name)
       }
-      return policyBlock(name, spec, run)
+      return announce(policyBlock(name, spec, run), name)
     }
   }
   return undefined
@@ -422,7 +427,24 @@ export function buildHookHandlers(
   // B-021 — `approved` is REQUIRED. It used to be optional, and the absent-value branch installed
   // every parsed spec with no sha256 fingerprint check — the gate B-008 exists to enforce, disabled
   // by omission and typechecking cleanly. Fail-safe defaults: the default is the denial.
-  opts: { trusted: boolean; approved: ReadonlySet<string> },
+  opts: {
+    trusted: boolean
+    approved: ReadonlySet<string>
+    /**
+     * B-055 — called when a PreToolUse hook VETOES a tool call, so a surface can say so.
+     *
+     * The signal has to travel from HERE. Measured against the SDK's own declaration: a veto makes
+     * the loop "surface a tool_result with `isError: false, content: message` so the LLM can
+     * self-correct" (`@theokit/sdk` D101). On the wire a blocked call is therefore indistinguishable
+     * from a successful one — deliberately, for the model's benefit — which is why B-027 deleted a
+     * renderer that tried to recognise it there, and why reverse-engineering it would mean coupling
+     * on a message string the SDK is free to reshape.
+     *
+     * Optional because a headless surface has nobody to tell. That is not a security default: the
+     * veto still blocks, this only decides whether anyone is shown it.
+     */
+    onVeto?: (veto: { tool: string; reason: string }) => void
+  },
 ): HookHandlers {
   if (!opts.trusted) {
     if (specs.length > 0) {
@@ -438,7 +460,7 @@ export function buildHookHandlers(
 
   const pre = by('PreToolUse')
   if (pre.length > 0) {
-    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx)
+    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx, opts.onVeto)
   }
 
   const allPost = by('PostToolUse')
