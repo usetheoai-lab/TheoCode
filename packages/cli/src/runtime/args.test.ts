@@ -55,3 +55,48 @@ describe('B-022 — every documented invocation routes to its command', () => {
     }
   })
 })
+
+describe('B-023 — a flag either changes behaviour or is rejected', () => {
+  it('test_uncommitted_reaches_the_review_target', () => {
+    // `--uncommitted` was validated for mutual exclusivity with --base/--commit and then never
+    // read: the target fell through to the positional join, which is empty. So the flag passed
+    // every check and reviewed nothing in particular.
+    const parsed = parseExecArgs(['review', '--uncommitted'], false)
+
+    expect(parsed.mode).toBe('review')
+    expect(
+      parsed.mode === 'review' ? parsed.target : '',
+      '--uncommitted parsed, validated, and then produced an empty review target',
+    ).toBe('uncommitted')
+  })
+
+  it('test_base_and_commit_still_reach_the_target', () => {
+    // Anti-vacuity floor for the assertion above.
+    const base = parseExecArgs(['review', '--base', 'main'], false)
+    expect(base.mode === 'review' ? base.target : '').toBe('base main')
+  })
+
+  it('test_help_prints_usage_and_is_not_an_error', () => {
+    // The usage text was reachable only by triggering an error exit. A user asking for help got a
+    // failure exit code and a message about a mistake they did not make.
+    const parsed = parseExecArgs(['--help'], false)
+
+    expect(parsed.mode, '`--help` was not routed at all').toBe('help')
+  })
+
+  it('test_last_outside_resume_is_rejected_not_ignored', () => {
+    // `--last` means "the most recent session" and only `resume` can honour it. Accepting it
+    // elsewhere and ignoring it is worse than an unknown flag, which at least errors.
+    const parsed = parseExecArgs(['review', '--last'], false)
+
+    expect(parsed.mode, '`--last` was accepted outside resume and silently ignored').toBe('error')
+  })
+
+  it('test_model_override_outside_run_is_rejected_not_ignored', () => {
+    // `-m/--model` is documented globally in the Options line but only `run`/`resume` build an
+    // agent from it. `sessions gc` deletes files; there is no model to override.
+    const parsed = parseExecArgs(['sessions', 'gc', '-m', 'anthropic/claude-sonnet-4-5'], false)
+
+    expect(parsed.mode, '`-m` was accepted by `sessions` and silently ignored').toBe('error')
+  })
+})

@@ -41,6 +41,12 @@ async function main(): Promise<void> {
     process.stderr.write(`${args.message}\n\n${USAGE}\n`)
     process.exit(1)
   }
+  // B-023 — help is a SUCCESS. It used to be reachable only by triggering the error path above,
+  // so asking for help exited 1 and printed a complaint about a mistake the user had not made.
+  if (args.mode === 'help') {
+    process.stdout.write(`${args.usage}\n`)
+    return
+  }
   if (args.cd !== undefined) process.chdir(args.cd)
 
   if (args.mode === 'sessions') return sessionsCommand(args)

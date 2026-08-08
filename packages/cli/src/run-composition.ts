@@ -1,6 +1,6 @@
 import { resolveSandboxPosture } from '@theokit/agents/sandbox'
 
-import type { OverridesDeCli } from './runtime/index.js'
+import type { CliOverrides } from './runtime/index.js'
 
 import { buildChatAgent } from '@theocode/agent'
 import {
@@ -26,7 +26,7 @@ export interface RunComposition {
 
 export function composeRun(
   args: {
-    readonly overrides: OverridesDeCli
+    readonly overrides: CliOverrides
     readonly model?: string
     readonly baseInstructions?: string
   },
