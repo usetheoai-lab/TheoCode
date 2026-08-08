@@ -49,6 +49,9 @@ const PT_WORDS = [
   'pilha', 'achado', 'codificado', 'resultado', 'mantidos', 'planejar', 'planejou', 'candidato',
   'idsEmDisco', 'idsNoRegistry', 'cwdsVivos', 'totalPorForma', 'assertNuncaForma', 'FormaColetavel',
   'PlanoAll', 'CandidatoAll', 'ACHOU', 'TETO', 'FORMAS', 'coletavel', 'deletavel',
+  // Added after `{hiddenBefore} mais antiga(s)` shipped in the backtrack overlay: an unaccented
+  // Portuguese phrase in a user-facing string, invisible to both detectors.
+  'mais', 'antiga', 'antigo', 'recente', 'semente', 'rotacionando', 'DepsDe', 'sementeDo',
 ]
 const PT_RE = new RegExp(`\\b(?:${PT_WORDS.join('|')})[A-Za-z_]*`, 'g')
 

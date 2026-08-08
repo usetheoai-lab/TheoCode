@@ -14,7 +14,7 @@ export interface KeyboardDeps {
     nth: number
     total: number
     prime: () => void
-    resetar: () => void
+    reset: () => void
     advance: (next: number, total: number) => void
     confirm: () => void
   }
@@ -89,7 +89,7 @@ export function useTuiKeyboard(deps: KeyboardDeps): void {
         screen.setToast({ message: 'Goal pausando… (/goal resume retoma)', variant: 'info' })
       },
       primeBacktrack: backtrack.prime,
-      resetarBacktrack: backtrack.resetar,
+      resetarBacktrack: backtrack.reset,
       advanceBacktrack: backtrack.advance,
       confirmBacktrack: backtrack.confirm,
       armExit: () => screen.setExitArmed(true),

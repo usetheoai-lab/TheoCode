@@ -94,7 +94,7 @@ export interface ConversationSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly currentSessionId: () => string
   readonly handleSubmit: (text: string) => void
   readonly backToChat: () => void
@@ -149,7 +149,7 @@ export function ConversationSlot({
       ) : (
         <ChatComposer
           key={clearEpoch}
-          initialValue={backtrack.sementeDoComposer}
+          initialValue={backtrack.composerSeed}
           onChange={setComposerText}
           placeholder={PLACEHOLDER}
           bordered

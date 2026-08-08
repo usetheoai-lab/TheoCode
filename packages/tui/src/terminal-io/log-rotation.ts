@@ -17,8 +17,8 @@ export function rotate(path: string, capBytes: number, keep: number): void {
   exigirArgumentosValidos(capBytes, keep)
   try {
     if (!existsSync(path) || statSync(path).size < capBytes) return
-    const maisAntigo = `${path}.${String(keep - 1)}`
-    if (existsSync(maisAntigo)) unlinkSync(maisAntigo)
+    const oldest = `${path}.${String(keep - 1)}`
+    if (existsSync(oldest)) unlinkSync(oldest)
     for (let i = keep - 2; i >= 0; i--) {
       const de = `${path}.${String(i)}`
       if (existsSync(de)) renameSync(de, `${path}.${String(i + 1)}`)

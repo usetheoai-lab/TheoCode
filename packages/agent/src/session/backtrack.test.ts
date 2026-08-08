@@ -49,7 +49,9 @@ describe('B-012 — transcript reading uses the SDK reader', () => {
 
     const previews = await readUserTurnPreviewsAsync('s1', { cwd, baseDir: base })
 
-    expect(previews.length).toBeGreaterThan(0)
+    // B-029 — the contract is "you lose the PARTIAL line and nothing else". `> 0` also passes when
+    // a reader silently drops a valid turn, which is the failure this test exists to catch.
+    expect(previews, 'a valid turn was dropped along with the truncated one').toHaveLength(2)
   })
 
   it('test_corruption_in_the_middle_raises_the_typed_error_with_a_line_number', async () => {

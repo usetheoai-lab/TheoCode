@@ -21,7 +21,7 @@ export interface InputSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly SESSION: {
     cfg: () => { approvalMode: ApprovalMode }
     reloadConfig: () => void

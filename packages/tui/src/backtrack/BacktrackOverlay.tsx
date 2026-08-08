@@ -51,8 +51,8 @@ export function windowAroundSelection(
 
 export function overlayHeader(selected: number, count: number): string {
   return selected >= 0
-    ? `↑ backtrack: mensagem ${selected + 1}/${count} — Enter edita · Esc mais antiga`
-    : `↑ backtrack: ${count} mensagem(ns) — Esc seleciona (mais recente primeiro)`
+    ? `↑ backtrack: message ${String(selected + 1)}/${String(count)} — Enter to edit · Esc for older`
+    : `↑ backtrack: ${String(count)} message(s) — Esc selects (newest first)`
 }
 
 function oneLine(text: string, max = 88): string {
@@ -78,14 +78,14 @@ export function BacktrackOverlay({
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Text color="cyan">{overlayHeader(selected, count)}</Text>
-      {hiddenBefore > 0 ? <Text dimColor> … {hiddenBefore} mais antiga(s)</Text> : null}
+      {hiddenBefore > 0 ? <Text dimColor> … {hiddenBefore} older</Text> : null}
       {rows.map((r) => (
         <Text key={r.index} inverse={r.selected} dimColor={!r.selected}>
           {r.selected ? '❯ ' : '  '}
           {r.index + 1}. {oneLine(r.text)}
         </Text>
       ))}
-      {hiddenAfter > 0 ? <Text dimColor> … {hiddenAfter} mais recente(s)</Text> : null}
+      {hiddenAfter > 0 ? <Text dimColor> … {hiddenAfter} newer</Text> : null}
     </Box>
   )
 }

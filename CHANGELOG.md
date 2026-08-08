@@ -9,6 +9,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Esc-rewind works. Arming the ladder read the turn count and previews before they were set, so the overlay drew nothing and a second Esc cancelled instead of stepping back — the feature was unreachable (B-029)
+- The backtrack overlay speaks one language. Its header was in Portuguese while the toast for the same keypress was in English (B-029)
+- A failure after the backtrack fork is now reported instead of becoming an unhandled rejection. The session had already moved, and the terminal said nothing (B-029)
+
 - A custom `THEOCODE_HOME` is now honoured when resolving an `openai-chatgpt/*` credential. That route looked in the default home while every other route looked in the overridden one, so the same credential was found by one and missed by the other (B-034)
 - `ensureAuthHome` no longer writes into the environment it was given. Asking where the auth home is had the side effect of changing the caller's environment (B-034)
 

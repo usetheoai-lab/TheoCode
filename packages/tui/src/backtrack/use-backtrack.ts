@@ -3,7 +3,7 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from 'react
 import { confirmBacktrack as confirmBacktrackCmd, primeBacktrack } from './backtrack.js'
 import { armLadder, CLOSED_LADDER, selectTurn, type LadderState } from './backtrack-ladder.js'
 
-export type DepsDeBacktrack = Pick<
+export type BacktrackDeps = Pick<
   Parameters<typeof confirmBacktrackCmd>[1],
   'agent' | 'stdout' | 'setToast' | 'setClearEpoch' | 'currentSessionId' | 'setSessionAndPersist'
 >
@@ -14,18 +14,18 @@ export interface BacktrackLadder {
   readonly nth: number
   readonly total: number
   readonly previews: readonly string[]
-  readonly sementeDoComposer: string
+  readonly composerSeed: string
   readonly setSeed: Dispatch<SetStateAction<string>>
 
   readonly prime: () => void
   readonly advance: (next: number, total: number) => void
-  readonly resetar: () => void
+  readonly reset: () => void
   readonly confirm: () => void
 }
 
 function requestBacktrackWindow(
-  currentSessionId: DepsDeBacktrack['currentSessionId'],
-  setToast: DepsDeBacktrack['setToast'],
+  currentSessionId: BacktrackDeps['currentSessionId'],
+  setToast: BacktrackDeps['setToast'],
   apply: (ladder: LadderState) => void,
 ): void {
   let previewWindow: readonly string[] = []
@@ -46,14 +46,14 @@ function requestBacktrackWindow(
   })
 }
 
-export function useBacktrack(deps: DepsDeBacktrack): BacktrackLadder {
+export function useBacktrack(deps: BacktrackDeps): BacktrackLadder {
   const [ladder, setLadder] = useState<LadderState>(CLOSED_LADDER)
-  const [rotating, setRotacionando] = useState(false)
-  const [sementeDoComposer, setSementeDoComposer] = useState('')
+  const [rotating, setRotating] = useState(false)
+  const [composerSeed, setComposerSeedState] = useState('')
 
   const { setToast, currentSessionId } = deps
 
-  const resetar = useCallback((): void => {
+  const reset = useCallback((): void => {
     setLadder(CLOSED_LADDER)
   }, [])
 
@@ -77,12 +77,12 @@ export function useBacktrack(deps: DepsDeBacktrack): BacktrackLadder {
       { rewindNth: ladder.nth },
       {
         ...deps,
-        setComposerSeed: setSementeDoComposer,
-        resetBacktrack: resetar,
-        setRotacionando,
+        setComposerSeed: setComposerSeedState,
+        resetBacktrack: reset,
+        setRotating,
       },
     )
-  }, [ladder.nth, deps, resetar])
+  }, [ladder.nth, deps, reset])
 
   return {
     armed: ladder.armed,
@@ -90,11 +90,11 @@ export function useBacktrack(deps: DepsDeBacktrack): BacktrackLadder {
     nth: ladder.nth,
     total: ladder.total,
     previews: ladder.previews,
-    sementeDoComposer,
-    setSeed: setSementeDoComposer,
+    composerSeed,
+    setSeed: setComposerSeedState,
     prime,
     advance,
-    resetar,
+    reset,
     confirm,
   }
 }

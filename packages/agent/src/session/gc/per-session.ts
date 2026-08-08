@@ -127,13 +127,13 @@ export interface SessionGCResult {
 function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   const baseDir = opts.baseDir ?? defaultBaseDir()
-  const maisRecenteAgora = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
+  const newestNow = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
   const intocaveis = new Set(
     [
       (opts.readPointer ?? realReadPointer)(cwd),
-      maisRecenteAgora,
+      newestNow,
       plan.pointer,
       plan.mostRecent,
     ].filter((id): id is string => id !== undefined),

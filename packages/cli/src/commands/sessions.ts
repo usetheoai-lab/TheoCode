@@ -36,9 +36,9 @@ function humanReport(
 ): string[] {
   const verbo = result.dryRun ? 'would remove' : 'removed'
   const pointer = plan.pointer?.slice(0, 16) ?? 'none'
-  const recente = plan.mostRecent?.slice(0, 16) ?? 'none'
+  const mostRecent = plan.mostRecent?.slice(0, 16) ?? 'none'
   const lines = [
-    `[sessions gc] ${result.dryRun ? 'DRY-RUN' : 'APPLIED'} — ${result.removed.length} ${verbo}; ${plan.kept.length} kept (pointer=${pointer}, most-recent=${recente})`,
+    `[sessions gc] ${result.dryRun ? 'DRY-RUN' : 'APPLIED'} — ${result.removed.length} ${verbo}; ${plan.kept.length} kept (pointer=${pointer}, most-recent=${mostRecent})`,
     ...plan.candidates.map(
       (c) =>
         `  - ${c.id} (${Math.round(c.ageDays)}d, ${c.inRegistry ? 'registry' : 'orphan'}) [${verbo}]`,
