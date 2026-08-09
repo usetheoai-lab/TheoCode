@@ -10,7 +10,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { isPortuguese, portugueseWordsInFilename, wordParts } from './check-english-only.mjs'
+import {
+  isPortuguese,
+  portugueseInComments,
+  portugueseWordsInFilename,
+  wordParts,
+} from './check-english-only.mjs'
 
 describe('T0.1 — a Portuguese filename is a violation', () => {
   it('test_a_portuguese_filename_is_flagged', () => {
@@ -87,5 +92,40 @@ describe('T0.1 — identifiers are split before they are judged', () => {
 
   it('test_screaming_snake_case_is_split_into_words', () => {
     expect([...wordParts('THREAD_PADRAO')]).toEqual(['thread', 'padrao'])
+  })
+})
+
+describe('Detector 6 — Portuguese PROSE in a comment, but not a Portuguese QUOTATION', () => {
+  it('test_portuguese_prose_in_a_comment_is_flagged', () => {
+    // The real defect this closes: seven lines of Portuguese sat in `tools/build-cli.mjs` explaining
+    // why `proper-lockfile` stays external, and every detector was blind to it because comments were
+    // exempt wholesale.
+    expect(portugueseInComments('// o lock desligado e corrida silenciosa')).toContain('desligado')
+  })
+
+  it('test_a_backtick_quotation_of_portuguese_is_not_flagged', () => {
+    // ANTI-VACUITY FLOOR, and the reason the exemption existed at all. A JSDoc block legitimately
+    // quotes the Portuguese it explains — all four surviving citations in `packages/` are inside a
+    // backtick span. Flagging the quotation would make the check fire on correct code.
+    expect(portugueseInComments('// the old code did `perfis = layer.profiles` and that was the bug')).toEqual([])
+  })
+
+  it('test_an_english_comment_is_not_flagged', () => {
+    // Second anti-vacuity floor: flagging every comment would satisfy the first assertion.
+    expect(portugueseInComments('// the team receives what the ROOT resolved')).toEqual([])
+  })
+
+  it('test_a_jsdoc_continuation_line_is_scanned_too', () => {
+    // Block comments continue with ` * `, and that line carries no `//` or `/*` marker.
+    //
+    // Asserts on `desligado`, not `corrida`: "corrida" is in the ENGLISH dictionary (the loanword
+    // for a bullfight), so the lexicon correctly clears it. Getting that wrong once is how a test
+    // ends up pinning the tester's assumption instead of the code's behaviour.
+    expect(portugueseInComments(' * o lock desligado e corrida silenciosa')).toContain('desligado')
+  })
+
+  it('test_a_line_that_is_not_a_comment_is_ignored', () => {
+    // Identifiers are detector 3's job; double-reporting the same word twice is noise.
+    expect(portugueseInComments('const x = 1')).toEqual([])
   })
 })

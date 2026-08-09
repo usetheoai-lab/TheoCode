@@ -6,7 +6,7 @@ export function enqueue<T>(key: string, op: () => Promise<T>): Promise<T> {
   const result = previous.then(op)
   tails.set(
     key,
-    // eslint-disable-next-line no-restricted-syntax -- ver racional acima
+    // eslint-disable-next-line no-restricted-syntax -- see the rationale above
     result.catch(() => undefined),
   )
   return result

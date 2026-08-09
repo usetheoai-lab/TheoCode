@@ -24,13 +24,13 @@ await build({
   target: 'node22',
   // Native / optional deps stay external: node-pty (loaded via createRequire, not bundlable), better-sqlite3
   // (optional; the SDK falls back to the built-in node:sqlite), and any raw `.node` addon.
-  // `proper-lockfile` entra aqui por uma razão DIFERENTE das nativas, e ela merece estar escrita:
-  // ele é CJS e faz `require('path')` em tempo de carga. Inlinado num bundle ESM, o `require` vira o
-  // shim do esbuild, que lança `Dynamic require of "path" is not supported` — e o SDK, que carrega o
-  // pacote com `await import()` dentro de um try, cai no ramo de falha e SEGUE SEM lock entre
-  // processos. Medido em 2026-08-05: o bundle avisava `could not be loaded`, o mesmo turno via `tsx`
-  // não avisava nada. Rodamos TUI, exec e ACP sobre o mesmo diretório de sessões, então o lock
-  // desligado é corrida silenciosa, não detalhe.
+  // `proper-lockfile` is here for a DIFFERENT reason than the native ones, and that reason is worth
+  // writing down: it is CJS and calls `require('path')` at load time. Inlined into an ESM bundle, that
+  // `require` becomes esbuild's shim, which throws `Dynamic require of "path" is not supported` — and
+  // the SDK, which loads the package with `await import()` inside a try, falls into the failure branch
+  // and CARRIES ON WITHOUT a cross-process lock. Measured 2026-08-05: the bundle warned `could not be
+  // loaded` while the same turn under `tsx` warned nothing at all. We run the TUI, exec and ACP over
+  // the same sessions directory, so a lock that is silently off is a race, not a detail.
   external: ['node-pty', 'better-sqlite3', 'proper-lockfile', '*.node'],
   // A shebang makes the artifact directly executable (`./dist/exec.mjs`); chmod below sets the exec bit.
   banner: { js: '#!/usr/bin/env node' },

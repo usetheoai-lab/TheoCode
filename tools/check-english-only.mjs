@@ -51,8 +51,22 @@ import { extname, join, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
-const SCAN = ['packages']
-const EXTS = new Set(['.ts', '.tsx'])
+const SCAN = ['packages', 'tools']
+const EXTS = new Set(['.ts', '.tsx', '.mjs'])
+
+/**
+ * Files the scan skips, each for a reason that would otherwise make the check fire on correct
+ * content.
+ *
+ * This guard and its tests NAME the language they detect — `KNOWN_PORTUGUESE` is a list of
+ * Portuguese words, and the tests assert on `indice` and `padrao` by design. A detector that flags
+ * its own vocabulary is unusable.
+ *
+ * `docs/` is not in SCAN for the same reason and is worth stating: a review reporting that
+ * `THREAD_PADRAO` shipped has to write `THREAD_PADRAO`. Documentation about the removal necessarily
+ * quotes what was removed.
+ */
+const SELF = new Set(['tools/check-english-only.mjs', 'tools/check-english-only.test.mjs'])
 
 const ACCENTED = /[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/
 
@@ -76,6 +90,8 @@ const TECHNICAL = new Set([
   'num', // pt: contraction of "em um" — here it abbreviates "number" (`parseNum`)
   'proto', // pt: a prefix — here it is `__proto__`, the prototype-pollution guard
   'ino', // pt: "inn" — here it is `Stats.ino`, the POSIX inode number
+  'https', // pt: conjugation of "hipar" in some lists — here it is the URL scheme
+  'distro', // pt: a verb form — here it is the Linux-distribution abbreviation
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -217,6 +233,30 @@ export function portugueseInStrings(line) {
   return found
 }
 
+/**
+ * Portuguese PROSE inside comments.
+ *
+ * Comments were exempt until 2026-08-09, and the exemption was justified: a JSDoc block legitimately
+ * QUOTES the Portuguese it explains — the old `perfis = layer.profiles` in a regression test, the
+ * SDK's `ListOptionsSemPaginacao`, the rename table in `delegation-cap.test.ts`. Flagging a
+ * quotation of the defect makes the check fire on correct code.
+ *
+ * The exemption was also wrong, and a probe proved it: a seven-line Portuguese comment sat in
+ * `tools/build-cli.mjs` explaining why `proper-lockfile` stays external, and nothing could see it.
+ *
+ * The resolution is that every one of those legitimate citations is inside a BACKTICK CODE SPAN —
+ * measured, all four of them. So the span is removed and the surrounding prose is judged. A comment
+ * may quote Portuguese; it may not be written in it.
+ */
+export function portugueseInComments(line) {
+  const m = /(?:^\s*\*(?!\/)|\/\/|\/\*)(.*)$/.exec(line)
+  if (m === null) return []
+  const prose = (m[1] ?? '').replace(/`[^`]*`/g, ' ')
+  const found = []
+  for (const w of wordParts(prose)) if (isPortuguese(w)) found.push(w)
+  return found
+}
+
 export function portugueseWordsInFilename(path) {
   const base = path.split('/').pop() ?? ''
   const withoutExt = base.includes('.') ? base.slice(0, base.indexOf('.')) : base
@@ -260,6 +300,7 @@ function main() {
     if (!existsSync(dir)) continue
     for (const file of walk(dir)) {
       const rel = relative(ROOT, file)
+      if (SELF.has(rel)) continue
 
       // Detector 4 — the file's own NAME. Runs before contents because a Portuguese path is a
       // violation even in an otherwise clean file.
@@ -278,7 +319,18 @@ function main() {
             return
           }
 
-          // Detector 5 — string literals, with comments removed first (see portugueseInStrings).
+          // Detector 6 — prose inside comments, with backtick code spans removed (see above).
+        const inComment = portugueseInComments(line)
+        if (inComment.length > 0) {
+          violations.push({
+            at,
+            why: `Portuguese word "${inComment[0]}" in a comment`,
+            text: line.trim().slice(0, 100),
+          })
+          return
+        }
+
+        // Detector 5 — string literals, with comments removed first (see portugueseInStrings).
         // A JSDoc continuation line (` * …`) is a comment too — without this, a backtick code
         // span quoting Portuguese inside a doc block reads as a string literal.
         const noComments = /^\s*\*(?!\/)/.test(line)

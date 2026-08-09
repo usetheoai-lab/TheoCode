@@ -16,6 +16,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
 
 ### Changed
+- The English-only guard now covers `tools/` as well as `packages/`, and reads comment prose — a seven-line Portuguese comment in the build script was invisible to every previous detector (#B-058)
 - English-only guard rebuilt on dictionary lookup instead of a word denylist: it now flags a word a Portuguese dictionary knows and an English one does not, so an unforeseen Portuguese term is caught rather than silently passed (#B-058)
 - Portuguese identifiers renamed to English across the agent package, including a Portuguese source filename (#B-058)
 

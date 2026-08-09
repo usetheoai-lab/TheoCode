@@ -193,8 +193,9 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
         // orchestration — Rule 9). Write-gated with the other write tools: the worker member needs write
         // authority, so gating here keeps a team from widening a member's authority beyond the parent's
         // current sandbox posture (read-only ⇒ no team; the read-only `analyst` delegation remains).
-        // M70 — o time recebe o que o ROOT resolveu (inclui o `--model` e o `/effort` de runtime), em vez
-        // de o handler reler config do disco e delegar com o que estava gravado.
+        // M70 — the team receives what the ROOT resolved (including the runtime `--model` and
+        // `/effort`), instead of the handler re-reading config from disk and delegating with whatever
+        // was written there.
         .tool(
           createDelegateToTeamTool({
             model: modelId,
@@ -319,7 +320,7 @@ function withShellAndProjectEntities(
   // M70 — the two registrations that depend on the surface PROFILE, applied here because the builder
   // is a fluent chain with no `.tools([...])`: there is no way to skip a link in the middle of it.
   //
-  // `request_user_input` is dropped for the headless profile (m70-convergencia-goal#ADR-4): with no TUI
+  // `request_user_input` is dropped for the headless profile (m70-goal-convergence#ADR-4): with no TUI
   // subscribed, `ask()` never resolves and the tool falls into the built-in's 5-minute timeout.
   // `extraTools` is the seam that was missing — it is how goal mode registers `update_goal` instead of
   // building a second agent from scratch.
@@ -414,7 +415,7 @@ function baseAgent(ctx: {
       // M38 — the working-tree diff, so the model can review pending changes. `createGitDiffTool` is a
       // `@theokit/agents/tools` built-in (`git diff --no-color`, detached, 30s/5MB caps) — read-only, so ungated
       // (same posture as `repo_status`, which also shells out to git). LLM name: `git_diff`.
-      // M99 — idem: do registry, name `git_diff` preservado.
+      // M99 — same as above: from the registry, keeping the name `git_diff`.
       .tool(registry.get('git_diff'))
       // M38 — `request_user_input`: the agent pauses mid-turn to ask the user a question, resolved through the
       // TUI's EXISTING inline input slot via the ask-bridge (no second prompt channel). `createQuestionTool`
