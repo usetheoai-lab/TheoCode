@@ -21,7 +21,8 @@
     "lint": "eslint . && node tools/check-english-only.mjs --quiet",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
-    "lint:english": "node tools/check-english-only.mjs"
+    "lint:english": "node tools/check-english-only.mjs",
+    "crossval": "python3 tools/check-backlog-crossval.py"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

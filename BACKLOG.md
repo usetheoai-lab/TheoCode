@@ -236,6 +236,9 @@ uncertainty: rests on the SDK's security docstring, not on an observed spawn. If
 
 ## B-009 — `interactive_shell` forks the SDK schema instead of wrapping it   [x]
 
+fixed_in: e98a5cf
+fixed_in_note: recorded 2026-08-09 by the cross-validation pass. The item was closed with a `status_note` in prose and no commit named, so the claim could be verified by reading and not by machine — the same opening that let B-007 close on a commit which never touched the file its evidence cited.
+
 domain: theocode
 repo: TheoCode
 suggested_mode: evolve
@@ -273,6 +276,9 @@ dod:
   - the README's enforceability claim is corrected or made true (an import rule in dependency-cruiser, already installed)
 
 ## B-011 — The TUI reimplements components `@theokit/tui` already ships   [x]
+
+fixed_in: 16610d3, 4a352dc
+fixed_in_note: recorded 2026-08-09 by the cross-validation pass, same reason as B-009. `16610d3` adopts `WelcomeBanner`; `4a352dc` settles the approval ledger with a test.
 
 domain: theocode
 repo: TheoCode
