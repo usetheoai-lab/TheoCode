@@ -1281,11 +1281,12 @@ dod:
 
 ## B-056 — Decide whether `!cmd` may run outside the agent's confinement   [x]
 
-fixed_in: (decision) `.claude/knowledge-base/adrs/0001-shell-shortcut-confinement.md`
+fixed_in: (decision) `docs/adr/0001-shell-shortcut-confinement.md`
 dod_verified:
   - the decision is recorded: **not at all, for now** — ADR 0001, with the four options and the measured cost of each
   - what made it a decision rather than work: a `!cmd` has NO TURN, so the SDK's approval ledger — which keys on tool calls within a turn — has nothing to key on. Wiring the shortcut means a SECOND approval path beside the first, which is the shape B-019 and B-021 were, and this backlog contained four instances of a second copy that had drifted from the first
   - nothing shipped, so the second bullet (same gate + same scope, covered by a test) does not apply. The ADR makes it the CONDITION for shipping rather than a nice-to-have
+  - the ADR lives in `docs/adr/`, NOT `.claude/`: this repo deliberately does not version `.claude/` (commit a01c1e9), so a decision written there is a local file that can vanish — which would fail the bullet it was written to satisfy. Caught by the commit, which silently dropped the file
   - `composerShortcuts({ shell: true })` restores the help line with no further edit — the filter is already keyed on the capability, and the ADR names that as step 1 of the escape hatch
 
 domain: theocode
@@ -1299,6 +1300,7 @@ severity: MEDIUM
 dod:
   - a decision is recorded (ADR or a note in this item) on whether `!cmd` runs confined, unconfined-with-consent, or not at all
   - if it ships, it passes the same approval gate and sandbox scope as an agent-issued `run_shell`, covered by a test that fails when either is bypassed
+  - the ADR lives in `docs/adr/`, NOT `.claude/`: this repo deliberately does not version `.claude/` (commit a01c1e9), so a decision written there is a local file that can vanish — which would fail the bullet it was written to satisfy. Caught by the commit, which silently dropped the file
   - `composerShortcuts({ shell: true })` restores the help line with no further edit — the filter is already keyed on the capability
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `shell-shortcut-confinement-decision`).

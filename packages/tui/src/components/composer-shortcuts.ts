@@ -13,7 +13,7 @@ import { DEFAULT_COMPOSER_SHORTCUTS, type KeyboardShortcut } from '@theokit/tui'
  * so the approval ledger has nothing to key on. Wiring it means building a SECOND approval path
  * beside the first, which is the shape B-019 and B-021 were.
  *
- * DECIDED in `.claude/knowledge-base/adrs/0001-shell-shortcut-confinement.md` (B-056): the shortcut
+ * DECIDED in `docs/adr/0001-shell-shortcut-confinement.md` (B-056): the shortcut
  * stays unwired. That ADR also carries the escape hatch — `composerShortcuts({ shell: true })`
  * restores the help line with no edit here, once the handler reaches the same scope and the same
  * approval ledger as an agent-issued `run_shell`.
