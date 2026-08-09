@@ -127,6 +127,8 @@ const TECHNICAL = new Set([
   'tri', // the English prefix in "tri-state" — wordParts breaks on the hyphen
   'mantissas', // the English plural of mantissa (the 1/2/5 nice-number ladder)
   'cmp', // "compare" in a sort comparator
+  'cas', // compare-and-swap
+  'xai', // the xAI provider
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -178,7 +180,12 @@ export function* wordParts(identifier) {
   // changelog citing a commit would be reported as Portuguese prose. Hex runs adjacent to digits
   // are dropped before splitting.
   const withoutHex = identifier.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
-  for (const chunk of withoutHex.split(/[^A-Za-z]+/)) {
+  // Strip diacritics BEFORE splitting. Without this, the split on `[^A-Za-z]` chops an accented
+  // word in half: `façade` became `fa` + `ade`, and `ade` is a Portuguese word — so a correctly
+  // spelled English noun was reported as Portuguese. Unaccenting also matches how the Portuguese
+  // lexicon is indexed, so `seleção` still resolves to `selecao` and stays detectable.
+  const flat = unaccent(withoutHex)
+  for (const chunk of flat.split(/[^A-Za-z]+/)) {
     for (const w of chunk.match(/[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+/g) ?? []) {
       if (w.length >= 3) yield w.toLowerCase()
     }
