@@ -25,7 +25,7 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
   const seen = new Set<string>()
   const blocks: string[] = []
   const attached: string[] = []
-  let usados = 0
+  let used = 0
   let didNotFit = 0
 
   for (const path of parseMentions(text)) {
@@ -40,12 +40,12 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
       if (estimateTokens(content) > MAX_MENTION_TOKENS) {
         content = `${content.slice(0, MAX_MENTION_TOKENS * 4)}\n…(truncated)`
       }
-      const custo = estimateTokens(content)
-      if (usados + custo > MAX_TOTAL_MENTION_TOKENS) {
+      const cost = estimateTokens(content)
+      if (used + cost > MAX_TOTAL_MENTION_TOKENS) {
         didNotFit++
         continue
       }
-      usados += custo
+      used += cost
       blocks.push(`--- ${path} ---\n${content}`)
       attached.push(path)
     } catch {

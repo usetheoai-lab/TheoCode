@@ -25,35 +25,35 @@ import { workingDirectory } from '../working-directory.js'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
-const PROVIDERS_CONHECIDOS = knownProviders()
+const KNOWN_PROVIDERS = knownProviders()
 
 function knownMethodsFor(name: string): readonly AuthMethod[] | undefined {
-  const p = PROVIDERS_CONHECIDOS.includes(name) ? name : undefined
+  const p = KNOWN_PROVIDERS.includes(name) ? name : undefined
   return p === undefined ? undefined : methodsFor(p)
 }
 
 function loginAnnouncement(arg: string): {
   provider: string
   message: string
-  podeDevice: boolean
+  canDevice: boolean
 } {
   const provider = arg.trim().length > 0 ? arg.trim() : 'openai'
   const methods = knownMethodsFor(provider)
   if (methods === undefined) {
     return {
       provider,
-      message: `unknown provider "${provider}". Known: ${PROVIDERS_CONHECIDOS.join(', ')}.`,
-      podeDevice: false,
+      message: `unknown provider "${provider}". Known: ${KNOWN_PROVIDERS.join(', ')}.`,
+      canDevice: false,
     }
   }
-  const rotulos = methods.map((m) => m.label).join(' · ')
-  const podeDevice = methods.some((m) => m.type === 'oauth')
+  const labels = methods.map((m) => m.label).join(' · ')
+  const canDevice = methods.some((m) => m.type === 'oauth')
   return {
     provider,
-    message: podeDevice
-      ? `Login methods for ${provider}: ${rotulos}`
-      : `${provider} offers no device login. Use: ${rotulos}.`,
-    podeDevice,
+    message: canDevice
+      ? `Login methods for ${provider}: ${labels}`
+      : `${provider} offers no device login. Use: ${labels}.`,
+    canDevice,
   }
 }
 
@@ -78,12 +78,12 @@ export function handleLogin(
     .split(/\s+/)
     .filter((t) => t.length > 0)
   const askedForKey = parts.at(-1)?.toLowerCase() === 'key'
-  const semSeletor = (askedForKey ? parts.slice(0, -1) : parts).join(' ')
+  const withoutSelector = (askedForKey ? parts.slice(0, -1) : parts).join(' ')
 
-  const announcement = loginAnnouncement(semSeletor)
+  const announcement = loginAnnouncement(withoutSelector)
   setToast({ message: announcement.message, variant: 'info' })
 
-  if (askedForKey || !announcement.podeDevice) {
+  if (askedForKey || !announcement.canDevice) {
     if (askForKey !== undefined) askForKey(announcement.provider)
     return
   }

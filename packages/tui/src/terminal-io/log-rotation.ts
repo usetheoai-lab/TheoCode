@@ -4,17 +4,17 @@ export const CAP_BYTES = 10 * 1024 * 1024
 
 export const KEEP = 10
 
-function exigirArgumentosValidos(capBytes: number, keep: number): void {
+function requireValidArguments(capBytes: number, keep: number): void {
   if (!Number.isFinite(capBytes) || capBytes <= 0) {
     throw new RangeError(`invalid cap: ${String(capBytes)}`)
   }
   if (!Number.isInteger(keep) || keep < 1) {
-    throw new RangeError(`keep deve ser >= 1 (0 equivale a truncate): ${String(keep)}`)
+    throw new RangeError(`keep must be >= 1 (0 is equivalent to truncate): ${String(keep)}`)
   }
 }
 
 export function rotate(path: string, capBytes: number, keep: number): void {
-  exigirArgumentosValidos(capBytes, keep)
+  requireValidArguments(capBytes, keep)
   try {
     if (!existsSync(path) || statSync(path).size < capBytes) return
     const oldest = `${path}.${String(keep - 1)}`

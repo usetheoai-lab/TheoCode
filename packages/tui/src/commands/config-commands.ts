@@ -111,7 +111,7 @@ export interface CustomCommandDeps {
   setToast: SetToast
 }
 
-function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemplate>[2] {
+function expansionDeps(warn: (m: string) => void): Parameters<typeof expandTemplate>[2] {
   return {
     shell: (cmd) =>
       new Promise((resolveShell) => {
@@ -137,7 +137,7 @@ function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemp
   }
 }
 
-function comInstrucaoDeDelegacao(
+function withDelegationInstruction(
   name: string,
   command: CustomCommand,
   expanded: string,
@@ -176,11 +176,11 @@ export function handleCustomCommand(
       const expanded = await expandTemplate(
         command.template,
         arg,
-        depsDeExpansao((m) => {
+        expansionDeps((m) => {
           setToast({ message: m, variant: 'info' })
         }),
       )
-      const message = comInstrucaoDeDelegacao(name, command, expanded, setToast)
+      const message = withDelegationInstruction(name, command, expanded, setToast)
       if (command.model !== undefined) setPendingModel(command.model)
       process.stderr.write(`[custom-command] executed ${name}\n`)
       setLastSent(message)

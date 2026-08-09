@@ -41,7 +41,7 @@ const PRECEDENCE_PER_LAYER: ReadonlyMap<string, number> = new Map(
 
 function precedenceOf(layer: Layer): number {
   const p = PRECEDENCE_PER_LAYER.get(layer)
-  if (p === undefined) throw new LayerError(`camada desconhecida: \`${layer}\``)
+  if (p === undefined) throw new LayerError(`unknown layer: \`${layer}\``)
   return p
 }
 

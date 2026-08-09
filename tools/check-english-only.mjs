@@ -74,6 +74,8 @@ const TECHNICAL = new Set([
   'acp', // agent client protocol
   'todo', // pt: "all" — here it is the English task marker (`TodoItem`)
   'num', // pt: contraction of "em um" — here it abbreviates "number" (`parseNum`)
+  'proto', // pt: a prefix — here it is `__proto__`, the prototype-pollution guard
+  'ino', // pt: "inn" — here it is `Stats.ino`, the POSIX inode number
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -189,6 +191,32 @@ export const isPortuguese = (w) => {
  * The extension is dropped before splitting so `ts`/`tsx`/`mjs` never enter the word stream — they
  * are below the 3-character floor today, which makes relying on that accidental.
  */
+/**
+ * Portuguese inside STRING LITERALS — the text that reaches a user.
+ *
+ * The accent detector misses unaccented prose, and the identifier scan strips strings before it
+ * runs, so `'↻ continuando o goal…'` shipped to the timeline and a dozen error messages
+ * (`maxSessions deve ser inteiro >= 1`, `APLICADO — N artefato(s) removido(s)`) sat in the product
+ * while the guard printed `clean`.
+ *
+ * Comments are removed BEFORE this runs, for a measured reason: a JSDoc block legitimately quotes
+ * Portuguese it is explaining — the old code `perfis = layer.profiles` in a regression test, and
+ * the SDK's own `ListOptionsSemPaginacao` type name. Flagging a quotation of the defect makes the
+ * check fire on correct code. The cost is stated rather than hidden: unaccented Portuguese PROSE
+ * in a comment is caught by nothing here. It does not reach users, which is why it ranks below a
+ * false positive that would get this detector deleted.
+ *
+ * Import/export specifiers are skipped — a Portuguese path is detector 4's job, not this one's.
+ */
+export function portugueseInStrings(line) {
+  if (/^\s*(?:import|export)\s.*\sfrom\s/.test(line)) return []
+  const found = []
+  for (const m of line.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+    for (const w of wordParts(m[2] ?? '')) if (isPortuguese(w)) found.push(w)
+  }
+  return found
+}
+
 export function portugueseWordsInFilename(path) {
   const base = path.split('/').pop() ?? ''
   const withoutExt = base.includes('.') ? base.slice(0, base.indexOf('.')) : base
@@ -250,7 +278,23 @@ function main() {
             return
           }
 
-          for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+          // Detector 5 — string literals, with comments removed first (see portugueseInStrings).
+        // A JSDoc continuation line (` * …`) is a comment too — without this, a backtick code
+        // span quoting Portuguese inside a doc block reads as a string literal.
+        const noComments = /^\s*\*(?!\/)/.test(line)
+          ? ''
+          : line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '')
+        const inString = portugueseInStrings(noComments)
+        if (inString.length > 0) {
+          violations.push({
+            at,
+            why: `Portuguese word "${inString[0]}" in a string literal`,
+            text: line.trim().slice(0, 100),
+          })
+          return
+        }
+
+        for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
             for (const w of wordParts(identifier)) {
               if (isPortuguese(w)) {
                 violations.push({

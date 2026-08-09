@@ -461,7 +461,7 @@ function profileTools(
     default: {
       const unhandled: never = surface
       throw new ConfigurationError(`unhandled surface: ${String(unhandled)}`, {
-        code: 'surface_nao_tratada',
+        code: 'surface_unhandled',
       })
     }
   }

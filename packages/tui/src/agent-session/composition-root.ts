@@ -89,7 +89,7 @@ function build(): TuiRoot {
     getEffort: () => session.effort(),
     getSessionId: () => session.session(),
     getSessionPty: () => ptyOwner,
-    takePendingImages: () => session.tomarImagens(),
+    takePendingImages: () => session.takeImages(),
     takePendingModel: () => session.takeModel(),
     credential,
   })

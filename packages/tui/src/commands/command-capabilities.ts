@@ -8,7 +8,7 @@ import type { CustomCommand } from './custom-commands.js'
 import type { GoalRunState } from './goal.js'
 
 export interface SessionTheInterpreterUses {
-  anexarImagens: (imagens: AttachedImage[] | undefined) => void
+  attachImages: (images: AttachedImage[] | undefined) => void
   effort: () => ReasoningEffort
   setEffort: (level: ReasoningEffort) => void
   cfg: () => { modelLabel: string; sandboxLabel: string }
@@ -22,7 +22,7 @@ export interface PtysTheInterpreterUses {
   backend: () => { activeSessionCount: () => number; killAll: () => void }
 }
 
-interface BacktrackQueOInterpretadorUsa {
+interface BacktrackUsedByInterpreter {
   setSeed: Dispatch<SetStateAction<string>>
 }
 
@@ -37,7 +37,7 @@ export interface CommandCapabilities {
   readonly SESSION: SessionTheInterpreterUses
   readonly ptyOwner: PtysTheInterpreterUses
   readonly customCommands: ReadonlyMap<string, CustomCommand>
-  readonly backtrack: BacktrackQueOInterpretadorUsa
+  readonly backtrack: BacktrackUsedByInterpreter
   readonly goalAbort: MutableRefObject<AbortController | null>
   readonly lastSentMessage: MutableRefObject<string | null>
   readonly stdout: { write: (s: string) => void } | undefined

@@ -8,7 +8,7 @@ import {
 export type TimelineDeps = MessagesToEventsOptions
 
 const CONTINUATION_MARK = '[[theokit:goal-continuation]]'
-const CONTINUACAO_COLAPSADA = '↻ continuando o goal…'
+const COLLAPSED_CONTINUATION = '↻ continuing the goal…'
 
 export function prepareThread(messages: readonly UIMessageLike[]): UIMessageLike[] {
   return messages.map((m) => {
@@ -18,7 +18,7 @@ export function prepareThread(messages: readonly UIMessageLike[]): UIMessageLike
       .map((pt) => pt.text ?? '')
       .join('')
     if (!text.startsWith(CONTINUATION_MARK)) return m
-    return { ...m, parts: [{ type: 'text', text: CONTINUACAO_COLAPSADA }] }
+    return { ...m, parts: [{ type: 'text', text: COLLAPSED_CONTINUATION }] }
   })
 }
 

@@ -36,8 +36,8 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
   const { initialMode, maxSessions } = opts
   if (!Number.isInteger(maxSessions) || maxSessions < 1) {
     throw new ConfigurationError(
-      `maxSessions deve ser inteiro >= 1 (recebido: ${String(maxSessions)})`,
-      { code: 'max_sessions_invalido' },
+      `maxSessions must be an integer >= 1 (received: ${String(maxSessions)})`,
+      { code: 'max_sessions_invalid' },
     )
   }
 

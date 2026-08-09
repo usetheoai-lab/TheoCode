@@ -172,7 +172,7 @@ export function formatReport(plan: AllPlan, result: AllResult): string[] {
   lines.push(
     result.dryRun
       ? 'DRY-RUN — nothing was removed; use --apply to execute'
-      : `APLICADO — ${String(result.removed.length)} artefato(s) removido(s)`,
+      : `APPLIED — ${String(result.removed.length)} artifact(s) removed`,
   )
   lines.push('')
   lines.push('by kind:')

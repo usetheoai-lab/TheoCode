@@ -45,16 +45,16 @@ export function interpretCommand(
   text: string,
   cap: CommandCapabilities,
 ): void {
-  for (const group of GRUPOS) {
+  for (const group of GROUPS) {
     if (group(action, text, cap)) return
   }
 }
 
-const GRUPOS: readonly ((
+const GROUPS: readonly ((
   action: CommandAction,
   text: string,
   cap: CommandCapabilities,
-) => boolean)[] = [sessionAndScreen, identidade, turn, inspecao, shells, conducao]
+) => boolean)[] = [sessionAndScreen, identity, turn, inspection, shells, conduct]
 
 function sessionAndScreen(
   action: CommandAction,
@@ -83,7 +83,7 @@ function sessionAndScreen(
     case 'clear':
       resetSession()
       agent.reset()
-      SESSION.anexarImagens(undefined)
+      SESSION.attachImages(undefined)
       backtrack.setSeed('')
       goalAbort.current?.abort()
       goalAbort.current = null
@@ -113,7 +113,7 @@ function sessionAndScreen(
   }
 }
 
-function identidade(action: CommandAction, _text: string, cap: IdentityCapabilities): boolean {
+function identity(action: CommandAction, _text: string, cap: IdentityCapabilities): boolean {
   const { currentSessionId, forkCurrentSession, resetSession, setToast, setLoginProvider } = cap
   switch (action.kind) {
     case 'logout':
@@ -147,7 +147,7 @@ function turn(action: CommandAction, text: string, cap: TurnCapabilities): boole
     case 'image':
       handleImage(action.arg, {
         setPendingImages: (images) => {
-          SESSION.anexarImagens(images)
+          SESSION.attachImages(images)
         },
         setToast,
       })
@@ -185,7 +185,7 @@ function turn(action: CommandAction, text: string, cap: TurnCapabilities): boole
   }
 }
 
-function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
+function inspection(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
   const {
     agent,
     SESSION,
@@ -269,7 +269,7 @@ function shells(action: CommandAction, _text: string, cap: ShellCapabilities): b
   }
 }
 
-function conducao(action: CommandAction, _text: string, cap: SteeringCapabilities): boolean {
+function conduct(action: CommandAction, _text: string, cap: SteeringCapabilities): boolean {
   const {
     agent,
     backtrack,

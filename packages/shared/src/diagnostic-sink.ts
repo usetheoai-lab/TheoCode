@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs'
 
 export function installDiagnosticSink(
-  instalar: (sink: ((m: string) => void) | undefined) => void,
+  install: (sink: ((m: string) => void) | undefined) => void,
   env: NodeJS.ProcessEnv = process.env,
   writeToFile: (path: string, line: string) => void = (c, l) => {
     appendFileSync(c, l)
@@ -14,13 +14,13 @@ export function installDiagnosticSink(
   if (destination === undefined || destination.trim().length === 0) return false
 
   if (destination === '1') {
-    instalar((m) => {
+    install((m) => {
       writeToStderr(`${m}\n`)
     })
     return true
   }
 
-  instalar((m) => {
+  install((m) => {
     try {
       writeToFile(destination, `${m}\n`)
     } catch (error) {

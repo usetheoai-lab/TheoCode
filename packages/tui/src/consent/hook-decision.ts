@@ -3,7 +3,7 @@
  *
  * The gate used to call `consent.approveHookConsent(...)` and then run
  * `if (pendingHooks.length <= 1) consent.markReviewed()` SYNCHRONOUSLY, while the approve was still
- * in flight. On a rejected persist for the LAST pending hook, `hooksRevisados` was already true:
+ * in flight. On a rejected persist for the LAST pending hook, `hooksReviewed` was already true:
  * `InputSlot` stops rendering the gate for the session, `epoch` never bumps so `pendingHooks` never
  * recomputes, and the only report went to a log file the user is not reading — which B-039 has just
  * shown could be discarded entirely.

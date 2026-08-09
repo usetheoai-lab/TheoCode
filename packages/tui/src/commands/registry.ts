@@ -145,7 +145,7 @@ export function routeCommand(input: string, customNames?: ReadonlySet<string>): 
       }
     }
   }
-  const comArgumento = routeWithArgument(trimmed)
-  if (comArgumento !== undefined) return comArgumento
+  const withArgument = routeWithArgument(trimmed)
+  if (withArgument !== undefined) return withArgument
   return EXACT_COMMANDS.get(trimmed) ?? { kind: 'send', text: trimmed }
 }

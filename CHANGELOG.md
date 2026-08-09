@@ -42,6 +42,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - The unused `apiKey()` accessor and the transport dependency it fed: it was threaded through two modules and never read (B-007)
 
 ### Fixed
+- Error messages, toasts and CLI output that were still in Portuguese are now English — the sandbox-mode error, the session-GC summary line, the goal toasts, the log-rotation and approval-ledger range errors, and the collapsed-continuation row in the timeline (#B-058)
 - Three Portuguese identifiers no dictionary contains — `THREAD_PADRAO`, `semEspaco`, `indice` — were still in the agent package after it was declared clean; the guard now carries a measured list of the eight such words found by reading every entry of `--list-unknown` (#B-058)
 
 - Command descriptions no longer carry milestone identifiers. Ten of them cited milestones this repository has no roadmap for, and the deprecation warning for a trust variable promised removal at one that does not exist (B-046)

@@ -22,7 +22,7 @@ export function createGoalCancellation(
 ): GoalCancellation {
   if (!Number.isFinite(opts.watchdogMs) || opts.watchdogMs <= 0) {
     throw new RangeError(
-      `cancelamento de goal: watchdog precisa ser positivo e finito, veio ${opts.watchdogMs}`,
+      `goal cancellation: watchdog must be positive and finite, got ${opts.watchdogMs}`,
     )
   }
   const waitCap = maxWaitFrom(opts.watchdogMs)

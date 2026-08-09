@@ -178,7 +178,7 @@ function turnInterrupt(d: {
   return interruptTurn
 }
 
-function useInterrupcaoEBacktrack(d: {
+function useInterruptAndBacktrack(d: {
   screen: ReturnType<typeof useScreenState>
   agent: Parameters<typeof useBacktrack>[0]['agent'] & { abort: () => void }
   stdout: Parameters<typeof useBacktrack>[0]['stdout']
@@ -272,7 +272,7 @@ export function useTuiComposition() {
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
 
-  const backtrack = useInterrupcaoEBacktrack({
+  const backtrack = useInterruptAndBacktrack({
     screen,
     agent,
     stdout,

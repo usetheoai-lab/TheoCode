@@ -4,32 +4,32 @@ export interface KeyCapabilities {
   readonly abandonQuestion: () => void
   readonly interruptTurn: () => void
   readonly irParaChat: () => void
-  readonly cancelarDemo: () => void
-  readonly fecharDiff: () => void
-  readonly fecharUso: () => void
-  readonly fecharAjuda: () => void
-  readonly pausarGoal: () => void
+  readonly cancelDemo: () => void
+  readonly closeDiff: () => void
+  readonly closeUsage: () => void
+  readonly closeHelp: () => void
+  readonly pauseGoal: () => void
   readonly primeBacktrack: () => void
-  readonly resetarBacktrack: () => void
+  readonly resetBacktrack: () => void
   readonly advanceBacktrack: (next: number, total: number) => void
   readonly confirmBacktrack: () => void
   readonly armExit: () => void
   readonly disarmExit: () => void
-  readonly sair: () => void
+  readonly quit: () => void
 }
 
-const EXECUTORES: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: KeyAction) => void> =
+const EXECUTORS: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: KeyAction) => void> =
   new Map([
     ['abandon-question', (c) => c.abandonQuestion()],
     ['interrupt-turn', (c) => c.interruptTurn()],
     ['close-progress', (c) => c.irParaChat()],
-    ['close-demo', (c) => c.cancelarDemo()],
-    ['close-diff', (c) => c.fecharDiff()],
-    ['close-usage', (c) => c.fecharUso()],
-    ['close-help', (c) => c.fecharAjuda()],
-    ['pause-goal', (c) => c.pausarGoal()],
+    ['close-demo', (c) => c.cancelDemo()],
+    ['close-diff', (c) => c.closeDiff()],
+    ['close-usage', (c) => c.closeUsage()],
+    ['close-help', (c) => c.closeHelp()],
+    ['pause-goal', (c) => c.pauseGoal()],
     ['prime-backtrack', (c) => c.primeBacktrack()],
-    ['reset-backtrack', (c) => c.resetarBacktrack()],
+    ['reset-backtrack', (c) => c.resetBacktrack()],
     [
       'advance-backtrack',
       (c, action) => {
@@ -38,10 +38,10 @@ const EXECUTORES: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: 
     ],
     ['confirm-backtrack', (c) => c.confirmBacktrack()],
     ['arm-exit', (c) => c.armExit()],
-    ['sair', (c) => c.sair()],
+    ['quit', (c) => c.quit()],
     ['disarm-exit', (c) => c.disarmExit()],
   ])
 
 export function applyKeyActions(actions: readonly KeyAction[], cap: KeyCapabilities): void {
-  for (const action of actions) EXECUTORES.get(action.kind)?.(cap, action)
+  for (const action of actions) EXECUTORS.get(action.kind)?.(cap, action)
 }

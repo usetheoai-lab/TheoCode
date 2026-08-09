@@ -37,18 +37,18 @@ interface State<T> {
   timer: ReturnType<typeof setTimeout> | undefined
 }
 
-export function useCoalescedMemo<T>(computar: () => T, key: unknown, previewWindow: number): T {
+export function useCoalescedMemo<T>(compute: () => T, key: unknown, previewWindow: number): T {
   const ref = useRef<State<T>>({
     value: undefined,
     key: NO_KEY_SENTINEL,
     em: undefined,
     timer: undefined,
   })
-  const [, forcar] = useState(0)
+  const [, force] = useState(0)
 
   const state = ref.current
   if (state.key !== key && shouldDerive(clock(), state.em, previewWindow)) {
-    state.value = computar()
+    state.value = compute()
     state.key = key
     state.em = clock()
   }
@@ -60,7 +60,7 @@ export function useCoalescedMemo<T>(computar: () => T, key: unknown, previewWind
     const wait = Math.max(0, (est.em ?? 0) + previewWindow - clock())
     est.timer = setTimeout(() => {
       est.timer = undefined
-      forcar((n) => n + 1)
+      force((n) => n + 1)
     }, wait)
   })
 

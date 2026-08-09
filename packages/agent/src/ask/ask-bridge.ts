@@ -55,9 +55,9 @@ export class AskBridge {
       this.#onDivergence(
         `[ask-bridge] answer for "${threadId}" with no pending question` +
           (openThreads.length > 0
-            ? ` — pending em: ${openThreads.join(', ')}`
+            ? ` — pending on: ${openThreads.join(', ')}`
             : ' — no open question') +
-          ' (sob a TUI este aviso vai para .theokit/tui-stderr.log)',
+          ' (under the TUI this warning goes to .theokit/tui-stderr.log)',
       )
       return false
     }

@@ -22,7 +22,7 @@ import { workingDirectory } from '../working-directory.js'
 
 export interface Consent {
   readonly trusted: boolean
-  readonly hooksRevisados: boolean
+  readonly hooksReviewed: boolean
   readonly pendingHooks: ReturnType<typeof computePendingHooks>
 
   readonly trust: () => void
@@ -42,20 +42,20 @@ export function useConsent(cwd: string = workingDirectory()): Consent {
   const [state, setState] = useState<ConsentState>(() =>
     initialState(resolveTrustPosture(cwd).level === 'trusted'),
   )
-  const { trusted, hooksRevisados, recusados, epoch } = state
+  const { trusted, hooksReviewed, declined, epoch } = state
 
   const pendingHooks = useMemo(() => {
     void epoch
     return computePendingHooks({
       cwd,
-      declined: recusados,
+      declined: declined,
       resolveEffectiveConfig,
       parseHooks,
       loadApprovedHooks,
       classifyHooks,
       onError: (err) => process.stderr.write(`[hooks] consent check failed: ${String(err)}\n`),
     })
-  }, [cwd, recusados, epoch])
+  }, [cwd, declined, epoch])
 
   const approveHookConsent = useCallback(
     async (spec: unknown): Promise<void> => {
@@ -67,7 +67,7 @@ export function useConsent(cwd: string = workingDirectory()): Consent {
 
   return {
     trusted,
-    hooksRevisados,
+    hooksReviewed,
     pendingHooks,
     trust: useCallback(() => {
       setState(trustInState)

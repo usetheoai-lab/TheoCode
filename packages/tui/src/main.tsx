@@ -29,9 +29,9 @@ if (typeof process.loadEnvFile === 'function') {
 setWorkingDirectory(process.cwd())
 
 installStderrGuard(join(workingDirectory(), '.theokit', 'tui-stderr.log'))
-const instancia = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
+const instance = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
 
-await instancia.waitUntilExit()
+await instance.waitUntilExit()
 await drainAll()
 
 getTuiRoot().ptyOwner.shutdown()
