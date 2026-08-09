@@ -1,17 +1,17 @@
-# O Prettier 3 já respeita o `.gitignore` por padrão — todo o estado de runtime (`.theokit/`, `dist/`)
-# fica de fora sem precisar ser repetido aqui. Este arquivo declara APENAS o que é source versionado e
-# ainda assim não pode ser reescrito por máquina.
+# Prettier 3 already honours `.gitignore` by default — every runtime artifact (`.theokit/`, `dist/`)
+# is excluded without being repeated here. This file declares ONLY what is versioned source and
+# still must not be rewritten by a machine.
 
-# #321 — o CHANGELOG é histórico imutável: a regra de changelog do projeto proíbe editar entrada de
-# versão já released, e `prettier --write .` mudava 224 linhas dele (inserção de linha em branco entre
-# itens), quase todas em versões publicadas. Cosmético, silencioso e direto no registro de auditoria.
-# A seção [Unreleased] é editada à mão, como as outras — formatador nenhum precisa entrar aqui.
+# #321 — the CHANGELOG is immutable history: the project's changelog rule forbids editing an entry
+# of an already-released version, and `prettier --write .` changed 224 lines of it (inserting a blank
+# line between items), almost all in published versions. Cosmetic, silent, and straight into the
+# audit record. The [Unreleased] section is edited by hand like the others — no formatter belongs here.
 CHANGELOG.md
 
-# `.claude/` é o ecossistema CYCLE instalado a partir de `/home/paulo/Projetos/cycle` — código
-# vendorizado, não fonte deste repositório. Ele tem o próprio repo, o próprio formatador e os
-# próprios testes (`check_xrefs.py`, `test_e2e_smoke.py`). Reformatar aqui produziria 153 arquivos
-# de diff cosmético que a próxima reinstalação desfaz, e o diff mascararia uma mudança real de
-# contrato. O único conteúdo nosso lá dentro é `knowledge-base/`, que é registro de auditoria —
-# mesma razão do CHANGELOG: histórico não se reescreve por máquina.
+# `.claude/` is the CYCLE ecosystem installed from the kit's own repository — vendored code, not
+# this repository's source. It has its own repo, its own formatter and its own tests
+# (`check_xrefs.py`, `test_e2e_smoke.py`). Reformatting it here would produce 153 files of cosmetic
+# diff that the next reinstall undoes, and that diff would mask a real contract change. The only
+# content of ours inside it is `knowledge-base/`, which is an audit record — same reason as the
+# CHANGELOG: history is not rewritten by a machine.
 .claude/
