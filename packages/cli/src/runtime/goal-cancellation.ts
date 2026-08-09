@@ -1,5 +1,5 @@
 
-export interface RegistradorDeCleanup {
+export interface CleanupRegistrar {
   registerCleanup: (fn: () => void | Promise<void>) => void
 }
 
@@ -17,7 +17,7 @@ export interface CancellationOptions {
 }
 
 export function createGoalCancellation(
-  reg: RegistradorDeCleanup,
+  reg: CleanupRegistrar,
   opts: CancellationOptions,
 ): GoalCancellation {
   if (!Number.isFinite(opts.watchdogMs) || opts.watchdogMs <= 0) {
@@ -28,24 +28,24 @@ export function createGoalCancellation(
   const waitCap = maxWaitFrom(opts.watchdogMs)
   const controller = new AbortController()
   let resolver: () => void = () => {}
-  const encerrado = new Promise<void>((resolve) => {
+  const shutdownSignalled = new Promise<void>((resolve) => {
     resolver = resolve
   })
-  let jaEncerrou = false
+  let alreadyShutDown = false
   const shutdown = (): void => {
-    if (jaEncerrou) return
-    jaEncerrou = true
+    if (alreadyShutDown) return
+    alreadyShutDown = true
     resolver()
   }
 
   reg.registerCleanup(async () => {
     controller.abort()
     let timer: NodeJS.Timeout | undefined
-    const desistir = new Promise<void>((resolve) => {
+    const giveUp = new Promise<void>((resolve) => {
       timer = setTimeout(resolve, waitCap)
       timer.unref()
     })
-    await Promise.race([encerrado, desistir])
+    await Promise.race([shutdownSignalled, giveUp])
     if (timer !== undefined) clearTimeout(timer)
   })
 

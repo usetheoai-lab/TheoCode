@@ -111,7 +111,7 @@ const SUGAR: readonly {
   { flag: '--effort', option: 'effort', key: 'reasoning_effort' },
 ]
 
-const MODO_PARA_POLITICA: Readonly<Record<string, string>> = {
+const MODE_TO_POLICY: Readonly<Record<string, string>> = {
   suggest: 'on-request',
   'full-auto': 'never',
 }
@@ -155,13 +155,13 @@ function parseSessions(
   values: OptionValues,
   positionals: string[],
   _overrides: string[],
-  overridesPresentes: string[],
+  presentOverrides: string[],
 ): ExecArgs {
-  if (overridesPresentes.length > 0) {
+  if (presentOverrides.length > 0) {
     return {
       mode: 'error',
       message:
-        `sessions does not accept ${overridesPresentes.join(', ')}: it resolves no config, so the ` +
+        `sessions does not accept ${presentOverrides.join(', ')}: it resolves no config, so the ` +
         `value would be silently discarded — drop the option, or use the mode that reads config`,
     }
   }
@@ -297,8 +297,8 @@ function parseResumeOrPrompt(
 
 function translateApproval(values: OptionValues): string | undefined {
   if (values.approval === 'auto-edit') return AUTO_EDIT_HAS_NO_POLICY
-  if (values.approval !== undefined && values.approval in MODO_PARA_POLITICA) {
-    values.approval = MODO_PARA_POLITICA[values.approval]
+  if (values.approval !== undefined && values.approval in MODE_TO_POLICY) {
+    values.approval = MODE_TO_POLICY[values.approval]
   }
   return undefined
 }

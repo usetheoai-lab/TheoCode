@@ -11,8 +11,8 @@ import type { runGoal } from '@theocode/agent/goal'
 
 type EffectiveConfig = ReturnType<typeof resolveEffectiveConfig>
 type TrustPosture = ReturnType<typeof resolveTrustPosture>
-type ResultadoDoGoal = Awaited<ReturnType<typeof runGoal>>
-type SinalDeUpdateGoal = { status?: 'complete' | 'blocked' }
+type GoalResult = Awaited<ReturnType<typeof runGoal>>
+type GoalUpdateSignal = { status?: 'complete' | 'blocked' }
 
 interface GoalAgentContext {
   /** B-015 — the directory this goal run resolved; the same one `cfg` and `posture` were built from. */
@@ -21,7 +21,7 @@ interface GoalAgentContext {
   readonly posture: TrustPosture
   readonly routedModel: string
   readonly oracle: EffectiveConfig['goal_oracle']
-  readonly updateGoalSignal: SinalDeUpdateGoal
+  readonly updateGoalSignal: GoalUpdateSignal
 }
 
 async function buildGoalAgent({
@@ -69,8 +69,8 @@ async function buildGoalAgent({
   )(`exec-${randomUUID()}`)
 }
 
-function relatarDesfechoDoGoal(
-  result: ResultadoDoGoal,
+function reportGoalOutcome(
+  result: GoalResult,
   args: ExecGoal,
   oracle: EffectiveConfig['goal_oracle'],
 ): string {
@@ -106,7 +106,7 @@ async function resolveGoalContext(args: ExecGoal) {
 export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<void> {
   const { GOAL_DEFAULTS, runGoal, makeSignalJudge } = await import('@theocode/agent/goal')
   const { cwd, posture, cfg, oracle, routedModel, cred } = await resolveGoalContext(args)
-  const updateGoalSignal: SinalDeUpdateGoal = {}
+  const updateGoalSignal: GoalUpdateSignal = {}
   try {
     const goalAgent = await buildGoalAgent({
       cwd,
@@ -148,7 +148,7 @@ export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<v
       await goalAgent.dispose().catch((err: unknown) => {
         process.stderr.write(`[exec] disposing the goal agent failed: ${String(err)}\n`)
       })
-      finalStatus = relatarDesfechoDoGoal(result, args, oracle)
+      finalStatus = reportGoalOutcome(result, args, oracle)
     } finally {
       cancellation.shutdown()
     }

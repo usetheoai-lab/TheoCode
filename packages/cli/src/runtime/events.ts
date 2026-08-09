@@ -22,7 +22,7 @@ interface ChunkLike {
   messageMetadata?: { usage?: Record<string, number> }
 }
 
-const APELIDOS_DE_USAGE: readonly (readonly [output: string, camel: string, snake: string])[] = [
+const USAGE_ALIASES: readonly (readonly [output: string, camel: string, snake: string])[] = [
   ['input_tokens', 'inputTokens', 'input_tokens'],
   ['cached_input_tokens', 'cacheReadTokens', 'cached_input_tokens'],
   ['cache_write_input_tokens', 'cacheWriteTokens', 'cache_write_input_tokens'],
@@ -32,7 +32,7 @@ const APELIDOS_DE_USAGE: readonly (readonly [output: string, camel: string, snak
 
 function toCodexUsage(u: Record<string, number> | undefined): Record<string, number> {
   return Object.fromEntries(
-    APELIDOS_DE_USAGE.map(([output, camel, snake]) => [output, u?.[camel] ?? u?.[snake] ?? 0]),
+    USAGE_ALIASES.map(([output, camel, snake]) => [output, u?.[camel] ?? u?.[snake] ?? 0]),
   )
 }
 

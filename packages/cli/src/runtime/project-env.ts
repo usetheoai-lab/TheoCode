@@ -21,7 +21,7 @@ export function loadProjectEnv(
 ): void {
   if (load === undefined) return
 
-  const soberano = new Map<string, string | undefined>(
+  const sovereign = new Map<string, string | undefined>(
     SOVEREIGN_KEYS.map((k) => [k, env[k]] as const),
   )
 
@@ -31,7 +31,7 @@ export function loadProjectEnv(
     return
   }
 
-  for (const [key, realValue] of soberano) {
+  for (const [key, realValue] of sovereign) {
     if (realValue === undefined) delete env[key]
     else env[key] = realValue
   }
