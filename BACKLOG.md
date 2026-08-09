@@ -52,8 +52,8 @@ They enter as `status: triaged` and `source: discover-review` because they alrea
 
 Items **B-019..B-051** derive from a second, independent pass: `/loop-code-review` over `packages/`, **185/185 files inspected**, 87 findings.
 
-- Report: [`code-review-output/final_report.md`](code-review-output/final_report.md)
-- Evidence database: `code-review-output/code-review.db` (every finding carries `file`/`line` as columns)
+- Report: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) — versioned, and the finding ids below are its join key
+- Evidence database: `code-review-output/code-review.db` — the working artifact, deliberately NOT versioned (`.gitignore` excludes `code-review-output/`). It carries `file`/`line` per finding for anyone re-running the review locally; the argument itself travels in the report above
 
 Of the 87 findings: **78 actionable** (the 33 items below, coverage asserted by script — every actionable id in exactly one item, no duplicate, no orphan) and **9 `info` clean verdicts** — measured statements that nothing is wrong, which produce no item because there is nothing to fix, exactly as the 17 `ok` verdicts above did.
 
@@ -451,7 +451,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #68, #79 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #68, #79 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-005
 why_now: The 2026-08-08 review measured that `assertPrivate()` landed in `trust-store.ts` `lerDocumento()` while `hook-trust.ts:74` keeps its own `readStore()` on the SAME file with a bare `readFileSync`. Directory trust is gated; the hook-approval set is not — and that set decides which command lines reach `spawn(cmd, {shell:true, detached:true})` (`hook-runner.ts:39`). B-005's own docstring names hook execution as the threat it defends, and B-005's own `evidence` field already cited `hooks/hook-trust.ts:73,81`. `assertPrivate` is module-private, which is why the second consumer duplicated the read instead of reusing the gate.
 status: triaged
@@ -476,7 +476,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #69, #70, #71, #72, #73, #81, #85, #86 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #69, #70, #71, #72, #73, #81, #85, #86 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-003, B-012
 why_now: Five independent swallowed-error sites on the only code path that deletes user data all fail in the same direction. `dfsExistencia` continues past an unreadable directory and returns NAO_ACHOU -> MORTO; `ehDiretorio` maps any statSync failure to false -> MORTO; `listRealProject` maps any statSync failure to mtimeMs=0, which is infinitely old AND sorts last so `keepLast` cannot protect it; `resolverGuardas` returns an EMPTY protection set for MORTO, so `--keep-last` has no effect on exactly the projects the collector deletes from; and `listagemPadrao` drops `nextCursor` so the registry guard is page one. `classifyDirectory` already has INDETERMINADO for 'I cannot tell' and uses it on one branch only. Both existing tests force VIVO or keepLast:0, so a green suite cannot see any of it.
 status: triaged
@@ -500,7 +500,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #74, #77 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #74, #77 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-008
 why_now: `buildHookHandlers(opts.approved?)` installs every parsed spec with no sha256 fingerprint check when the argument is omitted — the gate B-008 exists to enforce. `OpcoesApplyAll.hasLiveWriter?`/`readPointer?` make the apply-phase TOCTOU backstops opt-in, and `backstopRefusal` returns undefined outright when `hasLiveWriter` is absent. `resolveHeadlessApproval(policy, posture?)` returns `approved:true` for full-auto when `posture` is omitted, skipping the enforced-sandbox refusal that is its stated purpose. Callers pass them today, so nothing is broken now — the defect is that the TYPE permits the unsafe call and the default branch is the permissive one. The sibling `OpcoesPlanoAll.hasLiveWriter` is required, which shows the correct polarity was already known here. Separately, `appliesTo` returns true for an empty tool name, so a matcher-scoped hook fires out of scope.
 status: triaged
@@ -522,7 +522,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #6 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #6 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: All five USAGE lines in `args.ts:59` teach `theocode exec <sub>`; the parser has no `exec` branch, so the token becomes the PROMPT. Following the CLI's own documentation fires a billable model turn instead of running `sessions gc` / `review` / `goal`. Reproduced by running the parser: `exec sessions gc` yields `mode=run, prompt="exec sessions gc"`. `README.md:32` shows the correct form, so the drift is in the text the user is shown at the moment they are already wrong.
 status: triaged
 severity: HIGH
@@ -544,7 +544,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #7, #8, #9, #10, #20 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #7, #8, #9, #10, #20 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `--uncommitted` is parsed and validated but never reaches the review target; `-m/--model` and `-o/--output-last-message` are documented globally but ignored by `review` and `sessions`; `--last` is accepted outside `resume` and ignored; `-C/--cd` does not affect .env resolution; and there is no `--help`/`-h` at all — the usage text is reachable only by triggering an error. A flag that parses and does nothing is worse than an unknown flag, which at least errors.
 status: triaged
 severity: MEDIUM
@@ -566,7 +566,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #11, #12, #15 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #11, #12, #15 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `composeRun`'s `CompositionSeams` parameter has no caller and no test — the injection seam built for testability is itself untested and unused. `baseInstructions` is accepted but no caller can supply it. `RunComposition.cfg` is computed and returned and never read. Three separate pieces of scaffolding for a use that never arrived.
 status: triaged
 severity: MEDIUM
@@ -587,7 +587,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #13 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #13 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The argument parser is pure, has no I/O, and decides whether a command runs or a billable model turn starts (see the `exec` drift). It is the cheapest possible thing to test and has no test at all. DISTINCT FROM B-018, which is scoped to the 19 `packages/agent` files the TDD gate lists because they were TOUCHED during the B-001..B-017 remediation: `packages/cli` was never touched, so it is in neither the gate's list nor B-018's DoD. Working B-018 to completion leaves this untouched, and vice versa.
 status: triaged
 severity: MEDIUM
@@ -609,7 +609,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #14 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #14 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `main.ts:8` places bootstrap statements between import declarations, which reads as ordered setup but is not: ESM hoists every import and evaluates all of them before any statement runs. Any import with a side effect that depends on the bootstrap sees the pre-bootstrap state. The intent expressed by the source order is not the intent achieved.
 status: triaged
 severity: MEDIUM
@@ -630,7 +630,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #2 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #2 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `vetoReason()` is unreachable on three independent counts: it bails on `'ok' in p` and every SDK tool result carries `ok`; it reads `p.exitCode` where results use `exit_code` (the sibling at `:189` gets it right); and nothing in repo or SDK produces exit code 126. The hook veto path DOES fire, so the user loses the one signal built to tell them a hook blocked their tool.
 status: triaged
 severity: HIGH
@@ -651,7 +651,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #24 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #24 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `ConversationSlot.tsx:150` documents `!` = 'Run a shell command'. `ChatComposer` never receives `onShellCommand`, and the SDK gates the feature on that prop, so `!npm test` is sent to the model as prose. The capability is fully present — `ptyOwner`, `run_shell`, `/ps`, `/stop` all exist — only the wiring is missing, which makes this a wire-up rather than a feature.
 status: triaged
 severity: HIGH
@@ -674,7 +674,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #30, #53, #60, #65, #67 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #30, #53, #60, #65, #67 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `primeBacktrack` calls `setRewindPrimed(true)` BEFORE `setRewindCount`/`setRewindPreviews`, and the adapter builds the ladder inside `setRewindPrimed` — so it captures unset state. Verified by execution, not by reading: a probe returning 3 previews prints `{"armed":true,"nth":-1,"total":0,"previews":[]}`. The overlay returns null on the empty list so nothing draws, and the second Esc emits `reset-backtrack`. Around it: `resetBacktrack()` has no caller, `confirmBacktrack`'s post-fork statements sit in a try with no catch while the caller voids the promise, the instructions render in Portuguese and the toast for the same keypress in English, and the existing test asserts `length > 0` where the contract is 'you lose the partial line and nothing else'.
 status: triaged
 severity: HIGH
@@ -698,7 +698,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #1 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #1 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `coalesced-memo.ts:11` cites `test_the_clock_is_monotonic_non_decreasing` and `ADR-0023` as the reason an export must stay. Neither exists anywhere in the tree. The comment pre-emptively disarms the dead-code detector, so the export survives on the strength of an artifact nobody checked — the same shape as a fabricated citation in a plan, at the code level.
 status: triaged
 severity: HIGH
@@ -720,7 +720,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #29 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #29 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-013
 why_now: The remediation's own docstring says 'the two persistence calls'; there are five. Protected: the startup path (`session-store.ts:18`) and the goal store (`use-goal-run.ts:24`). Unprotected: `composition-root.ts:75, 84, 89`, which are `/new`, `/clear`, `/fork`, the Esc-interrupt and the backtrack confirm — the hot paths. Those hand a bare `void` to a promise whose rejection is uncaught by construction (`write-queue.ts:10` catches the stored tail, `:12` returns the uncaught one) under `node >=22`, where the default is `--unhandled-rejections=throw`. B-013's `fixed_in` commit touched none of the three files its own evidence field named.
 status: triaged
@@ -743,7 +743,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #27, #39, #47, #54 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #27, #39, #47, #54 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-015
 why_now: `squad.ts:49` still calls `resolveToolScope(..., process.cwd())` and `TeamContext` has no `cwd` field, so `delegate_to_team` escapes the injection — and `resolveToolScope` derives both `writeRoot` and the sandbox `workDir` from that argument, which makes this the one bypass with a confinement consequence. The TUI half was never done: it re-resolves config and posture ambiently at 7 sites and `TuiRoot.initialPosture`, the seam built for exactly this, has no reader. `ConsentGates.tsx:71` re-derives `process.cwd()` twice (latent — the root is itself `process.cwd()` today). `withShellAndProjectEntities` was neither decomposed nor renamed, which was also a B-015 bullet.
 status: triaged
@@ -768,7 +768,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #26, #40 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #26, #40 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-006
 why_now: The `env` parameter was added to the PRIVATE `trustOrigin`; the only exported entry calls it with two arguments, so all 10 production call sites read ambient env. The disagreement is reachable today: `run-composition.ts:38` takes the posture from ambient env while `:42` passes `seams.env` into config resolution — the same run, two sources. Adjacent and same fix unit: an injected trust posture does not reach config resolution at all, and `effectiveConfigUnderPosture`, which exists for that, is dead.
 status: triaged
@@ -792,7 +792,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #3, #28, #31 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #3, #28, #31 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-007, B-004
 why_now: `credentials.ts:360` forces the file store with `env: {}`, which discards THEOCODE_HOME — the variable that LOCATES that store. The result is asymmetric and user-visible: the first resolution finds the credential, the routed second one does not. `git show 47eced3 --stat` proves the commit named as the fix never touched `credentials.ts`. `ensureAuthHome` still mutates its argument, also a B-007 bullet. Same file, same class as B-004: `MissingCredentialError` is unreachable by consumers — the sibling instance of the defect B-004 fixed once.
 status: triaged
@@ -815,7 +815,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #35 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #35 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-004
 why_now: The B-004 bullet asked that `assinar()` either support multiple subscribers or be renamed to what it is. Neither happened. Worse, `ask-bridge.test.ts:95` — `test_a_second_subscriber_does_not_silently_replace_the_first` — asserts `first.calls + second.calls > 0` and that `second` was called. Both hold PRECISELY when the first subscriber IS silently replaced; `first` is never asserted on. The comment directly above states the intent the assertions fail to encode. A vacuous test is worse than a missing one: the missing test shows up in the gate output.
 status: triaged
@@ -838,7 +838,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #36, #42 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #36, #42 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-012
 why_now: Both were explicit B-012 bullets and neither was done. `countUserTurnsInWindow` is an exported function with no caller and no test, which is the third copy still standing.
 status: triaged
@@ -861,7 +861,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #41 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #41 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-003
 why_now: `per-session.ts:55` `resolvePointerId` is a second copy of the pointer guard that B-003 unified — dead, and divergent from the surviving one. A dead copy that has drifted is the worst kind: the next reader cannot tell which is authoritative, and the class of bug B-003 fixed can be reintroduced by copying the wrong one.
 status: triaged
@@ -883,7 +883,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #44 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #44 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-016
 why_now: The B-016 bullet asked for this to be resolved. The fixture file remains and the suite it was written for was never created, so the file is dead weight that reads as coverage.
 status: triaged
@@ -907,7 +907,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #58, #61, #62, #63 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #58, #61, #62, #63 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `stderr-guard.ts:17` has an empty `catch` and returns true unconditionally, and `mkdirSync` failure is already commented as 'guarded writes below will no-op'. This is the SOLE output channel of the B-013 remediation (`fire-and-forget.ts:22` defaults `report` to `process.stderr.write`), of hook-approval failures, and of the backtrack fork trace. On a non-writable cwd the TUI runs with every diagnostic dead and nothing says so. `shared/diagnostic-sink.ts:24-29` already solves the identical problem by falling back to stderr, and the pre-guard writer is held at `:7` and unused for this. Around it: the log is rotated once at startup and never again so a long session grows past CAP_BYTES unbounded; `rotate()` justifies swallowing its errors by citing `stderr-guard.ts:12`, a closing brace; and `HookError` is caught and discarded with no diagnostic, so a malformed hooks config disables the consent gate silently.
 status: triaged
 severity: MEDIUM
@@ -930,7 +930,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #38, #57 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #38, #57 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `consent.markReviewed()` runs synchronously after `aprovarHook` is INITIATED, but `aprovarHook` is async. On a rejected approve, `hooksRevisados` is already true, `InputSlot.tsx:70` stops rendering the gate for the session, `epoca` never bumps so `pendingHooks` never recomputes, and the only report goes to the redirected log (see the stderr-guard item). On the LAST pending hook this silently closes the gate as if approval had succeeded. The sibling `TrustGate` in the same file does the opposite for the identical failure class — toast plus state revert — so the correct shape is already present five lines away. Filed independently by two reviewers (#38, #57) on adjacent lines of the same defect.
 status: triaged
 severity: MEDIUM
@@ -952,7 +952,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #32, #34, #80 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #32, #34, #80 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A project `config.toml` replaces the user profiles table instead of merging it, so a project-level file silently removes user-level profiles. Five exported config drift-detectors are never called, which means the invariants they encode are documented and unenforced. `ENV_KNOBS` and `measuredPrecedenceChain` cite three source paths that do not resolve — a fabricated citation inside the config layer's own documentation of itself.
 status: triaged
 severity: MEDIUM
@@ -974,7 +974,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #78 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #78 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The confinement that keeps an `AGENTS.md` import inside the project depends on a git root; outside a repo there is no boundary, and it does not resolve symlinks, so a link out of the tree is followed. The check exists, which means the threat was recognised — it just does not hold in the two cases where it matters.
 status: triaged
 severity: MEDIUM
@@ -996,7 +996,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #82, #83, #84 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #82, #83, #84 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `parse.ts:56` degrades an unparseable reviewer response to `{findings: [], overall_correctness: ""}` — a clean verdict and a parse failure produce identical structured data, on a tool whose entire purpose is reporting defects. `runReview` compounds it: `result.result ?? ""` sends a run that returned nothing down the same path. `create-agent.ts:78` `descartar` marks itself done BEFORE the work, so a failed dispose permanently leaks the reviewer. `squad.ts:71` uses `Promise.all` over member disposal, so one cleanup failure overwrites the delegation result the user was waiting for.
 status: triaged
 severity: MEDIUM
@@ -1019,7 +1019,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #75, #76 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #75, #76 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `hook-runner.ts:80` settles from the `exit` event deferred by a fixed 20 ms timer. Node documents `exit` as possibly preceding stdio close; `close` is the event that guarantees drained pipes. The 20 ms is a sleep, not a synchronisation, and it is a bare literal with no name. What can be lost is the DECISION channel: `parseFeedback` reads `decision: block` and `reason` out of hook stdout, and a PreToolUse non-zero exit turns its stdout into the veto reason — so a hook writing past the 64 KiB pipe buffer, or scheduled out under load, can have its block silently downgraded to empty output. `detached:true` widens the window. Same file: `cargaDoEvento`'s PostToolUse branch is unreachable, so PostToolUse hooks never receive args.
 status: triaged
 severity: MEDIUM
@@ -1040,7 +1040,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #19, #66 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #19, #66 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `shutdown.ts:44` returns exit code 1 unconditionally, so a clean Ctrl-C is indistinguishable from a cleanup that timed out — to a shell, to CI, and to anything wrapping the process. It is also on the public interface with no external caller, so the contract is both wrong and unexercised.
 status: triaged
 severity: MEDIUM
@@ -1062,7 +1062,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #25, #33, #49, #50 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #25, #33, #49, #50 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `commands/registry.ts` renders eleven strings citing M21/M35/M39/M49/M50/M51/M55/M64 — none resolve — and one instructs the user to read a CHANGELOG entry that was never written. A rendered error directs the user to `docs/CONFIGURATION.md`, which does not exist. A deprecation promises removal in M99 and no roadmap declaring M99 exists. `SessionFooter` advertises '? for shortcuts' unconditionally, but `?` only works while the ChatComposer is mounted with an empty buffer. Every one of these is the product telling the user something untrue at the moment they are already looking for help.
 status: triaged
 severity: MEDIUM
@@ -1085,7 +1085,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #64 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #64 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `SecretInput.tsx:42` stores the raw input chunk, so a key pasted with a trailing newline is submitted un-trimmed to `login()`. The failure is remote, delayed and opaque: the credential is stored, and authentication fails later with a message that says nothing about whitespace.
 status: triaged
 severity: MEDIUM
@@ -1107,7 +1107,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #37 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #37 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The test sets `columns: 120` under a non-TTY and never restores it, leaking into the worker for whatever runs next. It also never exercises the narrow branch — which is the branch the test exists to keep visible, and the one that broke three times in a row during the 2026-08-07 remediation.
 status: triaged
 severity: MEDIUM
@@ -1131,7 +1131,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #4, #16, #17, #18, #43, #45, #46 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #4, #16, #17, #18, #43, #45, #46 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A deterministic scan (tests counted as referencing files, so this is not the weaker 'no test reaches it' claim) finds 146 of 492 exported symbols with no reference outside their defining file. Named instances: `teamMemberOptions`; `readSecret`, a complete echo-disabled secret reader with no caller and no CLI login command; `ToolRegistry.names()` and `ContinuationBudget.used`; three symbols in `drained-output.ts`. Also two package-surface defects: `@theocode/agent` declares a `./chat-acp` subpath with zero importers, and `@theocode/cli` exports `.` -> `main.ts`, which RUNS the CLI on import.
 status: triaged
 severity: LOW
@@ -1152,7 +1152,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #21 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #21 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A version-range floor divergence inside one repo means npm may resolve two copies, and the surface each workspace is typed against is not the surface it runs against. This is the kind of skew that produces a defect nobody can reproduce locally.
 status: triaged
 severity: LOW
@@ -1173,7 +1173,7 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `code-review-output/code-review.db` findings #87 (file:line in the `file`/`line` columns); report `code-review-output/final_report.md`
+evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #87 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The function documents and mostly honours a typed-error contract, then has a path that throws an untyped error — so a caller written against the contract cannot handle it. A contract that holds on most paths is a contract callers will trust on all of them.
 status: triaged
 severity: LOW
