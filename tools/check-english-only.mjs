@@ -48,6 +48,7 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
 const SCAN = ['packages']
@@ -119,7 +120,7 @@ if (EN.loaded === 0 || PT.loaded === 0) {
 }
 
 /** Split an identifier into lowercase word parts: `varrerMarkdown` -> [varrer, markdown]. */
-function* wordParts(identifier) {
+export function* wordParts(identifier) {
   for (const chunk of identifier.split(/[^A-Za-z]+/)) {
     for (const w of chunk.match(/[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+/g) ?? []) {
       if (w.length >= 3) yield w.toLowerCase()
@@ -173,9 +174,29 @@ const KNOWN_PORTUGUESE = new Set([
  * A word is Portuguese when a Portuguese lexicon has it and an English one does not, or — for words
  * neither lexicon knows — when it carries a Portuguese-only suffix.
  */
-const isPortuguese = (w) => {
+export const isPortuguese = (w) => {
   if (TECHNICAL.has(w) || EN.words.has(w)) return false
   return PT.words.has(w) || PT_SUFFIX.test(w) || KNOWN_PORTUGUESE.has(w)
+}
+
+/**
+ * Portuguese words in a file's own NAME.
+ *
+ * Every other detector reads file contents, which is how `hooks-para-membro.ts` shipped and was
+ * eventually found by a human reading the tree rather than by tooling. A path is written text under
+ * the same English-only rule as prose.
+ *
+ * The extension is dropped before splitting so `ts`/`tsx`/`mjs` never enter the word stream — they
+ * are below the 3-character floor today, which makes relying on that accidental.
+ */
+export function portugueseWordsInFilename(path) {
+  const base = path.split('/').pop() ?? ''
+  const withoutExt = base.includes('.') ? base.slice(0, base.indexOf('.')) : base
+  const found = []
+  for (const part of withoutExt.split(/[-_]+/)) {
+    for (const w of wordParts(part)) if (isPortuguese(w)) found.push(w)
+  }
+  return found
 }
 
 /**
@@ -198,65 +219,81 @@ function* walk(dir) {
   }
 }
 
-const violations = []
-const unknown = new Map()
+/**
+ * CLI entry. Guarded so the module can be imported by its own test suite: before this, importing
+ * it ran the whole scan and called `process.exit(1)`, which is why the guard had no tests.
+ */
+function main() {
+  const violations = []
+  const unknown = new Map()
 
-for (const base of SCAN) {
-  const dir = join(ROOT, base)
-  if (!existsSync(dir)) continue
-  for (const file of walk(dir)) {
-    const rel = relative(ROOT, file)
-    readFileSync(file, 'utf8')
-      .split('\n')
-      .forEach((line, i) => {
-        const at = `${rel}:${i + 1}`
-        if (ALLOWED.has(at)) return
+  for (const base of SCAN) {
+    const dir = join(ROOT, base)
+    if (!existsSync(dir)) continue
+    for (const file of walk(dir)) {
+      const rel = relative(ROOT, file)
 
-        if (ACCENTED.test(line)) {
-          violations.push({ at, why: 'accented character', text: line.trim().slice(0, 100) })
-          return
-        }
+      // Detector 4 — the file's own NAME. Runs before contents because a Portuguese path is a
+      // violation even in an otherwise clean file.
+      for (const w of portugueseWordsInFilename(rel)) {
+        violations.push({ at: rel, why: `Portuguese word "${w}" in filename`, text: rel })
+      }
 
-        for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
-          for (const w of wordParts(identifier)) {
-            if (isPortuguese(w)) {
-              violations.push({
-                at,
-                why: `Portuguese word "${w}" in \`${identifier}\``,
-                text: line.trim().slice(0, 100),
-              })
-              return
-            }
-            if (!EN.words.has(w) && !PT.words.has(w) && !TECHNICAL.has(w)) {
-              unknown.set(w, (unknown.get(w) ?? 0) + 1)
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const at = `${rel}:${i + 1}`
+          if (ALLOWED.has(at)) return
+
+          if (ACCENTED.test(line)) {
+            violations.push({ at, why: 'accented character', text: line.trim().slice(0, 100) })
+            return
+          }
+
+          for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+            for (const w of wordParts(identifier)) {
+              if (isPortuguese(w)) {
+                violations.push({
+                  at,
+                  why: `Portuguese word "${w}" in \`${identifier}\``,
+                  text: line.trim().slice(0, 100),
+                })
+                return
+              }
+              if (!EN.words.has(w) && !PT.words.has(w) && !TECHNICAL.has(w)) {
+                unknown.set(w, (unknown.get(w) ?? 0) + 1)
+              }
             }
           }
-        }
-      })
+        })
+    }
   }
-}
 
-if (process.argv.includes('--list-unknown')) {
-  // Neither-lexicon words. Mostly legitimate abbreviations, and the one place an invented
-  // Portuguese-looking token could hide — printed on demand so a human can sweep it.
-  console.error(`\nwords in neither lexicon (${String(unknown.size)}):`)
-  for (const [w, n] of [...unknown].sort((a, b) => b[1] - a[1])) console.error(`  ${w} (${String(n)})`)
-}
-
-if (violations.length === 0) {
-  if (!process.argv.includes('--quiet')) {
-    console.log(
-      `english-only: clean (${String(EN.words.size)} EN forms, ${String(PT.words.size)} PT forms)`,
-    )
+  if (process.argv.includes('--list-unknown')) {
+    // Neither-lexicon words. Mostly legitimate abbreviations, and the one place an invented
+    // Portuguese-looking token could hide — printed on demand so a human can sweep it.
+    console.error(`\nwords in neither lexicon (${String(unknown.size)}):`)
+    for (const [w, n] of [...unknown].sort((a, b) => b[1] - a[1])) console.error(`  ${w} (${String(n)})`)
   }
-  process.exit(0)
+
+  if (violations.length === 0) {
+    if (!process.argv.includes('--quiet')) {
+      console.log(
+        `english-only: clean (${String(EN.words.size)} EN forms, ${String(PT.words.size)} PT forms)`,
+      )
+    }
+    process.exit(0)
+  }
+
+  console.error(`english-only: ${String(violations.length)} violation(s)\n`)
+  for (const v of violations) console.error(`  ${v.at}  (${v.why})\n    ${v.text}`)
+  console.error(
+    '\nEverything written in this repository is English; only the conversation is Portuguese.\n' +
+      'If a match is a false positive, add its `path:line` to ALLOWED in this file with a reason,\n' +
+      'or — when an English technical term collides with a Portuguese word — add it to TECHNICAL.',
+  )
+  process.exit(1)
+
 }
 
-console.error(`english-only: ${String(violations.length)} violation(s)\n`)
-for (const v of violations) console.error(`  ${v.at}  (${v.why})\n    ${v.text}`)
-console.error(
-  '\nEverything written in this repository is English; only the conversation is Portuguese.\n' +
-    'If a match is a false positive, add its `path:line` to ALLOWED in this file with a reason,\n' +
-    'or — when an English technical term collides with a Portuguese word — add it to TECHNICAL.',
-)
-process.exit(1)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()
