@@ -173,7 +173,7 @@ interface ToolResultTurnContext {
 }
 
 interface Target {
-  indice: number
+  index: number
   name: string
   /** B-044 — the tool call's own arguments, so a PostToolUse hook receives what actually ran. */
   args: Record<string, unknown>
@@ -212,7 +212,7 @@ class Batch {
   targetOf(spec: HookSpec): Target | undefined {
     if (this.parts === undefined) {
       return this.text !== undefined && appliesTo(spec, '')
-        ? { indice: -1, name: '', args: {} }
+        ? { index: -1, name: '', args: {} }
         : undefined
     }
     let chosen: Target | undefined
@@ -221,7 +221,7 @@ class Batch {
       const name = this.nameById.get(id) ?? ''
       if (!appliesTo(spec, name)) continue
       if (typeof part.content === 'string') {
-        chosen = { indice: i, name, args: this.argsById.get(id) ?? {} }
+        chosen = { index: i, name, args: this.argsById.get(id) ?? {} }
       }
     }
     return chosen
@@ -242,12 +242,12 @@ class Batch {
       this.text = `${this.text ?? ''}${snippet}`
       return
     }
-    const part = this.parts[target.indice]
+    const part = this.parts[target.index]
     if (part === undefined || typeof part.content !== 'string') {
       note('hook feedback dropped: no tool result carried string content to attach it to')
       return
     }
-    this.parts[target.indice] = { ...part, content: `${part.content}${snippet}` }
+    this.parts[target.index] = { ...part, content: `${part.content}${snippet}` }
   }
 
   result(): unknown {

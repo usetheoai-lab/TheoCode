@@ -42,6 +42,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - The unused `apiKey()` accessor and the transport dependency it fed: it was threaded through two modules and never read (B-007)
 
 ### Fixed
+- Three Portuguese identifiers no dictionary contains — `THREAD_PADRAO`, `semEspaco`, `indice` — were still in the agent package after it was declared clean; the guard now carries a measured list of the eight such words found by reading every entry of `--list-unknown` (#B-058)
 
 - Command descriptions no longer carry milestone identifiers. Ten of them cited milestones this repository has no roadmap for, and the deprecation warning for a trust variable promised removal at one that does not exist (B-046)
 - The configuration error for an untrusted project role points at the environment-knob registry instead of `docs/CONFIGURATION.md`, which was never written (B-046)

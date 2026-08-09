@@ -141,7 +141,33 @@ function* wordParts(identifier) {
  * (`selecao`, `localizacao`, `instrucao`, `delegacao`, `continuacao`, `interrupcao`, `inspecao`,
  * `conducao`, `instancia`, `disponivel`, `intocaveis`) out of 949 words in neither lexicon.
  */
-const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|ncia|ncias|avel|ivel|aveis|iveis|ndo)$/
+const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|ncia|ncias|avel|ivel|aveis|iveis|ndo|ao|oes)$/
+
+/**
+ * Portuguese words that NO installed dictionary contains and NO suffix rule reaches, found by
+ * reading all 189 entries of `--list-unknown` on 2026-08-09. Each one's accented form is absent
+ * from `/usr/share/dict/*` and `/usr/share/hunspell/pt_BR.dic`, which is why the lexicon test
+ * cannot see them.
+ *
+ * This IS a denylist, and the whole point of the 2026-08-09 rewrite was that a denylist cannot be
+ * the ONLY detector. It is acceptable here for two reasons the original list did not have:
+ * it is a SUPPLEMENT to two open-ended detectors rather than the sole one, and every entry was
+ * MEASURED against a real occurrence rather than imagined. A word missing from all three
+ * detectors is not a hole this list closes permanently — it is the residue, and the residue is
+ * small and enumerated instead of unknown.
+ *
+ * Exact match only. `indice` (pt: índice) is Portuguese; `indices` is the English plural of index
+ * and appears legitimately in `packages/agent/src/session/backtrack.ts` — a substring rule would
+ * flag it.
+ */
+const KNOWN_PORTUGUESE = new Set([
+  'cabecalho', 'cabecalhos', // cabeçalho — header
+  'codigo', // código — code
+  'espaco', // espaço — space
+  'indice', // índice — index (NOT `indices`, the English plural)
+  'resetar', // to reset — Portuguese verb form of an English loanword
+  'rotulo', 'rotulos', // rótulo — label
+])
 
 /**
  * A word is Portuguese when a Portuguese lexicon has it and an English one does not, or — for words
@@ -149,7 +175,7 @@ const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|nc
  */
 const isPortuguese = (w) => {
   if (TECHNICAL.has(w) || EN.words.has(w)) return false
-  return PT.words.has(w) || PT_SUFFIX.test(w)
+  return PT.words.has(w) || PT_SUFFIX.test(w) || KNOWN_PORTUGUESE.has(w)
 }
 
 /**
