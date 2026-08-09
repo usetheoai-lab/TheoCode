@@ -14,7 +14,7 @@ function defaultGoalLoop(
 
 export type GoalCapableAgent = GoalLoopAgent
 
-export function formatGoalEvent(event: GoalEvent): string {
+function formatGoalEvent(event: GoalEvent): string {
   switch (event.type) {
     case 'turn_start':
       return `▶ turn ${event.turn}`

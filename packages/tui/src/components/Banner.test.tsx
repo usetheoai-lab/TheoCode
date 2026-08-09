@@ -20,6 +20,15 @@ import { Banner } from './Banner.js'
 import { AGENT } from '@theocode/shared/agent'
 import { BANNER_TIPS, LOGO } from '../theme.js'
 
+/**
+ * The state of `process.stdout.columns` BEFORE any test in this file touched it. Captured at module
+ * load because that is the only vantage point that can see the leak: the old cleanup leaked exactly
+ * ONCE, on the first probe in the worker, and every later restore then looked correct. A test that
+ * captured its own `before` compared the leaked value to itself and passed on the defect — measured
+ * with a standalone probe rather than assumed (B-048).
+ */
+const PRISTINE_COLUMNS = Object.getOwnPropertyDescriptor(process.stdout, 'columns')
+
 // eslint-disable-next-line no-control-regex
 const ANSI = /\[[0-9;]*m/g
 const strip = (s: string): string => s.replace(ANSI, '')
@@ -39,7 +48,12 @@ function frame(columns = 120): string {
     instance.unmount()
     return out
   } finally {
-    if (original !== undefined) Object.defineProperty(process.stdout, 'columns', original)
+    // B-048 — restore BOTH ways. Under a non-TTY `process.stdout.columns` is undefined, so
+    // `getOwnPropertyDescriptor` returns undefined and the old restore was skipped entirely: the
+    // property stayed defined at 120 for whatever ran next in the same worker. Vitest runs files
+    // concurrently in one process, so that leaks across files.
+    if (original === undefined) delete (process.stdout as { columns?: number }).columns
+    else Object.defineProperty(process.stdout, 'columns', original)
   }
 }
 
@@ -87,5 +101,39 @@ describe('B-011 — the banner still shows everything it showed before', () => {
 
   it('test_the_whats_new_panel_is_rendered', () => {
     expect(frame()).toContain("What's new")
+  })
+})
+
+describe('B-048 — the narrow branch is exercised, and the width probe leaves no trace', () => {
+  it('test_a_narrow_terminal_drops_the_side_panel', () => {
+    // The branch this file exists to keep visible, and the one that broke three times during the
+    // 2026-08-07 remediation. Every other test here sets a WIDE terminal, so the narrow path was
+    // never rendered at all.
+    const narrow = frame(60)
+
+    expect(narrow, 'the narrow terminal rendered nothing').not.toBe('')
+    expect(
+      narrow,
+      'the tips panel was drawn on a 60-column terminal, where it cannot fit beside the art',
+    ).not.toContain(BANNER_TIPS[0] ?? '@@no-tips@@')
+  })
+
+  it('test_a_wide_terminal_still_draws_the_side_panel', () => {
+    // Anti-vacuity floor: never drawing the panel would satisfy the assertion above.
+    expect(frame(120)).toContain(BANNER_TIPS[0] ?? '@@no-tips@@')
+  })
+
+  it('test_the_width_probe_leaves_no_trace_in_the_worker', () => {
+    frame(200)
+
+    // Captured at MODULE LOAD, before any frame() call — which is the only vantage point that can
+    // see this. The old cleanup leaked exactly ONCE, on the first probe in the worker: after that
+    // `original` was the leaked value and every later restore looked correct. A test that captured
+    // its own `before` therefore compared 120 to 120 and passed on the defect. Measured with a
+    // standalone probe rather than assumed.
+    expect(
+      Object.getOwnPropertyDescriptor(process.stdout, 'columns'),
+      'the probe left process.stdout.columns defined for whatever runs next in this worker',
+    ).toEqual(PRISTINE_COLUMNS)
   })
 })

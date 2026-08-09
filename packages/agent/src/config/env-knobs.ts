@@ -79,7 +79,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_HOME,
-    reader: 'agents/auth/oauth-config.ts:HOME_ENV',
+    reader: 'packages/agent/src/auth/oauth-config.ts:HOME_ENV',
     default: '~/.theocode',
     effect: 'Moves the credential store directory (`auth.json`).',
   },
@@ -109,7 +109,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     reader: 'packages/agent/src/config/trust-posture.ts:resolveTrustPosture',
     default: '—',
     effect:
-      'DEPRECATED (M97) — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Removal planned for M99.',
+      'DEPRECATED — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Slated for removal; no date is promised, because this repository has no roadmap to promise one against.',
   },
   {
     name: ENV_OPENROUTER_API_KEY,
@@ -131,7 +131,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_LIVE_MODEL,
-    reader: 'agents/delegation/m63-analyst.live.mts:model',
+    reader: 'packages/agent/src/delegation/roles.ts:resolveEffort',
     default: 'google/gemini-2.5-flash-lite',
     effect: 'The model used by the live test harnesses. It does not affect the product runtime.',
   },
@@ -141,7 +141,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: '/bin/sh',
     effect: 'The shell used to expand a user custom command in the TUI.',
   },
-  // M111 (desbloqueio da promoção): os quatro knobs do `theo-promptly` chegaram com a persona
-  // resolvida por serviço e nasceram fora do registry — o gate M104 os pegou, que é exatamente o que
-  // ele existe para fazer. Registrados aqui para que `docs/CONFIGURATION.md` volte a ser derivável.
+  // M111 (promotion unblock): the four `theo-promptly` knobs arrived with the persona resolved
+  // per service and were born outside the registry — the M104 gate caught them, which is exactly what
+  // it exists to do. Registered here so `docs/CONFIGURATION.md` is derivable again.
 ]

@@ -5,39 +5,27 @@ function oneLine(value: string, max = 120): string {
   return flat.length > max ? `${flat.slice(0, max)}…` : flat
 }
 
-export function vetoReason(rawResult: unknown): string | undefined {
-  const p = parseJsonObject(rawResult)
-  if (p === undefined || 'ok' in p) return undefined
-  if (p.exitCode !== 126) return undefined
-  const reason = typeof p.stderr === 'string' ? p.stderr.trim() : ''
-  return reason.length > 0 ? reason : 'blocked by a policy hook'
-}
-
-const BLOCKED_PREFIX = 'blocked by policy: '
-
-const vetoedInputs = new WeakMap<object, string>()
-
-const inputKey = (event: AgentToolEvent): object | undefined => {
-  const input = (event as { input?: unknown }).input
-  return input !== null && typeof input === 'object' ? input : undefined
-}
+/**
+ * B-027 — the `Blocked <cmd>` rendering was DELETED, not repaired.
+ *
+ * `vetoReason` detected `{ exitCode: 126, stderr }` and could never fire, on three independent
+ * counts: it bailed on `'ok' in p` and every SDK tool result carries `ok`; it read `p.exitCode`
+ * where results use `exit_code` (the sibling below gets it right); and nothing in this repository or
+ * the SDK produces exit code 126, which is a shell convention this product never emits. Its only
+ * consumer populated the WeakMap that the header branch read, so the whole chain was unreachable —
+ * a feature that read as protection and provided none.
+ *
+ * It was not rewired because the correct shape is not known here without guessing. A hook veto is
+ * `{ block: true, message }` (`@theokit/sdk` `PreToolCallDecision`), which the SDK "surfaces to the
+ * model" — what that becomes on the wire the renderer sees was not measured, and inventing a shape
+ * is how the original was written. B-055 carries the wiring with that contract as its evidence.
+ */
 
 export function formatToolHeader(
   event: AgentToolEvent,
 ): { name?: string; summary?: string } | undefined {
   const active = event.status === 'running' || event.status === 'pending'
   const input = (event.input ?? {}) as Record<string, unknown>
-  const key = inputKey(event)
-  const body = (event as { output?: unknown }).output
-  const vetoed =
-    key !== undefined
-      ? vetoedInputs.has(key)
-      : typeof body === 'string' && body.startsWith(BLOCKED_PREFIX)
-  if (!active && vetoed) {
-    const cmd =
-      typeof input.command === 'string' ? oneLine(input.command) : String(event.name ?? '')
-    return { name: `Blocked ${cmd}`.trim() }
-  }
   return CABECALHOS_POR_TOOL.get(String(event.name))?.(input, active)
 }
 
@@ -92,25 +80,19 @@ export function formatToolResult(
   event: AgentToolEvent,
   rawResult: unknown,
 ): { output: string } | undefined {
-  const veto = vetoReason(rawResult)
-  if (veto !== undefined) {
-    const key = inputKey(event)
-    if (key !== undefined) vetoedInputs.set(key, veto)
-    return { output: `${BLOCKED_PREFIX}${veto}` }
-  }
   const p = parseJsonObject(rawResult)
   if (p === undefined) return undefined
-  return CORPOS_POR_TOOL.get(String(event.name))?.(p)
+  return BODY_BY_TOOL.get(String(event.name))?.(p)
 }
 
-type ResultadoParseado = Record<string, unknown>
+type ParsedResult = Record<string, unknown>
 
-const CORPOS_POR_TOOL: ReadonlyMap<
+const BODY_BY_TOOL: ReadonlyMap<
   string,
-  (p: ResultadoParseado) => { output: string } | undefined
+  (p: ParsedResult) => { output: string } | undefined
 > = new Map([
-  ['interactive_shell', corpoDeTerminal],
-  ['write_stdin', corpoDeTerminal],
+  ['interactive_shell', terminalBody],
+  ['write_stdin', terminalBody],
   [
     'edit_file',
     (p) => {
@@ -155,18 +137,18 @@ const CORPOS_POR_TOOL: ReadonlyMap<
       return { output: lines.length > 0 ? lines.join('\n') : '(no matches)' }
     },
   ],
-  ['update_plan', corpoDePlano],
-  ['run_shell', corpoDeShell],
+  ['update_plan', planBody],
+  ['run_shell', shellBody],
 ])
 
-function corpoDeTerminal(p: ResultadoParseado): { output: string } | undefined {
+function terminalBody(p: ParsedResult): { output: string } | undefined {
   if (p.ok === false) return { output: `error: ${errorText(p)}` }
   return typeof p.output === 'string'
     ? { output: p.output.replace(/\r\n/g, '\n').replace(/\r/g, '') }
     : undefined
 }
 
-function corpoDePlano(p: ResultadoParseado): { output: string } | undefined {
+function planBody(p: ParsedResult): { output: string } | undefined {
   if (p.ok === false || !Array.isArray(p.steps)) return undefined
   const glyph: Record<string, string> = { completed: '✔', in_progress: '▶', pending: '□' }
   const lines = (p.steps as Array<{ step?: unknown; status?: unknown }>).map((s) => {
@@ -178,7 +160,7 @@ function corpoDePlano(p: ResultadoParseado): { output: string } | undefined {
   return { output: lines.join('\n') }
 }
 
-function corpoDeShell(p: ResultadoParseado): { output: string } | undefined {
+function shellBody(p: ParsedResult): { output: string } | undefined {
   if (p.ok === false) return { output: `run_shell: ${errorText(p)}` }
   const body = [p.stdout, p.stderr]
     .map((s) =>

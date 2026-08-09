@@ -8,9 +8,9 @@
  *
  * The codebase already reasoned this through once, for hooks, and wrote down why:
  *
- *   > Uma variável de ambiente que injetasse hooks seria execução arbitrária de código declarada
- *   > fora de qualquer arquivo revisável, contornando a acumulação que impede um projeto de
- *   > deslocar o guard global do usuário.
+ *   > An environment variable injecting hooks would be arbitrary code execution declared outside
+ *   > any reviewable file, bypassing the accumulation that stops a project from displacing the
+ *   > user's global guard.
  *
  * That argument transfers verbatim to these two keys. It was made for hooks and not applied here.
  *

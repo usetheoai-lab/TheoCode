@@ -22,6 +22,8 @@ export interface FooterProps {
   readonly goalBadge: string
   readonly credentialSource: () => string
   readonly lastUsage: { inputTokens: number } | undefined
+  /** B-046 — whether pressing `?` actually does anything right now. */
+  readonly shortcutsAvailable: boolean
 }
 
 export function SessionFooter(props: FooterProps): ReactElement {
@@ -39,15 +41,15 @@ export function SessionFooter(props: FooterProps): ReactElement {
         lastUsage ? (
           <Text>
             {fmtK(lastUsage.inputTokens)}/{fmtK(SESSION.cfg().contextWindow.window)} context
-            {/* M94 — um orçamento de FALLBACK é palpite, e passa a se apresentar como tal.
-                  Sem entrada de catálogo a resolução cai no floor conservador, e mostrá-lo com a
-                  mesma confiança de uma medição fazia o usuário trust num número que o SDK
-                  já rotula como incerto — `source` vem justamente para isso. */}
-            {SESSION.cfg().contextWindow.source === 'fallback' ? ' (estimado)' : ''}
+            {/* M94 — a FALLBACK budget is a guess, and now presents itself as one. With no
+                  catalogue entry the resolution falls to the conservative floor, and showing it with
+                  the same confidence as a measurement made the user trust a number the SDK itself
+                  labels uncertain — which is precisely what `source` is for. */}
+            {SESSION.cfg().contextWindow.source === 'fallback' ? ' (estimated)' : ''}
           </Text>
         ) : undefined
       }
-      hint="? for shortcuts"
+      hint={props.shortcutsAvailable ? '? for shortcuts' : undefined}
     />
   )
 }

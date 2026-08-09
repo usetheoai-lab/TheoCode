@@ -7,8 +7,8 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
   const approvalRequested = args.overrides.some((o) => o.startsWith('approval_policy'))
   if (approvalRequested) {
     process.stderr.write(
-      'ERROR: `-a/--approval` não se aplica ao modo `review`: o reviewer não recebe ferramenta de ' +
-        'escrita (`apply_patch`/`edit_file`), então não há ação a aprovar. Remova a flag.\n',
+      'ERROR: `-a/--approval` does not apply to `review` mode: the reviewer receives no write tool ' +
+        '(`apply_patch`/`edit_file`), so there is no action to approve. Remove the flag.\n',
     )
     process.exit(2)
   }
@@ -46,7 +46,7 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
-        registrarCleanup: shutdown.registerCleanup,
+        registerCleanup: shutdown.registerCleanup,
       }),
     })
     if (args.json) {

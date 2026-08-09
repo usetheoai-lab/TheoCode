@@ -3,7 +3,7 @@ export interface RegistradorDeCleanup {
   registerCleanup: (fn: () => void | Promise<void>) => void
 }
 
-export function maxWaitFrom(watchdogMs: number): number {
+function maxWaitFrom(watchdogMs: number): number {
   return Math.floor(watchdogMs / 2)
 }
 

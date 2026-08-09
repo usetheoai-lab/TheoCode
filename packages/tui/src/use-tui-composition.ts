@@ -19,7 +19,7 @@ import { useAgent } from '@theokit/agents/client/react'
 
 import { homedir } from 'node:os'
 
-import { currentQuestion, subscribe } from '@theocode/agent/ask'
+import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { credentialHome } from '@theocode/agent/auth'
 
 import { useBacktrack } from './backtrack/index.js'
@@ -87,7 +87,7 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
 
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>(undefined)
   useEffect(
-    () => subscribe(() => setPendingQuestion(currentQuestion(currentSessionId()))),
+    () => setListener(() => setPendingQuestion(currentQuestion(currentSessionId()))),
     [currentSessionId],
   )
   const { goalRun, setGoalRun, goalActive, goalBadge } = useGoalRun(s.GOAL_POINTER)
@@ -238,10 +238,32 @@ function useInterrupcaoEBacktrack(d: {
   return backtrack
 }
 
+/**
+ * B-055 — show a hook veto.
+ *
+ * It is invisible on the wire: the SDK surfaces a blocked call as a tool_result with
+ * `isError: false` and the message as content, so the model can self-correct. The terminal cannot
+ * tell a blocked call from a completed one by looking at the result — which is what made B-027's
+ * renderer unreachable — so the signal comes from the veto site instead.
+ */
+function useHookVetoToasts(
+  root: ReturnType<typeof getTuiRoot>,
+  setToast: ReturnType<typeof useScreenState>['setToast'],
+): void {
+  useEffect(() => {
+    root.onHookVeto((veto) => {
+      setToast({ message: `Blocked ${veto.tool} — ${veto.reason}`, variant: 'error' })
+    })
+  }, [root, setToast])
+}
+
 export function useTuiComposition() {
   const s = useTuiSession()
   const { agent, currentSessionId, stdout, streaming } = s
   const screen = useScreenState()
+
+  useHookVetoToasts(s.ROOT, screen.setToast)
+
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
@@ -376,6 +398,10 @@ function footerProps(c: Composition & FooterExtras) {
     goalBadge: c.goalBadge,
     credentialSource: c.credentialSource,
     lastUsage: c.lastUsage,
+    // B-046 — the same condition `input-router.ts` gates `?` on. The footer advertised the shortcut
+    // unconditionally, including while another surface was mounted or the composer had text, when
+    // pressing it does nothing.
+    shortcutsAvailable: c.screen.composerText.trim().length === 0,
   }
 }
 

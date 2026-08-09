@@ -7,6 +7,91 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `npm run crossval` checks that every closed backlog item names a commit which actually touches the code the item is about. It exists because the 2026-08-08 review found an item closed against a commit that never touched the file its own evidence cited — and on its first run it found two more items closed with no commit recorded at all (B-018..B-057)
+
+### Changed
+
+- Running a shell command straight from the composer with `!` is deliberately not implemented, and the reasoning is written down in `docs/adr/0001-shell-shortcut-confinement.md`. The terminal toolkit offers the shortcut, so anyone reading its documentation will expect it here: every command this product runs passes an approval prompt, a sandbox scope and any policy hook, and a composer shortcut has no turn for the approval to attach to — wiring it would mean a second, separate path to running commands on your machine. Ask the agent to run the command instead, or use `/ps` and `/stop` for background shells (B-056)
+
+### Removed
+
+- `@theocode/cli` no longer offers an importable entry point. Importing it ran the command-line interface as a side effect, because the package exported the file that starts it (B-049)
+- An echo-disabled secret reader and a team-member options builder, both of which had no caller and no test. They belong to features that were never built (B-049)
+
+### Security
+
+- A delegated team is confined to the working directory its parent was built for. It resolved its own from the process instead, so a worker could be given write authority over a different tree than the one the caller chose (B-032)
+
+- An `AGENTS.md` import can no longer reach outside the project. Outside a git repository the boundary was the filesystem root, so any file on the machine could be pulled into the agent's instructions; and a symlink inside the project was followed out of it, because containment was checked on the path text rather than on where it actually points (B-042)
+
+### Fixed
+
+- Command descriptions no longer carry milestone identifiers. Ten of them cited milestones this repository has no roadmap for, and the deprecation warning for a trust variable promised removal at one that does not exist (B-046)
+- The configuration error for an untrusted project role points at the environment-knob registry instead of `docs/CONFIGURATION.md`, which was never written (B-046)
+- The footer offers `? for shortcuts` only when pressing it does something (B-046)
+
+- A hook approval that fails to persist leaves the consent gate open and shows a toast. It used to close the gate as if the approval had succeeded, so the hook was never approved, the user was never asked again that session, and the only report went to a log file (B-040)
+
+- Diagnostics that could not be written to the terminal UI's log are counted and reported when the session ends. On a non-writable path the interface ran with every diagnostic dead and nothing said so (B-039)
+- The terminal UI's log is rotated during a long session, not only at startup, so it no longer grows past its cap unbounded (B-039)
+- A malformed `hooks` block is now reported. It disabled the hook consent gate silently, so no hook ran and nothing said why (B-039)
+
+- A clean shutdown exits 0. Ctrl-C, a cleanup that failed, and a cleanup that timed out all returned the same failure code, so nothing wrapping the process could tell them apart (B-045)
+
+- Attaching an image that cannot be read now fails with the same typed error as every other image failure, instead of an untyped one a caller written against the contract would let through (B-051)
+
+- The keyboard help no longer advertises `!` for running a shell command. The shortcut was never wired, so `!npm test` was sent to the model as prose (B-028)
+
+- Esc-rewind works. Arming the ladder read the turn count and previews before they were set, so the overlay drew nothing and a second Esc cancelled instead of stepping back — the feature was unreachable (B-029)
+- The backtrack overlay speaks one language. Its header was in Portuguese while the toast for the same keypress was in English (B-029)
+- A failure after the backtrack fork is now reported instead of becoming an unhandled rejection. The session had already moved, and the terminal said nothing (B-029)
+
+- A custom `THEOCODE_HOME` is now honoured when resolving an `openai-chatgpt/*` credential. That route looked in the default home while every other route looked in the overridden one, so the same credential was found by one and missed by the other (B-034)
+- `ensureAuthHome` no longer writes into the environment it was given. Asking where the auth home is had the side effect of changing the caller's environment (B-034)
+
+- A caller that resolves configuration from an explicit environment now gets its trust decision from that same environment. The seam existed but was unreachable, so a single run could take the posture from the ambient environment and the configuration from an injected one (B-033)
+
+- A session pointer that cannot be written degrades with a diagnostic instead of terminating the terminal UI. Three of the five paths that write it — `/new`, `/clear`, `/fork`, the Esc interrupt and the backtrack confirm — were still unprotected (B-031)
+
+- A pasted API key is no longer submitted with its trailing newline. The credential was stored as-is and authentication failed later with a provider message that said nothing about whitespace (B-047)
+
+- Setting a second listener on the ask bridge now fails with a typed error instead of silently replacing the first. A surface could stop receiving questions with no error and no warning (B-035)
+
+### Removed
+
+- The `Blocked <command>` marker in the tool header. It could never appear: it keyed on an exit code this product does not emit, so it read as protection while providing none. A hook veto is still invisible in the terminal, which is now tracked openly rather than disguised by dead code (B-027)
+
+### Fixed
+
+- `-C/--cd` now selects the directory whose `.env` is loaded. The project environment was read before the working directory changed, so it came from the directory the user was leaving (B-026)
+
+- `theocode --help` prints the usage text and exits successfully. It used to be reachable only by triggering an error, so asking for help returned a failure and a complaint about a mistake the user had not made (B-023)
+- `theocode review --uncommitted` now reviews the uncommitted changes. The flag was parsed and checked for conflicts with `--base`/`--commit`, then never read, so it selected nothing (B-023)
+- `--last`, `-m/--model` and `-o/--output-last-message` are now rejected on the commands that cannot honour them, instead of being accepted and ignored (B-023)
+
+- The CLI usage text no longer teaches an `exec` subcommand that does not exist. Every documented invocation (`sessions gc`, `review`, `goal`, `resume`) was written with a prefix the parser does not route, so following the help text sent the whole command to the model as a prompt — starting a billable turn instead of running the command (B-022)
+
+- A hook scoped with a `matcher` no longer runs against a tool result that carries no tool name. The matcher is a tool-name scope, and a hook written for `run_shell` was running with an empty one (B-021)
+
+
+- The session collector no longer treats "I could not check" as "it is gone". A directory it cannot read, a working directory it cannot stat, and a transcript whose timestamp it cannot read now each leave the project untouched instead of clearing every retention guard (B-020)
+- `--keep-last` now applies to projects whose working directory no longer exists — the only projects the collector actually deletes from. It previously had no effect there (B-020)
+- A collector run that could not list any project reports the failure instead of "nothing to collect" (B-020)
+
+### Changed
+
+- Every message the product shows is in English. Ninety-two strings were in Portuguese, among them the login and goal toasts, the background-shell summary, the config and delegation errors, and the deprecation warning for a trust environment variable (B-052)
+
+### Security
+
+- The set of pre-approved hook commands is now read through the same permission check as directory trust. It had its own reader, so a consent store any other local user could write was refused for the cheaper decision and accepted for the one that authorises command execution (B-019)
+
+### Added
+
+- **TheoCode:** backlog B-019..B-051 — 33 maintenance items covering all 78 actionable findings of the 2026-08-08 `packages/` review; 11 of them reopen an item closed on 2026-08-07 whose Definition-of-done bullet the code never satisfied, including the review's single `critical` finding (B-019)
+
 ### Changed
 
 - The tool-registry error bridge now states that it is temporary and what removes it: the upstream defect it works around is fixed and awaiting release (B-016)

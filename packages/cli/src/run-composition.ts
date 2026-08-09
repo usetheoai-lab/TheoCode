@@ -1,6 +1,6 @@
 import { resolveSandboxPosture } from '@theokit/agents/sandbox'
 
-import type { OverridesDeCli } from './runtime/index.js'
+import type { CliOverrides } from './runtime/index.js'
 
 import { buildChatAgent } from '@theocode/agent'
 import {
@@ -11,6 +11,15 @@ import {
   type EffectiveConfig,
 } from '@theocode/agent/config'
 
+/**
+ * B-024 — the injection points for composition, exercised by `run-composition.test.ts`.
+ *
+ * The single production caller passes none of these, which is why the item flagged them as a dead
+ * seam. They are kept rather than deleted because they are the ONLY way to compose against a
+ * throwaway trust store and directory instead of the developer's real `~/.theokit` — a test that
+ * reads the real store answers differently on every machine. `baseInstructions` was deleted with
+ * this change: no caller could supply it, and unlike these it bought nothing back.
+ */
 export interface CompositionSeams {
   readonly cwd?: string
   readonly store?: string
@@ -26,21 +35,23 @@ export interface RunComposition {
 
 export function composeRun(
   args: {
-    readonly overrides: OverridesDeCli
+    readonly overrides: CliOverrides
     readonly model?: string
-    readonly baseInstructions?: string
   },
   seams: CompositionSeams = {},
 ): RunComposition {
   const cwd = seams.cwd ?? process.cwd()
   const store = seams.store ?? TRUST_STORE
 
-  const posture = resolveTrustPosture(cwd, store)
+  // B-033 — the same environment that feeds config resolution below. These used to be two
+  // sources in one run: the posture from the ambient environment, the config from `seams.env`.
+  const env = seams.env ?? process.env
+  const posture = resolveTrustPosture(cwd, store, env)
   const cfg = resolveEffectiveConfig({
     cwd,
     store,
     ...(seams.userDir !== undefined ? { userDir: seams.userDir } : {}),
-    ...(seams.env !== undefined ? { env: seams.env } : {}),
+    env,
     cli: args.overrides,
   })
 
@@ -61,7 +72,6 @@ export function composeRun(
         config: cfg,
         posture,
         ...(args.model !== undefined ? { model: args.model } : {}),
-        ...(args.baseInstructions !== undefined ? { baseInstructions: args.baseInstructions } : {}),
       }),
     },
   }

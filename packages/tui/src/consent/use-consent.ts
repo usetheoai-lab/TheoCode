@@ -18,6 +18,7 @@ import {
   type ConsentState,
 } from './consent-state.js'
 import { computePendingHooks } from './hook-consent.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface Consent {
   readonly trusted: boolean
@@ -27,19 +28,24 @@ export interface Consent {
   readonly trust: () => void
   readonly distrust: () => void
 
-  readonly aprovarHook: (spec: unknown, aoFalhar: (error: Error) => void) => void
+  /**
+   * B-040 — returns a promise so the caller can sequence on it. It used to take an on-failure
+   * callback, which let the gate run `markReviewed()` synchronously while the persist was still in
+   * flight and close as if it had succeeded.
+   */
+  readonly approveHookConsent: (spec: unknown) => Promise<void>
   readonly refuseHook: (fingerprint: string) => void
   readonly markReviewed: () => void
 }
 
-export function useConsent(cwd: string = process.cwd()): Consent {
+export function useConsent(cwd: string = workingDirectory()): Consent {
   const [state, setState] = useState<ConsentState>(() =>
     initialState(resolveTrustPosture(cwd).level === 'trusted'),
   )
-  const { trusted, hooksRevisados, recusados, epoca } = state
+  const { trusted, hooksRevisados, recusados, epoch } = state
 
   const pendingHooks = useMemo(() => {
-    void epoca
+    void epoch
     return computePendingHooks({
       cwd,
       declined: recusados,
@@ -49,17 +55,12 @@ export function useConsent(cwd: string = process.cwd()): Consent {
       classifyHooks,
       onError: (err) => process.stderr.write(`[hooks] consent check failed: ${String(err)}\n`),
     })
-  }, [cwd, recusados, epoca])
+  }, [cwd, recusados, epoch])
 
-  const aprovarHook = useCallback(
-    (spec: unknown, aoFalhar: (error: Error) => void): void => {
-      void approveHook(cwd, spec as Parameters<typeof approveHook>[1])
-        .then(() => {
-          setState(persistedApproval)
-        })
-        .catch((err: unknown) => {
-          aoFalhar(err as Error)
-        })
+  const approveHookConsent = useCallback(
+    async (spec: unknown): Promise<void> => {
+      await approveHook(cwd, spec as Parameters<typeof approveHook>[1])
+      setState(persistedApproval)
     },
     [cwd],
   )
@@ -74,9 +75,9 @@ export function useConsent(cwd: string = process.cwd()): Consent {
     distrust: useCallback(() => {
       setState(distrustInState)
     }, []),
-    aprovarHook,
+    approveHookConsent,
     refuseHook: useCallback((fingerprint: string) => {
-      setState((atual) => refuseHookInState(atual, fingerprint))
+      setState((current) => refuseHookInState(current, fingerprint))
     }, []),
     markReviewed: useCallback(() => {
       setState(markReviewedInState)

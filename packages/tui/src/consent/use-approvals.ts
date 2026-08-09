@@ -12,7 +12,7 @@ import {
 
 interface AgentWithApproval {
   thread: Parameters<typeof ingest>[1]
-  approve: (approvalId: string, decisao: { approved: boolean }) => unknown
+  approve: (approvalId: string, decision: { approved: boolean }) => unknown
 }
 
 export interface Approvals {
@@ -34,14 +34,14 @@ export function useApprovals(
     return findNextApproval(registry.current)
   }, [agent.thread, epoch])
 
-  const aprovar = agent.approve
+  const approve = agent.approve
   const settleApproval = useCallback(
     (approvalId: string, approved: boolean): void => {
       settle(registry.current, approvalId)
       setEpoch((n) => n + 1)
-      void aprovar(approvalId, { approved })
+      void approve(approvalId, { approved })
     },
-    [aprovar],
+    [approve],
   )
 
   useEffect(() => {

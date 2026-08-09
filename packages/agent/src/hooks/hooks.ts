@@ -16,15 +16,15 @@ const DEFAULT_TIMEOUT_MS = 5_000
 
 const MAX_HOOK_CHAIN_MS = 4 * DEFAULT_TIMEOUT_MS
 
-const PISO_DE_SPAWN_MS = 50
+const SPAWN_FLOOR_MS = 50
 
 export type BudgetDecision =
-  | { readonly kind: 'executa'; readonly effectiveTimeout: number }
-  | { readonly kind: 'estourou'; readonly restante: number }
+  | { readonly kind: 'run'; readonly effectiveTimeout: number }
+  | { readonly kind: 'exceeded'; readonly remaining: number }
 
-export function decideBudget(restante: number, timeoutDoHook: number): BudgetDecision {
-  if (restante < PISO_DE_SPAWN_MS) return { kind: 'estourou', restante }
-  return { kind: 'executa', effectiveTimeout: Math.min(timeoutDoHook, restante) }
+function decideBudget(remaining: number, timeoutDoHook: number): BudgetDecision {
+  if (remaining < SPAWN_FLOOR_MS) return { kind: 'exceeded', remaining }
+  return { kind: 'run', effectiveTimeout: Math.min(timeoutDoHook, remaining) }
 }
 
 const hookSchema = z
@@ -104,7 +104,7 @@ function capped(text: string): string {
     : `${text.slice(0, MAX_FEEDBACK_CHARS)}\n[truncated at ${MAX_FEEDBACK_CHARS} characters]`
 }
 
-function contextoCercado(spec: HookSpec, obj: Record<string, unknown>): string | undefined {
+function fencedContext(spec: HookSpec, obj: Record<string, unknown>): string | undefined {
   const extra = (obj.hookSpecificOutput as Record<string, unknown> | undefined)?.additionalContext
   if (typeof extra !== 'string' || extra.length === 0) return undefined
   const nonce = randomBytes(6).toString('hex')
@@ -116,7 +116,7 @@ function contextoCercado(spec: HookSpec, obj: Record<string, unknown>): string |
   return `<hook_output id="${nonce}" hook="${hookLabel(spec)}">\n${body}\n</hook_output id="${nonce}">`
 }
 
-function envelopeJson(spec: HookSpec, text: string): Record<string, unknown> | undefined {
+function jsonEnvelope(spec: HookSpec, text: string): Record<string, unknown> | undefined {
   if (text.length === 0) return undefined
   let parsed: unknown
   try {
@@ -134,11 +134,11 @@ function parseFeedback(spec: HookSpec, run: HookRun): HookFeedback | undefined {
   if (!run.ok && !run.timedOut && text.length > 0 && !text.startsWith('{')) {
     return { block: true, feedback: capped(text) }
   }
-  const obj = envelopeJson(spec, text)
+  const obj = jsonEnvelope(spec, text)
   if (obj === undefined) return undefined
   const out: HookFeedback = {}
-  const cercado = contextoCercado(spec, obj)
-  if (cercado !== undefined) out.additionalContext = cercado
+  const fenced = fencedContext(spec, obj)
+  if (fenced !== undefined) out.additionalContext = fenced
   if (obj.decision === 'block') {
     out.block = true
     if (typeof obj.reason === 'string') out.feedback = capped(obj.reason)
@@ -146,9 +146,19 @@ function parseFeedback(spec: HookSpec, run: HookRun): HookFeedback | undefined {
   return Object.keys(out).length > 0 ? out : undefined
 }
 
+/**
+ * B-021 — a matcher is a TOOL-NAME scope, so a context with no tool name is outside it.
+ *
+ * `toolName === ''` is reached deliberately: `targetOf` passes it for a PostToolUse result that is a
+ * plain string rather than an array of tool parts, and there is no name to match. The branch used to
+ * return true for EVERY spec, so a hook declared as `matcher: "^run_shell$"` ran its command in a
+ * context its author never scoped it to, with an empty tool name.
+ *
+ * A hook that declared NO matcher still applies — that is the first line, and the fix must not reach
+ * it. Deleting the branch is the whole change.
+ */
 function appliesTo(spec: HookSpec, toolName: string): boolean {
   if (spec.matcher === undefined) return true
-  if (toolName === '') return true
   return new RegExp(`^(?:${spec.matcher})$`).test(toolName)
 }
 
@@ -165,65 +175,83 @@ interface ToolResultTurnContext {
 interface Target {
   indice: number
   name: string
+  /** B-044 — the tool call's own arguments, so a PostToolUse hook receives what actually ran. */
+  args: Record<string, unknown>
 }
 
 class Lote {
   #anexado = 0
 
   private constructor(
-    private readonly partes: Array<{ toolUseId?: string; content?: unknown }> | undefined,
+    private readonly parts: Array<{ toolUseId?: string; content?: unknown }> | undefined,
     private readonly nameById: ReadonlyMap<string, string>,
+    private readonly argsById: ReadonlyMap<string, Record<string, unknown>>,
     private text: string | undefined,
   ) {}
 
-  static de(results: unknown, nameById: ReadonlyMap<string, string>): Lote {
+  static de(
+    results: unknown,
+    nameById: ReadonlyMap<string, string>,
+    argsById: ReadonlyMap<string, Record<string, unknown>> = new Map(),
+  ): Lote {
     return Array.isArray(results)
       ? new Lote(
           [...(results as Array<{ toolUseId?: string; content?: unknown }>)],
           nameById,
+          argsById,
           undefined,
         )
-      : new Lote(undefined, nameById, typeof results === 'string' ? results : undefined)
+      : new Lote(
+          undefined,
+          nameById,
+          argsById,
+          typeof results === 'string' ? results : undefined,
+        )
   }
 
   targetOf(spec: HookSpec): Target | undefined {
-    if (this.partes === undefined) {
-      return this.text !== undefined && appliesTo(spec, '') ? { indice: -1, name: '' } : undefined
+    if (this.parts === undefined) {
+      return this.text !== undefined && appliesTo(spec, '')
+        ? { indice: -1, name: '', args: {} }
+        : undefined
     }
     let escolhido: Target | undefined
-    for (const [i, parte] of this.partes.entries()) {
-      const name = this.nameById.get(parte.toolUseId ?? '') ?? ''
+    for (const [i, parte] of this.parts.entries()) {
+      const id = parte.toolUseId ?? ''
+      const name = this.nameById.get(id) ?? ''
       if (!appliesTo(spec, name)) continue
-      if (typeof parte.content === 'string') escolhido = { indice: i, name }
+      if (typeof parte.content === 'string') {
+        escolhido = { indice: i, name, args: this.argsById.get(id) ?? {} }
+      }
     }
     return escolhido
   }
 
-  exceedsBudget(trecho: string): boolean {
-    return this.#anexado + trecho.length > MAX_FEEDBACK_TOTAL_CHARS
+  exceedsBudget(snippet: string): boolean {
+    return this.#anexado + snippet.length > MAX_FEEDBACK_TOTAL_CHARS
   }
 
-  truncar(trecho: string): string {
+  truncate(snippet: string): string {
     const resta = Math.max(0, MAX_FEEDBACK_TOTAL_CHARS - this.#anexado)
-    return `${trecho.slice(0, resta)}\n[hook feedback truncated at ${MAX_FEEDBACK_TOTAL_CHARS} characters in aggregate]`
+    return `${snippet.slice(0, resta)}\n[hook feedback truncated at ${MAX_FEEDBACK_TOTAL_CHARS} characters in aggregate]`
   }
 
-  anexar(target: Target, trecho: string): void {
-    this.#anexado += trecho.length
-    if (this.partes === undefined) {
-      this.text = `${this.text ?? ''}${trecho}`
+  append(target: Target, snippet: string): void {
+    this.#anexado += snippet.length
+    if (this.parts === undefined) {
+      this.text = `${this.text ?? ''}${snippet}`
       return
     }
-    const parte = this.partes[target.indice]
+    const parte = this.parts[target.indice]
     if (parte === undefined || typeof parte.content !== 'string') {
       note('hook feedback dropped: no tool result carried string content to attach it to')
       return
     }
-    this.partes[target.indice] = { ...parte, content: `${parte.content}${trecho}` }
+    this.parts[target.indice] = { ...parte, content: `${parte.content}${snippet}` }
   }
 
-  resultado(): unknown {
-    return this.partes ?? this.text
+  result(): unknown {
+    return this.parts ?? this.text
   }
 }
 
@@ -249,7 +277,7 @@ function chainBudgetBlock(name: string, spec: HookSpec): { block: true; message:
   }
 }
 
-function bloqueioPorPolitica(
+function policyBlock(
   name: string,
   spec: HookSpec,
   run: HookRun,
@@ -269,40 +297,49 @@ function bloqueioPorPolitica(
 async function vetoDePreToolUse(
   pre: readonly HookSpec[],
   ctx: { name?: string; args?: Record<string, unknown> },
+  onVeto?: (veto: { tool: string; reason: string }) => void,
 ) {
+  const announce = <T extends { message: string }>(block: T, tool: string): T => {
+    onVeto?.({ tool, reason: block.message })
+    return block
+  }
   const name = ctx.name ?? ''
-  const prazo = Date.now() + MAX_HOOK_CHAIN_MS
+  const deadline = Date.now() + MAX_HOOK_CHAIN_MS
   for (const spec of pre) {
     if (!appliesTo(spec, name)) continue
-    const decisao = decideBudget(prazo - Date.now(), spec.timeout_ms)
-    if (decisao.kind === 'estourou') {
-      return chainBudgetBlock(name, spec)
+    const decision = decideBudget(deadline - Date.now(), spec.timeout_ms)
+    if (decision.kind === 'exceeded') {
+      return announce(chainBudgetBlock(name, spec), name)
     }
     const run = await runHookCommand(
-      { ...spec, timeout_ms: decisao.effectiveTimeout },
+      { ...spec, timeout_ms: decision.effectiveTimeout },
       { name, args: ctx.args ?? {} },
     )
     if (!run.ok) {
-      if (run.timedOut && decisao.effectiveTimeout < spec.timeout_ms) {
-        return chainBudgetBlock(name, spec)
+      if (run.timedOut && decision.effectiveTimeout < spec.timeout_ms) {
+        return announce(chainBudgetBlock(name, spec), name)
       }
-      return bloqueioPorPolitica(name, spec, run)
+      return announce(policyBlock(name, spec, run), name)
     }
   }
   return undefined
 }
 
-async function anexarFeedbackDeUmHook(
+async function appendOneHookFeedback(
   spec: HookSpec,
   target: NonNullable<ReturnType<Lote['targetOf']>>,
   results: unknown,
-  lote: Lote,
+  batch: Lote,
   budget: ContinuationBudget,
 ): Promise<boolean> {
   const run = await runHookCommand(spec, {
     event: 'PostToolUse',
     name: target.name,
-    args: {},
+    // B-044 — the tool's real arguments. This was a hardcoded `{}`, so a PostToolUse hook could see
+    // WHICH tool ran and its result but never what it was called with. The args were available all
+    // along: `ToolCallSummary` carries them and `transformResult` was already reading the same
+    // array to build its name map.
+    args: target.args,
     result: results,
   })
   const fb = parseFeedback(spec, run)
@@ -316,27 +353,35 @@ async function anexarFeedbackDeUmHook(
     return false
   }
   if (fb.block === true && !budget.request(spec.command)) return false
-  let trecho = ''
-  if (fb.additionalContext !== undefined) trecho += `\n${fb.additionalContext}`
-  if (fb.feedback !== undefined) trecho += `\n${fb.feedback}`
-  if (trecho.length === 0) return false
-  if (lote.exceedsBudget(trecho)) {
-    lote.anexar(target, lote.truncar(trecho))
+  let snippet = ''
+  if (fb.additionalContext !== undefined) snippet += `\n${fb.additionalContext}`
+  if (fb.feedback !== undefined) snippet += `\n${fb.feedback}`
+  if (snippet.length === 0) return false
+  if (batch.exceedsBudget(snippet)) {
+    batch.append(target, batch.truncate(snippet))
     note(
       `aggregate hook feedback exceeded ${String(MAX_FEEDBACK_TOTAL_CHARS)} characters; later hooks were dropped`,
     )
     return true
   }
-  lote.anexar(target, trecho)
+  batch.append(target, snippet)
   return false
 }
 
-function cargaDoEvento(event: HookEvent, tool: ToolContext): Record<string, unknown> {
-  if (event !== 'PostToolUse') return { event }
-  return { event, name: tool.name ?? '', args: tool.args ?? {}, result: tool.result }
+/**
+ * B-044 — the payload for the OBSERVATIONAL events (`Stop`, `SessionStart`), which carry no tool.
+ *
+ * This used to branch on `PostToolUse` and build a `{name, args, result}` payload for it. That
+ * branch was unreachable: PostToolUse hooks run through `transform_tool_result`, never through
+ * `fireObservational`, which is this function's only caller. Meanwhile the reachable
+ * PostToolUse path passed a hardcoded `args: {}` — so the code that would have supplied the
+ * arguments was dead, and the code that ran did not have them.
+ */
+function eventPayload(event: HookEvent): Record<string, unknown> {
+  return { event }
 }
 
-async function dispararObservacionais(
+async function fireObservational(
   event: HookEvent,
   list: readonly HookSpec[],
   ctx: unknown,
@@ -344,7 +389,7 @@ async function dispararObservacionais(
   const tool = (ctx ?? {}) as ToolContext
   for (const spec of list) {
     if (event === 'PostToolUse' && !appliesTo(spec, tool.name ?? '')) continue
-    const payload = cargaDoEvento(event, tool)
+    const payload = eventPayload(event)
     try {
       const run = await runHookCommand(spec, payload)
       if (!run.ok) note(`${event} hook failed (ignored): ${spec.command} — ${run.output}`)
@@ -354,7 +399,7 @@ async function dispararObservacionais(
   }
 }
 
-async function transformarResultado<T>(
+async function transformResult<T>(
   allPost: readonly HookSpec[],
   results: T,
   ctx: ToolResultTurnContext,
@@ -362,23 +407,44 @@ async function transformarResultado<T>(
   const budget = new ContinuationBudget()
   const turn = (ctx ?? {}) as ToolResultTurnContext
   const nameById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.name]))
-  const lote = Lote.de(results, nameById)
+  const argsById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.args ?? {}]))
+  const batch = Lote.de(results, nameById, argsById)
 
   for (const spec of allPost) {
-    const target = lote.targetOf(spec)
+    const target = batch.targetOf(spec)
     if (target === undefined) continue
     try {
-      if (await anexarFeedbackDeUmHook(spec, target, results, lote, budget)) break
+      if (await appendOneHookFeedback(spec, target, results, batch, budget)) break
     } catch (err) {
       note(`PostToolUse hook errored (ignored): ${spec.command} — ${String(err)}`)
     }
   }
-  return lote.resultado() as T
+  return batch.result() as T
 }
 
 export function buildHookHandlers(
   specs: readonly HookSpec[],
-  opts: { trusted: boolean; approved?: ReadonlySet<string> },
+  // B-021 — `approved` is REQUIRED. It used to be optional, and the absent-value branch installed
+  // every parsed spec with no sha256 fingerprint check — the gate B-008 exists to enforce, disabled
+  // by omission and typechecking cleanly. Fail-safe defaults: the default is the denial.
+  opts: {
+    trusted: boolean
+    approved: ReadonlySet<string>
+    /**
+     * B-055 — called when a PreToolUse hook VETOES a tool call, so a surface can say so.
+     *
+     * The signal has to travel from HERE. Measured against the SDK's own declaration: a veto makes
+     * the loop "surface a tool_result with `isError: false, content: message` so the LLM can
+     * self-correct" (`@theokit/sdk` D101). On the wire a blocked call is therefore indistinguishable
+     * from a successful one — deliberately, for the model's benefit — which is why B-027 deleted a
+     * renderer that tried to recognise it there, and why reverse-engineering it would mean coupling
+     * on a message string the SDK is free to reshape.
+     *
+     * Optional because a headless surface has nobody to tell. That is not a security default: the
+     * veto still blocks, this only decides whether anyone is shown it.
+     */
+    onVeto?: (veto: { tool: string; reason: string }) => void
+  },
 ): HookHandlers {
   if (!opts.trusted) {
     if (specs.length > 0) {
@@ -387,24 +453,21 @@ export function buildHookHandlers(
     return {}
   }
 
-  const permitted =
-    opts.approved === undefined
-      ? specs
-      : specs.filter((s) => opts.approved!.has(hookFingerprint(s)))
+  const permitted = specs.filter((s) => opts.approved.has(hookFingerprint(s)))
 
   const by = (event: HookEvent): HookSpec[] => permitted.filter((s) => s.event === event)
   const handlers: HookHandlers = {}
 
   const pre = by('PreToolUse')
   if (pre.length > 0) {
-    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx)
+    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx, opts.onVeto)
   }
 
   const allPost = by('PostToolUse')
 
   if (allPost.length > 0) {
     handlers.transform_tool_result = <T>(results: T, ctx: ToolResultTurnContext): Promise<T> =>
-      transformarResultado(allPost, results, ctx)
+      transformResult(allPost, results, ctx)
   }
 
   const observational: Array<[HookEvent, keyof HookHandlers]> = [
@@ -414,7 +477,7 @@ export function buildHookHandlers(
   for (const [event, key] of observational) {
     const list = by(event)
     if (list.length === 0) continue
-    const fire = (ctx: unknown): Promise<void> => dispararObservacionais(event, list, ctx)
+    const fire = (ctx: unknown): Promise<void> => fireObservational(event, list, ctx)
     if (key === 'post_assistant_reply') handlers.post_assistant_reply = fire
     else if (key === 'on_session_start') handlers.on_session_start = fire
   }

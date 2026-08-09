@@ -13,12 +13,12 @@ import { loadCustomCommands } from '../commands/index.js'
 import { forkCurrentSessionWith } from '../persistence/index.js'
 import { createTuiSession, type TuiSession } from './tui-session.js'
 import { persistSessionId } from '../persistence/index.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface TuiRoot {
   readonly session: TuiSession
   readonly ptyOwner: ReturnType<typeof createSessionPtyOwner>
   readonly transport: ReturnType<typeof createChatTransport>
-  readonly initialPosture: ReturnType<typeof resolveTrustPosture>
   readonly sessionPointer: string
   readonly goalPointer: string
   readonly resumeOnStartup: boolean
@@ -27,15 +27,47 @@ export interface TuiRoot {
   readonly resetSession: () => void
   readonly sessionFork: () => { newId: string; copied: boolean }
   readonly pointToSession: (id: string) => void
+  /** B-055 — install the surface's veto renderer; queued vetoes are replayed into it. */
+  readonly onHookVeto: (listen: (veto: { tool: string; reason: string }) => void) => void
+}
+
+interface HookVeto {
+  tool: string
+  reason: string
+}
+
+/**
+ * B-055 — holds vetoes until the surface has somewhere to show them.
+ *
+ * The agent is composed before the terminal has a toast, so a hook that blocks during startup would
+ * otherwise be announced to nobody. Queueing is the difference between a signal that exists and one
+ * the user actually sees.
+ */
+function createVetoRelay(): {
+  emit: (veto: HookVeto) => void
+  install: (listen: (veto: HookVeto) => void) => void
+} {
+  const queued: HookVeto[] = []
+  let listener: ((veto: HookVeto) => void) | undefined
+  return {
+    emit: (veto) => (listener === undefined ? queued.push(veto) : listener(veto)),
+    install: (listen) => {
+      listener = listen
+      for (const v of queued.splice(0)) listen(v)
+    },
+  }
 }
 
 function build(): TuiRoot {
-  const cwd = process.cwd()
+  const cwd = workingDirectory()
   const sessionPointer = join(cwd, '.theokit', 'tui-session')
   const resumeOnStartup = existsSync(sessionPointer)
 
   const session = createTuiSession({ cwd, sessionPointer })
 
+  // B-032 — resolved ONCE here and consumed locally. It used to be exposed on `TuiRoot` as well,
+  // where nothing read it: a seam built for the injected-directory work that never gained a
+  // consumer, and therefore read as though the TUI honoured an injected posture when it does not.
   const initialPosture = resolveTrustPosture(cwd)
 
   const ptyOwner = createSessionPtyOwner({
@@ -50,7 +82,10 @@ function build(): TuiRoot {
     warn: (m) => process.stderr.write(`${m}\n`),
   })
 
+  const vetoRelay = createVetoRelay()
+
   const transport = createChatTransport({
+    onHookVeto: vetoRelay.emit,
     getEffort: () => session.effort(),
     getSessionId: () => session.session(),
     getSessionPty: () => ptyOwner,
@@ -63,8 +98,8 @@ function build(): TuiRoot {
     session,
     ptyOwner,
     transport,
-    initialPosture,
     sessionPointer,
+    onHookVeto: vetoRelay.install,
     goalPointer: join(cwd, '.theokit', 'tui-goal.json'),
     resumeOnStartup,
     customCommands,

@@ -10,7 +10,7 @@ import type { GoalRunState } from './goal.js'
 export interface SessionTheInterpreterUses {
   anexarImagens: (imagens: AttachedImage[] | undefined) => void
   effort: () => ReasoningEffort
-  setEffort: (nivel: ReasoningEffort) => void
+  setEffort: (level: ReasoningEffort) => void
   cfg: () => { modelLabel: string; sandboxLabel: string }
   sessionModel: () => string | undefined
   setSessionModel: (model: string) => void

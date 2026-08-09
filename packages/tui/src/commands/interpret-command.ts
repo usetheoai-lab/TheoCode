@@ -29,7 +29,7 @@ import type {
   SteeringCapabilities,
 } from './command-capabilities.js'
 import {
-  PEDIDO_DE_AGENTS_MD,
+  AGENTS_MD_REQUEST,
   sendMessage,
   diffPanel,
   statusPanel,
@@ -38,6 +38,7 @@ import {
 import { handleGoalVerb } from './goal.js'
 import { runReviewCommand } from './review.js'
 import type { CommandAction } from './registry.js'
+import { workingDirectory } from '../working-directory.js'
 
 export function interpretCommand(
   action: CommandAction,
@@ -205,15 +206,15 @@ function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilit
       return true
     }
     case 'initAgents': {
-      if (existsSync(join(process.cwd(), 'AGENTS.md'))) {
+      if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
         setToast({
           message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
           variant: 'info',
         })
         return true
       }
-      agent.send({ message: PEDIDO_DE_AGENTS_MD })
-      lastSentMessage.current = PEDIDO_DE_AGENTS_MD
+      agent.send({ message: AGENTS_MD_REQUEST })
+      lastSentMessage.current = AGENTS_MD_REQUEST
       return true
     }
     case 'showDiff': {
@@ -245,21 +246,21 @@ function shells(action: CommandAction, _text: string, cap: ShellCapabilities): b
       setToast({
         message:
           n === 0
-            ? 'Nenhuma sessão de shell em background'
-            : `${String(n)} sessão(ões) de shell em background — /stop encerra todas`,
+            ? 'No background shell sessions'
+            : `${String(n)} background shell session(s) — /stop ends all of them`,
         variant: 'info',
       })
       return true
     }
     case 'stopPtys': {
-      const antes = ptyOwner.backend().activeSessionCount()
+      const before = ptyOwner.backend().activeSessionCount()
       ptyOwner.backend().killAll()
       setToast({
         message:
-          antes === 0
-            ? 'Nada a parar — nenhuma sessão em background'
-            : `${String(antes)} sessão(ões) de shell encerrada(s)`,
-        variant: antes === 0 ? 'info' : 'success',
+          before === 0
+            ? 'Nothing to stop — no background sessions'
+            : `${String(before)} background shell session(s) ended`,
+        variant: before === 0 ? 'info' : 'success',
       })
       return true
     }

@@ -14,7 +14,7 @@ import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theocode/shared/shutdown'
 import { resolveSessionId } from '../runtime/index.js'
 
-function lerPrompt(args: ExecRun): string {
+function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
     const lido = readFileSync(0, 'utf8').trim()
     if (lido.length === 0) {
@@ -38,11 +38,11 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
 }
 
 export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<void> {
-  const prompt = lerPrompt(args)
+  const prompt = readPrompt(args)
 
   const { streamAgentTurnInProcess } = await import('@theokit/agents')
   const { composeRun } = await import('../run-composition.js')
-  const { policy: politicaHeadless, mod } = composeRun({ ...args })
+  const { policy: headlessPolicy, mod } = composeRun({ ...args })
   const { resolveCredentialForModel } = await import('@theocode/agent/auth')
   const cred = await resolveCredentialForModel(args.model, { env: process.env, home: homedir() })
   const sessionId = idDisponivelOuFork(await resolveSessionId(args), process.cwd())
@@ -58,7 +58,7 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
       streamAgentTurnInProcess(mod, cred.apiKey, {
         message: prompt,
         sessionId: sessionId,
-        awaitApproval: async () => politicaHeadless,
+        awaitApproval: async () => headlessPolicy,
       }) as AsyncIterable<unknown>
     await consumirComForkSeOcupada(
       sessionId,

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 const MAX_CHARS = 64_000
@@ -14,8 +14,25 @@ function maskCodeSpans(text: string): string {
     .replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length))
 }
 
+/**
+ * B-042 — containment is checked on the REAL path, after symlinks.
+ *
+ * This compared `relative()` on a path built with `resolve()`, which does not follow symlinks. A
+ * link inside the project pointing anywhere on the filesystem passed the check as a string, and the
+ * read then followed it out — into the agent's system prompt, from a repository that may be
+ * untrusted.
+ */
 function insideRoot(target: string, rootDir: string): boolean {
-  const rel = relative(rootDir, target)
+  let real: string
+  let realRoot: string
+  try {
+    real = realpathSync(target)
+    realRoot = realpathSync(rootDir)
+  } catch {
+    // A path we cannot resolve is a path we cannot vouch for.
+    return false
+  }
+  const rel = relative(realRoot, real)
   return rel !== '' && !rel.startsWith('..') && !rel.includes('..')
 }
 
@@ -27,6 +44,12 @@ function expandableTarget(
   warn: WarnFn,
 ): string | undefined {
   const target = name.startsWith('~/') ? name : resolve(dirname(filePath), name)
+  // The existence check moved ABOVE the containment check: `insideRoot` resolves symlinks, and a
+  // path that is not there cannot be resolved.
+  if (!name.startsWith('~/') && !existsSync(target)) {
+    warn(`[agents-md] ${filePath}: import @${name} not found — kept literal`)
+    return undefined
+  }
   if (name.startsWith('~/') || !insideRoot(target, rootDir)) {
     warn(
       `[agents-md] ${filePath}: import @${name} resolves outside the project root — kept literal`,
@@ -34,10 +57,6 @@ function expandableTarget(
     return undefined
   }
   if (visited.has(target)) return undefined
-  if (!existsSync(target)) {
-    warn(`[agents-md] ${filePath}: import @${name} not found — kept literal`)
-    return undefined
-  }
   return target
 }
 
@@ -99,7 +118,11 @@ export function loadAgentsMd(
     }
     const parent = dirname(dir)
     if (parent === dir) {
-      rootDir = dir
+      // B-042 — reaching the FILESYSTEM ROOT used to set `rootDir = '/'`, which makes
+      // `insideRoot(anything, '/')` true: outside a git repository the confinement did not merely
+      // stop working, it permitted reading any file on the machine into the system prompt. With no
+      // repository to bound it, the project IS the working directory.
+      rootDir = cwd
       break
     }
     dir = parent
@@ -179,55 +202,55 @@ function withinBudget(
 
   if (total() > opts.maxChars) {
     const { rules, agentsMd } = separarProjectDoc(doc)
-    const cortadoRules = trimBlocksFromStart(
+    const truncatedRules = trimBlocksFromStart(
       rules,
       Math.max(0, rules.length - (total() - opts.maxChars)),
     )
-    if (cortadoRules.length !== rules.length) {
+    if (truncatedRules.length !== rules.length) {
       opts.warn(
-        `[instructions] fonte 'rules' cortada de ${String(rules.length)} para ` +
-          `${String(cortadoRules.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+        `[instructions] source 'rules' truncated from ${String(rules.length)} to ` +
+          `${String(truncatedRules.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(cortadoRules, agentsMd)
+    doc = juntarProjectDoc(truncatedRules, agentsMd)
   }
   if (total() > opts.maxChars) {
     const { rules, agentsMd } = separarProjectDoc(doc)
-    const cortadoMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
-    if (cortadoMd.length !== agentsMd.length) {
+    const truncatedMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
+    if (truncatedMd.length !== agentsMd.length) {
       opts.warn(
-        `[instructions] fonte 'agentsMd' cortada de ${String(agentsMd.length)} para ` +
-          `${String(cortadoMd.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+        `[instructions] source 'agentsMd' truncated from ${String(agentsMd.length)} to ` +
+          `${String(truncatedMd.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(rules, cortadoMd)
+    doc = juntarProjectDoc(rules, truncatedMd)
   }
   if (total() > opts.maxChars && surface.length > 0) {
-    const antes = surface.length
-    surface = surface.slice(-Math.max(0, antes - (total() - opts.maxChars)))
+    const before = surface.length
+    surface = surface.slice(-Math.max(0, before - (total() - opts.maxChars)))
     opts.warn(
-      `[instructions] fonte 'appendInstructions' cortada de ${String(antes)} para ` +
-        `${String(surface.length)} chars (orçamento agregado ${String(opts.maxChars)})`,
+      `[instructions] source 'appendInstructions' truncated from ${String(before)} to ` +
+        `${String(surface.length)} chars (aggregate budget ${String(opts.maxChars)})`,
     )
   }
   if (total() > opts.maxChars) {
     opts.warn(
-      `[instructions] BASE_INSTRUCTIONS sozinho excede o orçamento agregado ` +
-        `(${String(total())} > ${String(opts.maxChars)}) — nada foi cortado`,
+      `[instructions] BASE_INSTRUCTIONS alone exceeds the aggregate budget ` +
+        `(${String(total())} > ${String(opts.maxChars)}) — nothing was truncated`,
     )
   }
   return build(base, doc, surface)
 }
 
 function build(base: string, projectDoc: string, surfaceDoc: string): string {
-  const partes = [base]
+  const parts = [base]
   if (projectDoc.trim()) {
-    partes.push(
+    parts.push(
       `## Project instructions (from AGENTS.md — follow these for THIS project)\n${projectDoc}`,
     )
   }
   if (surfaceDoc.trim()) {
-    partes.push(`## Surface instructions (how THIS run is being driven)\n${surfaceDoc}`)
+    parts.push(`## Surface instructions (how THIS run is being driven)\n${surfaceDoc}`)
   }
-  return partes.join('\n\n')
+  return parts.join('\n\n')
 }

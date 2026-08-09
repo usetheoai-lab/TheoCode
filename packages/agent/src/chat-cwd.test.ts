@@ -42,6 +42,7 @@ const resolveEffectiveConfig = vi.fn(() => ({
 const loadAgentsMd = vi.fn(() => '')
 const loadRules = vi.fn(() => ({ text: '' }))
 const loadApprovedHooks = vi.fn(() => new Map())
+const createDelegateToTeamTool = vi.fn(() => ({ name: 'delegate_to_team' }))
 
 vi.mock('./config/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
@@ -52,6 +53,10 @@ vi.mock('./context/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadAgentsMd,
   loadRules,
+}))
+vi.mock('./delegation/index.js', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  createDelegateToTeamTool,
 }))
 vi.mock('./hooks/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
@@ -101,5 +106,37 @@ describe('B-015 — an injected working directory reaches every resolution', () 
     buildChatAgent({ surface: 'headless' })
 
     expect(resolveTrustPosture).toHaveBeenCalledWith(process.cwd())
+  })
+})
+
+describe('B-032 — the injected directory reaches the delegated team', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resolveEffectiveConfig.mockReturnValue({
+      sandbox_mode: 'workspace-write',
+      approval_policy: 'on-request',
+      model: 'gpt-5.4',
+      reasoning_effort: 'medium',
+      hooks: [],
+      skills: [],
+      declaredWindow: undefined,
+      contextWindow: { window: 1000 },
+      sandboxPosture: { enforced: true, detail: 'test', mode: 'workspace-write' },
+    })
+  })
+
+  it('test_delegate_to_team_is_built_with_the_injected_directory', async () => {
+    // `resolveToolScope` derives BOTH the writeRoot and the sandbox workDir from the directory it is
+    // given, so a team built against `process.cwd()` confines its worker to the wrong tree. This is
+    // the one B-015 bypass with a confinement consequence rather than a configuration one.
+    const { buildChatAgent } = await import('./chat.js')
+
+    buildChatAgent({ surface: 'headless', cwd: INJECTED })
+
+    expect(
+      createDelegateToTeamTool,
+      'the delegated team was built without the injected directory, so its worker resolves its ' +
+        'write root and sandbox from process.cwd()',
+    ).toHaveBeenCalledWith(expect.objectContaining({ cwd: INJECTED }))
   })
 })

@@ -22,13 +22,13 @@ function CredentialField({
 }): ReactElement {
   return (
     <SecretInput
-      label={`API key for ${provider} — nada é ecoado`}
+      label={`API key for ${provider} — nothing is echoed`}
       onSubmit={(key) => {
         setLoginProvider(undefined)
         try {
           const r = login(key, homedir(), { provider: provider as never })
           setToast({
-            message: `Chave salva para ${r.provider} em ${r.path}`,
+            message: `Key saved for ${r.provider} at ${r.path}`,
             variant: 'success',
           })
         } catch (e) {
@@ -37,7 +37,7 @@ function CredentialField({
       }}
       onCancel={() => {
         setLoginProvider(undefined)
-        setToast({ message: 'Login cancelado — nenhuma key foi salva', variant: 'info' })
+        setToast({ message: 'Login cancelled — no key was saved', variant: 'info' })
       }}
     />
   )
@@ -94,7 +94,7 @@ export interface ConversationSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly currentSessionId: () => string
   readonly handleSubmit: (text: string) => void
   readonly backToChat: () => void
@@ -149,7 +149,7 @@ export function ConversationSlot({
       ) : (
         <ChatComposer
           key={clearEpoch}
-          initialValue={backtrack.sementeDoComposer}
+          initialValue={backtrack.composerSeed}
           onChange={setComposerText}
           placeholder={PLACEHOLDER}
           bordered

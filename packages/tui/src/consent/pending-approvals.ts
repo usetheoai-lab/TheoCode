@@ -34,7 +34,7 @@ export function createApprovalLedger(): ApprovalLedger {
   return { inFlight: new Map(), varridasComoFinais: 0 }
 }
 
-export function prune(reg: ApprovalLedger, threadLength: number): void {
+function prune(reg: ApprovalLedger, threadLength: number): void {
   if (!Number.isInteger(threadLength) || threadLength < 0) {
     throw new RangeError(`comprimento negativo: ${String(threadLength)}`)
   }

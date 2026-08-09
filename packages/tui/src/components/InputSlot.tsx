@@ -21,7 +21,7 @@ export interface InputSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly SESSION: {
     cfg: () => { approvalMode: ApprovalMode }
     reloadConfig: () => void
@@ -68,7 +68,11 @@ export function InputSlot(props: InputSlotProps): ReactElement {
   return (
     <>
       {props.trusted && !props.consent.hooksRevisados && props.pendingHooks.length > 0 ? (
-        <HooksGate consent={props.consent} pendingHooks={props.pendingHooks} />
+        <HooksGate
+          consent={props.consent}
+          pendingHooks={props.pendingHooks}
+          setToast={props.setToast}
+        />
       ) : !props.trusted ? (
         <TrustGate
           consent={props.consent}

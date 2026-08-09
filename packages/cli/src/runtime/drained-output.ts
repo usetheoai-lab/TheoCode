@@ -6,7 +6,7 @@ export interface DrainedOutputDeps {
   capMs: number
 }
 
-export function createDrainedOutput(deps: DrainedOutputDeps): (code: number) => void {
+function createDrainedOutput(deps: DrainedOutputDeps): (code: number) => void {
   return (code: number) => {
     deps.registrarCodigo(code)
     const timer = deps.setTimer(() => {

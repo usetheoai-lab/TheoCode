@@ -15,7 +15,7 @@ const DAY = 86_400_000
 const NOW = 1_000 * DAY
 
 function options(
-  entries: { name: string; ehDiretorio?: boolean; ageDays: number }[],
+  entries: { name: string; isDirectory?: boolean; ageDays: number }[],
   overrides: Record<string, unknown> = {},
 ) {
   return {
@@ -27,10 +27,10 @@ function options(
     listProject: () =>
       entries.map((e) => ({
         name: e.name,
-        ehDiretorio: e.ehDiretorio ?? false,
+        isDirectory: e.isDirectory ?? false,
         mtimeMs: NOW - e.ageDays * DAY,
       })),
-    classificar: () => ({ state: 'MORTO' as const, cwd: '/proj' }),
+    classify: () => ({ state: 'DEAD' as const, cwd: '/proj' }),
     listRegistry: async () => [],
     hasLiveWriter: () => false,
     readPointer: () => undefined,
@@ -42,14 +42,14 @@ describe('B-003 — the age window is a floor, not a suggestion', () => {
   it('test_a_transcript_inside_the_window_is_never_planned', async () => {
     const plan = await planSessionGCAllProjects(options([{ name: 'fresh.jsonl', ageDays: 1 }]))
 
-    expect(plan.candidatos).toEqual([])
+    expect(plan.candidates).toEqual([])
   })
 
   it('test_a_transcript_past_the_window_is_planned', async () => {
     // Anti-vacuity floor for the assertion above.
     const plan = await planSessionGCAllProjects(options([{ name: 'stale.jsonl', ageDays: 60 }]))
 
-    expect(plan.candidatos).toHaveLength(1)
+    expect(plan.candidates).toHaveLength(1)
   })
 })
 
@@ -58,12 +58,12 @@ describe('B-003 — the live pointer is never collected', () => {
     const plan = await planSessionGCAllProjects(
       options([{ name: 'pointed.jsonl', ageDays: 900 }], {
         readPointer: () => 'pointed',
-        classificar: () => ({ state: 'VIVO' as const, cwd: '/proj' }),
+        classify: () => ({ state: 'ALIVE' as const, cwd: '/proj' }),
       }),
     )
 
     expect(
-      plan.candidatos,
+      plan.candidates,
       'the session a running TUI is writing to was planned for deletion because it was old — ' +
         'age is not evidence that a session is dead',
     ).toEqual([])
@@ -79,12 +79,12 @@ describe('B-003 — keepLast retains the newest transcripts', () => {
           { name: 'b.jsonl', ageDays: 200 },
           { name: 'c.jsonl', ageDays: 300 },
         ],
-        { keepLast: 2, classificar: () => ({ state: 'VIVO' as const, cwd: '/proj' }) },
+        { keepLast: 2, classify: () => ({ state: 'ALIVE' as const, cwd: '/proj' }) },
       ),
     )
 
     // The two most recent are kept; only the oldest is collectable.
-    expect(plan.candidatos.map((c) => c.target)).toEqual([expect.stringContaining('c.jsonl')])
+    expect(plan.candidates.map((c) => c.target)).toEqual([expect.stringContaining('c.jsonl')])
   })
 })
 
@@ -98,7 +98,7 @@ describe('B-003 — a lock whose transcript still exists is not an orphan', () =
     )
 
     expect(
-      plan.candidatos,
+      plan.candidates,
       'the lock was collected while its transcript was still on disk — the lock is only an orphan ' +
         'once the session it guards is gone',
     ).toEqual([])

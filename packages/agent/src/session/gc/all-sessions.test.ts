@@ -29,9 +29,9 @@ function options(overrides: Partial<Parameters<typeof planSessionGCAllProjects>[
     maxAgeDays: 30,
     listProjects: () => ['proj'],
     listProject: () => [
-      { name: 'sess-old.jsonl', ehDiretorio: false, mtimeMs: NOW - 60 * DAY },
+      { name: 'sess-old.jsonl', isDirectory: false, mtimeMs: NOW - 60 * DAY },
     ],
-    classificar: () => ({ state: 'MORTO' as const, cwd: '/proj' }),
+    classify: () => ({ state: 'DEAD' as const, cwd: '/proj' }),
     listRegistry: async () => [],
     hasLiveWriter: () => false,
     readPointer: () => undefined,
@@ -45,7 +45,7 @@ describe('B-003 — the plan phase consults the writer lease', () => {
     const plan = await planSessionGCAllProjects(options())
 
     expect(
-      plan.candidatos.some((c) => c.target.endsWith('sess-old.jsonl')),
+      plan.candidates.some((c) => c.target.endsWith('sess-old.jsonl')),
       'the fixture stopped producing a collectable transcript, so the guard test below proves nothing',
     ).toBe(true)
   })
@@ -61,7 +61,7 @@ describe('B-003 — the plan phase consults the writer lease', () => {
         'phase — transcript deletion consulted the lease in neither phase',
     ).toHaveBeenCalled()
     expect(
-      plan.candidatos.filter((c) => c.forma === 'transcript'),
+      plan.candidates.filter((c) => c.kind === 'transcript'),
       'a transcript being written to right now was planned for deletion. Only its mtime freshness ' +
         'stood between a live session and unlink.',
     ).toEqual([])

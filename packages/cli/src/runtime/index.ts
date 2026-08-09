@@ -1,5 +1,5 @@
 export { USAGE, parseExecArgs } from './args.js'
-export type { ExecGoal, ExecReview, ExecRun, ExecSessions, OverridesDeCli } from './args.js'
+export type { ExecGoal, ExecReview, ExecRun, ExecSessions, CliOverrides } from './args.js'
 export {
   createHumanProcessor,
   createJsonlProcessor,

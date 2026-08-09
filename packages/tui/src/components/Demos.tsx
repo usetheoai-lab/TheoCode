@@ -90,7 +90,7 @@ function ProgressDemo({
   )
 }
 
-interface PropsDaDemo {
+interface DemoProps {
   mode: Exclude<Mode, 'chat'>
   elapsed: number
   tokens: number | undefined
@@ -98,7 +98,7 @@ interface PropsDaDemo {
   onToast: (t: ToastPayload) => void
 }
 
-function corpoDaDemo({ mode, elapsed, tokens, onComplete, onToast }: PropsDaDemo): ReactElement {
+function demoBody({ mode, elapsed, tokens, onComplete, onToast }: DemoProps): ReactElement {
   switch (mode) {
     case 'plan':
       return (
@@ -151,10 +151,10 @@ function corpoDaDemo({ mode, elapsed, tokens, onComplete, onToast }: PropsDaDemo
   }
 }
 
-export function DemoSurface(props: PropsDaDemo): ReactElement {
+export function DemoSurface(props: DemoProps): ReactElement {
   return (
     <Box flexDirection="column" borderStyle="round" paddingX={2} paddingY={1}>
-      {corpoDaDemo(props)}
+      {demoBody(props)}
     </Box>
   )
 }

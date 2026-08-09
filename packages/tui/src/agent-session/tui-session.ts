@@ -4,6 +4,7 @@ import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/co
 import type { AttachedImage } from '@theocode/agent/context'
 
 import { loadOrCreateSessionId } from '../persistence/index.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface TuiSession {
   cfg: () => ReturnType<typeof resolveEffectiveConfig>
@@ -35,7 +36,7 @@ export interface SessionOptions {
 export function createTuiSession(opts: SessionOptions): TuiSession {
   const loadConfig = opts.loadConfig ?? resolveEffectiveConfig
   const loadSession = opts.loadSession ?? loadOrCreateSessionId
-  const cwd = opts.cwd ?? process.cwd()
+  const cwd = opts.cwd ?? workingDirectory()
 
   let cfg = loadConfig({ cwd })
   let effort: ReasoningEffort = cfg.reasoning_effort
@@ -59,17 +60,17 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
       session = id
     },
     tomarImagens: () => {
-      const atual = imagens
+      const current = imagens
       imagens = undefined
-      return atual
+      return current
     },
     anexarImagens: (imgs) => {
       imagens = imgs
     },
     takeModel: () => {
-      const atual = model
+      const current = model
       model = undefined
-      return atual ?? fixedModel
+      return current ?? fixedModel
     },
     sessionModel: () => fixedModel,
     setSessionModel: (m) => {

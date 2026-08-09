@@ -3,7 +3,7 @@ import { TheokitAgentError } from '@theokit/agents'
 /**
  * Raised on the caller's promise when the surface withdraws a question before it is answered.
  *
- * B-004 — `abandonar()` used to delete the pending entry and return, dropping the `resolve` it had
+ * B-004 — `abandon()` used to delete the pending entry and return, dropping the `resolve` it had
  * captured. The promise handed to the SDK never settled, so pressing ESC released the UI slot while
  * the turn stayed blocked until the built-in's 5-minute timeout.
  *

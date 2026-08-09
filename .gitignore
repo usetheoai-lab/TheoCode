@@ -15,7 +15,7 @@ data/
 *.swp
 *.swo
 *.pem
-
+code-review-output
 # Claude Code kit — LOCAL, never versioned. Ferramenta de quem desenvolve, não código do
 # produto: quem clona o TheoCode recebe o agente, não o andaime de manutenção de quem o
 # escreve. Instala-se com `bash <squad>/scripts/install.sh .` quando se quiser.

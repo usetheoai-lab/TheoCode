@@ -26,10 +26,10 @@ export function dotenvNames(path: string): Set<string> {
   while (i < lines.length) {
     const trimmed = lines[i]!.replace(/^[ \t]+|[ \t]+$/g, '')
     i++
-    const par = linePair(trimmed)
-    if (par === undefined) continue
-    i = skipMultilineValue(par.value, lines, i)
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(par.name)) names.add(par.name)
+    const pair = linePair(trimmed)
+    if (pair === undefined) continue
+    i = skipMultilineValue(pair.value, lines, i)
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(pair.name)) names.add(pair.name)
   }
   return names
 }

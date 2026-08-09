@@ -104,7 +104,7 @@ export class ToolRegistry {
     for (const [name, tool] of entries) {
       if (tool.name !== name) {
         throw new ConfigurationError(
-          `tool registrada como "${name}" mas nomeada "${tool.name}" — o name é contrato com o model`,
+          `tool registered as "${name}" but named "${tool.name}" — the name is a contract with the model`,
           { code: 'tool_name_mismatch' },
         )
       }

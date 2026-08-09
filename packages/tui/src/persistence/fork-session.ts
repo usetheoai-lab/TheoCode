@@ -6,8 +6,8 @@ export interface ForkDeps {
 }
 
 export function forkCurrentSessionWith(deps: ForkDeps): { newId: string; copied: boolean } {
-  const candidato = deps.newId()
-  const out = deps.fork(deps.current(), candidato)
+  const candidate = deps.newId()
+  const out = deps.fork(deps.current(), candidate)
   if (!out.copied) return { newId: deps.current(), copied: false }
   deps.commit(out.newId)
   return out

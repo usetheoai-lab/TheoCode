@@ -24,7 +24,7 @@ import {
 } from './config/index.js'
 import { interactiveWrapCommand } from '@theokit/agents/sandbox'
 import { loadApprovedHooks } from './hooks/index.js'
-import { buildHookHandlers, comVetoDoShellEmbutido, parseHooks } from './hooks/index.js'
+import { buildHookHandlers, withBuiltinShellVeto, parseHooks } from './hooks/index.js'
 import { sandboxWritePolicy } from './config/index.js'
 import { resolveTrustPosture, type TrustPosture } from './config/index.js'
 import { BASE_INSTRUCTIONS } from './context/index.js'
@@ -36,7 +36,11 @@ import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { projectSourceAllowed } from './config/project-source.js'
 
+/** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
+export type HookVetoListener = (veto: { tool: string; reason: string }) => void
+
 export function buildChatAgent(overrides?: {
+  onHookVeto?: HookVetoListener
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -58,8 +62,11 @@ export function buildChatAgent(overrides?: {
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
 
-  const interactiveBackend = resolverBackendInterativo(overrides, cfg)
-  const lifecycleHooks = chatHookChain(cfg, posture, cwd)
+  const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
+  // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
+  // site because on the wire a blocked call is indistinguishable from a successful one, by the
+  // SDK's design (see `buildHookHandlers`).
+  const lifecycleHooks = chatHookChain(cfg, posture, cwd, overrides?.onHookVeto)
   const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
   const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
 
@@ -70,6 +77,7 @@ export function buildChatAgent(overrides?: {
     cfg,
     posture,
     lifecycleHooks,
+    cwd,
     reasoning_effort: overrides?.reasoning_effort,
   })
 
@@ -108,7 +116,7 @@ function contextoDoChat(overrides?: {
   }
 }
 
-function resolverBackendInterativo(
+function resolveInteractiveBackend(
   overrides: { sessionPty?: SessionPtyOwner; interactiveBackend?: InteractiveBackend } | undefined,
   cfg: EffectiveConfig,
 ): InteractiveBackend {
@@ -136,9 +144,9 @@ function pluginsDoProvider(
   const plugin = Provider.forModel(modelId)
   if (plugin === undefined) {
     throw new ConfigurationError(
-      `--model ${modelId}: nenhum provider builtin atende este id. ` +
-        `Use a forma provider/model (ex.: anthropic/claude-sonnet-4-5). ` +
-        `Disponíveis: ${Provider.builtins()
+      `--model ${modelId}: no builtin provider serves this id. ` +
+        `Use the provider/model form (e.g. anthropic/claude-sonnet-4-5). ` +
+        `Available: ${Provider.builtins()
           .map((p) => p.name)
           .join(', ')}`,
     )
@@ -146,11 +154,17 @@ function pluginsDoProvider(
   return [plugin]
 }
 
-function chatHookChain(cfg: EffectiveConfig, posture: TrustPosture, cwd: string) {
-  return comVetoDoShellEmbutido(
+function chatHookChain(
+  cfg: EffectiveConfig,
+  posture: TrustPosture,
+  cwd: string,
+  onVeto?: HookVetoListener,
+) {
+  return withBuiltinShellVeto(
     buildHookHandlers(parseHooks(cfg.hooks), {
       trusted: posture.allows.hooks,
       approved: new Set([...loadApprovedHooks(cwd).keys()]),
+      ...(onVeto === undefined ? {} : { onVeto }),
     }),
   )
 }
@@ -164,10 +178,12 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
     cfg: EffectiveConfig
     posture: TrustPosture
     lifecycleHooks: ReturnType<typeof chatHookChain>
+    /** B-032 — threaded through so the delegated team is confined to the same tree as the root. */
+    cwd: string
     reasoning_effort?: ReasoningEffort
   },
 ): T {
-  const { writePolicy, registry, modelId, cfg, posture, lifecycleHooks } = ctx
+  const { writePolicy, registry, modelId, cfg, posture, lifecycleHooks, cwd } = ctx
   const overrides = { reasoning_effort: ctx.reasoning_effort }
   return writePolicy.writes
     ? base
@@ -185,6 +201,8 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
             reasoning_effort: overrides?.reasoning_effort ?? cfg.reasoning_effort,
             sandbox_mode: cfg.sandbox_mode,
             posture,
+            // B-032 — the same directory every other resolution in this builder uses.
+            cwd,
             hooks: lifecycleHooks,
           }),
         )
@@ -218,11 +236,11 @@ function withShellAndProjectEntities(
       // Codex-ish `run_shell` name so the approval gate + TUI header/render + tool contract are unchanged.
       // The description is overridden to this agent's actual tool set (the built-in's default names
       // write_file/glob_files/search_text — which we don't register — and drops the interactive_shell steer).
-      // M68 — a AUTORIDADE do `run_shell` (projectRoot + sandbox de kernel) vem do registry único; o
-      // que fica aqui é ORIENTAÇÃO específica do pai. A distinção é deliberada: a descrição cita
-      // `interactive_shell`/`write_stdin`, que um membro de squad NÃO recebe, então herdá-la o
-      // mandaria para tools que ele não tem. Registry manda no que a tool PODE fazer; o consumidor
-      // pode refinar o que ela DIZ ao model.
+      // M68 — `run_shell`'s AUTHORITY (projectRoot + kernel sandbox) comes from the single registry;
+      // what stays here is the parent's own STEER. The distinction is deliberate: the description
+      // cites `interactive_shell`/`write_stdin`, which a squad member does NOT receive, so inheriting
+      // it would point them at tools they do not have. The registry rules what a tool CAN do; the
+      // consumer may refine what it SAYS to the model.
       .tool(
         withDescription(
           registry.get('run_shell'),
@@ -237,10 +255,10 @@ function withShellAndProjectEntities(
       // M14 — interactive session as a surface-agnostic built-in from @theokit/agents/tools, backed by the
       // injected @theokit/agents/pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
       // `write_stdin` drives it. Both gated below. Replaces the bespoke run_shell-interactive + write_stdin.
-      // M101 #188 — a NOSSA `interactive_shell`: a do SDK colapsa `MaxSessionsError` em
-      // `{"ok":false,"error":"interactive_unavailable"}`, e `max`/`liveSessionIds` — a única
-      // informação com a qual o model pode agir — nunca chegam a ele. Ver
-      // `agents/ask/interactive-shell-tool.ts` (inclui o critério de saída mecanizado).
+      // M101 #188 — OUR `interactive_shell`: the SDK's collapses `MaxSessionsError` into
+      // `{"ok":false,"error":"interactive_unavailable"}`, so `max`/`liveSessionIds` — the only
+      // information the model can act on — never reach it. See
+      // `agents/ask/interactive-shell-tool.ts` (which carries the mechanised exit criterion).
       .tool(createInteractiveShellTool({ interactive: interactiveBackend }))
       .tool(createWriteStdinTool({ interactive: interactiveBackend }))
       // M4 — the visible plan/step affordance for the iterate-to-green loop (no side effect, not gated).
@@ -298,16 +316,17 @@ function withShellAndProjectEntities(
       .hooks(lifecycleHooks)
   )
 
-  // M70 — os dois registros que dependem do PERFIL da superfície, aplicados aqui porque o builder é
-  // uma cadeia fluente sem `.tools([...])`: não dá para pular um elo no meio dela.
+  // M70 — the two registrations that depend on the surface PROFILE, applied here because the builder
+  // is a fluent chain with no `.tools([...])`: there is no way to skip a link in the middle of it.
   //
-  // `request_user_input` sai no perfil headless (m70-convergencia-goal#ADR-4): sem TUI subscrito o `ask()` nunca resolve e a
-  // tool cai no timeout de 5 min do built-in. `extraTools` é o seam que faltava — é por ele que o modo
-  // goal registra `update_goal` em vez de construir um segundo agente do zero.
-  // M76 — a tool do framework, montada direto pela fábrica. Era um ADAPTADOR de 20 lines com dois
-  // casts, porque `createQuestionTool` devolvia uma interface própria e não aceitava name. T1.1
-  // alinhou o tipo, T1.2 fez name e descrição serem opções, e o adaptador deixou de existir — não
-  // encolheu: sumiu. O `askUser` segue como fallback; o asker preferencial vem do contexto.
+  // `request_user_input` is dropped for the headless profile (m70-convergencia-goal#ADR-4): with no TUI
+  // subscribed, `ask()` never resolves and the tool falls into the built-in's 5-minute timeout.
+  // `extraTools` is the seam that was missing — it is how goal mode registers `update_goal` instead of
+  // building a second agent from scratch.
+  // M76 — the framework's own tool, built straight from the factory. It used to be a 20-line ADAPTER with
+  // two casts, because `createQuestionTool` returned its own interface and took no name. T1.1 aligned the
+  // type, T1.2 made name and description options, and the adapter stopped existing — it did not shrink,
+  // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
 }
 
 function baseAgent(ctx: {
@@ -327,29 +346,29 @@ function baseAgent(ctx: {
   return (
     AgentBuilder.create()
       .input(z.object({ message: z.string() }))
-      // M94 — a janela declarada em config atravessa até o orçamento de compactação. Sem ela, um
-      // model de 400k sem entrada de catálogo (o caso do OpenRouter) era orçado contra o floor de
-      // 128k e compactava ~3× mais do que precisava.
-      // M98 — o insumo passou a ter UM path nomeado (`janelaDeclarada`), e é ele que se entrega ao
-      // runtime, CRU. Medido: o SDK guarda este número e aplica a margem por dentro, então passar a
-      // projeção (`contextWindow.window`, já com margem) aplicaria a margem duas vezes. Este é o único
-      // consumidor do insumo em produção, e um gate conta.
+      // M94 — the window declared in config reaches all the way to the compaction budget. Without it, a
+      // 400k model with no catalogue entry (the OpenRouter case) was budgeted against the 128k floor and
+      // compacted ~3x more than it needed to.
+      // M98 — the input now has ONE named path (`declaredWindow`), and that is what is handed to the
+      // runtime, RAW. Measured: the SDK stores this number and applies the margin internally, so passing
+      // the projection (`contextWindow.window`, margin already applied) would apply the margin twice.
+      // This is the only production consumer of the input, and one gate counts.
       .model(
         cfg.declaredWindow !== undefined
           ? { id: modelId, contextWindow: cfg.declaredWindow }
           : modelId,
       )
-      // M96 T5.4 — o perfil headless NÃO instala mais um veto local.
+      // M96 T5.4 — the headless profile no longer installs a local veto.
       //
-      // O bloco que morava aqui era compensação: `toAgentFactory` descartava o gate HITL declarado, e o
-      // consumidor reimpunha a política com um `beforeToolCall` sobre uma cópia da lista de tools
-      // gateadas — conhecimento do framework duplicado no app, com um teste vigiando a divergência
-      // entre as duas listas. Desde `@theokit/agents@5.0.0` a postura de aprovação é parâmetro
-      // OBRIGATÓRIO do bridge, então a imposição voltou para quem é dona dela e a duplicata some.
+      // The block that lived here was compensation: `toAgentFactory` discarded the declared HITL gate, and
+      // the consumer re-imposed the policy with a `beforeToolCall` over a copy of the gated tool list —
+      // framework knowledge duplicated in the app, with a test watching the two lists for divergence.
+      // Since `@theokit/agents@5.0.0` the approval posture is a MANDATORY bridge parameter, so enforcement
+      // went back to its owner and the duplicate is gone.
       //
-      // A DECISÃO continua sendo do produto: cada superfície headless declara a sua postura no ponto de
-      // composição (`exec/main.ts`), derivada de `headlessApprovalPosture` — inclusive a recusa
-      // F-arch-3 ("sem bwrap não há confinamento") que o M70 acrescentou.
+      // The DECISION remains the product's: each headless surface declares its posture at the composition
+      // point (`exec/main.ts`), derived from `headlessApprovalPosture` — including the F-arch-3 refusal
+      // ("no bwrap means no confinement") that M70 added.
       .plugins([...providerPlugins])
       // M20 — reasoning budget from config (default "medium" matches Codex's gpt-5.4 default, so the harness
       // comparison still isolates harness behavior when no config overrides it).
@@ -384,13 +403,13 @@ function baseAgent(ctx: {
       // (Codex reads-anywhere), aliased to the `grep` name. Retired the bespoke grep.ts + grep-core.ts.
       .tool(registry.get('grep'))
       // M6 — repo-aware context (read-only, ungated).
-      // M76 — a tool do framework. A local parseava `git status --porcelain=v1 -b` em 62 LoC; o
-      // `createGitStatusTool` traz a MESMA saída, incluindo a line de branch (parity verificada
-      // antes de deletar — sem ela, migrar teria custado o "estou na branch certa?" em silêncio).
-      // M99 — vem do registry. Construída inline aqui até então, portando `projectRoot` fora da fonte
-      // única: um dos dois sítios que o levantamento manual do `ROADMAP.md:2412` não enumerou, neste
-      // arquivo que o M68 refatorou. O name (`repo_status`) é preservado — é contrato com o model,
-      // com o mapa de aprovação e com o render da TUI.
+      // M76 — the framework's tool. The local one parsed `git status --porcelain=v1 -b` in 62 LoC;
+      // `createGitStatusTool` produces the SAME output, branch line included (parity verified BEFORE
+      // deleting — without that check, migrating would have silently cost the "am I on the right branch?").
+      // M99 — it comes from the registry. Built inline here until then, carrying `projectRoot` outside the
+      // single source: one of the two sites the manual survey at `ROADMAP.md:2412` did not enumerate, in
+      // the very file M68 refactored. The name (`repo_status`) is preserved — it is a contract with the
+      // model, with the approval map, and with the TUI's rendering.
       .tool(registry.get('repo_status'))
       // M38 — the working-tree diff, so the model can review pending changes. `createGitDiffTool` is a
       // `@theokit/agents/tools` built-in (`git diff --no-color`, detached, 30s/5MB caps) — read-only, so ungated

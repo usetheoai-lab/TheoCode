@@ -13,7 +13,12 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { fireAndForget } from './fire-and-forget.js'
+import { persistSessionId } from './session-store.js'
 
 describe('B-013 — background writes degrade instead of crashing', () => {
   it('test_a_failing_write_is_reported_and_does_not_reject', async () => {
@@ -46,5 +51,48 @@ describe('B-013 — background writes degrade instead of crashing', () => {
       expect(report).toHaveBeenCalledOnce()
       expect(report.mock.calls[0]?.[0]).toMatch(/goal state/)
     })
+  })
+})
+
+describe('B-031 — no exported persist function can reject', () => {
+  it('test_persistSessionId_does_not_reject_when_the_write_fails', async () => {
+    // B-013 wrapped TWO call sites and its own docstring said "the two persistence calls". There
+    // were FIVE. The three it missed — /new, /clear, /fork, the Esc interrupt and the backtrack
+    // confirm — handed a bare `void` to a promise whose rejection is uncaught BY CONSTRUCTION
+    // (`enqueue` attaches its catch to the tail it stores, not to the promise it returns), under
+    // `node >=22` where the default is --unhandled-rejections=throw.
+    //
+    // Wrapping the three would have left the sixth call site to be discovered later. The guarantee
+    // belongs to the exported function: there is no longer a persist export that CAN reject.
+    const reports: string[] = []
+    const dir = mkdtempSync(join(tmpdir(), 'theocode-persist-'))
+    // A regular FILE where a directory is needed: the write fails with ENOTDIR. A merely absent
+    // directory does NOT work here — `atomicWriteText` creates it, which a first version of this
+    // test did not know and which made its premise false.
+    writeFileSync(join(dir, 'blocker'), 'not a directory')
+    const unwritable = join(dir, 'blocker', 'pointer')
+
+    await expect(
+      persistSessionId(unwritable, 'tui-1', (m) => reports.push(m)),
+      'a failed pointer write rejected, and a bare `void` caller would crash the TUI',
+    ).resolves.toBeUndefined()
+
+    expect(reports.join(' '), 'the failure was swallowed with no diagnostic').toMatch(
+      /could not persist/i,
+    )
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('test_a_successful_persist_reports_nothing_and_writes', async () => {
+    // Anti-vacuity floor: reporting on every write would satisfy the assertion above.
+    const reports: string[] = []
+    const dir = mkdtempSync(join(tmpdir(), 'theocode-persist-'))
+    const file = join(dir, 'pointer')
+
+    await persistSessionId(file, 'tui-42', (m) => reports.push(m))
+
+    expect(readFileSync(file, 'utf8')).toBe('tui-42')
+    expect(reports).toEqual([])
+    rmSync(dir, { recursive: true, force: true })
   })
 })

@@ -14,7 +14,7 @@ export const TOOLS_DO_REVIEWER = ['git_diff', 'read_file', 'grep', 'run_shell'] 
 export type ConfigDoReviewer = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
 
-export function escopoDoReviewer(cfg: ConfigDoReviewer, cwd: string): ToolScope {
+function reviewerScope(cfg: ConfigDoReviewer, cwd: string): ToolScope {
   return { ...resolveToolScope(cfg, cwd), defaultTimeoutMs: REVIEWER_SHELL_CAP }
 }
 
@@ -23,7 +23,7 @@ interface AgentInstance {
   [Symbol.asyncDispose](): Promise<void>
 }
 
-interface OpcoesDeCriacao {
+interface CreationOptions {
   agentId: string
   apiKey: string
   model: ReturnType<typeof buildModelSelection>
@@ -33,17 +33,17 @@ interface OpcoesDeCriacao {
   plugins?: Parameters<typeof Agent.create>[0]['plugins']
 }
 
-export interface DepsDaFabricaDeReview {
+export interface ReviewFactoryDeps {
   config: ConfigDoReviewer
   cwd: string
   resolveCredential: (model: string) => Promise<string>
   hooks?: HookHandlers
-  registrarCleanup: (fn: () => Promise<void>) => void
-  createInstance?: (opts: OpcoesDeCriacao) => Promise<AgentInstance>
+  registerCleanup: (fn: () => Promise<void>) => void
+  createInstance?: (opts: CreationOptions) => Promise<AgentInstance>
   deleteAgent?: (agentId: string) => Promise<void>
 }
 
-const defaultCreateInstance = (opts: OpcoesDeCriacao): Promise<AgentInstance> =>
+const defaultCreateInstance = (opts: CreationOptions): Promise<AgentInstance> =>
   Agent.create(opts) as unknown as Promise<AgentInstance>
 
 const defaultDeleteAgent = (agentId: string): Promise<void> =>
@@ -51,10 +51,10 @@ const defaultDeleteAgent = (agentId: string): Promise<void> =>
     process.stderr.write(`[review] Agent.delete(${agentId}) failed: ${String(err)}\n`)
   })
 
-export function createReviewAgent(deps: DepsDaFabricaDeReview): ReviewDeps['createAgent'] {
+export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAgent'] {
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
-  const registry = new ToolRegistry(escopoDoReviewer(deps.config, deps.cwd))
+  const registry = new ToolRegistry(reviewerScope(deps.config, deps.cwd))
   const pluginDeHooks = deps.hooks !== undefined ? hooksParaMembro(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
@@ -71,15 +71,18 @@ export function createReviewAgent(deps: DepsDaFabricaDeReview): ReviewDeps['crea
         : {}),
     })
 
-    let descartado = false
-    const descartar = async (): Promise<void> => {
-      if (descartado) return
-      descartado = true
+    // B-043 — the flag is set AFTER the work, not before. Marking first meant a dispose that threw
+    // left the reviewer permanently leaked: the guard said it had already been disposed, so no
+    // retry and no cleanup could ever reach it again.
+    let disposed = false
+    const dispose = async (): Promise<void> => {
+      if (disposed) return
       await inst[Symbol.asyncDispose]()
       await deleteAgent(agentId)
+      disposed = true
     }
-    deps.registrarCleanup(descartar)
+    deps.registerCleanup(dispose)
 
-    return { send: (m: string) => inst.send(m), dispose: descartar }
+    return { send: (m: string) => inst.send(m), dispose: dispose }
   }
 }

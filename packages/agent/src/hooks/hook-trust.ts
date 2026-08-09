@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-
 import { TRUST_STORE, mutateConsentStore } from '../config/index.js'
 
 import type { HookSpec } from './hooks-spec.js'
-import { canonical as canonicalDir } from '../config/trust-store.js'
+import { canonical as canonicalDir, readDocument } from '../config/trust-store.js'
 
 type HookTrustStatus = 'trusted' | 'untrusted' | 'modified'
 
@@ -69,21 +67,20 @@ interface StoreShape {
   hooks?: Record<string, Record<string, ApprovedHook>>
 }
 
-function readStore(path: string): StoreShape {
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
-    if (parsed === null || typeof parsed !== 'object') return {}
-    return parsed as StoreShape
-  } catch {
-    return {}
-  }
-}
-
+/**
+ * B-019 — read through `readDocument`, which is the gate.
+ *
+ * This function used to open TRUST_STORE with a bare `readFileSync`. B-005 had added a permission
+ * check to the OTHER reader of the same file, so directory trust was refused on a group-writable
+ * store while the hook-approval set — which decides what reaches `spawn(cmd, { shell: true })` —
+ * was read unchecked. The duplicate existed because the gate was module-private; it is exported now
+ * for exactly this consumer.
+ */
 export function loadApprovedHooks(
   dir: string,
   path: string = TRUST_STORE,
 ): Map<string, ApprovedHook> {
-  const store = readStore(path)
+  const store = readDocument(path) as StoreShape
   const forDir = store.hooks?.[canonicalDir(dir)]
   if (forDir === undefined) return new Map()
   return new Map(Object.entries(forDir))
@@ -97,8 +94,8 @@ export async function approveHook(
   await mutateConsentStore(path, (doc) => {
     const store = doc as StoreShape
     const hooks = store.hooks ?? {}
-    const chave = canonicalDir(dir)
-    const forDir = { ...(hooks[chave] ?? {}) }
+    const key = canonicalDir(dir)
+    const forDir = { ...(hooks[key] ?? {}) }
 
     forDir[hookFingerprint(spec)] = {
       command: spec.command,
@@ -106,6 +103,6 @@ export async function approveHook(
       approvedAt: new Date().toISOString(),
     }
 
-    return { ...doc, hooks: { ...hooks, [chave]: forDir } }
+    return { ...doc, hooks: { ...hooks, [key]: forDir } }
   })
 }

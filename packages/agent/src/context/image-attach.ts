@@ -12,7 +12,7 @@ export class ImageAttachError extends TheokitAgentError {
 
   constructor(
     message: string,
-    readonly code: 'not_found' | 'too_large' | 'unsupported_type',
+    readonly code: 'not_found' | 'too_large' | 'unsupported_type' | 'unreadable',
   ) {
     super(message)
   }
@@ -48,5 +48,16 @@ export function readImageAttachment(path: string): AttachedImage {
       'too_large',
     )
   }
-  return { data: readFileSync(path).toString('base64'), mimeType }
+  // B-051 — the read runs AFTER the stat succeeded and can still fail: EACCES on a file you may
+  // stat but not read, EISDIR on a directory named like an image, EMFILE under a wide sweep. This
+  // was the one path that left the declared ImageAttachError contract, so a caller catching the
+  // typed error let it through untyped.
+  try {
+    return { data: readFileSync(path).toString('base64'), mimeType }
+  } catch (err) {
+    throw new ImageAttachError(
+      `image unreadable: ${path} — ${(err as Error).message}`,
+      'unreadable',
+    )
+  }
 }

@@ -32,18 +32,35 @@ export function canonical(dir: string): string {
  * A missing file is NOT an error: a first run has no store, and that means "nothing is trusted yet".
  */
 function assertPrivate(store: string): void {
+  // B-019 — the directory is part of the answer. A 0600 file inside a directory others can write is
+  // not private: the file can be replaced wholesale, and the replacement's mode is set by whoever
+  // wrote it. Checking the file alone answers a narrower question than the one asked.
+  //
+  // The directory is held to WORLD-write only (0o002), not to the file's 0o022. Group-write on a
+  // directory is the DEFAULT under umask 002 — a fresh `mkdir` yields 0775, and on a distro with
+  // per-user private groups that group contains only the owner. Refusing it would reject the
+  // ordinary configuration of most Linux desktops, and a gate that fires on the default is one
+  // people disable. World-write is unambiguous: it is a real third party, and it is rare.
+  //
+  // The file keeps 0o022 because this code creates it 0600 itself, so group-write on it is
+  // anomalous rather than inherited.
+  assertNotWritableByOthers(dirname(store), 0o002, 'chmod 700')
+  assertNotWritableByOthers(store, 0o022, 'chmod 600')
+}
+
+function assertNotWritableByOthers(target: string, forbidden: number, remedy: string): void {
   let mode: number
   try {
-    mode = statSync(store).mode
+    mode = statSync(target).mode
   } catch {
     return
   }
-  if ((mode & 0o022) !== 0) {
+  if ((mode & forbidden) !== 0) {
     throw new Error(
-      `refusing to read ${store}: it is group- or world-writable (mode ` +
+      `refusing to read ${target}: it is group- or world-writable (mode ` +
         `${(mode & 0o777).toString(8)}). It authorises directory trust and pre-approved hook ` +
-        'commands, so anyone who can write it can run commands as you. Fix with: chmod 600 ' +
-        `${store}`,
+        `commands, so anyone who can write it can run commands as you. Fix with: ${remedy} ` +
+        `${target}`,
     )
   }
 }
@@ -61,13 +78,21 @@ function ensurePrivateDir(store: string): void {
   }
 }
 
-function lerDocumento(store: string): Record<string, unknown> {
+/**
+ * The one gated reader of the consent store. Exported because it is a gate, and a gate that only
+ * one of two consumers can reach is not one: `hook-trust.ts` kept a private, ungated copy of this
+ * function precisely because this one was module-private (B-019).
+ *
+ * Throws when the store or its directory is writable by anyone else. A MISSING file is not an
+ * error — a first run has no store, and that means "nothing is trusted yet".
+ */
+export function readDocument(store: string): Record<string, unknown> {
   assertPrivate(store)
   try {
     const parsed: unknown = JSON.parse(readFileSync(store, 'utf8'))
     return parsed !== null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
   } catch {
-    return {} 
+    return {}
   }
 }
 
@@ -78,20 +103,20 @@ function trustedList(doc: Record<string, unknown>): string[] {
 }
 
 function readTrusted(store: string): string[] {
-  return trustedList(lerDocumento(store))
+  return trustedList(readDocument(store))
 }
 
 export async function mutateConsentStore(
   store: string,
-  mutar: (atual: Record<string, unknown>) => Record<string, unknown> | undefined,
+  mutate: (current: Record<string, unknown>) => Record<string, unknown> | undefined,
 ): Promise<void> {
   ensurePrivateDir(store)
   await withFileLock(
     store,
     async () => {
-      const proximo = mutar(lerDocumento(store))
-      if (proximo === undefined) return
-      await atomicWriteJson(store, proximo, { mode: 0o600, exclusive: true })
+      const next = mutate(readDocument(store))
+      if (next === undefined) return
+      await atomicWriteJson(store, next, { mode: 0o600, exclusive: true })
     },
     WAIT_BUDGET,
   )
@@ -104,12 +129,17 @@ export function isTrusted(dir: string, store: string = TRUST_STORE): boolean {
 }
 
 export async function trustDir(dir: string, store: string = TRUST_STORE): Promise<void> {
-  const norm = canonical(dir)
-  if (readTrusted(store).includes(norm)) return
+  // Repair before the early-exit read (B-019). This path is about to write anyway, and the repair
+  // is this module's own remedy for the directory the SDK created without a mode — reading first
+  // would let the new directory gate refuse the very state `ensurePrivateDir` exists to fix.
+  ensurePrivateDir(store)
+
+  const canonicalDir = canonical(dir)
+  if (readTrusted(store).includes(canonicalDir)) return
 
   await mutateConsentStore(store, (doc) => {
-    const atual = trustedList(doc)
-    if (atual.includes(norm)) return undefined
-    return { ...doc, trusted: [...atual, norm] }
+    const current = trustedList(doc)
+    if (current.includes(canonicalDir)) return undefined
+    return { ...doc, trusted: [...current, canonicalDir] }
   })
 }

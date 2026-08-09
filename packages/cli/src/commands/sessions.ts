@@ -2,11 +2,11 @@ import process from 'node:process'
 import type { ExecSessions } from '../runtime/index.js'
 
 async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
-  const { planAllProjectsNoDisco, runAllProjectsNoDisco, formatReport } =
+  const { planAllProjectsOnDisk, runAllProjectsOnDisk, formatReport } =
     await import('@theocode/agent/session')
-  let plano
+  let plan
   try {
-    plano = await planAllProjectsNoDisco({
+    plan = await planAllProjectsOnDisk({
       ...(args.keepLast !== undefined ? { keepLast: args.keepLast } : {}),
       ...(args.maxAgeDays !== undefined ? { maxAgeDays: args.maxAgeDays } : {}),
     })
@@ -14,15 +14,15 @@ async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
     process.stderr.write(`[sessions gc] ${err instanceof Error ? err.message : String(err)}\n`)
     process.exit(1)
   }
-  const resultado = await runAllProjectsNoDisco(plano, { apply: args.apply })
+  const result = await runAllProjectsOnDisk(plan, { apply: args.apply })
   if (args.json) {
     process.stdout.write(
-      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: resultado.dryRun, porForma: plano.totalPorForma, removed: resultado.removidos.length, kept: plano.mantidos.length, errors: [...plano.errors, ...resultado.errors] })}\n`,
+      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: result.dryRun, byKind: plan.totalByKind, removed: result.removidos.length, kept: plan.kept.length, errors: [...plan.errors, ...result.errors] })}\n`,
     )
   } else {
-    for (const l of formatReport(plano, resultado)) process.stderr.write(`${l}\n`)
+    for (const l of formatReport(plan, result)) process.stderr.write(`${l}\n`)
   }
-  process.exit(plano.errors.length + resultado.errors.length > 0 ? 1 : 0)
+  process.exit(plan.errors.length + result.errors.length > 0 ? 1 : 0)
 }
 
 function humanReport(
@@ -36,9 +36,9 @@ function humanReport(
 ): string[] {
   const verbo = result.dryRun ? 'would remove' : 'removed'
   const pointer = plan.pointer?.slice(0, 16) ?? 'none'
-  const recente = plan.mostRecent?.slice(0, 16) ?? 'none'
+  const mostRecent = plan.mostRecent?.slice(0, 16) ?? 'none'
   const lines = [
-    `[sessions gc] ${result.dryRun ? 'DRY-RUN' : 'APPLIED'} — ${result.removed.length} ${verbo}; ${plan.kept.length} kept (pointer=${pointer}, most-recent=${recente})`,
+    `[sessions gc] ${result.dryRun ? 'DRY-RUN' : 'APPLIED'} — ${result.removed.length} ${verbo}; ${plan.kept.length} kept (pointer=${pointer}, most-recent=${mostRecent})`,
     ...plan.candidates.map(
       (c) =>
         `  - ${c.id} (${Math.round(c.ageDays)}d, ${c.inRegistry ? 'registry' : 'orphan'}) [${verbo}]`,
