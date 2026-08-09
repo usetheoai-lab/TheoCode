@@ -142,6 +142,7 @@ const TECHNICAL = new Set([
   'iam', // AWS / GCP identity and access management
   'aci', // agent-computer interface
   'ecma', // ECMAScript
+  'cpf', // the Brazilian taxpayer id — a proper noun, and a thing PII redaction must name
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
