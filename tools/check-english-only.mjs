@@ -92,6 +92,11 @@ const TECHNICAL = new Set([
   'ino', // pt: "inn" — here it is `Stats.ino`, the POSIX inode number
   'https', // pt: conjugation of "hipar" in some lists — here it is the URL scheme
   'distro', // pt: a verb form — here it is the Linux-distribution abbreviation
+  'eval', // present in pt_BR.dic — here it is the English evaluate/eval abbreviation
+  'renormalize', // present in /usr/share/dict/portuguese — an English verb either way
+  // Tool and protocol names that collide with a Portuguese dictionary entry. Measured against the
+  // theokit repositories, where they accounted for ~19% of all matches.
+  'vite', 'astro', 'cron', 'param', 'params', 'abi', 'goto', 'stringify', 'enum',
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -139,7 +144,11 @@ if (EN.loaded === 0 || PT.loaded === 0) {
 
 /** Split an identifier into lowercase word parts: `varrerMarkdown` -> [varrer, markdown]. */
 export function* wordParts(identifier) {
-  for (const chunk of identifier.split(/[^A-Za-z]+/)) {
+  // A git SHA is not a word. `50fafe2` splits to `fafe`, which is a Portuguese verb form, and a
+  // changelog citing a commit would be reported as Portuguese prose. Hex runs adjacent to digits
+  // are dropped before splitting.
+  const withoutHex = identifier.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
+  for (const chunk of withoutHex.split(/[^A-Za-z]+/)) {
     for (const w of chunk.match(/[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+/g) ?? []) {
       if (w.length >= 3) yield w.toLowerCase()
     }

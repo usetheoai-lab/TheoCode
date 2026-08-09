@@ -390,7 +390,7 @@ VERIFY:  npx vitest run packages/cli/src/runtime/args.test.ts && npm test
 #### Concurrency tests
 `goal-cancellation.ts` races a cancellation promise against goal completion — concurrency signal present.
 Cancellation propagation: register two cleanups, trigger shutdown once, assert both
-  ran exactly once (jaEncerrou/alreadyShutDown idempotence holds under a double
+  ran exactly once (`jaEncerrou`/`alreadyShutDown` idempotence holds under a double
   trigger). Assert a cleanup registered AFTER shutdown still runs or is refused
   explicitly — never silently dropped.
 
@@ -433,7 +433,7 @@ Rename the 14 identifiers (27 occurrences) spanning `use-tui-keyboard.ts`, `inpu
 ```
 packages/tui/src/terminal-io/use-tui-keyboard.ts — 13 identifiers
 packages/tui/src/terminal-io/input-router.ts — 7 interface fields
-packages/tui/src/terminal-io/apply-key-action.ts — 7 fields + EXECUTORES
+packages/tui/src/terminal-io/apply-key-action.ts — 7 fields + `EXECUTORES`
 packages/tui/src/terminal-io/input-router.test.ts — RED test added first (NEW, see Q4)
 ```
 
@@ -651,7 +651,7 @@ packages/shared/src/diagnostic-sink.ts — 1 identifier
 ```
 RED:     None new — a one-line field rename with no behaviour to pin; tsc proves
          every consumer updated. Adding a test here would test implementation.
-GREEN:   Rename instalar -> install
+GREEN:   Rename `instalar` -> `install`
 REFACTOR: None expected
 VERIFY:  npm test
 ```

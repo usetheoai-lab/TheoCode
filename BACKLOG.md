@@ -484,12 +484,12 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #69, #70, #71, #72, #73, #81, #85, #86 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-003, B-012
-why_now: Five independent swallowed-error sites on the only code path that deletes user data all fail in the same direction. `dfsExistencia` continues past an unreadable directory and returns NAO_ACHOU -> MORTO; `ehDiretorio` maps any statSync failure to false -> MORTO; `listRealProject` maps any statSync failure to mtimeMs=0, which is infinitely old AND sorts last so `keepLast` cannot protect it; `resolverGuardas` returns an EMPTY protection set for MORTO, so `--keep-last` has no effect on exactly the projects the collector deletes from; and `listagemPadrao` drops `nextCursor` so the registry guard is page one. `classifyDirectory` already has INDETERMINADO for 'I cannot tell' and uses it on one branch only. Both existing tests force VIVO or keepLast:0, so a green suite cannot see any of it.
+why_now: Five independent swallowed-error sites on the only code path that deletes user data all fail in the same direction. `dfsExistencia` continues past an unreadable directory and returns `NAO_ACHOU` -> `MORTO`; `ehDiretorio` maps any statSync failure to false -> `MORTO`; `listRealProject` maps any statSync failure to mtimeMs=0, which is infinitely old AND sorts last so `keepLast` cannot protect it; `resolverGuardas` returns an EMPTY protection set for `MORTO`, so `--keep-last` has no effect on exactly the projects the collector deletes from; and `listagemPadrao` drops `nextCursor` so the registry guard is page one. `classifyDirectory` already has `INDETERMINADO` for 'I cannot tell' and uses it on one branch only. Both existing tests force `VIVO` or keepLast:0, so a green suite cannot see any of it.
 status: triaged
 severity: HIGH
 dod:
-  - an unreadable directory, an unstat-able cwd and an unstat-able transcript each produce INDETERMINADO, never MORTO — one failing test per site
-  - `keepLast` protects the newest N transcripts in a MORTO project, covered by a test that fails today
+  - an unreadable directory, an unstat-able cwd and an unstat-able transcript each produce `INDETERMINADO`, never `MORTO` — one failing test per site
+  - `keepLast` protects the newest N transcripts in a `MORTO` project, covered by a test that fails today
   - a collector run that could not list any project reports an error rather than `nada a coletar`
   - `listagemPadrao` forwards `nextCursor`, so `CursorNotDrainedError` can fire
 
