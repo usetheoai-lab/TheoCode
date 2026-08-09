@@ -97,6 +97,27 @@ const TECHNICAL = new Set([
   // Tool and protocol names that collide with a Portuguese dictionary entry. Measured against the
   // theokit repositories, where they accounted for ~19% of all matches.
   'vite', 'astro', 'cron', 'param', 'params', 'abi', 'goto', 'stringify', 'enum',
+  // Syntax-highlighter language identifiers. Each is a Portuguese dictionary entry and each
+  // appears in a language list, never as prose.
+  'mdx', 'cpp', 'apl', 'lua', 'imba', 'vala', 'prisma', 'abap',
+  // Other measured collisions across the theokit repositories.
+  'topo', // `topoSort` — topological, not pt "top"
+  'sao', 'paulo', // the IANA timezone `America/Sao_Paulo`
+  'sms', 'btn', 'mdc', 'jina', 'rgb', 'intra',
+  // English derived forms absent from en_US.dic (it ships without its .aff affix rules) and
+  // present in pt_BR.dic. Measured against the theokit corpus; each is unambiguously English here.
+  'subclasses', 'subclass', 'multimodal', 'responder', 'responders', 'transcode',
+  // Abbreviations measured in the gateway/plugin repositories.
+  'ipc', // inter-process communication
+  'tpc', // "topic" in a session-id scheme
+  'paras', // "paragraphs" in a chunker test
+  'ses', 'saas', 'bps', 'cta', 'rhf', 'mui',
+  // Terminal and image-format vocabulary measured in theokit-tui.
+  'csi', // Control Sequence Introducer (ANSI/CSI-2026)
+  'seps', // "separators" in a status-bar test
+  'todos', // pt "all" — here the plural of the English TodoItem
+  'sof', 'soi', 'uno',
+  'mis', // the English prefix in "mis-splits" — wordParts breaks on the hyphen
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
