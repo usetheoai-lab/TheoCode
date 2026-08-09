@@ -142,6 +142,14 @@ const TECHNICAL = new Set([
   'iam', // AWS / GCP identity and access management
   'aci', // agent-computer interface
   'ecma', // ECMAScript
+  'cnpj', // the Brazilian company registry id — same reason as cpf
+  'noir', // a theme name shipped by @theokit/ui
+  'correlator', // the tool-card correlator
+  'crm', // customer relationship management
+  'consolas', // the font, in a font stack
+  'reviver', // the JSON.parse reviver argument
+  'mono', // monospace, in a font stack
+  'vero', // `vero_id`, a cache-key field name
   'cpf', // the Brazilian taxpayer id — a proper noun, and a thing PII redaction must name
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
