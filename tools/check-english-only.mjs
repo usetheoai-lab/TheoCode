@@ -141,6 +141,7 @@ const TECHNICAL = new Set([
   'tpm', // tokens per minute
   'iam', // AWS / GCP identity and access management
   'aci', // agent-computer interface
+  'ecma', // ECMAScript
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -212,7 +213,14 @@ export function* wordParts(identifier) {
     /[A-Za-z0-9+/=]{20,}/g,
     (run) => (/\d/.test(run) ? ' ' : run),
   )
-  const withoutHex = withoutBlobs.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
+  // A UUID is one opaque identifier, not five words. The hex rule below requires a digit, so
+  // all-letter groups slipped past it: `bebe`, `daca`, `feda` and `abda` are all valid hex AND
+  // Portuguese, and 37 generated session filenames were reported because of it.
+  const withoutUuids = withoutBlobs.replace(
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+    ' ',
+  )
+  const withoutHex = withoutUuids.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
   // Strip diacritics BEFORE splitting. Without this, the split on `[^A-Za-z]` chops an accented
   // word in half: `façade` became `fa` + `ade`, and `ade` is a Portuguese word — so a correctly
   // spelled English noun was reported as Portuguese. Unaccenting also matches how the Portuguese

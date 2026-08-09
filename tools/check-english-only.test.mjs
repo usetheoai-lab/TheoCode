@@ -61,6 +61,21 @@ describe('T0.1 / M4 — KNOWN_PORTUGUESE matches whole words only', () => {
     expect([...wordParts('/\\bpa-[A-Za-z0-9_-]{20,}/g')]).not.toContain('bpa')
   })
 
+  it('test_a_uuid_is_not_a_source_of_words', () => {
+    // A UUID group is an opaque token. The hex rule below requires a digit, so all-letter groups
+    // survived it: `run-36f0a620-0199-432b-bebe-1701bdcd0496.md` yielded `bebe`, and 37 generated
+    // session files were reported as having Portuguese names.
+    expect(portugueseWordsInFilename('run-36f0a620-0199-432b-bebe-1701bdcd0496.md')).toEqual([])
+    expect(portugueseWordsInFilename('run-4bb3a63d-feda-4a3e-a2e1-afb160699727.md')).toEqual([])
+  })
+
+  it('test_a_portuguese_word_next_to_a_uuid_is_still_flagged', () => {
+    // ANTI-VACUITY FLOOR: dropping the UUID must not drop the rest of the name.
+    expect(portugueseWordsInFilename('rascunho-36f0a620-0199-432b-bebe-1701bdcd0496.md')).toContain(
+      'rascunho',
+    )
+  })
+
   it('test_a_unicode_escape_is_decoded_rather_than_erased', () => {
     // Blanking `\u00ed` split `Bras\u00edlia` into `Bras` + `lia`, and `lia` is Portuguese — the
     // erasure manufactured the very word it was meant to avoid. Decoding to the character and
