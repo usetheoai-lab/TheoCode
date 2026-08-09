@@ -194,7 +194,17 @@ export function* wordParts(identifier) {
   // A backslash escape is not a letter. `\n` in a string literal and `\b` in a regex source were
   // being split as `[^A-Za-z]` boundaries, leaving the escape letter glued to the next word:
   // `"\nno json here"` yielded `nno` and `/\bpa-/` yielded `bpa`, both Portuguese words.
-  const withoutEscapes = identifier.replace(/\\(?:u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, ' ')
+  const withoutEscapes = identifier.replace(
+    /\\(?:u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|.)/g,
+    (_m, brace, u4, x2) => {
+      // A numeric escape names a CHARACTER — decode it. Blanking it split `Bras\u00edlia` into
+      // `Bras` + `lia`, manufacturing a Portuguese word out of a correctly spelled proper noun.
+      const hex = brace ?? u4 ?? x2
+      if (hex !== undefined) return String.fromCodePoint(Number.parseInt(hex, 16))
+      // Everything else (`\n`, `\t`, `\b`) is a control escape, not a letter: it separates words.
+      return ' '
+    },
+  )
   // An opaque token is not a word. Generalizes the git-SHA case: any alphanumeric run of 20+ chars
   // containing a digit (base64 key blobs, OAuth client ids) is dropped whole, because splitting it
   // on case boundaries manufactures fragments — `MIIEvQIBADAN...` produced `mii`.

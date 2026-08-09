@@ -61,6 +61,13 @@ describe('T0.1 / M4 — KNOWN_PORTUGUESE matches whole words only', () => {
     expect([...wordParts('/\\bpa-[A-Za-z0-9_-]{20,}/g')]).not.toContain('bpa')
   })
 
+  it('test_a_unicode_escape_is_decoded_rather_than_erased', () => {
+    // Blanking `\u00ed` split `Bras\u00edlia` into `Bras` + `lia`, and `lia` is Portuguese — the
+    // erasure manufactured the very word it was meant to avoid. Decoding to the character and
+    // then unaccenting keeps the word whole.
+    expect([...wordParts('Bras\\u00edlia')]).toEqual(['brasilia'])
+  })
+
   it('test_an_opaque_alphanumeric_blob_is_not_split_into_words', () => {
     // A base64 key blob is not prose. Case-boundary splitting turned
     // `MIIEvQIBADANBgkqhkiG...` into `mii`, a Portuguese verb form. Generalizes the git-SHA rule
