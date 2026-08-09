@@ -31,6 +31,10 @@ module.exports = {
     },
     {
       name: 'surfaces-never-consume-each-other-reverse',
+      comment:
+        'The same boundary in the other direction. It is a separate rule because dependency-cruiser ' +
+        'matches from/to in one direction only, and a sibling dependency is worth refusing whichever ' +
+        'way it points: the CLI reaching into the TUI would pull Ink and React into a headless run.',
       severity: 'error',
       from: { path: '^packages/cli/src' },
       to: { path: '^packages/tui/src' },
