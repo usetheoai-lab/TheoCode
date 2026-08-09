@@ -118,6 +118,8 @@ const TECHNICAL = new Set([
   'todos', // pt "all" — here the plural of the English TodoItem
   'sof', 'soi', 'uno',
   'mis', // the English prefix in "mis-splits" — wordParts breaks on the hyphen
+  'ico', // the .ico file extension in a MIME map
+  'ccc', // a CSS hex colour (#ccc) — three-letter hex runs read as words
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
