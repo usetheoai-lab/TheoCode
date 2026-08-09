@@ -347,8 +347,15 @@ export function portugueseInComments(line) {
 export function portugueseWordsInFilename(path) {
   const base = path.split('/').pop() ?? ''
   const withoutExt = base.includes('.') ? base.slice(0, base.indexOf('.')) : base
+  // Strip UUIDs BEFORE splitting on separators — the split would shatter them into groups first,
+  // and `wordParts` would never see the shape. `bebe`, `daca`, `feda` and `abda` are valid hex
+  // AND Portuguese, so 37 generated session filenames were reported on that basis alone.
+  const withoutUuids = withoutExt.replace(
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+    '-',
+  )
   const found = []
-  for (const part of withoutExt.split(/[-_]+/)) {
+  for (const part of withoutUuids.split(/[-_]+/)) {
     for (const w of wordParts(part)) if (isPortuguese(w)) found.push(w)
   }
   return found
