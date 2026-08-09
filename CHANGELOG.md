@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Running a shell command straight from the composer with `!` is deliberately not implemented, and the reasoning is written down in `docs/adr/0001-shell-shortcut-confinement.md`. The terminal toolkit offers the shortcut, so anyone reading its documentation will expect it here: every command this product runs passes an approval prompt, a sandbox scope and any policy hook, and a composer shortcut has no turn for the approval to attach to — wiring it would mean a second, separate path to running commands on your machine. Ask the agent to run the command instead, or use `/ps` and `/stop` for background shells (B-056)
+
 ### Removed
 
 - `@theocode/cli` no longer offers an importable entry point. Importing it ran the command-line interface as a side effect, because the package exported the file that starts it (B-049)
