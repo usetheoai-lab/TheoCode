@@ -120,6 +120,13 @@ const TECHNICAL = new Set([
   'mis', // the English prefix in "mis-splits" — wordParts breaks on the hyphen
   'ico', // the .ico file extension in a MIME map
   'ccc', // a CSS hex colour (#ccc) — three-letter hex runs read as words
+  'gru', // the IATA code for Guarulhos airport, used in flight-search fixtures
+  'facto', // the Latin in "de-facto"
+  'wai', 'wcag', // WAI-ARIA and WCAG
+  'dlg', // "dialog" in a test id
+  'tri', // the English prefix in "tri-state" — wordParts breaks on the hyphen
+  'mantissas', // the English plural of mantissa (the 1/2/5 nice-number ladder)
+  'cmp', // "compare" in a sort comparator
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
