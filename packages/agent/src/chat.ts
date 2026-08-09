@@ -15,7 +15,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents/pty'
 import { z } from 'zod'
 
-import { MAX_AGREGADO, composeInstructions, loadAgentsMd } from './context/index.js'
+import { MAX_AGGREGATE, composeInstructions, loadAgentsMd } from './context/index.js'
 import { loadRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
@@ -60,7 +60,7 @@ export function buildChatAgent(overrides?: {
   interactiveBackend?: InteractiveBackend
   sessionPty?: SessionPtyOwner
 }) {
-  const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
+  const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
   // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
@@ -92,12 +92,12 @@ export function buildChatAgent(overrides?: {
     cwd,
   })
 
-  const doPerfil = profileTools(overrides?.surface, ask, abandonQuestion)
-  const porPerfil = [...doPerfil, ...(overrides?.extraTools ?? [])]
-  return porPerfil.reduce((acc, tool) => acc.tool(tool), chain).build()
+  const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
+  const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
+  return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
 }
 
-function contextoDoChat(overrides?: {
+function chatContext(overrides?: {
   posture?: TrustPosture
   config?: EffectiveConfig
   model?: string
@@ -381,7 +381,7 @@ function baseAgent(ctx: {
           overrides?.baseInstructions ?? BASE_INSTRUCTIONS,
           projectDocument(ctx.posture, ctx.cwd),
           overrides?.appendInstructions ?? '',
-          { maxChars: MAX_AGREGADO, warn: (m: string) => process.stderr.write(`${m}\n`) },
+          { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),
       )
       // M49 — durable memory (`.theokit/memory/` in the cwd: `Remember:` capture with secret redaction,

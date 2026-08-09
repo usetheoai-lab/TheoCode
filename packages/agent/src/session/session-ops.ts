@@ -31,8 +31,8 @@ export async function listSessions(cwd: string = process.cwd()): Promise<Session
     }))
 }
 
-export function legacyRootHint(encontradas: number, legacyRoot: string): string | undefined {
-  if (encontradas > 0) return undefined
+export function legacyRootHint(found: number, legacyRoot: string): string | undefined {
+  if (found > 0) return undefined
   const newRoot = process.env.THEOKIT_HOME?.trim()
   if (newRoot === undefined || newRoot.length === 0) return undefined
   if (newRoot === legacyRoot) return undefined

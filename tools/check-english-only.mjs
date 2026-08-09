@@ -1,29 +1,52 @@
 #!/usr/bin/env node
 /**
- * B-052 — fail when Portuguese re-enters the source.
+ * B-052 / B-058 — fail when Portuguese re-enters the source.
  *
  * The project rule is that everything WRITTEN in the repository is English; only the conversation is
- * Portuguese. That was never enforced, so the two languages interleaved inside single functions —
- * `resolverGuardas` returned `protegidos`, `classificar` returned `MORTO` — and 92 user-facing
- * strings shipped in Portuguese.
+ * Portuguese. This guard enforces it on `packages/**` sources.
  *
- * Two detectors, deliberately different in confidence:
+ * ## Why this file was rewritten
  *
- *   1. ACCENTED CHARACTERS — near-zero false positives. English source has no `ç`/`ã`/`é`. This is
- *      the reliable half, and it catches prose (comments, strings) as well as identifiers.
- *   2. A CLOSED LIST of Portuguese words seen in this codebase — a heuristic. It cannot catch a
- *      Portuguese word nobody has used yet, and it deliberately excludes tokens that are also
- *      English (`no`, `error`, `format`, `total`, `final`) because a check that fires on correct
- *      code is a check people delete.
+ * The first version paired an accent regex with a CLOSED LIST of Portuguese words. Its own docstring
+ * admitted the gap — "detector 2 is a denylist, not a language model" — and the gap was then measured
+ * FOUR times: the list was extended after `ResultadoDFS`/`pilha`, after `mais antiga(s)`, after
+ * `loginComMetodo`, and it still reported CLEAN while 70 Portuguese identifiers remained in
+ * `packages/agent` (`THREAD_PADRAO`, `varrerMarkdownComGuardas`, `SEGMENTOS_RESERVADOS`, …).
  *
- * Honest about the gap: detector 2 is a denylist, not a language model. A new Portuguese identifier
- * spelled without accents and absent from the list passes. Detector 1 remains the backstop, and most
- * Portuguese prose carries at least one accent.
+ * A denylist can only find words someone already thought of, so every new Portuguese identifier is
+ * invisible by construction and each extension buys exactly one word. The failure mode is silent:
+ * it reports success. This version inverts it — a word is flagged when it is in a PORTUGUESE
+ * dictionary and absent from an ENGLISH one, so the unforeseen case is the one that fires.
  *
- * Usage: node tools/check-english-only.mjs [--quiet]
- * Exit 0 when clean, 1 when a violation is found.
+ * ## Method
+ *
+ * Lexicon-based language identification against dictionaries already installed on the system
+ * (`/usr/share/dict`, `/usr/share/hunspell`) — no new dependency, per the parsimony ladder's
+ * "reuse what is installed" rung. Portuguese entries are also indexed with accents stripped (NFD,
+ * combining marks dropped) because source code writes `selecao` where the dictionary has `seleção`.
+ *
+ * Identifiers are split on camelCase / snake_case / SCREAMING_SNAKE and each part >= 3 chars is
+ * classified. Strings and comments are stripped before the identifier scan and checked separately by
+ * the accent detector, which needs no dictionary and has near-zero false positives.
+ *
+ * ## Honest limits
+ *
+ *   - It flags what is Portuguese-and-not-English. A word in NEITHER dictionary (`cwd`, `pty`, `dfs`)
+ *     is not flagged — abbreviations are legitimate, and flagging them would make the check one people
+ *     delete. An invented Portuguese-looking token can therefore still pass.
+ *   - A handful of English technical abbreviations collide with real Portuguese words (`cli` = to
+ *     click, `pre` = a prefix, `repo` = cabbage, `uri` = urine). They are listed in TECHNICAL below;
+ *     that list is a genuine denylist, but a bounded and auditable one — 18 entries against ~866k
+ *     Portuguese forms, and each addition weakens the check by exactly one word rather than being
+ *     the sole thing keeping it working.
+ *   - Without the dictionaries installed the lexicon detector cannot run. It says so and exits 1
+ *     rather than reporting clean, because a guard that passes when it cannot check is the failure
+ *     this rewrite exists to remove.
+ *
+ * Usage: node tools/check-english-only.mjs [--quiet] [--list-unknown]
+ * Exit 0 when clean, 1 when a violation is found or the lexicons are unavailable.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 
 const ROOT = process.cwd()
@@ -32,43 +55,113 @@ const EXTS = new Set(['.ts', '.tsx'])
 
 const ACCENTED = /[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/
 
-/** Portuguese tokens measured in this repository. Extend when a new one is caught by hand. */
-const PT_WORDS = [
-  'atual', 'proximo', 'janela', 'protegidos', 'ehDiretorio', 'arquivo', 'arquivos', 'epoca',
-  'abandonar', 'classificar', 'quantos', 'guardas', 'descartar', 'chave', 'mutar', 'listagem',
-  'artefatos', 'documento', 'caminho', 'tentar', 'verificar', 'apagar', 'coletar', 'contagem',
-  'tamanho', 'inicio', 'opcoes', 'selecionar', 'limpar', 'enviar', 'receber', 'texto', 'linha',
-  'saida', 'entrada', 'consulta', 'resposta', 'pedido', 'montar', 'construir', 'calcular', 'obter',
-  'remover', 'adicionar', 'plano', 'candidato', 'candidatos', 'segmento', 'aplicar', 'nenhum',
-  'nenhuma', 'desfecho', 'folha', 'nivel', 'bruto', 'vistos', 'anterior', 'corpo', 'titulo',
-  'manter', 'medida', 'antes', 'cortado', 'vazio', 'assinar', 'aprovar', 'reservado', 'aninhada',
-  'esforco', 'profundidade', 'divergencia', 'precedencia', 'VIVO', 'MORTO', 'NAO_ACHOU',
-  'INDETERMINADO',
-  // Added after the guard reported "clean" on a file that still contained `ResultadoDFS`, `ACHOU`,
-  // `pilha`, `achado`, `codificado` and `cwdAutoVerificado` — the documented denylist gap, observed.
-  'pilha', 'achado', 'codificado', 'resultado', 'mantidos', 'planejar', 'planejou', 'candidato',
-  'idsEmDisco', 'idsNoRegistry', 'cwdsVivos', 'totalPorForma', 'assertNuncaForma', 'FormaColetavel',
-  'PlanoAll', 'CandidatoAll', 'ACHOU', 'TETO', 'FORMAS', 'coletavel', 'deletavel',
-  // Added after `{hiddenBefore} mais antiga(s)` shipped in the backtrack overlay: an unaccented
-  // Portuguese phrase in a user-facing string, invisible to both detectors.
-  'mais', 'antiga', 'antigo', 'recente', 'semente', 'rotacionando', 'DepsDe', 'sementeDo',
-  // Third denylist extension, after `loginComMetodo`, `metodosDe` and `provedoresConhecidos`
-  // survived two earlier passes. The pattern is compound identifiers whose Portuguese half carries
-  // no accent — the documented gap, observed for the third time.
-  'metodo', 'metodos', 'provedor', 'provedores', 'ComMetodo', 'conhecidos', 'transiente',
-  'detalhe', 'aoFalhar', 'jaAvisado', 'trecho', 'cercado', 'envelope', 'lote', 'partes',
-  'anuncio', 'escopo', 'escopoDo', 'anuncioDe', 'DeLogin', 'DoReviewer',
-]
-const PT_RE = new RegExp(`\\b(?:${PT_WORDS.join('|')})[A-Za-z_]*`, 'g')
+/** Where the system keeps word lists. Missing entries are skipped; all missing is fatal. */
+const LEXICONS = {
+  en: ['/usr/share/dict/american-english', '/usr/share/dict/words', '/usr/share/hunspell/en_US.dic'],
+  pt: ['/usr/share/dict/brazilian', '/usr/share/dict/portuguese', '/usr/share/hunspell/pt_BR.dic'],
+}
 
 /**
- * Lines allowed to contain the patterns above, because their POINT is to name them. Keyed by
- * `path:line` so an allowance cannot silently widen to the whole file.
+ * English technical vocabulary that collides with a Portuguese dictionary entry. Each one is a real
+ * word in Portuguese, which is why the lexicon test alone cannot clear it.
  */
+const TECHNICAL = new Set([
+  'cli', // pt: "to click"
+  'pre', // pt: prefix particle
+  'repo', // pt: "cabbage"
+  'uri', // pt: "urine"
+  'acp', // agent client protocol
+  'todo', // pt: "all" — here it is the English task marker (`TodoItem`)
+  'num', // pt: contraction of "em um" — here it abbreviates "number" (`parseNum`)
+  'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
+])
+
+/** `path:line` allowances — keyed by line so one cannot silently widen to a whole file. */
 const ALLOWED = new Set([
   // A regression test asserting an error message carries no Portuguese.
   'packages/agent/src/ask/ask-bridge.test.ts:76',
 ])
+
+/** Strip combining marks so `seleção` also indexes as `selecao`. */
+const unaccent = (w) =>
+  w.normalize('NFD').replace(/\p{Mn}/gu, '')
+
+function loadLexicon(paths, alsoUnaccented) {
+  const words = new Set()
+  let loaded = 0
+  for (const p of paths) {
+    if (!existsSync(p)) continue
+    loaded++
+    for (const line of readFileSync(p, 'latin1').split('\n')) {
+      // hunspell `.dic` lines are `word/FLAGS`; plain dict files are bare words.
+      const w = (line.split('/')[0] ?? '').trim().toLowerCase()
+      if (w.length < 3 || !/^[a-zà-ÿ]+$/.test(w)) continue
+      words.add(w)
+      if (alsoUnaccented) words.add(unaccent(w))
+    }
+  }
+  return { words, loaded }
+}
+
+const EN = loadLexicon(LEXICONS.en, false)
+const PT = loadLexicon(LEXICONS.pt, true)
+
+if (EN.loaded === 0 || PT.loaded === 0) {
+  console.error(
+    'english-only: CANNOT CHECK — no system word lists found.\n' +
+      `  english sources tried: ${LEXICONS.en.join(', ')}\n` +
+      `  portuguese sources tried: ${LEXICONS.pt.join(', ')}\n` +
+      '  install with: sudo apt-get install wamerican wbrazilian hunspell-pt-br\n' +
+      'Exiting 1 rather than reporting clean: a guard that passes when it cannot check is worse\n' +
+      'than no guard, because it is believed.',
+  )
+  process.exit(1)
+}
+
+/** Split an identifier into lowercase word parts: `varrerMarkdown` -> [varrer, markdown]. */
+function* wordParts(identifier) {
+  for (const chunk of identifier.split(/[^A-Za-z]+/)) {
+    for (const w of chunk.match(/[A-Z]+(?![a-z])|[A-Z][a-z]+|[a-z]+/g) ?? []) {
+      if (w.length >= 3) yield w.toLowerCase()
+    }
+  }
+}
+
+/**
+ * Suffixes that end Portuguese words and do not end English ones. Applied ONLY to words absent from
+ * BOTH lexicons, which is what makes them safe: an English word ending in `-ndo` ("commando",
+ * "innuendo") is in the English lexicon and never reaches this test.
+ *
+ * This exists because the installed lexicons are `.dic` files without their `.aff` affix rules, so
+ * derived forms are missing — `localização` is in no list on this machine, and `localizacao` was
+ * therefore invisible to the lexicon test despite being named in the engagement scope. No hunspell
+ * binary and no Portuguese aspell dictionary are installed to expand them properly.
+ *
+ * HEURISTIC, and labelled as such. Measured on this repository: 11 hits, 0 false positives
+ * (`selecao`, `localizacao`, `instrucao`, `delegacao`, `continuacao`, `interrupcao`, `inspecao`,
+ * `conducao`, `instancia`, `disponivel`, `intocaveis`) out of 949 words in neither lexicon.
+ */
+const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|ncia|ncias|avel|ivel|aveis|iveis|ndo)$/
+
+/**
+ * A word is Portuguese when a Portuguese lexicon has it and an English one does not, or — for words
+ * neither lexicon knows — when it carries a Portuguese-only suffix.
+ */
+const isPortuguese = (w) => {
+  if (TECHNICAL.has(w) || EN.words.has(w)) return false
+  return PT.words.has(w) || PT_SUFFIX.test(w)
+}
+
+/**
+ * Blank out string literals and comments so the identifier scan sees only code. They are not ignored
+ * — the accent detector reads the raw line, which is where Portuguese prose almost always shows up.
+ */
+function codeOnly(line) {
+  return line
+    .replace(/\/\/.*$/, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""')
+}
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -80,28 +173,56 @@ function* walk(dir) {
 }
 
 const violations = []
+const unknown = new Map()
+
 for (const base of SCAN) {
-  for (const file of walk(join(ROOT, base))) {
+  const dir = join(ROOT, base)
+  if (!existsSync(dir)) continue
+  for (const file of walk(dir)) {
     const rel = relative(ROOT, file)
     readFileSync(file, 'utf8')
       .split('\n')
       .forEach((line, i) => {
         const at = `${rel}:${i + 1}`
         if (ALLOWED.has(at)) return
+
         if (ACCENTED.test(line)) {
           violations.push({ at, why: 'accented character', text: line.trim().slice(0, 100) })
           return
         }
-        const words = line.match(PT_RE)
-        if (words) {
-          violations.push({ at, why: `Portuguese word: ${words[0]}`, text: line.trim().slice(0, 100) })
+
+        for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+          for (const w of wordParts(identifier)) {
+            if (isPortuguese(w)) {
+              violations.push({
+                at,
+                why: `Portuguese word "${w}" in \`${identifier}\``,
+                text: line.trim().slice(0, 100),
+              })
+              return
+            }
+            if (!EN.words.has(w) && !PT.words.has(w) && !TECHNICAL.has(w)) {
+              unknown.set(w, (unknown.get(w) ?? 0) + 1)
+            }
+          }
         }
       })
   }
 }
 
+if (process.argv.includes('--list-unknown')) {
+  // Neither-lexicon words. Mostly legitimate abbreviations, and the one place an invented
+  // Portuguese-looking token could hide — printed on demand so a human can sweep it.
+  console.error(`\nwords in neither lexicon (${String(unknown.size)}):`)
+  for (const [w, n] of [...unknown].sort((a, b) => b[1] - a[1])) console.error(`  ${w} (${String(n)})`)
+}
+
 if (violations.length === 0) {
-  if (!process.argv.includes('--quiet')) console.log('english-only: clean')
+  if (!process.argv.includes('--quiet')) {
+    console.log(
+      `english-only: clean (${String(EN.words.size)} EN forms, ${String(PT.words.size)} PT forms)`,
+    )
+  }
   process.exit(0)
 }
 
@@ -109,6 +230,7 @@ console.error(`english-only: ${String(violations.length)} violation(s)\n`)
 for (const v of violations) console.error(`  ${v.at}  (${v.why})\n    ${v.text}`)
 console.error(
   '\nEverything written in this repository is English; only the conversation is Portuguese.\n' +
-    'If a match is a false positive, add its `path:line` to ALLOWED in this file with a reason.',
+    'If a match is a false positive, add its `path:line` to ALLOWED in this file with a reason,\n' +
+    'or — when an English technical term collides with a Portuguese word — add it to TECHNICAL.',
 )
 process.exit(1)

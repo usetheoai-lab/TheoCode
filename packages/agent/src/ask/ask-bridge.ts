@@ -18,10 +18,10 @@ export class AskBridge {
   private readonly pending = new Map<string, PendingQuestion>()
   private notify: (() => void) | undefined
 
-  readonly #aoDivergir: (msg: string) => void
+  readonly #onDivergence: (msg: string) => void
 
-  constructor(aoDivergir: (msg: string) => void = (msg) => process.stderr.write(`${msg}\n`)) {
-    this.#aoDivergir = aoDivergir
+  constructor(onDivergence: (msg: string) => void = (msg) => process.stderr.write(`${msg}\n`)) {
+    this.#onDivergence = onDivergence
   }
 
   ask(question: string, threadId = THREAD_PADRAO): Promise<string> {
@@ -51,11 +51,11 @@ export class AskBridge {
   answer(answer: string, threadId = THREAD_PADRAO): boolean {
     const p = this.pending.get(threadId)
     if (p === undefined) {
-      const abertas = [...this.pending.keys()]
-      this.#aoDivergir(
+      const openThreads = [...this.pending.keys()]
+      this.#onDivergence(
         `[ask-bridge] answer for "${threadId}" with no pending question` +
-          (abertas.length > 0
-            ? ` — pending em: ${abertas.join(', ')}`
+          (openThreads.length > 0
+            ? ` — pending em: ${openThreads.join(', ')}`
             : ' — no open question') +
           ' (sob a TUI este aviso vai para .theokit/tui-stderr.log)',
       )

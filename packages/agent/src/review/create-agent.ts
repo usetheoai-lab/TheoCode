@@ -1,7 +1,7 @@
 import { Agent, buildModelSelection } from '@theokit/agents'
 import type { CustomTool, HookHandlers } from '@theokit/agents'
 
-import { hooksParaMembro } from '../delegation/index.js'
+import { hooksForMember } from '../delegation/index.js'
 
 import type { AgentConfig } from '../config/index.js'
 import { ToolRegistry, resolveToolScope, type ToolScope } from '../tools/index.js'
@@ -55,7 +55,7 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
   const registry = new ToolRegistry(reviewerScope(deps.config, deps.cwd))
-  const pluginDeHooks = deps.hooks !== undefined ? hooksParaMembro(deps.hooks) : undefined
+  const pluginDeHooks = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
     const apiKey = await deps.resolveCredential(deps.config.model)

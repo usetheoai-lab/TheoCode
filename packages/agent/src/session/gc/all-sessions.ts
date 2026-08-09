@@ -67,7 +67,7 @@ interface ApplyAllOptions {
 
 export interface AllResult {
   dryRun: boolean
-  removidos: string[]
+  removed: string[]
   errors: string[]
 }
 
@@ -332,10 +332,10 @@ export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<Al
 
 function backstopRefusal(
   c: AllCandidate,
-  ponteirosAgora: ReadonlySet<string>,
+  livePointers: ReadonlySet<string>,
   opts: ApplyAllOptions,
 ): string | undefined {
-  if (c.id !== undefined && ponteirosAgora.has(c.id)) {
+  if (c.id !== undefined && livePointers.has(c.id)) {
     return `${c.target}: refused — the live-session pointer changed between plan and apply`
   }
   if (opts.hasLiveWriter === undefined) return undefined
@@ -379,46 +379,46 @@ export async function runSessionGCAllProjects(
   opts: ApplyAllOptions,
 ): Promise<AllResult> {
   if (opts.apply !== true) {
-    return { dryRun: true, removidos: plan.candidates.map((c) => c.target), errors: [] }
+    return { dryRun: true, removed: plan.candidates.map((c) => c.target), errors: [] }
   }
-  const removidos: string[] = []
+  const removed: string[] = []
   const errors: string[] = []
 
-  const ponteirosAgora = new Set<string>()
+  const livePointers = new Set<string>()
   if (opts.readPointer !== undefined) {
     for (const cwd of new Set(plan.liveCwds)) {
       const p = opts.readPointer(cwd)
-      if (p !== undefined) ponteirosAgora.add(p)
+      if (p !== undefined) livePointers.add(p)
     }
   }
 
   for (const c of plan.candidates) {
-    const refusal = backstopRefusal(c, ponteirosAgora, opts)
+    const refusal = backstopRefusal(c, livePointers, opts)
     if (refusal !== undefined) {
       errors.push(refusal)
       continue
     }
     try {
       await removeCandidate(c, opts)
-      removidos.push(c.target)
+      removed.push(c.target)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removidos.push(c.target) 
+        removed.push(c.target) 
         continue
       }
       errors.push(`${c.target}: ${(err as Error).message}`)
     }
   }
 
-  await removeEmptyProjects(plan, opts, removidos, errors)
+  await removeEmptyProjects(plan, opts, removed, errors)
 
-  return { dryRun: false, removidos, errors }
+  return { dryRun: false, removed, errors }
 }
 
 async function removeEmptyProjects(
   plan: AllPlan,
   opts: ApplyAllOptions,
-  removidos: string[],
+  removed: string[],
   errors: string[],
 ): Promise<void> {
   const list = opts.listProject
@@ -428,7 +428,7 @@ async function removeEmptyProjects(
     try {
       if (list(project).length === 0) {
         await opts.rmdir(dir)
-        removidos.push(dir)
+        removed.push(dir)
       }
     } catch (err) {
       errors.push(`${dir}: ${(err as Error).message}`)

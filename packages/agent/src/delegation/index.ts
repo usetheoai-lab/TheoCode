@@ -1,4 +1,4 @@
 export { createAnalystSubagent } from './analyst.js'
-export { hooksParaMembro } from './hooks-para-membro.js'
+export { hooksForMember } from './hooks-for-member.js'
 export { createDelegateToTeamTool } from './squad.js'
 

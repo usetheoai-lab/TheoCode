@@ -130,7 +130,7 @@ function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const newestNow = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
-  const intocaveis = new Set(
+  const untouchable = new Set(
     [
       (opts.readPointer ?? realReadPointer)(cwd),
       newestNow,
@@ -141,7 +141,7 @@ function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   return {
     del: opts.delete ?? ((id: string) => Agent.delete(id)),
     unlink: opts.unlink ?? ((id: string) => fsp.unlink(transcriptPath(baseDir, cwd, id))),
-    intocaveis,
+    untouchable,
   }
 }
 
@@ -155,10 +155,10 @@ export async function runSessionGC(
   if (dryRun) {
     return { dryRun: true, removed: plan.candidates.map((c) => c.id), errors: [] }
   }
-  const { del, unlink, intocaveis } = resolveApply(plan, opts)
+  const { del, unlink, untouchable } = resolveApply(plan, opts)
 
   for (const c of plan.candidates) {
-    if (intocaveis.has(c.id)) {
+    if (untouchable.has(c.id)) {
       errors.push(
         `${c.id}: refused — the live pointer / most-recent transcript must never be deleted`,
       )

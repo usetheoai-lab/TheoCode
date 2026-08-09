@@ -84,8 +84,8 @@ interface LayersOnDisk {
 }
 
 function withCliLayer(opts: LayersOnDisk): Omit<LayersOnDisk, 'cli'> & { cli?: unknown } {
-  const { cli, ...resto } = opts
-  return { ...resto, ...(cli !== undefined ? { cli: cliOverridesLayer(cli) } : {}) }
+  const { cli, ...rest } = opts
+  return { ...rest, ...(cli !== undefined ? { cli: cliOverridesLayer(cli) } : {}) }
 }
 
 export function resolveEffectiveConfig(

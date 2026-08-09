@@ -56,21 +56,21 @@ export type SchemaKey = (typeof CONFIG_SCHEMA_KEYS)[number]
 
 interface EnvPath {
   readonly knob: string
-  readonly coagir: (raw: string) => unknown
+  readonly coerce: (raw: string) => unknown
 }
 
-function numeroDeEnv(raw: string): unknown {
+function numberFromEnv(raw: string): unknown {
   const n = Number(raw)
   return raw.trim().length > 0 && Number.isFinite(n) ? n : raw
 }
 
 export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
-  model: { knob: ENV_MODEL, coagir: (s) => s },
-  reasoning_effort: { knob: ENV_REASONING_EFFORT, coagir: (s) => s },
-  sandbox_mode: { knob: ENV_SANDBOX_MODE, coagir: (s) => s },
-  approval_policy: { knob: ENV_APPROVAL_POLICY, coagir: (s) => s },
-  goal_oracle: { knob: ENV_GOAL_ORACLE, coagir: (s) => s },
-  context_window: { knob: ENV_CONTEXT_WINDOW, coagir: numeroDeEnv },
+  model: { knob: ENV_MODEL, coerce: (s) => s },
+  reasoning_effort: { knob: ENV_REASONING_EFFORT, coerce: (s) => s },
+  sandbox_mode: { knob: ENV_SANDBOX_MODE, coerce: (s) => s },
+  approval_policy: { knob: ENV_APPROVAL_POLICY, coerce: (s) => s },
+  goal_oracle: { knob: ENV_GOAL_ORACLE, coerce: (s) => s },
+  context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
 }
 
 interface OptOutDeEnv {
@@ -115,8 +115,8 @@ export function keysWithoutEnvPath(
   withEnvPath: ReadonlySet<string>,
   optOut: readonly OptOutDeEnv[],
 ): string[] {
-  const isentas = new Set(optOut.map((o) => o.key))
-  return keys.filter((k) => !withEnvPath.has(k) && !isentas.has(k))
+  const exempt = new Set(optOut.map((o) => o.key))
+  return keys.filter((k) => !withEnvPath.has(k) && !exempt.has(k))
 }
 
 export function optOutsThatExemptNothing(
@@ -263,7 +263,7 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
     const path = ENV_BY_KEY[key]
     if (path === undefined) continue 
     const raw = env[path.knob]
-    if (raw !== undefined) envScalars[key] = path.coagir(raw)
+    if (raw !== undefined) envScalars[key] = path.coerce(raw)
   }
   let envParsed: RawScalars
   try {

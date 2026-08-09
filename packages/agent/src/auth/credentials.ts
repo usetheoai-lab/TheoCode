@@ -214,8 +214,8 @@ function resolveDeclaredProvider(
     assertPairMatches(provider, fromEnv, varName)
     return { kind: 'api', provider, apiKey: fromEnv, source: varName, inferred: false }
   }
-  const armazenada = home === undefined ? undefined : storedCredentialOf(provider, home, env)
-  if (armazenada !== undefined) return armazenada
+  const storedCredential = home === undefined ? undefined : storedCredentialOf(provider, home, env)
+  if (storedCredential !== undefined) return storedCredential
   throw new CredentialError(
     `provider "${provider}" is declared via THEOCODE_PROVIDER but no key for it was found ` +
       `(looked at ${varName}${home !== undefined ? ` and ${authFilePath(home, env)}` : ''}). ` +

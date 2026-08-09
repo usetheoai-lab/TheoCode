@@ -49,8 +49,8 @@ const io: OracleIO = {
     const fd = openSync(file, 'r')
     try {
       const buf = Buffer.alloc(FIRST_LINE_CAP)
-      const lidos = readSync(fd, buf, 0, FIRST_LINE_CAP, 0)
-      const text = buf.subarray(0, lidos).toString('utf8')
+      const bytesRead = readSync(fd, buf, 0, FIRST_LINE_CAP, 0)
+      const text = buf.subarray(0, bytesRead).toString('utf8')
       const nl = text.indexOf('\n')
       return nl >= 0 ? text.slice(0, nl) : text
     } finally {
@@ -159,7 +159,7 @@ export async function runAllProjectsOnDisk(
   })
 }
 
-const ROTULO: Record<CollectableKind, string> = {
+const LABEL: Record<CollectableKind, string> = {
   transcript: 'transcript',
   registry: 'registry entry',
   'lock-file': 'orphaned lock (file)',
@@ -172,12 +172,12 @@ export function formatReport(plan: AllPlan, result: AllResult): string[] {
   lines.push(
     result.dryRun
       ? 'DRY-RUN — nothing was removed; use --apply to execute'
-      : `APLICADO — ${String(result.removidos.length)} artefato(s) removido(s)`,
+      : `APLICADO — ${String(result.removed.length)} artefato(s) removido(s)`,
   )
   lines.push('')
   lines.push('by kind:')
   for (const [kind, n] of Object.entries(plan.totalByKind) as [CollectableKind, number][]) {
-    if (n > 0) lines.push(`  ${ROTULO[kind].padEnd(24)} ${String(n).padStart(7)}`)
+    if (n > 0) lines.push(`  ${LABEL[kind].padEnd(24)} ${String(n).padStart(7)}`)
   }
   const perProject = new Map<string, number>()
   for (const c of plan.candidates) perProject.set(c.project, (perProject.get(c.project) ?? 0) + 1)

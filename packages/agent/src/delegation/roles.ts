@@ -3,7 +3,7 @@ import type { CustomTool, HookHandlers, SDKAgent, SubagentDefinition } from '@th
 import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
-import { hooksParaMembro } from './hooks-para-membro.js'
+import { hooksForMember } from './hooks-for-member.js'
 import { EFFORT_LEVELS, parseEffort } from '../config/index.js'
 import type { ReasoningEffort, TrustPosture } from '../config/index.js'
 
@@ -45,12 +45,12 @@ function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool
 
 function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
   const model = def.model
-  const selecao = typeof model === 'string' ? undefined : model
-  const efforto = selecao === undefined ? undefined : reasoningEffortOf(selecao)
+  const selection = typeof model === 'string' ? undefined : model
+  const selectedEffort = selection === undefined ? undefined : reasoningEffortOf(selection)
   return {
     name,
-    ...(selecao !== undefined ? { model: selecao.id } : {}),
-    ...(efforto === undefined ? {} : { reasoning_effort: wireEffort(efforto, name) }),
+    ...(selection !== undefined ? { model: selection.id } : {}),
+    ...(selectedEffort === undefined ? {} : { reasoning_effort: wireEffort(selectedEffort, name) }),
     ...(def.sandbox === undefined ? {} : { sandbox: def.sandbox }),
     tools: [...(def.tools ?? [])],
   }
@@ -113,14 +113,14 @@ async function roleAgentOptions(
   name: string,
   ctx: RoleAgentContext,
 ): Promise<Parameters<typeof Agent.create>[0]> {
-  const encontrados = await discoverSubagents(ctx.cwd ?? process.cwd(), {
+  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), {
     settingSources: ctx.posture.allows.subagents ? ['project'] : [],
   })
-  const def = encontrados[name]
+  const def = found[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
   const { cwd, writeRoot, modelId, effort } = inheritFromParent(role, ctx)
-  const pluginDeHooks = ctx.hooks !== undefined ? hooksParaMembro(ctx.hooks) : undefined
+  const pluginDeHooks = ctx.hooks !== undefined ? hooksForMember(ctx.hooks) : undefined
   return {
     apiKey: requireResolvedCredential(ctx.apiKey),
     model: buildModelSelection(modelId, effort),

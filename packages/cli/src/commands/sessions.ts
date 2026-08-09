@@ -17,7 +17,7 @@ async function gcAcrossAllProjects(args: ExecSessions): Promise<void> {
   const result = await runAllProjectsOnDisk(plan, { apply: args.apply })
   if (args.json) {
     process.stdout.write(
-      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: result.dryRun, byKind: plan.totalByKind, removed: result.removidos.length, kept: plan.kept.length, errors: [...plan.errors, ...result.errors] })}\n`,
+      `${JSON.stringify({ type: 'sessions.gc.all', dryRun: result.dryRun, byKind: plan.totalByKind, removed: result.removed.length, kept: plan.kept.length, errors: [...plan.errors, ...result.errors] })}\n`,
     )
   } else {
     for (const l of formatReport(plan, result)) process.stderr.write(`${l}\n`)
