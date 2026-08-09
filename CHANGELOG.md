@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `npm run crossval` checks that every closed backlog item names a commit which actually touches the code the item is about. It exists because the 2026-08-08 review found an item closed against a commit that never touched the file its own evidence cited — and on its first run it found two more items closed with no commit recorded at all (B-018..B-057)
+
 ### Changed
 
 - Running a shell command straight from the composer with `!` is deliberately not implemented, and the reasoning is written down in `docs/adr/0001-shell-shortcut-confinement.md`. The terminal toolkit offers the shortcut, so anyone reading its documentation will expect it here: every command this product runs passes an approval prompt, a sandbox scope and any policy hook, and a composer shortcut has no turn for the approval to attach to — wiring it would mean a second, separate path to running commands on your machine. Ask the agent to run the command instead, or use `/ps` and `/stop` for background shells (B-056)
