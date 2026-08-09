@@ -129,6 +129,18 @@ const TECHNICAL = new Set([
   'cmp', // "compare" in a sort comparator
   'cas', // compare-and-swap
   'xai', // the xAI provider
+  'aip', // Google API Improvement Proposal (AIP-193)
+  'metas', // regex metacharacters, plural of "meta"
+  'ver', // SemVer, and `<ver>` in a path placeholder
+  'scp', // secure copy
+  'entra', // Microsoft Entra ID
+  'pojo', // plain old JavaScript object
+  'fsm', // finite state machine
+  'mcd', // `McdFrontmatterSchema` — a transposition of `mdc`, not a word
+  'bom', // byte order mark
+  'tpm', // tokens per minute
+  'iam', // AWS / GCP identity and access management
+  'aci', // agent-computer interface
   'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
 ])
 
@@ -179,7 +191,18 @@ export function* wordParts(identifier) {
   // A git SHA is not a word. `50fafe2` splits to `fafe`, which is a Portuguese verb form, and a
   // changelog citing a commit would be reported as Portuguese prose. Hex runs adjacent to digits
   // are dropped before splitting.
-  const withoutHex = identifier.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
+  // A backslash escape is not a letter. `\n` in a string literal and `\b` in a regex source were
+  // being split as `[^A-Za-z]` boundaries, leaving the escape letter glued to the next word:
+  // `"\nno json here"` yielded `nno` and `/\bpa-/` yielded `bpa`, both Portuguese words.
+  const withoutEscapes = identifier.replace(/\\(?:u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, ' ')
+  // An opaque token is not a word. Generalizes the git-SHA case: any alphanumeric run of 20+ chars
+  // containing a digit (base64 key blobs, OAuth client ids) is dropped whole, because splitting it
+  // on case boundaries manufactures fragments — `MIIEvQIBADAN...` produced `mii`.
+  const withoutBlobs = withoutEscapes.replace(
+    /[A-Za-z0-9+/=]{20,}/g,
+    (run) => (/\d/.test(run) ? ' ' : run),
+  )
+  const withoutHex = withoutBlobs.replace(/\b[0-9a-f]*\d[0-9a-f]*\b/gi, ' ')
   // Strip diacritics BEFORE splitting. Without this, the split on `[^A-Za-z]` chops an accented
   // word in half: `façade` became `fa` + `ade`, and `ade` is a Portuguese word — so a correctly
   // spelled English noun was reported as Portuguese. Unaccenting also matches how the Portuguese

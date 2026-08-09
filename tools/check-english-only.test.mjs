@@ -53,6 +53,28 @@ describe('T0.1 / M4 — KNOWN_PORTUGUESE matches whole words only', () => {
     expect(isPortuguese('indice')).toBe(true)
   })
 
+  it('test_a_backslash_escape_does_not_glue_onto_the_next_word', () => {
+    // `\n` inside a string literal is an escape, not two letters. Splitting on [^A-Za-z] left the
+    // `n` glued to the following word: "\nno json here" yielded `nno`, a Portuguese word, and the
+    // line was reported. Same shape as `\b` in a regex source gluing into `bpa`.
+    expect([...wordParts('just plain text\\nno json here')]).not.toContain('nno')
+    expect([...wordParts('/\\bpa-[A-Za-z0-9_-]{20,}/g')]).not.toContain('bpa')
+  })
+
+  it('test_an_opaque_alphanumeric_blob_is_not_split_into_words', () => {
+    // A base64 key blob is not prose. Case-boundary splitting turned
+    // `MIIEvQIBADANBgkqhkiG...` into `mii`, a Portuguese verb form. Generalizes the git-SHA rule
+    // already applied below: a long alphanumeric run containing a digit is an opaque token.
+    expect([...wordParts('MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC')]).toHaveLength(0)
+    expect([...wordParts('app_EMoamEEZ73f0CkXaXp7hrann')]).toEqual(['app'])
+  })
+
+  it('test_an_ordinary_long_identifier_is_still_split', () => {
+    // ANTI-VACUITY FLOOR for the rule above: without the digit requirement it would swallow real
+    // camelCase names, and the lexicon would stop seeing the words inside them.
+    expect([...wordParts('createInteractiveShellToolFactory')]).toContain('interactive')
+  })
+
   it('test_the_english_plural_of_index_is_not_flagged', () => {
     // ANTI-VACUITY FLOOR and the reason the match is exact rather than substring: `indices` is
     // the English plural and appears legitimately in packages/agent/src/session/backtrack.ts.
