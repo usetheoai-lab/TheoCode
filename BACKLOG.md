@@ -1335,3 +1335,32 @@ dod:
 note: B-032 removed the dead `TuiRoot.initialPosture` field — a seam built for exactly this work that never gained a consumer, and therefore read as though the TUI already honoured an injected posture.
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `tui-ambient-working-directory`).
+
+## B-058 — Portuguese across the theokit-framework repositories   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: measured 2026-08-09 with `tools/check-english-only.mjs`'s detectors pointed at `../theokit-framework/*` — **11,298 occurrences across 10 repositories**: 1,535 identifiers, 3,451 comments, 1,970 string literals, 4,342 markdown prose. Heaviest: `theokit` (5,472), `theokit-sdk` (1,535), `theokit-gateways` (886), `theokit-studio` (678). False positives were removed first: `vite`, `astro`, `cron`, `param`, `abi`, `goto` are Portuguese dictionary entries and accounted for ~19% of the raw count.
+why_now: TheoCode now enforces English-only over its own source, `tools/` and its filenames, comments and string literals (B-052 completed 2026-08-09, guard clean with six detectors). The same rule was never enforced on the framework this repository consumes, and the gap is measurable from here: `packages/agent/src/session/agent-list.ts:30` has to cite `ListOptionsSemPaginacao`, a Portuguese type name exported by `@theokit/agents`, because that is its real name.
+status: raw
+blocked_on: >
+  This is NOT a mechanical rename and MUST NOT be started as one. Three findings make it a
+  program rather than a task, and each needs a human decision before any code moves:
+
+  1. PUBLIC API. `theokit/packages/agents/src/auth/auth-provider.ts:73` declares
+     `export function classificarFalhaDeRefresh`. Renaming an exported symbol in a PUBLISHED
+     package is a breaking change for every consumer, TheoCode included. It needs a deprecation
+     path and a major version, not a sed.
+  2. IMMUTABLE HISTORY. 4,342 of the occurrences are markdown, and the bulk of that is
+     CHANGELOG prose. The project's own rule (Unbreakable Rule 6, and `.prettierignore` in this
+     repository) is that an entry for an already-released version is never edited. Translating
+     released changelog entries would violate the discipline this very item exists to uphold.
+  3. TEN REPOSITORIES, each with its own test suite, release cadence and consumers. A pass that
+     half-translates them is worse than either end state.
+dod:
+  - a decision recorded on each of the three blockers above, by the owner
+  - the exported-identifier subset scoped separately, with a deprecation path
+  - `check-english-only.mjs` (or its equivalent) wired into each repository's lint, so the
+    result is enforced rather than achieved once
