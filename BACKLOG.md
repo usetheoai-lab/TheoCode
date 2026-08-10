@@ -1865,7 +1865,22 @@ dod:
 
 ---
 
-## B-069 — MCP servers are spawned with no way to see them, or to see one fail   [ ]
+## B-069 — MCP servers are spawned with no way to see them, or to see one fail   [x]
+
+fixed_in: 2eb9c26 PENDING
+dod_verified:
+  - `/mcp` lists the servers the agent was given, from the build record rather than a re-read of
+    `.mcp.json`. VERIFIED LIVE: a declared `probe` server appears after one turn
+  - a server suppressed by trust-gating is DISTINGUISHABLE from one absent, and the message carries
+    the reason trust gates MCP at all — these are external processes spawned before any per-tool
+    approval. The remedies differ, so the listing must not collapse them
+  - the empty case names `.mcp.json`, because a user who declared servers elsewhere needs the path
+  - HONEST LIMIT, and it is the item's second bullet left OPEN rather than quietly dropped: a server
+    that FAILED TO START is still not reported. The SDK owns the spawn and surfaces no per-server
+    outcome to this layer — measured, not assumed: `.mcp()` takes the map and returns the builder.
+    So `/mcp` answers "which servers was this agent given", not "which ones answered". The adjacent
+    product prints a startup failure; we cannot yet. B-088 carries it, because closing the listing
+    while leaving the failure silent is exactly the half-answer this item was filed against
 
 domain: theocode
 repo: TheoCode
@@ -2609,5 +2624,32 @@ dod:
     it is being left behind. Silently discarding a turn in progress is worse than refusing
   - if resuming in place is deliberately not supported, `/sessions` says so instead of listing
     entries with no verb attached
+
+---
+
+## B-088 — An MCP server that fails to start is silent   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: measured 2026-08-10 while closing B-069. `packages/agent/src/chat.ts` hands the loaded map
+  to `.mcp(ctx.mcpServers)` and the SDK owns the spawn; nothing returns a per-server outcome to this
+  layer, so `wiredCapabilities.mcp.active` reports what the agent was GIVEN, not what answered.
+  The contrast was observed directly in the side-by-side run that produced this whole batch: the
+  adjacent product printed `MCP client for 'add-fixture' failed to start` at boot; here the tools
+  simply are not there.
+why_now: `/mcp` now exists and answers the easy half. Someone reading it will reasonably conclude a
+  listed server is working, which is a stronger claim than the data supports — a listing that
+  overstates is worse than no listing, and B-067 is this repository's precedent for that costing a
+  reopened item.
+status: raw
+severity: MEDIUM
+dod:
+  - a server that failed to start is reported as failed, distinct from absent and from trust-suppressed
+  - if the SDK exposes no per-server outcome, that is measured and the gap is closed UPSTREAM rather
+    than guessed at locally — a health probe invented here would report on a connection this product
+    does not own
+  - until then `/mcp` says what it can and cannot know, instead of letting a listed name imply health
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

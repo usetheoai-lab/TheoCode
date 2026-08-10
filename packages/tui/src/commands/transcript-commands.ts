@@ -15,7 +15,7 @@ import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { listSubagents, subagentDir } from './subagent-inventory.js'
 import { hookInventory, renderHookInventory } from './hook-inventory.js'
-import { skillsPanelBody } from './wiring-panels.js'
+import { mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
 import { classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
 import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
@@ -112,4 +112,9 @@ export function handleListHooks(setPanel: (p: ContentPanel) => void): void {
 /** B-070 — the skills the LAST BUILD loaded, never a re-read of config. */
 export function handleListSkills(setPanel: (p: ContentPanel) => void): void {
   setPanel({ title: 'skills', body: skillsPanelBody(currentWiring()) })
+}
+
+/** B-069 — the MCP servers the LAST BUILD started, never a re-read of `.mcp.json`. */
+export function handleListMcp(setPanel: (p: ContentPanel) => void): void {
+  setPanel({ title: 'mcp servers', body: mcpPanelBody(currentWiring()) })
 }

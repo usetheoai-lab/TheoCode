@@ -3,6 +3,7 @@ import {
   handleCopy,
   handleExport,
   handleListHooks,
+  handleListMcp,
   handleListSkills,
   handleListSubagents,
 } from './transcript-commands.js'
@@ -270,6 +271,9 @@ function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapa
       return true
     case 'listSkills':
       handleListSkills(cap.setPanel)
+      return true
+    case 'listMcp':
+      handleListMcp(cap.setPanel)
       return true
     default:
       return false

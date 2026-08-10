@@ -6,9 +6,15 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { skillsPanelBody } from './wiring-panels.js'
+import { mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 
-const wired = (skills: { active: string[]; requested: string[]; suppressedByTrust: boolean }) =>
+type Entity = { active: string[]; requested: string[]; suppressedByTrust: boolean }
+const EMPTY: Entity = { active: [], requested: [], suppressedByTrust: false }
+
+const wiredMcp = (mcp: Entity) =>
+  ({ mcp, skills: EMPTY, hooks: EMPTY, projectSources: true }) as never
+
+const wired = (skills: Entity) =>
   ({
     skills,
     mcp: { active: [], requested: [], suppressedByTrust: false },
@@ -46,5 +52,53 @@ describe('B-070 — skillsPanelBody', () => {
     expect(skillsPanelBody(wired({ active: [], requested: [], suppressedByTrust: false }))).toBe(
       'no skills are enabled for this directory',
     )
+  })
+})
+
+/**
+ * B-069 — the same three states for MCP, and the suppressed message carries the reason trust gates
+ * it at all: these are external processes SPAWNED before any per-tool approval.
+ */
+describe('B-069 — mcpPanelBody', () => {
+  it('test_lists_the_servers_the_agent_started', () => {
+    expect(
+      mcpPanelBody(wiredMcp({ active: ['fixtures'], requested: ['fixtures'], suppressedByTrust: false })),
+    ).toContain('fixtures')
+  })
+
+  it('test_no_agent_yet_is_not_reported_as_no_servers', () => {
+    expect(mcpPanelBody(undefined)).toContain('no agent has been built yet')
+  })
+
+  it('test_trust_suppression_names_the_servers_and_the_reason', () => {
+    const body = mcpPanelBody(
+      wiredMcp({ active: [], requested: ['fixtures'], suppressedByTrust: true }),
+    )
+    expect(body).toContain('DIRECTORY UNTRUSTED')
+    expect(body).toContain('fixtures')
+    expect(body).toContain('spawn external processes')
+  })
+
+  it('test_a_trusted_directory_with_no_servers_names_the_file', () => {
+    // Anti-vacuity floor, and the file name is the useful half: a user who declared servers
+    // elsewhere needs to know where this looked.
+    expect(mcpPanelBody(wiredMcp(EMPTY))).toContain('.mcp.json')
+  })
+})
+
+/**
+ * B-088 — the panel must not let a listed name imply health.
+ */
+describe('B-069/B-088 — /mcp states what it cannot know', () => {
+  it('test_a_listed_server_carries_the_caveat', () => {
+    const body = mcpPanelBody(
+      wiredMcp({ active: ['probe'], requested: ['probe'], suppressedByTrust: false }),
+    )
+    expect(body).toContain('whether each one answered is not reported here')
+  })
+
+  it('test_the_caveat_is_absent_when_nothing_is_listed', () => {
+    // Anti-noise floor: a caveat on an empty panel is a warning about nothing.
+    expect(mcpPanelBody(wiredMcp(EMPTY))).not.toContain('whether each one answered')
   })
 })

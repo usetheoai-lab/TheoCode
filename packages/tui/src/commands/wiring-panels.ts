@@ -36,3 +36,21 @@ export function skillsPanelBody(wired: WiredCapabilities | undefined): string {
       'DIRECTORY UNTRUSTED — these skills are configured and were NOT loaded, so nothing in them is steering the agent:',
   })
 }
+
+/**
+ * B-069/B-088 — the servers this agent was GIVEN, which is not the same as the servers that
+ * answered. The SDK owns the spawn and returns no per-server outcome here, so a listed name means
+ * "handed to the builder", not "healthy". Said out loud rather than left for a reader to assume:
+ * a listing that overstates what it knows is worse than none, which B-067 cost a reopened item.
+ */
+export function mcpPanelBody(wired: WiredCapabilities | undefined): string {
+  const body = renderWiredEntity(wired?.mcp, {
+    empty: 'no MCP servers are configured for this directory (.mcp.json)',
+    suppressed:
+      'DIRECTORY UNTRUSTED — these MCP servers are declared and were NOT started. They spawn external processes before any per-tool approval, which is why trust gates them:',
+  })
+  const listed = wired?.mcp !== undefined && wired.mcp.active.length > 0
+  return listed
+    ? `${body}\n\nthese were handed to the agent; whether each one answered is not reported here (B-088)`
+    : body
+}

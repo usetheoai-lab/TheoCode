@@ -28,6 +28,8 @@ export type CommandAction =
   | { kind: 'listHooks' }
   // B-070 — which skills the agent actually loaded, and which trust removed.
   | { kind: 'listSkills' }
+  // B-069 — which MCP servers the agent started, and which trust refused to spawn.
+  | { kind: 'listMcp' }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -80,6 +82,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'subagents', description: 'list the subagents this project defines' },
   { name: 'hooks', description: 'list the lifecycle hooks registered for this directory' },
   { name: 'skills', description: 'list the skills this agent actually loaded' },
+  { name: 'mcp', description: 'list the MCP servers this agent started' },
   { name: 'rename', description: 'rename the current session' },
   { name: 'memory', description: 'durable-memory status' },
   { name: 'compact', description: 'summarize the conversation to free context' },
@@ -121,6 +124,7 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/subagents', { kind: 'listSubagents' }],
   ['/hooks', { kind: 'listHooks' }],
   ['/skills', { kind: 'listSkills' }],
+  ['/mcp', { kind: 'listMcp' }],
   ['/retry', { kind: 'retry' }],
   ['/fork', { kind: 'fork' }],
   ['/sessions', { kind: 'listSessions' }],

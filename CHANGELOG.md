@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `/mcp` shows which external tool servers the agent started. They are spawned as real processes when the directory is trusted, and until now nothing told you which ones had loaded — or that an untrusted directory had refused to start them at all. The untrusted case names the servers and says why they are gated: they run before any per-tool approval (B-069)
+
 - `/skills` shows which skills the agent actually loaded. They are read from disk and can be removed entirely when the directory is untrusted, and both states were invisible: a skill that was not taking effect gave you no way to tell whether you had misnamed the directory, never listed it, or had it dropped on purpose. When trust removed them the list names them and says they were not loaded, because "no skills" and "your skills were dropped" send you to opposite places (B-070)
 
 - The agent now records what it actually wired — which MCP servers, skills and hooks reached it, and which ones the directory's trust posture removed. It is built from the same values the agent was constructed with, at the moment it was constructed, so a surface reporting it can no longer disagree with what is running. Nothing user-visible yet; it is the foundation the `/mcp`, `/skills` and `/hooks` listings need, and building it once is what stops four commands from each growing their own version (B-069, B-070, B-071)
