@@ -332,6 +332,13 @@ export function loadConfig(opts: {
   const projectDir = opts.projectDir ?? process.cwd()
   const userDir = opts.userDir ?? homedir()
   const env = opts.env ?? process.env
+  // B-086 — these two paths are DOCUMENTED in README § "Where configuration lives". They are not
+  // guessable: the SDK filebase next door is `.theokit/` (subagents, skills, rules), and a setting
+  // written into the wrong one is ignored with no error at all. That was measured, not imagined —
+  // a valid `[[hooks]]` block in `.theokit/config.toml` produced `hooks: []` from a trusted
+  // directory and read exactly like a product defect. Changing either path here means changing the
+  // README in the same commit; a hook is arbitrary command execution on every tool call, and its
+  // location must not become folklore.
   const user = readTomlIfPresent(join(userDir, '.theocode', 'config.toml'))
   const project = opts.posture.allows.projectConfig
     ? readTomlIfPresent(join(projectDir, '.theocode', 'config.toml'))
