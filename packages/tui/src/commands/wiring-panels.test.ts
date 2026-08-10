@@ -88,18 +88,25 @@ describe('B-069 — mcpPanelBody', () => {
 
 /**
  * B-088 — the panel must not let a listed name imply health.
+ *
+ * The caveat CHANGED when the answer started existing. It used to say whether a server answered was
+ * "not reported here", which was true while no layer below knew; the SDK now emits
+ * `mcp_server_failed` and the panel reports it, so repeating the old wording would understate what
+ * this listing can say. What must NOT change is the floor below it: silence is still not health.
  */
 describe('B-069/B-088 — /mcp states what it cannot know', () => {
-  it('test_a_listed_server_carries_the_caveat', () => {
+  it('test_a_listed_server_says_a_failure_would_be_reported_after_the_turn', () => {
     const body = mcpPanelBody(
       wiredMcp({ active: ['probe'], requested: ['probe'], suppressedByTrust: false }),
     )
-    expect(body).toContain('whether each one answered is not reported here')
+    expect(body).toContain('reported here after the turn that hit it')
+    // The load-bearing half: no failure event yet is not proof one answered.
+    expect(body).not.toMatch(/healthy|all servers answered/i)
   })
 
   it('test_the_caveat_is_absent_when_nothing_is_listed', () => {
     // Anti-noise floor: a caveat on an empty panel is a warning about nothing.
-    expect(mcpPanelBody(wiredMcp(EMPTY))).not.toContain('whether each one answered')
+    expect(mcpPanelBody(wiredMcp(EMPTY))).not.toContain('reported here after the turn')
   })
 })
 
@@ -134,5 +141,43 @@ describe('B-071 — hooksPanelBody', () => {
 
   it('test_no_agent_yet_is_not_reported_as_no_hooks', () => {
     expect(hooksPanelBody(undefined)).toContain('no agent has been built yet')
+  })
+})
+
+/**
+ * B-088 — a server that FAILED is a third state, distinct from absent and from trust-suppressed.
+ *
+ * The panel used to end with a caveat saying whether each server answered "is not reported here".
+ * That was honest while nothing downstream knew; now the SDK emits `mcp_server_failed` and the
+ * answer exists, so the caveat would understate what the panel can say.
+ */
+describe('B-088 — mcpPanelBody reports servers that did not answer', () => {
+  const LISTED = wiredMcp({ active: ['fixtures'], requested: ['fixtures'], suppressedByTrust: false })
+
+  it('test_a_failed_server_is_named_with_its_reason', () => {
+    const body = mcpPanelBody(LISTED, [
+      { serverName: 'fixtures', message: 'spawn fixtures ENOENT' },
+    ])
+    expect(body).toContain('fixtures')
+    expect(body).toContain('spawn fixtures ENOENT')
+  })
+
+  it('test_a_failed_server_is_distinct_from_trust_suppression', () => {
+    const failed = mcpPanelBody(LISTED, [{ serverName: 'fixtures', message: 'boom' }])
+    // Trust suppression means NOT STARTED by policy; a failure means started and did not answer.
+    // Reporting one as the other sends a user to fix the wrong thing.
+    expect(failed).not.toContain('DIRECTORY UNTRUSTED')
+  })
+
+  it('test_with_no_failures_the_panel_does_not_claim_health', () => {
+    // The absence of a failure event is not proof a server answered — the turn may not have run
+    // yet. The panel must not upgrade silence into "healthy".
+    const body = mcpPanelBody(LISTED, [])
+    expect(body).not.toMatch(/healthy|all servers answered|running fine/i)
+  })
+
+  it('test_failures_are_omitted_when_no_server_is_listed', () => {
+    // Nothing was handed to the agent, so there is nothing to report a failure about.
+    expect(mcpPanelBody(wiredMcp(EMPTY), [])).toContain('.mcp.json')
   })
 })

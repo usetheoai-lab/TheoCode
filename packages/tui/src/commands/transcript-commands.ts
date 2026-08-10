@@ -15,6 +15,7 @@ import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { listSubagents, subagentDir } from './subagent-inventory.js'
 import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
+import { currentMcpFailures } from '../agent-session/mcp-failure-record.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
 import {
   armLoosening,
@@ -112,7 +113,9 @@ export function handleListSkills(setPanel: (p: ContentPanel) => void): void {
 
 /** B-069 — the MCP servers the LAST BUILD started, never a re-read of `.mcp.json`. */
 export function handleListMcp(setPanel: (p: ContentPanel) => void): void {
-  setPanel({ title: 'mcp servers', body: mcpPanelBody(currentWiring()) })
+  // B-088 — the failures the current turn observed, read at OPEN time rather than captured when
+  // the panel was built: a user opens /mcp precisely after something looked wrong.
+  setPanel({ title: 'mcp servers', body: mcpPanelBody(currentWiring(), currentMcpFailures()) })
 }
 
 /**

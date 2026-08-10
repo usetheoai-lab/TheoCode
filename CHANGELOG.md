@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`/mcp` reports a server that was started and did not answer (#188).** Its tools silently vanish from the session, and the panel previously could only say whether each server answered was "not reported here" — true while no layer below knew. `@theokit/sdk@4.41.0` now emits that failure per server with its reason, and the panel names it, distinct from a server withheld by trust. Absence of a failure is still not reported as health: the turn may not have run yet.
+
 ### Fixed
 - **An MCP server that fails to start is no longer silent (#188).** Its failure was caught per server and written only to the SDK's stderr, which this product never reads — so `/mcp` could list a configured server while every tool it provides had vanished. Fixed at the source in `@theokit/sdk` as an additive typed event; the panel reports it once the release reaches here through CI.
 

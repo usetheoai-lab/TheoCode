@@ -7,6 +7,8 @@
  */
 import type { WiredCapabilities, WiredEntity } from '@theocode/agent'
 
+import type { McpFailure } from '../agent-session/mcp-failure-record.js'
+
 /**
  * One entity's lines.
  *
@@ -43,16 +45,28 @@ export function skillsPanelBody(wired: WiredCapabilities | undefined): string {
  * "handed to the builder", not "healthy". Said out loud rather than left for a reader to assume:
  * a listing that overstates what it knows is worse than none, which B-067 cost a reopened item.
  */
-export function mcpPanelBody(wired: WiredCapabilities | undefined): string {
+export function mcpPanelBody(
+  wired: WiredCapabilities | undefined,
+  failures: readonly McpFailure[] = [],
+): string {
   const body = renderWiredEntity(wired?.mcp, {
     empty: 'no MCP servers are configured for this directory (.mcp.json)',
     suppressed:
       'DIRECTORY UNTRUSTED — these MCP servers are declared and were NOT started. They spawn external processes before any per-tool approval, which is why trust gates them:',
   })
   const listed = wired?.mcp !== undefined && wired.mcp.active.length > 0
-  return listed
-    ? `${body}\n\nthese were handed to the agent; whether each one answered is not reported here (B-088)`
-    : body
+  if (!listed) return body
+  if (failures.length === 0) {
+    // Deliberately NOT "all servers answered". No failure event having arrived is not proof of
+    // health — the turn may not have run yet, and upgrading silence into a health claim is the
+    // overstatement this item was opened about.
+    return `${body}\n\nthese were handed to the agent; a server that fails to answer is reported here after the turn that hit it`
+  }
+  const named = failures.map((f) => `  ${f.serverName} — ${f.message}`).join('\n')
+  // Distinct from the trust-suppressed wording on purpose: suppressed means NOT STARTED by policy,
+  // this means started and did not answer. Reporting one as the other sends a user to fix the
+  // wrong thing.
+  return `${body}\n\nDID NOT ANSWER — these servers were started and their tools could not be listed, so none of their tools exist for this session:\n${named}`
 }
 
 /**
