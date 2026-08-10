@@ -5,8 +5,15 @@ import { Text } from 'ink'
 import { StatusFooter } from '@theokit/tui'
 
 import { fmtK } from '../formatting/index.js'
+import { footerHint } from './composer-shortcuts.js'
 import type { ApprovalMode } from '../consent/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
+
+/**
+ * B-067 — this build has no agents panel behind `←`. Flips to `true` in the same commit that wires
+ * one (B-072), never before: the footer is not the place to announce intent.
+ */
+const AGENTS_PANEL_WIRED = false
 
 export interface FooterProps {
   readonly SESSION: {
@@ -49,7 +56,9 @@ export function SessionFooter(props: FooterProps): ReactElement {
           </Text>
         ) : undefined
       }
-      hint={props.shortcutsAvailable ? '? for shortcuts' : undefined}
+      // B-067 — never `undefined`: that reaches `StatusFooter`'s default parameter, which
+      // advertises every affordance the toolkit can do rather than the ones this build wires.
+      hint={footerHint({ shortcuts: props.shortcutsAvailable, agents: AGENTS_PANEL_WIRED })}
     />
   )
 }

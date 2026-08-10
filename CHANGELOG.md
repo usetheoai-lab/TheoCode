@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The status bar no longer offers you an agents panel that does not exist. Opening the command menu replaced the `? for shortcuts` hint with `? for shortcuts · ← for agents`, and pressing the left arrow did nothing, because asking the toolkit to show no hint is what made it show its own — which lists everything the toolkit can do rather than what this build wires. The hint is now assembled from the capabilities that are actually present, so an unbuilt feature cannot be advertised by omission (B-067)
+
 ### Added
 
 - **TheoCode:** backlog B-080..B-082 — three further items from widening that comparison past the command menu, to the CLI subcommands and the tools the model itself can call. Summarizing a long conversation is entirely manual and nothing warns you before the context runs out, so the failure lands mid-task; nothing diagnoses an installation, so when a setting does not take effect the only recourse is reading source; and the agent cannot open an image in the repository, which makes a diagram or a screenshot invisible to it unless you attach one by hand (B-080)
