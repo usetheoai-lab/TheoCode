@@ -2001,6 +2001,24 @@ source: human
 evidence: none-yet
 why_now: nothing in `packages/tui/src` touches a clipboard or writes a transcript — grep for `clipboard` across the package returns zero. The only way to move an answer somewhere else is mouse-selecting it out of a bordered box that hard-wraps every line, which re-flows the code it contains. For a terminal agent whose output is frequently a patch or a command, this is the most-used escape hatch after the answer itself, and it does not exist.
 status: raw
+attempted_2026-08-10: implementation was built, tested and then REVERTED rather than shipped
+  half-wired. What it measured, so the next attempt does not rediscover it:
+  - the timeline is `AgentEvent[]`, a HETEROGENEOUS union — tool and file-edit events sit beside
+    messages and carry no `role`/`parts`. A serializer typed as `Message[]` does not compile against
+    it; narrowing with a type guard at the boundary is the honest shape
+  - serialize from the MESSAGE DATA, never the rendered frame: the wrap that mangles code happens at
+    render time, so an export built from the frame reproduces the exact damage this item is about
+  - the timeline does NOT reach the command layer. `CommandCapabilities` has no `events`, so wiring
+    `/copy` and `/export` means threading it through `depsDoComposer` and `useTuiComposition`
+  - THAT THREADING IS THE HARD PART, and is why this was reverted. Adding one field puts
+    `useTuiComposition` at 61 lines (limit 60) and `use-tui-composition.ts` past its line budget.
+    Extracting `depsDoComposer` is the right answer and needs `useTuiSession`, which is LOCAL to that
+    file — exporting it makes the import circular, which `depcruise` refuses. The extraction has to
+    move `useTuiSession` too, or split the composition root properly. Budget that work; it is not a
+    detail on the side of the feature
+  - no clipboard dependency is needed: `wl-copy`/`xclip`/`xsel`/`pbcopy` cover the desktops, tried in
+    order, with a typed error when none exists (ssh without forwarding, containers, CI). A silent
+    no-op there is discovered by the user only when they paste
 severity: HIGH
 dod:
   - the last reply can be copied as markdown without mouse selection
