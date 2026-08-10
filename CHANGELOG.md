@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The agent can look at an image in your repository. Attaching one with `/image` still works, but that requires you to anticipate that a picture matters — a design mock, an architecture diagram or a screenshot of a failing test was invisible to it otherwise. It reads only inside the workspace: a path pointing outside is refused and said so, never quietly redirected somewhere allowed (B-082)
+
 - The README now says where configuration actually lives. There are two directories — `.theocode/` for the product's own settings and `.theokit/` for subagents, skills and rules — and putting a setting in the wrong one is ignored with no error at all. That matters most for hooks, which run a command of your choosing on every tool call: a block in the wrong file protects nothing and says nothing. The valid hook event names are written down for the same reason (B-086)
 
 ### Removed

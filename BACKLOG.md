@@ -2228,7 +2228,26 @@ dod:
 
 ---
 
-## B-082 — The agent cannot open an image in the repository   [ ]
+## B-082 — The agent cannot open an image in the repository   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `view_image` is registered and RESOLVABLE — asserted through `ToolRegistry.resolve`, not by the
+    name appearing in a list. B-018 recorded that this name is a contract three layers depend on
+  - a path outside the read root is refused with a typed `ImageOutsideRootError` naming both the path
+    and the root, never clamped. Silently rewriting to something inside would answer a question the
+    model did not ask, and it would treat the bytes as the file it named
+  - containment is `path.relative`-based, and the mutation proves why: replacing it with the obvious
+    `startsWith(root)` turns the suite red on `../project-other/x.png` — a SIBLING sharing the root's
+    prefix — and on the root itself. That is the classic way this rule is got wrong
+  - reuses `readImageAttachment`, the same reader `/image` uses (parsimony rung 4), so supported
+    formats, the size ceiling and the typed failures cannot drift between the two ways into one product
+  - the multimodal result goes through `outputSchema` + `toModelOutput`, which is the SDK's supported
+    path — a handler CANNOT return image blocks directly, and typecheck caught the first attempt
+  - HONEST LIMIT: verified by unit and wiring tests, NOT by a live model turn. The last DoD bullet —
+    "skipped rather than errored when the configured model cannot accept images" — is NOT
+    implemented: the tool is registered unconditionally. A text-only model will see it and fail on
+    use rather than not see it. Named here rather than left implied
 
 domain: theocode
 repo: TheoCode

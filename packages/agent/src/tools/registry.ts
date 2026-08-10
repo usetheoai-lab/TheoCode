@@ -1,4 +1,5 @@
 import { ConfigurationError, Toolset, ToolsetError } from '@theokit/agents'
+import { createViewImageTool } from './view-image.js'
 import type { CustomTool } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import {
@@ -35,6 +36,7 @@ export const REGISTRY_TOOL_NAMES = [
   'repo_status',
   'git_diff',
   'current_time',
+  'view_image',
   'apply_patch',
   'edit_file',
   'run_shell',
@@ -84,6 +86,8 @@ export class ToolRegistry {
       ['repo_status', createGitStatusTool({ projectRoot: scope.cwd, name: 'repo_status' })],
       ['git_diff', createGitDiffTool({ projectRoot: scope.cwd })],
       ['current_time', createCurrentTimeTool()],
+      // B-082 — the model can look at a diagram or screenshot itself, under the same read root.
+      ['view_image', createViewImageTool({ projectRoot: scope.cwd })],
       ['apply_patch', createApplyPatchTool({ projectRoot: scope.writeRoot })],
       ['edit_file', withName(createEditFileTool({ projectRoot: scope.writeRoot }), 'edit_file')],
       [
