@@ -1397,6 +1397,18 @@ feasibility_measured: >
 
   So the remedy is adoption of a resolved dependency, as this item claimed — and the entry point is
   `toAgentFactory`, not the assembler the reference source discusses.
+progress:
+  - DONE (3049d80) — bullet 2, the working directory. `buildChatAgent` requires `cwd`; the ambient
+    default is gone and with it the class of defect B-015 and B-032 closed twice without being able
+    to close permanently. `chat-transport.ts` now passes the TUI's `workingDirectory()` seam (it and
+    the `resolveEffectiveConfig` call two lines above could previously disagree) and `chat-acp.ts`
+    names `process.cwd()` at the composition root, where it is the decision rather than a fallback.
+    `test_omitting_the_directory_still_falls_back_to_the_process_one` was REPLACED, not deleted.
+  - DONE — bullet 4, B-061 landed first (20e43db). Its 14 tests are the equivalence oracle the
+    remaining bullets need: they assert the compiled tool set, approval map and trust gates, so a
+    composition refactor that changed behaviour would turn them red.
+  - REMAINING — bullets 1 and 3: one composition entry the three sites go through, and a fourth
+    agent expressed as a list. Feasibility is proven (see above) and unblocked; the work is not done.
 dod:
   - the three sites go through one composition entry, demonstrated by expressing at least one of them (review is the smallest and already the best-inverted) over it without changing its behaviour
   - that entry REQUIRES a working directory instead of defaulting to `process.cwd()` — folded in from `chat.ts:106`, the residue B-015 and B-032 left when they closed the read sites but not the optional default

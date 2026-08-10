@@ -18,6 +18,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
 
 ### Changed
+- The agent can no longer resolve its own project directory. Whoever builds it must say which directory it is for, so the trust decision, the configuration, the tools' write scope and the project instructions cannot end up describing two different folders — a disagreement that was previously one forgotten argument away, and silent when it happened (B-059)
 - The TheoCode domain specialist describes the repository as it is now. Nine of its calibration facts had gone false in three days — it told every cycle the repo had zero tests and no way to run them (there are 268, all passing), that the history was three commits long (131), that the layering was enforced by nobody (dependency-cruiser now checks five named rules over 190 modules), and it named a framework version the workspaces had already moved past. It now carries the date on every measured figure, and a note that the tree wins when the two disagree (B-062)
 - `.gitignore` and `.prettierignore` are written in English; their comments carried the reasoning behind a dozen ignore rules and were the last Portuguese prose in a versioned file (#B-058)
 - The English-only guard now covers `tools/` as well as `packages/`, and reads comment prose — a seven-line Portuguese comment in the build script was invisible to every previous detector (#B-058)
