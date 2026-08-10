@@ -4,7 +4,7 @@ import { readTurnUsage, type UIMessageLike } from '@theokit/tui'
 
 import { AGENT } from '@theocode/shared/agent'
 import { formatToolHeader, formatToolResult } from '../formatting/index.js'
-import { ultimoUsage } from '../formatting/index.js'
+import { latestUsage } from '../formatting/index.js'
 import { useCoalescedMemo } from './coalesced-memo.js'
 import { COALESCE_WINDOW_MS } from './frame-budget.js'
 import { deriveTimeline, prepareThread } from './timeline-memo.js'
@@ -40,6 +40,6 @@ export function useTimeline(agent: AgentWithThread, resumed: boolean): TuiTimeli
     agent.thread,
     COALESCE_WINDOW_MS,
   )
-  const lastUsage = useMemo(() => ultimoUsage(agent.thread, readTurnUsage), [agent.thread])
+  const lastUsage = useMemo(() => latestUsage(agent.thread, readTurnUsage), [agent.thread])
   return { events, lastUsage }
 }

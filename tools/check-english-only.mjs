@@ -289,6 +289,7 @@ const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|nc
  * flag it.
  */
 const KNOWN_PORTUGUESE = new Set([
+
   'cabecalho', 'cabecalhos', // cabeçalho — header
   'codigo', // código — code
   'espaco', // espaço — space
@@ -365,7 +366,15 @@ export function portugueseConstruction(identifier) {
  *
  * Do NOT close this by adding those words to a Portuguese list: `para` is documented in this
  * guard's own test suite as a deliberate EN/PT collision, and forcing either word would break the
- * collision handling version two was written to get right. Closing it needs a phrase-level or
+ * collision handling version two was written to get right.
+ *
+ * THIRD INSTANCE, 2026-08-10: `ultimoUsage` shipped and was found by eye, not by this guard.
+ * `ultimo` is in `en_US.dic` (English commercial usage, "of last month"), so `isPortuguese` returns
+ * false at the EN check — BEFORE `KNOWN_PORTUGUESE` is consulted, which is why adding it there does
+ * nothing. That ordering is correct: it is what stops `cli`, `repo` and `para` from firing. The
+ * lesson is that this is one blind spot with three faces — a sentence (B-083), a possessive
+ * construction (B-084, now detected), and a single homograph noun — and only the middle one had a
+ * shape worth detecting. Closing it needs a phrase-level or
  * grammar-level signal, scored for false positives against this corpus BEFORE it lands — a guard
  * that cries wolf is what killed version one.
  */

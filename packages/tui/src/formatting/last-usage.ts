@@ -1,4 +1,4 @@
-export function ultimoUsage<M, U>(
+export function latestUsage<M, U>(
   thread: readonly M[],
   readFrom: (m: M) => U | undefined,
 ): U | undefined {
