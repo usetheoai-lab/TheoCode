@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The interface now knows when the conversation is filling up and says so before it runs out, naming `/compact` and what compacting costs, once per level rather than every turn. KNOWN GAP: it cannot fire yet — the token reading it depends on is not reaching the status bar, which also means the "live token usage" the welcome screen advertises is not appearing at all (B-080, B-090)
+
 - `/resume <id>` opens a session from the terminal interface. It listed your sessions and gave you no way to open one, while the command line could resume all along. It refuses while a turn is still running, names the session you are leaving — which stays listed — and tells you an unsent draft was discarded rather than letting you find out (B-087)
 
 - `/sandbox` changes what the agent is allowed to do to your disk without restarting. Only the approval mode could be changed mid-session; the sandbox was a label in the status bar, so realising the posture was wrong meant quitting. Tightening applies immediately; loosening asks you to confirm, because granting the agent more of your disk should be something you meant to do. The status bar follows it from the next turn, reading the mode the agent was actually built with rather than resolving the configuration a second time (B-076)

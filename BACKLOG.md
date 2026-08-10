@@ -2366,6 +2366,30 @@ source: human
 evidence: none-yet
 why_now: `/compact` (`packages/tui/src/commands/registry.ts:102`) is the ONLY compaction path — grep across `packages/{agent,tui}` finds no auto-compaction, no threshold, and no context-remaining signal anywhere; the sole budget notion in the tree is `GOAL_DEFAULTS.tokenBudget` (`packages/agent/src/goal/goal.ts:52`), which governs the goal loop and nothing else. So the user is responsible for noticing context pressure, and the model has no way to observe its own remaining room. On a long session the failure arrives mid-turn, at the point where the work is least recoverable.
 status: raw
+partial_2026-08-10: the signal is BUILT and tested (14 tests across `contextPressure`,
+  `contextWarning` and `useContextWarning`); it cannot FIRE, and the reason is a defect this item
+  did not know about.
+  DONE:
+  - `contextPressure(used, window)` with thresholds at 75% and 90%, `>=` deliberately so a single
+    large turn cannot skip the warning entirely
+  - an unknown window (the `fallback` resolution, for models with no catalogue entry) never raises
+    the alarm — crying wolf on every such session is how a warning gets ignored
+  - `useContextWarning` fires on the TRANSITION upward, once per level, and RE-ARMS after a
+    compaction drops the level. Falling back says nothing: good news needs no toast, and announcing
+    it trains the user to dismiss the channel the bad news arrives on
+  - the warning names `/compact` AND what compaction costs, so the user is choosing rather than
+    obeying
+  - the footer marks the pressure (`!` / `!!`) beside the count, because a number climbing slowly is
+    exactly what people stop reading
+  BLOCKED BY A FINDING THIS ITEM ASSUMED AWAY:
+  - the footer's context readout NEVER RENDERS. `SessionFooter` shows it only when `lastUsage` is
+    defined, and it is `undefined` after real turns — verified live across several turns in this
+    session, with the right-hand side of the footer absent every time. This item was filed saying
+    "the footer showed used/window all along"; it does not
+  - so `useContextWarning` receives `undefined` and stays silent BY DESIGN (an absent reading is not
+    a signal), and the pressure mark has nothing to attach to. The logic is right and unreachable
+  - B-090 carries the missing usage reading. Closing this on green unit tests, with the warning
+    provably unable to fire in the product, would be exactly the false PASS B-071 was reopened for
 severity: HIGH
 dod:
   - the remaining context is observable — to the user before it runs out, and to the agent while it plans
@@ -2803,5 +2827,32 @@ dod:
     an entire session of manual testing precisely by looking like a product bug each time
   - if the behaviour belongs to `@theokit/tui`'s composer rather than to this app, it is fixed
     upstream with the same evidence rather than worked around locally
+
+---
+
+## B-090 — The footer's token count never appears   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: measured 2026-08-10 while closing B-080. `packages/tui/src/components/SessionFooter.tsx`
+  renders its right-hand side only when `lastUsage` is defined; across several real turns in the
+  live pane the footer showed only the left side (`gpt-5.4 medium · suggest · sandbox:… · oauth`)
+  and never `N/M context`. `useTimeline` returns `lastUsage` from `ultimoUsage(agent.thread,
+  readTurnUsage)`, so the reading is either absent from the thread or not being found there.
+why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
+  usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
+  cannot fire without it. A feature advertised on the first screen and absent in practice is the
+  B-067 shape at the largest scale in this repository.
+status: raw
+severity: HIGH
+dod:
+  - the token count appears in the footer after a turn, verified live rather than by unit test
+  - the cause is measured at the seam: whether `readTurnUsage` finds nothing in the thread, or
+    `ultimoUsage` looks in the wrong place, or the SDK stopped populating it
+  - B-080's warning is re-verified live once the reading exists — its logic is already tested and
+    was blocked only by this
+  - if the reading is genuinely unavailable, the banner stops advertising it
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

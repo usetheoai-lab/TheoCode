@@ -11,7 +11,7 @@ import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
 import { useGoalRun } from './persistence/index.js'
-import { useTimeline, useScreenState } from './rendering/index.js'
+import { useTimeline, useScreenState, useContextWarning } from './rendering/index.js'
 import { useTuiKeyboard } from './terminal-io/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
@@ -154,15 +154,23 @@ function useInterruptAndBacktrack(d: {
  * tell a blocked call from a completed one by looking at the result — which is what made B-027's
  * renderer unreachable — so the signal comes from the veto site instead.
  */
-function useHookVetoToasts(
-  root: ReturnType<typeof getTuiRoot>,
+function useSessionToasts(
+  s: ReturnType<typeof useTuiSession>,
   setToast: ReturnType<typeof useScreenState>['setToast'],
+  usedTokens: number | undefined,
 ): void {
   useEffect(() => {
-    root.onHookVeto((veto) => {
+    s.ROOT.onHookVeto((veto) => {
       setToast({ message: `Blocked ${veto.tool} — ${veto.reason}`, variant: 'error' })
     })
-  }, [root, setToast])
+  }, [s.ROOT, setToast])
+
+  // B-080 — warn on the way UP, before the limit lands mid-answer. Grouped here rather than called
+  // from the composition root: both are things the SESSION tells the user, and the root is at its
+  // line budget — B-085 is what that costs when it is ignored.
+  useContextWarning(usedTokens, s.SESSION.cfg().contextWindow.window, (message) => {
+    setToast({ message, variant: 'info' })
+  })
 }
 
 export function useTuiComposition() {
@@ -170,13 +178,13 @@ export function useTuiComposition() {
   const { agent, currentSessionId, stdout, streaming } = s
   const screen = useScreenState()
 
-  useHookVetoToasts(s.ROOT, screen.setToast)
 
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
   const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
+  useSessionToasts(s, screen.setToast, lastUsage?.inputTokens)
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
 

@@ -4,7 +4,7 @@ import { Text } from 'ink'
 
 import { StatusFooter } from '@theokit/tui'
 
-import { fmtK } from '../formatting/index.js'
+import { contextPressure, fmtK } from '../formatting/index.js'
 import { footerHint } from './composer-shortcuts.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
 import type { ApprovalMode } from '../consent/index.js'
@@ -64,6 +64,14 @@ export function SessionFooter(props: FooterProps): ReactElement {
         lastUsage ? (
           <Text>
             {fmtK(lastUsage.inputTokens)}/{fmtK(SESSION.cfg().contextWindow.window)} context
+            {/* B-080 — the number alone is data, not a signal: a figure climbing slowly is what
+                people stop reading. The mark is the thing the eye catches. */}
+            {contextPressure(lastUsage.inputTokens, SESSION.cfg().contextWindow.window) === 'ok'
+              ? ''
+              : contextPressure(lastUsage.inputTokens, SESSION.cfg().contextWindow.window) ===
+                  'critical'
+                ? ' !!'
+                : ' !'}
             {/* M94 — a FALLBACK budget is a guess, and now presents itself as one. With no
                   catalogue entry the resolution falls to the conservative floor, and showing it with
                   the same confidence as a measurement made the user trust a number the SDK itself
