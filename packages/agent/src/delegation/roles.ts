@@ -37,6 +37,18 @@ export interface RoleAgentContext {
   sandbox: SandboxBackend
   posture: TrustPosture
   hooks?: HookHandlers
+  /**
+   * B-061 — the seam that makes a role's composition assertable without a credential.
+   *
+   * Deliberately the SAME shape as `ReviewFactoryDeps.createInstance` (`review/create-agent.ts:42`)
+   * rather than a second convention: this repository builds agents at three sites, and two of them
+   * now expose the SDK entry the same way. Production callers omit it and get `Agent.create`.
+   *
+   * A role's tool list IS its authority, and nothing else in the suite reads it. Without a seam the
+   * only way to observe what a member was handed is to hold a real key and create a real agent,
+   * which is why it had gone unasserted.
+   */
+  createAgent?: (opts: Parameters<typeof Agent.create>[0]) => Promise<SDKAgent>
 }
 
 function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
@@ -137,5 +149,6 @@ async function roleAgentOptions(
 
 export async function buildRoleAgent(name: string, ctx: RoleAgentContext): Promise<SDKAgent> {
   const apiKey = typeof ctx.apiKey === 'function' ? await ctx.apiKey() : ctx.apiKey
-  return Agent.create(await roleAgentOptions(name, { ...ctx, apiKey }))
+  const create = ctx.createAgent ?? Agent.create
+  return create(await roleAgentOptions(name, { ...ctx, apiKey }))
 }
