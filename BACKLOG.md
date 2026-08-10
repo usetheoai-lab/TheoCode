@@ -2164,14 +2164,27 @@ dod:
 
 ---
 
-## B-079 — A throwaway question costs a persistent session   [ ]
+## B-079 — A throwaway question costs a persistent session   [x] KILLED
 
+fixed_in: (decision)
 domain: theocode
 repo: TheoCode
 suggested_mode: evolve
 source: human
-evidence: none-yet
-why_now: `/fork` is the only way to ask something without disturbing the current thread, and it creates a session that persists and is listed by `/sessions` forever. Combined with B-078 — no delete — every aside is permanent. The registry of sessions therefore fills with branches nobody meant to keep, which makes `/sessions` less useful the more the product is used. HONEST LIMIT: this is the weakest of the thirteen. The cost is real and observable, but nobody has yet reported it as friction; if B-078 lands, the pressure here drops substantially and this item may be worth killing rather than planning.
+evidence: measured 2026-08-10 against the shipped B-078, exactly as this item's own DoD required
+  before planning it. `/delete <id>` now exists (`registry.ts:75`) and removes the transcript from
+  disk, not just the listing. The premise this item rested on — "combined with B-078, no delete,
+  every aside is permanent" — no longer holds.
+kill_reason: the cost was real when filed and is now largely gone. What remains is one deliberate
+  keystroke: an aside made with `/fork` can be removed with `/delete`. That is friction, not a
+  defect, and this item's own words called it "the weakest of the thirteen" with "nobody has yet
+  reported it as friction". Building an ephemeral-fork mechanism on top of a working delete would be
+  the speculative generality YAGNI refuses — a second session lifecycle to avoid one command.
+  RE-FILE CRITERION, so this kill is falsifiable rather than final: if someone reports `/sessions`
+  becoming unusable from accumulated forks, or if forks-per-session is ever measured and is high,
+  this is re-filed with a new id and `supersedes: B-079`. What would change is EVIDENCE, which is
+  the only thing that should reopen it.
+why_now_original: `/fork` is the only way to ask something without disturbing the current thread, and it creates a session that persists and is listed by `/sessions` forever. Combined with B-078 — no delete — every aside is permanent. The registry of sessions therefore fills with branches nobody meant to keep, which makes `/sessions` less useful the more the product is used. HONEST LIMIT: this is the weakest of the thirteen. The cost is real and observable, but nobody has yet reported it as friction; if B-078 lands, the pressure here drops substantially and this item may be worth killing rather than planning.
 status: raw
 severity: LOW
 dod:

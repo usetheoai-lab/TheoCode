@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- A planned "ask something without keeping the conversation" feature was dropped before it was built. It existed because a side question forced you to fork a session that could never be removed; now that sessions can be deleted, the cost is one command rather than a permanent entry, and building a second kind of session to avoid it would have added more than it saved (B-079)
+
 ### Added
 
 - `/hooks` shows which lifecycle hooks are registered for the directory you are in, with the event each is bound to and whether it has been approved. Hooks can block a tool call, and until now the only way to learn one existed was to have it stop you. When the directory is untrusted the list says so first and in full — those hooks are declared and are not running, and a reader who skimmed the list could otherwise believe they were protected (B-071)
