@@ -2195,7 +2195,7 @@ source: human
 evidence: none-yet
 why_now: the footer reports `sandbox:workspace-write` and `/approval` changes the approval mode, so of the two settings that decide what the agent may do to the disk, one is editable at runtime and the other is a readout. B-014 already found that a sandbox mode change did not reach live PTYs, which means the value is understood as mutable elsewhere in the system; the surface just never exposes it. A user who realises mid-session that the posture is wrong has to quit and relaunch.
 status: raw
-fixed_in: 2eb9c26 PENDING
+fixed_in: 2eb9c26 dc90f84
 dod_verified:
   - `setSandboxModeForSession` in the agent, applied ONCE in `chatContext` via the free function
     `withSandboxMode`, so every consumer in a build (write policy, PTY `setMode`, wrap command, the
