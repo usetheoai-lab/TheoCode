@@ -2108,7 +2108,7 @@ dod:
 
 ## B-083 — A Portuguese sentence made only of English homographs is invisible to the guard   [x]
 
-fixed_in: PENDING
+fixed_in: 1d1c440
 dod_verified:
   - the `/model` toast reads in English, pinned by a test that fails on the Portuguese form. The
     test lives with the other user-facing-string guards rather than in the detector, because the
