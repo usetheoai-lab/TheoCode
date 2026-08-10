@@ -148,6 +148,11 @@ const TECHNICAL = new Set([
   'crm', // customer relationship management
   'consolas', // the font, in a font stack
   'reviver', // the JSON.parse reviver argument
+  'ans', // "answer", a test fixture string
+  'cti', // a fragment of a `<function=…>` tag split across stream chunks
+  'eln', // the grep flags -rEln
+  'dlx', // pnpm dlx
+  'xhtml', // the XHTML namespace in an SVG sanitizer fixture
   'mono', // monospace, in a font stack
   'vero', // `vero_id`, a cache-key field name
   'cpf', // the Brazilian taxpayer id — a proper noun, and a thing PII redaction must name
