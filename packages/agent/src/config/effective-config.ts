@@ -106,3 +106,12 @@ export function effectiveConfigUnderPosture(
 ): EffectiveConfig {
   return new EffectiveConfig(loadConfig({ ...withCliLayer(opts), posture: opts.posture }))
 }
+
+/**
+ * B-081 — what this resolution produces is REPORTED to users by `theocode doctor`, which exists
+ * because the gap between what config asks for and what the product does is where the failures
+ * live. It reads the resolved values here rather than re-parsing the files, so a change to the
+ * layering shows up in the diagnostic automatically — and a change that alters WHICH layer wins
+ * should be checked against `doctor`'s output, because that output is what a user will be told
+ * when they ask why a setting did not take effect.
+ */
