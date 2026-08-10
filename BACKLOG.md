@@ -2734,7 +2734,7 @@ dod:
 
 ## B-089 — Selecting a command from the popup discards the argument you typed   [x]
 
-fixed_in: PENDING
+fixed_in: 0f53617
 fixed_upstream: theokit-framework/theokit-tui, RELEASED as `@theokit/tui@0.50.4`
 dod_verified:
   - typing a full command with its argument and pressing Enter submits what was typed. VERIFIED
