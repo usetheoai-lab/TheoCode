@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { startMcpFailureTurn } from './mcp-failure-record.js'
 import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
@@ -36,6 +37,9 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
   return new InProcessTransport({
     run: (input) =>
       (async function* () {
+        // B-088 — a failure belongs to the turn that hit it. Clearing here, at the start of the
+        // run, is what stops `/mcp` reporting a server that has since recovered.
+        startMcpFailureTurn()
         const images = deps.takePendingImages()
         const c = deps.credential()
         const commandModel = deps.takePendingModel()
