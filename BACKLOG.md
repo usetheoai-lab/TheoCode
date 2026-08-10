@@ -2016,6 +2016,29 @@ source: human
 evidence: none-yet
 why_now: measured on both surfaces, and the split runs in BOTH directions. The CLI has `resume` (`packages/cli/src/main.ts:75`) and `sessions gc`, and cannot archive, rename or fork. The TUI has `/sessions`, `/fork`, `/archive`, `/rename`, and cannot resume — so it lists sessions with no verb that re-enters one. Neither surface can delete (B-078). This is the surface-asymmetry shape B-006 already found once — "the two surfaces disagree on when it is safe to stop asking" — here disagreeing about which half of session management exists. BROADENED 2026-08-10: originally filed as "resume is missing from the TUI"; a sweep of the CLI subcommand surface showed the reverse hole is the same size, and fixing one direction would have left the other.
 status: raw
+audit_2026-08-10: done, against the ACTUAL tables rather than from memory — the fourth DoD bullet.
+  Sources: `grep "case '" packages/cli/src/main.ts` and the `EXACT_COMMANDS`/`COMMANDS_WITH_ARGUMENT`
+  maps in `packages/tui/src/commands/registry.ts`.
+
+  | Operation | CLI | TUI | Implementation in `session-ops.ts` |
+  |---|---|---|---|
+  | list      | —          | `/sessions` | `listSessions` |
+  | resume    | `resume`   | —           | (CLI-only path) |
+  | fork      | —          | `/fork`     | `forkSession` |
+  | archive   | —          | `/archive`  | `archiveSession` |
+  | rename    | —          | `/rename`   | `renameSession` |
+  | delete    | —          | `/delete`   | `deleteSession` (B-078) |
+  | gc        | `sessions gc` | —        | `planAllProjectsOnDisk` |
+  | compact   | —          | `/compact`  | `compactSession` |
+
+  MEASURED CONCLUSION: the asymmetry is 5 + 1, not the 1 this item was filed for. The CLI is missing
+  list/fork/archive/rename/delete; the TUI is missing resume. Every operation ALREADY exists in
+  `packages/agent/src/session/session-ops.ts`, so the CLI half is thin dispatch over code that is
+  already tested — the second DoD bullet (one implementation per operation) is satisfiable without
+  writing a second one, which was the risk worth checking.
+  The TUI half is NOT thin: resuming in place means repointing the live session
+  (`setSessionAndPersist`) and resetting the conversation, which is the path `backtrack` uses and
+  deserves its own care rather than being appended to a batch of CLI additions.
 severity: MEDIUM
 dod:
   - the set of session operations is the same on both surfaces, or each difference is written down with the reason it is deliberate
