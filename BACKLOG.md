@@ -39,7 +39,7 @@ Verified on disk on 2026-08-07 (`git rev-list --count HEAD` plus the `packages/`
 
 The 17 items below derive from **one** cross-validation measured on 2026-08-07: 6 parallel reviewers, ground truth = the theokit API surface on disk, 98 findings carrying `file:line` on both sides.
 
-- Report: [`.claude/knowledge-base/reviews/theokit-crossval-review-2026-08-07.md`](.claude/knowledge-base/reviews/theokit-crossval-review-2026-08-07.md)
+- Report: [`docs/reviews/2026-08-07-theokit-crossval-review.md`](docs/reviews/2026-08-07-theokit-crossval-review.md) — promoted out of the working area by B-064 so the citation resolves in a fresh clone (ADR 0002)
 - Raw findings: `.claude/agents/review-theokit-crossval-2026-08-07/findings/*.yaml`
 
 Of the 98 findings: **71 actionable** (grouped into the 17 items below, 1:1 coverage with no orphan), **10 SDK gaps** (§ Upstream), **17 `ok` verdicts** — measured statements that nothing is wrong, which produce no item because there is nothing to fix.
@@ -1574,7 +1574,27 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `upstream-error-hierarchy-ten-classes`).
 
-## B-064 — The canonical knowledge-base is the gitignored one, and it has already diverged   [ ]
+## B-064 — The canonical knowledge-base is the gitignored one, and it has already diverged   [x]
+
+fixed_in: (decision)
+dod_verified:
+  - one home chosen and RECORDED: `docs/adr/0002-cycle-artifacts-are-promoted-to-docs.md`. `docs/` is
+    where an artifact lives once it is worth keeping; `.claude/knowledge-base/` is the working area.
+    `rules/knowledge-base-location.md` carries a pointer to the ADR so the next reader is not misled
+  - the direction was NOT the one this item assumed. `.gitignore:19-22` already records a deliberate
+    decision with its reasoning — the kit is the maintainers' scaffolding, not product — so
+    un-ignoring `.claude/` would have reversed a written choice. `docs/` was also already winning in
+    practice: three reviews, two plans and an ADR had been promoted there by hand. The team had
+    answered this; the answer was simply not written anywhere, so it could not be enforced
+  - no `.md` exists in both homes with differing content: `english-only-completion-plan.md`
+    reconciled to the `docs/` copy (newer, and carrying the backticks the English-only detector needs)
+  - `BACKLOG.md`'s citation now resolves in a fresh clone — the review it named was promoted to
+    `docs/reviews/2026-08-07-theokit-crossval-review.md`
+  - ENFORCED, not remembered: `tools/check-artifact-promotion.mjs` in `npm run lint`. Verified by
+    reintroducing the divergence, which exits 1 with both paths named
+  - deliberately NOT enforced: promotion of every working file. Drafts, intake logs and in-flight
+    notes belong in the working area, and demanding promotion of all of them would push people to
+    stop using it — the same failure this item found, one directory over
 
 domain: theocode
 repo: TheoCode
