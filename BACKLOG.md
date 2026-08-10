@@ -2856,11 +2856,21 @@ root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing do
   contains ZERO lines carrying `"usage"` or `"metadata"`. `useTimeline` reads `agent.thread`, which
   is fed from that persistence, so `readTurnUsage` correctly finds nothing and `latestUsage` is
   correctly `undefined`. Every layer this repository owns behaves as written.
-  WHERE IT BELONGS: `@theokit/agents` documents that "the translator attaches per-turn usage to the
-  ai-sdk `finish` chunk's `messageMetadata`" (`bridge-entry-*.d.ts:644`). The TUI consumes
-  `streamAgentTurnInProcess`. So either that path does not attach it, or it attaches it and
-  persistence drops it before the thread is rebuilt. Both are upstream, and distinguishing them is
-  the next measurement — it needs a working turn, which a `429 rate_limit` blocked twice today.
+  WHERE IT BELONGS — DISTINGUISHED STATICALLY, no working turn needed, after `429` blocked the API
+  probe three times: `@theokit/agents` has TWO stream paths, and only one attaches the metadata.
+  `src/bridge/present-ui-message-stream.ts` builds it (`doneToMetadata`, :41) and lands it on the
+  reconstructed assistant message. `streamAgentTurnInProcess` — the path the TUI consumes
+  (`chat-transport.ts:47`) — lives in `src/in-process-turn.ts` and `src/client/in-process-transport.ts`,
+  and neither references `presentUIMessageStream` or `doneToMetadata`. The seam the type's own
+  docstring promises ("lets a surface — a TUI status bar — show real tokens for the turn it just
+  streamed") is implemented for the presenter path and NOT for the in-process one the TUI uses.
+  That also explains the disk measurement: nothing attaches it, so nothing persists it, so the
+  thread carries none. Every layer in this repository is correct.
+  THE FIX IS UPSTREAM and is a one-path change: the in-process turn has to attach the same
+  `AgentTurnMetadata` the presenter path already builds. It was NOT made here — it is another
+  repository's stream implementation, and a change to how every in-process consumer receives turn
+  metadata deserves its own measurement and its own review rather than being appended to a
+  consumer-side backlog item at the end of a session.
   NOT FIXED HERE, deliberately: inventing a token count in the TUI would put a fabricated number in
   front of a user, and estimating it would be worse than the current honest blank.
 why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
