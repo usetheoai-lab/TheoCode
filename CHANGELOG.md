@@ -9,6 +9,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **TheoCode:** backlog B-059..B-063 — five maintenance items from a cross-validation of `packages/{agent,shared}` against the framework it consumes. The repository now holds three agent-construction routines that do not call each other, so building a fourth agent means writing a fourth one; the primitive all three share is not exported from the package; nothing in the suite asserts what an agent is composed of; the domain specialist still tells every cycle the repo has zero tests, against 48 on disk; and ten of the framework's thirteen error classes sit outside the typed hierarchy the product catches on (#B-059)
 - `npm run crossval` checks that every closed backlog item names a commit which actually touches the code the item is about. It exists because the 2026-08-08 review found an item closed against a commit that never touched the file its own evidence cited — and on its first run it found two more items closed with no commit recorded at all (B-018..B-057)
 - **TheoCode:** backlog B-019..B-051 — 33 maintenance items covering all 78 actionable findings of the 2026-08-08 `packages/` review; 11 of them reopen an item closed on 2026-08-07 whose Definition-of-done bullet the code never satisfied, including the review's single `critical` finding (B-019)
 - The welcome banner has a test suite locking what it renders — the ASCII wordmark, the product name, the model, and both right-hand panels (B-011)
@@ -16,6 +17,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
 
 ### Changed
+- The TheoCode domain specialist describes the repository as it is now. Nine of its calibration facts had gone false in three days — it told every cycle the repo had zero tests and no way to run them (there are 268, all passing), that the history was three commits long (131), that the layering was enforced by nobody (dependency-cruiser now checks five named rules over 190 modules), and it named a framework version the workspaces had already moved past. It now carries the date on every measured figure, and a note that the tree wins when the two disagree (B-062)
 - `.gitignore` and `.prettierignore` are written in English; their comments carried the reasoning behind a dozen ignore rules and were the last Portuguese prose in a versioned file (#B-058)
 - The English-only guard now covers `tools/` as well as `packages/`, and reads comment prose — a seven-line Portuguese comment in the build script was invisible to every previous detector (#B-058)
 - English-only guard rebuilt on dictionary lookup instead of a word denylist: it now flags a word a Portuguese dictionary knows and an English one does not, so an unforeseen Portuguese term is caught rather than silently passed (#B-058)
