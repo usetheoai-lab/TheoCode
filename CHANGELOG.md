@@ -17,6 +17,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `BACKLOG.md` — the single maintenance registry for TheoCode, seeded with 17 items derived from the TheoCode ↔ theokit cross-validation of 2026-08-07 (`docs/reviews/2026-08-07-theokit-crossval-review.md`)
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
 
+### Added
+- The Portuguese names still on the framework's public interface were measured precisely, and the answer is much smaller than assumed: four type names, none of them reachable at runtime, one of which this project mentions once in a comment. The change that had been treated as needing a major version needs four deprecation aliases in a minor — and the specific function the concern named turns out never to have been published at all (B-058)
+
 ### Changed
 - The project's written record now has one home. Plans and reviews were being kept in two places at once — one of them not part of the repository, so it never reached anyone who cloned it — and the two copies of the same plan had already drifted apart, with the stale one being the copy a working session picked up. Durable documents live in `docs/`, the reasoning is written down in an architecture decision record, and a check now fails the build if the same document ever exists in two versions again (B-064)
 - Building a new kind of agent no longer means writing a new routine to build it. The product ships three agents — the one you chat with, the code reviewer, and the members of a delegated team — and each was assembled by its own separate piece of code, so a fourth would have been a fourth. What an agent is allowed to do is now declared as a list in one place, and all three read from it; a new agent that needs *less* than the coding one is three lines, which the old assembly could not express at all (B-059)

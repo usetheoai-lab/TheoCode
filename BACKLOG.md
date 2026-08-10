@@ -1346,6 +1346,31 @@ source: discover-review
 evidence: measured 2026-08-09 with `tools/check-english-only.mjs`'s detectors pointed at `../theokit-framework/*` — **11,298 occurrences across 10 repositories**: 1,535 identifiers, 3,451 comments, 1,970 string literals, 4,342 markdown prose. Heaviest: `theokit` (5,472), `theokit-sdk` (1,535), `theokit-gateways` (886), `theokit-studio` (678). False positives were removed first: `vite`, `astro`, `cron`, `param`, `abi`, `goto` are Portuguese dictionary entries and accounted for ~19% of the raw count.
 why_now: TheoCode now enforces English-only over its own source, `tools/` and its filenames, comments and string literals (B-052 completed 2026-08-09, guard clean with six detectors). The same rule was never enforced on the framework this repository consumes, and the gap is measurable from here: `packages/agent/src/session/agent-list.ts:30` has to cite `ListOptionsSemPaginacao`, a Portuguese type name exported by `@theokit/agents`, because that is its real name.
 status: raw
+scoped_2026_08_10: >
+  DoD bullet 2 delivered: `docs/reviews/2026-08-10-theokit-portuguese-public-surface.md`. Measured
+  against the PUBLISHED build, because the reference source runs ahead of its own dist at the same
+  version — a distinction that already cost one claim this cycle.
+
+  BLOCKER 1 IS DISSOLVED, and by measurement rather than by argument. It reads "renaming an exported
+  symbol in a PUBLISHED package is a breaking change for every consumer" and names
+  `classificarFalhaDeRefresh`. That symbol appears **0 times** across every `.d.ts` in the published
+  package, is absent from the runtime exports and from the `./auth` subpath. It is `export`ed in the
+  source and the bundler does not publish it — so it is private, and renaming it breaks nobody.
+
+  The real public exposure is FOUR names, all type-only: `AgentComListaEstreitada`,
+  `ListOptionsSemPaginacao`, `ToolComNome`, `DefinicaoOuThunk`. Zero Portuguese identifiers on the
+  runtime surface. A type-only rename cannot break a consumer at execution, so the remedy is four
+  `@deprecated` alias lines in a MINOR — the path B-053 already walked once — not the major this
+  item assumed.
+
+  TheoCode's own half is already closed. Exactly one of the four is referenced in our source
+  (`session/agent-list.ts:30`) and it is a comment naming the framework's real type; renaming it
+  would make the comment wrong. B-052 and B-053 closed the local work.
+
+  WHAT REMAINS is not technical and not ours: blocker 2 (4,342 markdown occurrences, mostly released
+  CHANGELOG prose that Unbreakable Rule 6 forbids editing) and blocker 3 (ten repositories with their
+  own suites and consumers). Per `cycle-backlog.md § Repos this table does not cover`, those repos
+  have their own Squad install and an item filed from here against them routes nowhere.
 blocked_on: >
   This is NOT a mechanical rename and MUST NOT be started as one. Three findings make it a
   program rather than a task, and each needs a human decision before any code moves:
