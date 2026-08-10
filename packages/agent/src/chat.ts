@@ -1,4 +1,5 @@
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
+import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
 import {
   createGenericHttpSearchAdapter,
   createQuestionTool,
@@ -42,6 +43,15 @@ export type HookVetoListener = (veto: { tool: string; reason: string }) => void
 
 export function buildChatAgent(overrides: {
   onHookVeto?: HookVetoListener
+  /**
+   * B-069/B-070/B-071 — told what this build actually wired, once, at the point it was decided.
+   *
+   * Same shape as `onHookVeto`: a surface that wants to SHOW the wiring passes a listener, and the
+   * return type stays an agent. The alternative — a surface re-reading config to describe the
+   * agent — is what B-071 was reopened for, because config and reality can disagree and the
+   * disagreement is the bug worth catching.
+   */
+  onWired?: (wired: WiredCapabilities) => void
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -91,6 +101,12 @@ export function buildChatAgent(overrides: {
     reasoning_effort: overrides?.reasoning_effort,
   })
 
+  // B-069/B-070/B-071 — loaded ONCE, here, and handed to both the builder and the record. It used
+  // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
+  // which is why every listing that wanted it had to re-read the file and could disagree with what
+  // actually ran.
+  const mcpServers = posture.allows.mcp ? loadMcpJson(cwd) : {}
+
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
     interactiveBackend,
@@ -100,11 +116,41 @@ export function buildChatAgent(overrides: {
     modelId,
     writePolicy,
     cwd,
+    mcpServers,
   })
+
+  // Derived from the SAME values the builder just received, at the point it received them. That is
+  // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
+  // decision.
+  const wired = wiredCapabilities({
+    posture,
+    projectSourcesAllowed: projectSourceAllowed(posture.allows),
+    mcpServers,
+    configuredSkills: cfg.skills,
+    hookEvents: configuredHookEvents(cfg),
+  })
+
+  overrides?.onWired?.(wired)
 
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
   const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
   return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
+}
+
+/**
+ * B-071 — the hook EVENTS this config declares, for the wired record.
+ *
+ * Reads the already-resolved `cfg` object, not the file: `chatHookChain` parses the same value to
+ * build the handlers, so the two cannot describe different hooks. A malformed block yields an empty
+ * list here and is surfaced by the consent gate, which already reports it (B-039) — this record is
+ * not the place to raise it a second time.
+ */
+function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
+  try {
+    return parseHooks(cfg.hooks).map((h) => h.event)
+  } catch {
+    return []
+  }
 }
 
 function chatContext(overrides: {
@@ -231,6 +277,8 @@ function withShellAndProjectEntities(
     modelId: string
     writePolicy: ReturnType<typeof sandboxWritePolicy>
     cwd: string
+    /** B-069 — loaded by the caller so the record and the builder cannot disagree. */
+    mcpServers: ReturnType<typeof loadMcpJson>
   },
 ) {
   const { registry, interactiveBackend, posture, cfg, lifecycleHooks, modelId, writePolicy } = ctx
@@ -306,7 +354,7 @@ function withShellAndProjectEntities(
       // servers as external processes at agent init, BEFORE any per-tool approval. An untrusted repo could
       // therefore get arbitrary local command execution on first build. MCP was the one disk entity left
       // ungated while skills/AGENTS.md/subagents are gated; untrusted ⇒ no MCP servers, same posture.
-      .mcp(posture.allows.mcp ? loadMcpJson(ctx.cwd) : {})
+      .mcp(ctx.mcpServers)
       // M24 — skills are DISK-loaded: `.skills([...names])` resolves each name from
       // `.theokit/skills/<name>/SKILL.md` (theokit's filebase, enabled by `.settingSources` in M20). The
       // enabled list comes from config (`skills`, Codex parity). TRUST-GATED like AGENTS.md: an untrusted
