@@ -2795,6 +2795,22 @@ evidence: measured 2026-08-10 while closing B-069. `packages/agent/src/chat.ts` 
   The contrast was observed directly in the side-by-side run that produced this whole batch: the
   adjacent product printed `MCP client for 'add-fixture' failed to start` at boot; here the tools
   simply are not there.
+traced_2026-08-10: measured to the boundary and it is a FEATURE, not a dropped field — which is the
+  difference between this and B-090, whose chain ended in one `continue`.
+  `@theokit/agents` forwards the map at `bridge/sdk-adapter-create-options.ts:77` —
+  `options.mcpServers = compiled.mcpServers` — under a comment stating plainly "the SDK owns
+  execution" (:26). The spawn happens inside `@theokit/sdk`, one package deeper, and nothing returns
+  a per-server outcome upward: there is no channel to carry "this one failed", so no layer above can
+  report it however carefully it is written.
+  WHAT IT WOULD TAKE: an addition to the SDK's agent-creation contract — a per-server result surfaced
+  from where the clients are spawned. That changes what every in-process consumer receives, not only
+  this product, and it is the deepest package in the stack. It is a feature in another project's
+  public API, and the honest thing is to say so rather than improvise a local health probe: probing
+  from here would report on a connection this product does not own, and a listing that guessed would
+  be worse than the one that currently states its limit.
+  WHAT IS ALREADY HONEST: `/mcp` says, in the panel itself, that it lists the servers the agent was
+  GIVEN and that whether each answered is not reported here (B-069). A user is not misled today; they
+  simply cannot be told something no layer knows.
 why_now: `/mcp` now exists and answers the easy half. Someone reading it will reasonably conclude a
   listed server is working, which is a stronger claim than the data supports — a listing that
   overstates is worse than no listing, and B-067 is this repository's precedent for that costing a
