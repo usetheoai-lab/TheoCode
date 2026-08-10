@@ -2351,7 +2351,34 @@ dod:
 
 ---
 
-## B-081 — Nothing diagnoses the install   [ ]
+## B-081 — Nothing diagnoses the install   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - one command reports auth state, resolved config with model/effort/sandbox/approval, trust
+    posture, and the MCP/skill/hook sets ACTUALLY wired — the last from the same record `/mcp`,
+    `/skills` and `/hooks` read, so a support session and the TUI cannot disagree
+  - it reports what the product WILL DO, resolved, not the config files. That gap is the failure
+    class being diagnosed; re-printing config would answer the wrong question, which is the
+    reasoning that reopened B-071
+  - it exits NON-ZERO on failure — VERIFIED against the built binary: with an empty HOME,
+    `[ FAIL ] credential  absent` and exit 1; normally exit 0. That exit code is what makes it
+    usable in a support script rather than something to read
+  - NO SECRET IS PRINTED. `collectChecks` takes presence — `present` / `absent` / `unreadable` —
+    and never a value, not even truncated, so there is no path by which a token reaches the output.
+    Pinned by a test, because this output is what people paste into issues
+  - trust suppression WARNS rather than fails: gating is the product working as designed, and
+    failing on it would train users to ignore the exit code, which is the only thing making the
+    command scriptable
+  - `unreadable` is distinct from `absent`: one means "log in", the other means "your credential
+    file is corrupt", and collapsing them sends half the users to the wrong remedy
+  - TWO OF THE REPOSITORY'S OWN GUARDS fired while wiring it, both correctly: B-022's
+    (`the usage text does not teach an unrouted subcommand`) and B-025's (`every routed subcommand is
+    covered by this file`). The first exists because `exec` was once documented and unrouted
+  - MY ERROR, corrected before commit: the first version resolved the credential path a second way
+    and its comment claimed `THEOKIT_AUTH_HOME` relocated the store. Measured: it does not. The path
+    now comes from the product's own `authFilePath` with the same env, and the comment says what was
+    measured instead of what I assumed
 
 domain: theocode
 repo: TheoCode

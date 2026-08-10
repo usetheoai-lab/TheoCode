@@ -71,12 +71,25 @@ export interface ExecSessions {
   cd?: string
 }
 
+export interface ExecDoctor {
+  mode: 'doctor'
+  json: boolean
+  cd?: string
+}
+
 export interface ExecHelp {
   mode: 'help'
   usage: string
 }
 
-export type ExecArgs = ExecRun | ExecReview | ExecGoal | ExecSessions | ExecHelp | ExecUsageError
+export type ExecArgs =
+  | ExecRun
+  | ExecReview
+  | ExecGoal
+  | ExecSessions
+  | ExecDoctor
+  | ExecHelp
+  | ExecUsageError
 
 // B-022 — no `exec` here. It is the npm SCRIPT name (`npm run exec`), not a subcommand of the
 // built binary, and the parser has no branch for it: the token fell through to the PROMPT, so
@@ -88,6 +101,7 @@ export const USAGE = `Usage: theocode [OPTIONS] [PROMPT]
        theocode goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
        theocode sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
        theocode sessions (list | archive <ID> | rename <ID> <NAME> | delete <ID> | fork <ID>)
+       theocode doctor   (reports the resolved install; exits non-zero when something is broken)
 
 Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
          -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>
@@ -205,6 +219,18 @@ function parseSessionAction(
   }
 }
 
+
+/**
+ * B-081 — reports the RESOLVED install, so config overrides are honoured rather than refused:
+ * diagnosing "why does `-c sandbox_mode=read-only` not take effect" is the point of the command.
+ */
+function parseDoctor(values: OptionValues): ExecArgs {
+  return {
+    mode: 'doctor',
+    json: values.json === true,
+    ...(values.cd !== undefined ? { cd: values.cd } : {}),
+  }
+}
 
 function parseSessions(
   values: OptionValues,
@@ -434,6 +460,8 @@ export function parseExecArgs(argv: string[], stdinIsTTY: boolean): ExecArgs {
       return parseReview(values, positionals, overrides)
     case 'sessions':
       return parseSessions(values, positionals, overrides, overridesPresent)
+    case 'doctor':
+      return parseDoctor(values)
     case 'goal':
       return parseGoal(values, positionals, overrides)
     default:

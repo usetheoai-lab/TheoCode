@@ -8,6 +8,7 @@ import { goalCommand } from './commands/goal.js'
 import { reviewCommand } from './commands/review.js'
 import { runCommand } from './commands/run.js'
 import { sessionsCommand } from './commands/sessions.js'
+import { doctorCommand } from './commands/doctor.js'
 import { setDiagnosticsSink } from '@theokit/agents'
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
   bootstrap()
 
   if (args.mode === 'sessions') return sessionsCommand(args)
+  if (args.mode === 'doctor') return doctorCommand(args)
 
   gitGate(args.skipGitCheck)
 

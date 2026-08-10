@@ -25,6 +25,8 @@ const DOCUMENTED = [
   ['review', '--uncommitted'],
   ['goal', 'ship the release'],
   ['resume', '--last'],
+  ['doctor'],
+  ['sessions', 'list'],
 ]
 
 describe('B-022 — every documented invocation routes to its command', () => {
@@ -49,7 +51,7 @@ describe('B-022 — every documented invocation routes to its command', () => {
     // The drift itself. `exec` is the npm SCRIPT name (`npm run exec`), not a subcommand of the
     // built binary — the usage text baked one into the other.
     const taught = [...USAGE.matchAll(/^\s*(?:Usage:)?\s*theocode\s+(\S+)/gm)].map((m) => m[1])
-    const routed = new Set(['resume', 'review', 'goal', 'sessions', '[OPTIONS]'])
+    const routed = new Set(['resume', 'review', 'goal', 'sessions', 'doctor', '[OPTIONS]'])
 
     for (const token of taught) {
       expect(routed.has(token ?? ''), `usage teaches \`theocode ${token ?? ''}\`, which is not routed`).toBe(
@@ -219,5 +221,25 @@ describe('B-074 — sessions actions', () => {
     const parsed = parseExecArgs(['sessions', 'nope'], false)
     expect(parsed.mode).toBe('error')
     expect((parsed as { message: string }).message).toContain('delete')
+  })
+})
+
+/**
+ * B-081 — `doctor` routes, and its coverage here is required by B-025's own guard: a subcommand
+ * that routes without a test in this file is how `--uncommitted` shipped validated-and-unread.
+ */
+describe('B-081 — doctor', () => {
+  it('test_doctor_routes', () => {
+    expect(parseExecArgs(['doctor'], false)).toMatchObject({ mode: 'doctor', json: false })
+  })
+
+  it('test_doctor_honours_json_and_cd', () => {
+    // It reports the RESOLVED install, so the directory flag must reach it — diagnosing another
+    // checkout is a normal thing to ask of a diagnostic.
+    expect(parseExecArgs(['doctor', '--json', '--cd', '/elsewhere'], false)).toMatchObject({
+      mode: 'doctor',
+      json: true,
+      cd: '/elsewhere',
+    })
   })
 })
