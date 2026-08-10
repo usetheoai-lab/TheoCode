@@ -46,6 +46,11 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
         yield* streamAgentTurnInProcess(
           {
             default: buildChatAgent({
+              // B-059 — from the TUI's single working-directory seam (B-057), which is the same
+              // value `resolveEffectiveConfig` is given two lines above. They used to be able to
+              // disagree: this call resolved its directory inside `buildChatAgent` from the process
+              // while the config beside it came from the seam.
+              cwd: workingDirectory(),
               reasoning_effort: deps.getEffort(),
               ...(model !== undefined ? { model } : {}),
               sessionPty: deps.getSessionPty(),

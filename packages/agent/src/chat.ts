@@ -39,7 +39,7 @@ import { projectSourceAllowed } from './config/project-source.js'
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
 
-export function buildChatAgent(overrides?: {
+export function buildChatAgent(overrides: {
   onHookVeto?: HookVetoListener
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
@@ -51,8 +51,17 @@ export function buildChatAgent(overrides?: {
    * manifest), while the CLI composition root resolved a directory and injected `config`/`posture`
    * built from it — so a supplied directory governed two reads and was ignored by four. Nothing made
    * the six agree; they agreed because the current callers happen not to change cwd mid-build.
+   *
+   * B-059 — now REQUIRED. B-015 and B-032 closed the read sites but left the parameter optional,
+   * which kept the ambient default reachable: a caller that simply forgot got a silently different
+   * agent, and the defect could reappear without anyone editing this file. Requiring it moves the
+   * guarantee from "every caller remembers" to "the compiler refuses" — the same move B-006 made
+   * for `ToolScope.sandbox`. Every surface already resolves a directory (the CLI at its composition
+   * root, the TUI through `workingDirectory()`), so nothing had to invent one; the single entry
+   * with none to offer, the ACP one, now names the process directory out loud at the point where
+   * that IS the choice rather than a default buried six frames deep.
    */
-  cwd?: string
+  cwd: string
   reasoning_effort?: ReasoningEffort
   posture?: TrustPosture
   config?: EffectiveConfig
@@ -97,13 +106,13 @@ export function buildChatAgent(overrides?: {
   return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
 }
 
-function chatContext(overrides?: {
+function chatContext(overrides: {
   posture?: TrustPosture
   config?: EffectiveConfig
   model?: string
-  cwd?: string
+  cwd: string
 }) {
-  const cwd = overrides?.cwd ?? process.cwd()
+  const cwd = overrides.cwd
   const posture = overrides?.posture ?? resolveTrustPosture(cwd)
   const cfg = overrides?.config ?? resolveEffectiveConfig({ cwd })
   return {

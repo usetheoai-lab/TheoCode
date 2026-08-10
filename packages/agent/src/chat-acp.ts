@@ -25,7 +25,12 @@ export default toAgentFactory(
     // registers `request_user_input` against that bridge: `ask()` never resolves and every call
     // stalls on the built-in's 5-minute timeout. `chat.ts` documents this hazard for the headless
     // profile; this entry is the same condition. Same value `run-composition.ts` passes.
-    return buildChatAgent({ surface: 'headless' })
+    // B-059 — `cwd` is required now, and this entry is the one place where the process directory
+    // IS the answer rather than a default nobody chose: the ACP client is launched by an editor in
+    // the project it has open, and there is no flag or session state here to resolve one from.
+    // Saying it out loud is the point — the ambient read is a decision made at a composition root,
+    // not a fallback buried six frames deep.
+    return buildChatAgent({ surface: 'headless', cwd: process.cwd() })
   },
   {
     apiKey: resolveCredential,

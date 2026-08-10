@@ -13,6 +13,8 @@
  * That is the same shape of defect as B-001: four composition sites, four different argument sets,
  * and a surface that silently got a profile nobody chose for it.
  */
+import { readFile } from 'node:fs/promises'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const resolveTrustPosture = vi.fn(() => ({
@@ -98,14 +100,31 @@ describe('B-015 — an injected working directory reaches every resolution', () 
     expect(loadAgentsMd).toHaveBeenCalledWith(INJECTED)
   })
 
-  it('test_omitting_the_directory_still_falls_back_to_the_process_one', async () => {
-    // Anti-vacuity floor: every existing caller relies on the default, and three of the four do not
-    // pass a directory at all.
-    const { buildChatAgent } = await import('./chat.js')
+  it('test_the_builder_reads_no_directory_of_its_own', async () => {
+    // B-059 — this REPLACES `test_omitting_the_directory_still_falls_back_to_the_process_one`,
+    // which asserted the opposite and was correct until now.
+    //
+    // B-015 and B-032 closed the six ambient reads but left the parameter optional, so the default
+    // stayed reachable and the defect could return without anyone editing this file. `cwd` is
+    // required now, which makes "the builder resolved its own directory" unrepresentable rather
+    // than merely absent — the same move B-006 made for `ToolScope.sandbox`.
+    //
+    // The guarantee is enforced by the compiler, so what is left to assert at runtime is that no
+    // second, hidden read crept back in. Shaped after B-057's DoD, which counts `process.cwd()`
+    // sites rather than asserting a call.
+    // Comments are stripped first. The prose in `chat.ts` legitimately CITES `process.cwd()` while
+    // explaining why it is gone — the first version of this assertion read that history and failed
+    // on it, which is a detector that punishes documenting the defect it guards against.
+    const source = await readFile(new URL('./chat.ts', import.meta.url), 'utf8')
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
-    buildChatAgent({ surface: 'headless' })
-
-    expect(resolveTrustPosture).toHaveBeenCalledWith(process.cwd())
+    expect(
+      code.includes('process.cwd()'),
+      'chat.ts resolves a working directory of its own again. Every caller now supplies one, and a ' +
+        'read here can disagree with it — which is the whole of B-015, B-032 and this bullet of ' +
+        'B-059. If a new site genuinely needs the process directory, it belongs at the composition ' +
+        'root that chooses it, as `chat-acp.ts` does.',
+    ).toBe(false)
   })
 })
 
