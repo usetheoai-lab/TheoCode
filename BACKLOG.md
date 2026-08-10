@@ -1781,3 +1781,282 @@ dod:
   - the `@theo_paulo_bot` id and the concrete commands in it are verified as still current, or the runbook says they are illustrative — a runbook that names a dead bot is worse than one in the wrong language
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `telegram-pro-runbook-translation`).
+
+---
+
+## B-067 — The footer advertises an agents panel that was never built   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+regression_of: B-028
+evidence: none-yet
+why_now: with the command popup open the footer reads `? for shortcuts · ← for agents`, and pressing `←` closes the popup and opens nothing. The string is the SDK's DEFAULT, not ours — `@theokit/tui/dist/index.js:5166` defines `AGENTS_HINT = "← for agents"` and folds it into `DEFAULT_HINT`; `packages/tui` never passes its own `hint`, so it inherits a promise it does not keep. This is the SAME defect B-028 closed for the `!` shortcut, and B-028's own `dod_verified` claims "the filter is keyed on the CAPABILITY, so the next unwired shortcut cannot be advertised either". That filter reads the help panel; this string arrives from the SDK's footer default, which the filter never sees. The invariant was narrower than the sentence that closed it.
+status: raw
+severity: HIGH
+dod:
+  - the footer does not name an affordance the product does not implement — either the hint is passed explicitly without the agents clause, or `←` opens something
+  - the fix is keyed on the SOURCE of the string, not on this one string. B-028 was closed with a capability filter and the defect returned through a channel that filter could not observe; a second point fix earns a third recurrence
+  - a test fails when a footer hint names a capability with no handler, whichever side supplies the string
+  - B-028's `dod_verified` is corrected to state the scope it actually had
+
+---
+
+## B-068 — The composer drops Home and End   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: none-yet
+why_now: `Home` and `End` do nothing in the composer. Measured A/B through one channel (`tmux send-keys`) with Codex in the adjacent pane as the CONTROL, which rules out terminal encoding: the identical key events moved Codex's cursor and were dropped by ours. Ours — `XYZ/` + `Home` + `Q` produces `XYZQ/` instead of `QXYZ/`; `XY`,`←`,`End`,`Z` produces `XZY` instead of `XYZ`. `Backspace` and `Ctrl+U` were ALSO suspected and cleared: from a known cursor position both behave correctly, and the first reading was an artifact of a stale cursor left by an earlier `←`. On a long prompt, every correction is arrow-key-by-arrow-key.
+status: raw
+severity: MEDIUM
+dod:
+  - `Home` moves the cursor to the start of the composer and `End` to the end, asserted by a test that fails on today's code
+  - the test covers the multi-line case, where "line" and "buffer" stop being the same thing — pick one meaning and lock it
+  - if the keys are handled by `@theokit/tui` and not by us, the item is closed against the framework with the same evidence rather than patched around locally
+
+---
+
+## B-069 — MCP servers are spawned with no way to see them, or to see one fail   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `packages/agent/src/chat.ts:309` loads `.mcp.json` and the SDK SPAWNS those servers — arbitrary local processes, which is exactly why the same line trust-gates them. The user has no surface that lists which servers loaded, which tools they contributed, or which one failed to start. The comparison run made the cost concrete: the adjacent product printed `MCP client for 'add-fixture' failed to start` at boot, and the equivalent failure here is silent — the tools simply are not there, and the agent behaves as though they never existed.
+status: raw
+severity: MEDIUM
+dod:
+  - a user can list the MCP servers configured for the current directory and see, per server, whether it started and which tools it contributed
+  - a server that failed to start is REPORTED, not silently absent — this is the bullet that matters; the listing is the cheap half
+  - a server suppressed by trust-gating is distinguishable from one that failed, because the remedy differs
+
+---
+
+## B-070 — Skills load from disk, or are silently removed by trust, with no way to tell which   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `packages/agent/src/chat.ts:314` resolves each enabled skill from `.theokit/skills/<name>/SKILL.md` and passes an EMPTY list when the directory is untrusted. Both states — skill loaded, skill silenced by trust — are invisible. A user whose skill is not taking effect cannot tell whether they misnamed the directory, whether the config never listed it, or whether the repository is untrusted and the anti-prompt-injection gate removed it on purpose.
+status: raw
+severity: MEDIUM
+dod:
+  - a user can see which skills are active in the current session and where each was resolved from
+  - a skill removed by trust-gating says so, naming trust as the reason — the three failure modes above must be distinguishable without reading source
+  - the listing reflects what the agent was actually built with, not what config requested
+
+---
+
+## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: hooks are wired at `packages/agent/src/chat.ts:428` and gated on a trusted directory, and B-055 established that a hook can VETO a tool call. B-055 made the veto visible at the moment it fires; nothing makes the registered set visible before it does. A user cannot answer "what is allowed to block me in this repository?" without opening `.theokit/` by hand — and for a cloned repository, that is the question worth asking before the first turn, not after.
+status: raw
+severity: MEDIUM
+dod:
+  - a user can list the lifecycle hooks registered for the current directory, with the event each is bound to
+  - a hook suppressed because the directory is untrusted is shown as suppressed rather than omitted
+  - the listing comes from what was actually wired into the agent, not from re-reading the config file — those two can disagree, and the disagreement is the bug worth catching
+
+---
+
+## B-072 — Delegation subagents are undiscoverable until one is missing   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: delegation is real — `packages/agent/src/delegation/roles.ts` builds role agents and `packages/tui/src/commands/config-commands.ts:146-157` routes a custom command to a named subagent from `.theokit/agents/<name>.md`. The only feedback a user ever gets about the set is a failure toast: `subagent "<name>" not found in .theokit/agents/ — running in main context`. So the way to learn which subagents exist is to name one that does not. Related but distinct from B-067: that item is the footer lying; this one is the capability the footer was lying about.
+status: raw
+severity: MEDIUM
+dod:
+  - a user can list the subagents available in the current directory before invoking one
+  - the source of the list is the same resolution path `config-commands.ts` uses, so the listing cannot claim a subagent the router would then fail to find
+  - closing this does NOT by itself close B-067 — the footer must stop advertising whatever remains unbuilt
+
+---
+
+## B-073 — The theme is a hardcoded dark constant   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `packages/tui/src/theme.ts:6` sets `base: 'dark'` as a literal, and the SDK's own type admits `'dark' | 'light' | 'no-color'`. A user on a light terminal has no recourse, and `no-color` — the accessibility-relevant value, and the one a piped or screen-reader-driven terminal wants — is unreachable. The value is already a supported input; nothing reads it from config.
+status: raw
+severity: LOW
+dod:
+  - the base theme is resolved from configuration, with the current dark value as the default so nobody's terminal changes without asking
+  - `no-color` is reachable, and honours `NO_COLOR` if that environment variable is set — the convention already exists, so this is reuse rather than a new knob
+  - a test asserts the resolution order, because a theme that silently ignores config is the same defect as no config at all
+
+---
+
+## B-074 — The two surfaces implement disjoint subsets of session management   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: none-yet
+why_now: measured on both surfaces, and the split runs in BOTH directions. The CLI has `resume` (`packages/cli/src/main.ts:75`) and `sessions gc`, and cannot archive, rename or fork. The TUI has `/sessions`, `/fork`, `/archive`, `/rename`, and cannot resume — so it lists sessions with no verb that re-enters one. Neither surface can delete (B-078). This is the surface-asymmetry shape B-006 already found once — "the two surfaces disagree on when it is safe to stop asking" — here disagreeing about which half of session management exists. BROADENED 2026-08-10: originally filed as "resume is missing from the TUI"; a sweep of the CLI subcommand surface showed the reverse hole is the same size, and fixing one direction would have left the other.
+status: raw
+severity: MEDIUM
+dod:
+  - the set of session operations is the same on both surfaces, or each difference is written down with the reason it is deliberate
+  - both surfaces call ONE implementation per operation — B-037 records what a divergent second copy costs, and this item is where a second copy would be easiest to introduce
+  - a session listed by `/sessions` can be resumed from the TUI
+  - the audit is done against the actual subcommand and command tables, not from memory, so the next operation added does not silently land on one surface only
+
+---
+
+## B-075 — There is no way to get a reply out of the terminal   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: nothing in `packages/tui/src` touches a clipboard or writes a transcript — grep for `clipboard` across the package returns zero. The only way to move an answer somewhere else is mouse-selecting it out of a bordered box that hard-wraps every line, which re-flows the code it contains. For a terminal agent whose output is frequently a patch or a command, this is the most-used escape hatch after the answer itself, and it does not exist.
+status: raw
+severity: HIGH
+dod:
+  - the last reply can be copied as markdown without mouse selection
+  - the conversation can be written to a file, and the written form preserves code blocks unwrapped — the border-wrap is the actual defect, so a copy path that reproduces it has not closed this
+  - failure is explicit when no clipboard is reachable (headless, ssh without forwarding) rather than silently doing nothing
+
+---
+
+## B-076 — The sandbox mode is displayed and cannot be changed   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: none-yet
+why_now: the footer reports `sandbox:workspace-write` and `/approval` changes the approval mode, so of the two settings that decide what the agent may do to the disk, one is editable at runtime and the other is a readout. B-014 already found that a sandbox mode change did not reach live PTYs, which means the value is understood as mutable elsewhere in the system; the surface just never exposes it. A user who realises mid-session that the posture is wrong has to quit and relaunch.
+status: raw
+severity: MEDIUM
+dod:
+  - the sandbox mode is changeable from the TUI, and the change reaches live PTYs — B-014 is the regression test, not a separate concern
+  - loosening the posture requires an explicit confirmation; tightening it does not
+  - approval mode and sandbox mode are presented as the one decision they actually are, rather than split across a command and a status readout
+
+---
+
+## B-077 — `/memory` reports the memory state and cannot change it   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `/memory` returns durable-memory status — enabled/trusted, store path, fact count. There is no way to turn generation off, to drop a fact, or to inspect what was written. A user who watches the fact count climb has been told a store exists, where it lives, and nothing about what is in it; the only remedy available is editing the store file by hand outside the product.
+status: raw
+severity: MEDIUM
+dod:
+  - memory generation can be turned off for the session without editing files outside the product
+  - the facts held for the current project can be read from the TUI
+  - a single fact can be removed, and the removal survives a restart — an undo that does not persist is worse than none, because it reads as done
+
+---
+
+## B-078 — A session can be archived but never deleted   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `packages/tui/src/commands/session-commands.ts` implements archive and rename; nothing deletes. `/sessions` renders archived sessions with an `(archived)` suffix, so archiving hides nothing — the transcript stays on disk and stays listed. A session that captured a pasted credential, or a customer's data, cannot be removed through the product. `theocode sessions gc` exists in the CLI for age-based pruning, which is not the same operation as removing one specific transcript now.
+status: raw
+severity: HIGH
+dod:
+  - a named session can be permanently deleted from the TUI, and the transcript is gone from disk afterwards — verified by reading the store, not by the listing no longer showing it
+  - deletion is confirmed before it happens and is distinguishable from archiving in the UI, since the two are irreversible and reversible respectively
+  - the CLI gets the same operation, or the asymmetry is deliberate and written down — B-074 is the same shape and both should not drift again
+
+---
+
+## B-079 — A throwaway question costs a persistent session   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `/fork` is the only way to ask something without disturbing the current thread, and it creates a session that persists and is listed by `/sessions` forever. Combined with B-078 — no delete — every aside is permanent. The registry of sessions therefore fills with branches nobody meant to keep, which makes `/sessions` less useful the more the product is used. HONEST LIMIT: this is the weakest of the thirteen. The cost is real and observable, but nobody has yet reported it as friction; if B-078 lands, the pressure here drops substantially and this item may be worth killing rather than planning.
+status: raw
+severity: LOW
+dod:
+  - an aside can be asked without producing a session that outlives it
+  - the ephemeral branch inherits the current context and its result does not enter the parent transcript unless the user says so
+  - measured against B-078 first: if deletion makes this friction disappear, `/discover` should kill this item rather than justify it
+
+---
+
+## B-080 — Compaction is manual only, and nothing warns before the limit   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `/compact` (`packages/tui/src/commands/registry.ts:102`) is the ONLY compaction path — grep across `packages/{agent,tui}` finds no auto-compaction, no threshold, and no context-remaining signal anywhere; the sole budget notion in the tree is `GOAL_DEFAULTS.tokenBudget` (`packages/agent/src/goal/goal.ts:52`), which governs the goal loop and nothing else. So the user is responsible for noticing context pressure, and the model has no way to observe its own remaining room. On a long session the failure arrives mid-turn, at the point where the work is least recoverable.
+status: raw
+severity: HIGH
+dod:
+  - the remaining context is observable — to the user before it runs out, and to the agent while it plans
+  - approaching the limit produces a warning ahead of the failure, not an error at it
+  - `/compact` stays available and manual; automatic behaviour, if added, is opt-out and says when it fired — a conversation silently summarized without notice is a worse surprise than the limit
+  - a test drives the near-limit path, since this is precisely the case a normal-length test session never reaches
+
+---
+
+## B-081 — Nothing diagnoses the install   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: the product has a lot to misconfigure — OAuth credentials, layered config (`packages/agent/src/config/effective-config.ts`), trust posture, sandbox backend, `.mcp.json` servers that are spawned, disk skills, hooks — and no command that reports on any of it. The CLI exposes four subcommands (`review`, `goal`, `run`, `resume`); none is diagnostic. When something does not take effect, the tools available are reading source and guessing, which is what B-069, B-070 and B-071 each describe from inside their own corner. This item is the shared half those three keep touching.
+status: raw
+severity: MEDIUM
+dod:
+  - one command reports auth state, resolved config with the layer each value came from, sandbox backend, trust posture, and the MCP/skill/hook sets actually wired
+  - it reports what the product WILL do, resolved, rather than re-printing config files — the gap between requested and effective is the failure being diagnosed
+  - it exits non-zero when something is broken, so it is usable in a support script
+  - secrets are never printed; a credential is reported as present/absent/expired
+
+---
+
+## B-082 — The agent cannot open an image in the repository   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: none-yet
+why_now: `/image <path>` attaches an image to the NEXT turn, which is a user action. There is no tool the model can call to look at a file itself — grep for `view_image` across `packages/` returns nothing, and `REGISTRY_TOOL_NAMES` (`packages/agent/src/tools/registry.ts:31-41`) has nine entries, all text. A repository holding a design mock, an architecture diagram or a failing-test screenshot is opaque to the agent unless the user anticipates the need and attaches it.
+status: raw
+severity: LOW
+dod:
+  - the agent can read an image from the working tree by path, subject to the same sandbox and read-root rules as `read_file`
+  - a path outside the permitted roots is refused with a typed error, not silently ignored
+  - the capability is skipped rather than errored when the configured model cannot accept images
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
