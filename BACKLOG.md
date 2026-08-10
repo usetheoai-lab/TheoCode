@@ -1932,7 +1932,7 @@ dod:
 
 ---
 
-## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [ ]
+## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [x]
 
 fixed_in: 371544a
 dod_verified:

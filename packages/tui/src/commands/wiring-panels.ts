@@ -54,3 +54,18 @@ export function mcpPanelBody(wired: WiredCapabilities | undefined): string {
     ? `${body}\n\nthese were handed to the agent; whether each one answered is not reported here (B-088)`
     : body
 }
+
+/**
+ * B-071 — the hooks the agent actually wired.
+ *
+ * This item was REOPENED because its first implementation re-read the config, which its own DoD
+ * refuses: "the listing comes from what was actually wired, not from re-reading the config file —
+ * those two can disagree, and the disagreement is the bug worth catching." It now reads the record.
+ */
+export function hooksPanelBody(wired: WiredCapabilities | undefined): string {
+  return renderWiredEntity(wired?.hooks, {
+    empty: 'no hooks are wired for this directory',
+    suppressed:
+      'DIRECTORY UNTRUSTED — these hooks are declared and are NOT wired. Nothing below can block a tool call:',
+  })
+}

@@ -14,11 +14,8 @@ import { workingDirectory } from '../working-directory.js'
 import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { listSubagents, subagentDir } from './subagent-inventory.js'
-import { hookInventory, renderHookInventory } from './hook-inventory.js'
-import { mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
+import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
-import { classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
-import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
@@ -88,25 +85,15 @@ export function handleListSubagents(setPanel: (p: ContentPanel) => void): void {
 }
 
 /**
- * B-071 — the hook inventory, rendered.
+ * B-071 — the hook inventory, from the BUILD RECORD.
  *
- * The three inputs are the consent gate's own: effective config, the approved store, and
- * `classifyHooks`. Reading the config a second way here would make this a rival source of truth
- * about what runs.
+ * This replaced a version that re-read the config, which is why the item was reopened: its own DoD
+ * says "the listing comes from what was actually wired, not from re-reading the config file — those
+ * two can disagree, and the disagreement is the bug worth catching." A re-read cannot detect that
+ * disagreement by construction, because it IS the config.
  */
 export function handleListHooks(setPanel: (p: ContentPanel) => void): void {
-  const cwd = workingDirectory()
-  // Trust is resolved from `resolveTrustPosture`, the same source `use-consent.ts` reads, rather
-  // than threaded down from React state. One less wire, and it cannot go stale against the posture
-  // that actually decided whether the hooks were wired.
-  const inventory = hookInventory({
-    directoryTrusted: resolveTrustPosture(cwd).level === 'trusted',
-    classified: () =>
-      classifyHooks(parseHooks(resolveEffectiveConfig({ cwd }).hooks), loadApprovedHooks(cwd), {
-        previousByEvent: true,
-      }),
-  })
-  setPanel({ title: 'hooks', body: renderHookInventory(inventory) })
+  setPanel({ title: 'hooks', body: hooksPanelBody(currentWiring()) })
 }
 
 /** B-070 — the skills the LAST BUILD loaded, never a re-read of config. */

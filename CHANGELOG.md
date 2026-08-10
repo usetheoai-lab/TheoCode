@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `/hooks` now reports the hooks the agent is actually running, with the command each one executes — not what the configuration file asks for. Those two can disagree, and the disagreement is the thing worth catching: an untrusted directory wires none of them, and the panel says so before listing anything, so a list of hooks can never read as protection you do not have (B-071)
+
 - `/mcp` shows which external tool servers the agent started. They are spawned as real processes when the directory is trusted, and until now nothing told you which ones had loaded — or that an untrusted directory had refused to start them at all. The untrusted case names the servers and says why they are gated: they run before any per-tool approval (B-069)
 
 - `/skills` shows which skills the agent actually loaded. They are read from disk and can be removed entirely when the directory is untrusted, and both states were invisible: a skill that was not taking effect gave you no way to tell whether you had misnamed the directory, never listed it, or had it dropped on purpose. When trust removed them the list names them and says they were not loaded, because "no skills" and "your skills were dropped" send you to opposite places (B-070)

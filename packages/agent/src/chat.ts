@@ -147,7 +147,10 @@ export function buildChatAgent(overrides: {
  */
 function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
   try {
-    return parseHooks(cfg.hooks).map((h) => h.event)
+    // B-071 — event AND command: a listing that showed only the event would tell a user something
+    // is allowed to block them without saying what runs, which is the half that matters when the
+    // directory came from a clone.
+    return parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`)
   } catch {
     return []
   }

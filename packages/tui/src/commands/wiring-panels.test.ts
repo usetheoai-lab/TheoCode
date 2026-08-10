@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
+import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 
 type Entity = { active: string[]; requested: string[]; suppressedByTrust: boolean }
 const EMPTY: Entity = { active: [], requested: [], suppressedByTrust: false }
@@ -100,5 +100,39 @@ describe('B-069/B-088 — /mcp states what it cannot know', () => {
   it('test_the_caveat_is_absent_when_nothing_is_listed', () => {
     // Anti-noise floor: a caveat on an empty panel is a warning about nothing.
     expect(mcpPanelBody(wiredMcp(EMPTY))).not.toContain('whether each one answered')
+  })
+})
+
+/**
+ * B-071 — reopened because the first version re-read config. The panel now reports the record, and
+ * the untrusted case must not read as protection: those hooks are declared and are NOT running.
+ */
+describe('B-071 — hooksPanelBody', () => {
+  const wiredHooks = (hooks: Entity) =>
+    ({ hooks, mcp: EMPTY, skills: EMPTY, projectSources: true }) as never
+
+  it('test_lists_the_wired_hooks_with_event_and_command', () => {
+    const body = hooksPanelBody(
+      wiredHooks({
+        active: ['PreToolUse  ./guard.sh'],
+        requested: ['PreToolUse  ./guard.sh'],
+        suppressedByTrust: false,
+      }),
+    )
+    expect(body).toContain('PreToolUse')
+    expect(body).toContain('./guard.sh')
+  })
+
+  it('test_untrusted_says_nothing_below_can_block', () => {
+    const body = hooksPanelBody(
+      wiredHooks({ active: [], requested: ['PreToolUse  ./guard.sh'], suppressedByTrust: true }),
+    )
+    expect(body).toContain('DIRECTORY UNTRUSTED')
+    expect(body).toContain('NOT wired')
+    expect(body.indexOf('DIRECTORY UNTRUSTED')).toBeLessThan(body.indexOf('./guard.sh'))
+  })
+
+  it('test_no_agent_yet_is_not_reported_as_no_hooks', () => {
+    expect(hooksPanelBody(undefined)).toContain('no agent has been built yet')
   })
 })
