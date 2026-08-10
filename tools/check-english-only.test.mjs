@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  EXTS,
   isPortuguese,
   portugueseInComments,
   portugueseWordsInFilename,
@@ -171,5 +172,25 @@ describe('Detector 6 — Portuguese PROSE in a comment, but not a Portuguese QUO
   it('test_a_line_that_is_not_a_comment_is_ignored', () => {
     // Identifiers are detector 3's job; double-reporting the same word twice is noise.
     expect(portugueseInComments('const x = 1')).toEqual([])
+  })
+})
+
+describe('B-065 — the detector looks at every module extension the repos use', () => {
+  it('test_mts_and_cts_are_scanned', () => {
+    // The hole this closes was not hypothetical: two Portuguese EXPORTS lived in a `.mts` file in
+    // the framework and this detector reported clean on every run until a manual grep found them.
+    // A guard that silently skips a file type reports absence of evidence as evidence of absence.
+    for (const ext of ['.mts', '.cts']) {
+      expect(EXTS.has(ext), `${ext} is not scanned — a Portuguese identifier there is invisible`).toBe(
+        true,
+      )
+    }
+  })
+
+  it('test_the_extensions_a_typescript_repo_can_use_are_all_covered', () => {
+    // Anti-vacuity floor: asserting only the two above would pass a list that had lost `.ts`.
+    for (const ext of ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs']) {
+      expect(EXTS.has(ext), `${ext} is not scanned`).toBe(true)
+    }
   })
 })

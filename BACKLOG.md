@@ -1697,6 +1697,14 @@ source: human
 evidence: measured 2026-08-10 while closing B-058. Of the ten `theokit-framework/*` repositories, exactly ONE — `theokit-sdk` — runs a Portuguese guard of its own (`packages/sdk/tests/lint/no-ptbr.test.ts`, a vitest lint test with its own lexicon and loanword allowlist; it passes). The other nine have none, which is why B-058's cleanup had to be driven from TheoCode's detector, pointed at each repo by hand. That pass fixed 129 real occurrences across four repos and nothing stops the next one from landing tomorrow. Also measured: TheoCode's own detector does not scan `.mts`, and that hole hid two Portuguese EXPORTS in `theokit/packages/agents/scripts/generate-reexports.mts` from every run until a manual grep found them.
 why_now: B-058's DoD bullet 3 asked for exactly this and it is the bullet that did not get done — recorded as NOT DONE there rather than glossed. The cleanup without the guard is a snapshot: `theokit` went 119 -> 4 by hand, and the only thing keeping it there is that nobody has written Portuguese since. `theokit-sdk` is the counter-example in the same tree — it has a guard, it passes, and it needed no cleanup at all.
 status: raw
+progress:
+  - DONE — the `.mts` gap. `EXTS` now covers `.ts .tsx .mts .cts .mjs .cjs`, is exported, and two
+    tests lock it (verified by reverting the list, which turns them red). The widening immediately
+    took `theokit` from 4 reported violations to 17: thirteen Portuguese identifiers in
+    `generate-reexports.mts` that every previous run had reported as absent. Cleaned in
+    `theokit-framework/theokit` commit `20706d73`; 901 tests pass there.
+  - REMAINING — the guard itself, in nine repositories. This is the substance of the item and it is
+    untouched: TheoCode's detector still has to be pointed at each repo by hand.
 dod:
   - the `.mts` gap in `tools/check-english-only.mjs` is closed, with a test that fails on a Portuguese identifier in a `.mts` file — the hole is proven shut, not assumed
   - each of the nine unguarded repositories runs a Portuguese check in its own `lint` or `test` script, failing the build rather than reporting

@@ -52,7 +52,15 @@ import { pathToFileURL } from 'node:url'
 
 const ROOT = process.cwd()
 const SCAN = ['packages', 'tools']
-const EXTS = new Set(['.ts', '.tsx', '.mjs'])
+/**
+ * B-065 — `.mts` and `.cts` are here because their absence hid real violations.
+ *
+ * `theokit/packages/agents/scripts/generate-reexports.mts` exported `SUBPATHS_DE_INFRA` and
+ * `enumerarSuperficieDaCamada`, and every run of this detector reported the repository as having
+ * nothing there. A manual grep found them. A guard's silence is only evidence when you know what
+ * it looks at, so the list is exported and locked by a test rather than left inline.
+ */
+export const EXTS = new Set(['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs'])
 
 /**
  * Files the scan skips, each for a reason that would otherwise make the check fire on correct
