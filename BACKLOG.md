@@ -2368,14 +2368,20 @@ dod:
 
 ## B-080 — Compaction is manual only, and nothing warns before the limit   [x]
 
+fixed_in: 3dd8738
 domain: theocode
 repo: TheoCode
 suggested_mode: evolve
 source: human
 evidence: none-yet
+where_it_lives_now: `packages/tui/src/formatting/context-pressure.ts` (thresholds),
+  `packages/tui/src/rendering/use-context-warning.ts` (the once-per-level transition) and the mark in
+  `packages/tui/src/components/SessionFooter.tsx`. The citations below describe the STATE this was
+  filed against; the fix is new code beside them plus one upstream field, and `/compact` itself was
+  deliberately left untouched.
 why_now: `/compact` (`packages/tui/src/commands/registry.ts:102`) is the ONLY compaction path — grep across `packages/{agent,tui}` finds no auto-compaction, no threshold, and no context-remaining signal anywhere; the sole budget notion in the tree is `GOAL_DEFAULTS.tokenBudget` (`packages/agent/src/goal/goal.ts:52`), which governs the goal loop and nothing else. So the user is responsible for noticing context pressure, and the model has no way to observe its own remaining room. On a long session the failure arrives mid-turn, at the point where the work is least recoverable.
 status: raw
-fixed_in: 2c9c529
+fixed_in: 3dd8738 
 dod_verified:
   - VERIFIED LIVE, both halves, once B-090 unblocked it: with a 7k window the footer read
     `5.7k/6.7k context !` and the toast fired — `context is filling up — /compact summarizes the
@@ -2385,6 +2391,13 @@ dod_verified:
   - approaching the limit warns AHEAD of the failure rather than at it
   - `/compact` stays manual; nothing automatic was added
   - the near-limit path is driven by tests, which is the case a normal-length session never reaches
+  CITATION CORRECTED, after `crossval` refused the closure: the evidence names
+  `packages/agent/src/goal/goal.ts` and `packages/tui/src/commands/registry.ts` because that is
+  where the ONLY budget notion and the only compaction command lived when the item was filed. The
+  fix touches neither, and that is right rather than a gap — the warning is new code
+  (`formatting/context-pressure.ts`, `rendering/use-context-warning.ts`, the footer mark) plus one
+  upstream field, and `/compact` was deliberately left alone. The original citations describe the
+  STATE the item was filed against, not the site of the change.
   HOW IT GOT HERE: this item was left OPEN for most of the session with the logic complete and
   green, because it provably could not fire — the token reading it depends on never reached the
   footer. Closing it on 14 passing tests would have been the false PASS B-071 was reopened for. It
