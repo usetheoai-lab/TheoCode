@@ -147,7 +147,7 @@ async function roleAgentOptions(
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
   const { cwd, writeRoot, modelId, effort } = inheritFromParent(role, ctx)
-  const pluginDeHooks = ctx.hooks !== undefined ? hooksForMember(ctx.hooks) : undefined
+  const hooksPlugin = ctx.hooks !== undefined ? hooksForMember(ctx.hooks) : undefined
   return {
     apiKey: requireResolvedCredential(ctx.apiKey),
     model: buildModelSelection(modelId, effort),
@@ -161,8 +161,8 @@ async function roleAgentOptions(
       { cwd, writeRoot, sandbox: ctx.sandbox },
       { model: modelId, reasoning_effort: effort as ReasoningEffort },
     ),
-    ...(pluginDeHooks !== undefined
-      ? { plugins: [pluginDeHooks] as unknown as AgentOptions['plugins'] }
+    ...(hooksPlugin !== undefined
+      ? { plugins: [hooksPlugin] as unknown as AgentOptions['plugins'] }
       : {}),
   }
 }

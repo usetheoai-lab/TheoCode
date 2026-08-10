@@ -2,7 +2,13 @@ import { Agent, buildModelSelection } from '@theokit/agents'
 import type { CustomTool, HookHandlers } from '@theokit/agents'
 
 import { hooksForMember } from '../delegation/index.js'
-import { REVIEWER_TOOLS, reviewerShape } from '../composition/agent-spec.js'
+// B-084 — re-exported, not aliased. This file used to export `TOOLS_DO_REVIEWER` as a
+// back-compat name pinned to the real one, and its own docstring set the sunset: "delete once
+// nothing outside this file reads it". Removing the Portuguese name IS that moment, and the one
+// consumer (`composition.test.ts`) reads it from here, so the re-export keeps that path alive
+// without a second identifier to drift.
+export { REVIEWER_TOOLS } from '../composition/agent-spec.js'
+import { reviewerShape } from '../composition/agent-spec.js'
 
 import type { AgentConfig } from '../config/index.js'
 import { ToolRegistry, resolveToolScope, type ToolScope } from '../tools/index.js'
@@ -10,19 +16,11 @@ import type { ReviewAgentLike, ReviewDeps } from './run-review.js'
 
 export const REVIEWER_SHELL_CAP = 30_000
 
-/**
- * B-059 — the reviewer's tool set is DECLARED in `composition/agent-spec.ts`, not stated here.
- *
- * This alias is the migration path, not a second source: it re-exports the declaration so a caller
- * pinned to the old name keeps compiling and cannot drift from it. Sunset: delete once nothing
- * outside this file reads it.
- */
-export const TOOLS_DO_REVIEWER = REVIEWER_TOOLS
 
-export type ConfigDoReviewer = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
+export type ReviewerConfig = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
 
-function reviewerScope(cfg: ConfigDoReviewer, cwd: string): ToolScope {
+function reviewerScope(cfg: ReviewerConfig, cwd: string): ToolScope {
   return { ...resolveToolScope(cfg, cwd), defaultTimeoutMs: REVIEWER_SHELL_CAP }
 }
 
@@ -42,7 +40,7 @@ interface CreationOptions {
 }
 
 export interface ReviewFactoryDeps {
-  config: ConfigDoReviewer
+  config: ReviewerConfig
   cwd: string
   resolveCredential: (model: string) => Promise<string>
   hooks?: HookHandlers
@@ -71,7 +69,7 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
     model: deps.config.model,
     reasoning_effort: deps.config.reasoning_effort ?? 'medium',
   })
-  const pluginDeHooks = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
+  const hooksPlugin = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
     const apiKey = await deps.resolveCredential(deps.config.model)
@@ -82,8 +80,8 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
       local: { cwd: deps.cwd },
       systemPrompt,
       tools: [...shape.tools],
-      ...(pluginDeHooks !== undefined
-        ? { plugins: [pluginDeHooks] as unknown as Parameters<typeof Agent.create>[0]['plugins'] }
+      ...(hooksPlugin !== undefined
+        ? { plugins: [hooksPlugin] as unknown as Parameters<typeof Agent.create>[0]['plugins'] }
         : {}),
     })
 

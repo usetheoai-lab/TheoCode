@@ -73,13 +73,13 @@ export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
   context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
 }
 
-interface OptOutDeEnv {
+interface EnvOptOut {
   readonly key: string
   readonly reason: string
   readonly exitCriterion: string
 }
 
-export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
+export const ENV_OPT_OUTS: readonly EnvOptOut[] = [
   {
     key: 'skills',
     reason:
@@ -113,7 +113,7 @@ export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
 export function keysWithoutEnvPath(
   keys: readonly string[],
   withEnvPath: ReadonlySet<string>,
-  optOut: readonly OptOutDeEnv[],
+  optOut: readonly EnvOptOut[],
 ): string[] {
   const exempt = new Set(optOut.map((o) => o.key))
   return keys.filter((k) => !withEnvPath.has(k) && !exempt.has(k))
@@ -122,11 +122,11 @@ export function keysWithoutEnvPath(
 export function optOutsThatExemptNothing(
   keys: readonly string[],
   withEnvPath: ReadonlySet<string>,
-  optOut: readonly OptOutDeEnv[],
+  optOut: readonly EnvOptOut[],
 ): string[] {
-  const doSchema = new Set(keys)
+  const schemaKeys = new Set(keys)
   return optOut
-    .filter((o) => !doSchema.has(o.key) || withEnvPath.has(o.key))
+    .filter((o) => !schemaKeys.has(o.key) || withEnvPath.has(o.key))
     .map((o) => o.key)
 }
 

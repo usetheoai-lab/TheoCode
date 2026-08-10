@@ -103,7 +103,7 @@ export const REVIEWER_TOOLS = ['git_diff', 'read_file', 'grep', 'run_shell'] as 
 /**
  * The reviewer, as a list.
  *
- * `review/create-agent.ts` used to state this inline as `TOOLS_DO_REVIEWER` and resolve it against
+ * `review/create-agent.ts` used to state this inline as `REVIEWER_TOOLS` and resolve it against
  * a registry it built itself. It now asks for the shape and hands `shape.tools` to the same
  * `Agent.create` call it always made — identical behaviour, declared in one place.
  */

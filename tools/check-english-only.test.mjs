@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   EXTS,
+  portugueseConstruction,
   isPortuguese,
   portugueseInComments,
   portugueseWordsInFilename,
@@ -191,6 +192,48 @@ describe('B-065 — the detector looks at every module extension the repos use',
     // Anti-vacuity floor: asserting only the two above would pass a list that had lost `.ts`.
     for (const ext of ['.ts', '.tsx', '.mts', '.cts', '.mjs', '.cjs']) {
       expect(EXTS.has(ext), `${ext} is not scanned`).toBe(true)
+    }
+  })
+})
+
+/**
+ * B-084 — the Portuguese POSSESSIVE construction, not a list of sixteen words.
+ *
+ * Sixteen identifiers shipped built on `Do`/`Da`/`De` and every detector here reported the tree
+ * clean. Correctly: the identifier scan decides per WORD, and `do`, `da` and `de` are all in
+ * `/usr/share/hunspell/en_US.dic`. Each word was declined right and the construction survived —
+ * B-083's blind spot in another hat. Renaming the sixteen without this leaves the seventeenth to
+ * be found by eye, which is how they lasted this long.
+ */
+describe('B-084 — the Portuguese possessive construction', () => {
+  it('test_flags_the_construction_in_both_casings', () => {
+    for (const name of [
+      'pluginDeHooks',
+      'propsDoSlot',
+      'timelineDaTui',
+      'specsDosHooks',
+      'TOOLS_DO_REVIEWER',
+      'OPT_OUT_DE_ENV',
+    ]) {
+      expect(portugueseConstruction(name), name).toBe(true)
+    }
+  })
+
+  it('test_does_not_flag_english_identifiers', () => {
+    // The false-positive floor, scored BEFORE this landed. A guard that cries wolf is what this
+    // file's own docstring says killed version one — and `do` opens plenty of English names.
+    for (const name of [
+      'doSomething',
+      'undo',
+      'redoLayout',
+      'DOM_ELEMENT',
+      'readFile',
+      'DEFAULT_MODE',
+      'decodeUrl',
+      'daemonStart',
+      'encodeProjectDir',
+    ]) {
+      expect(portugueseConstruction(name), name).toBe(false)
     }
   })
 })

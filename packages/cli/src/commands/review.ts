@@ -22,8 +22,8 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
   const { parseHooks, buildHookHandlers, loadApprovedHooks } =
     await import('@theocode/agent/hooks')
   const { resolveTrustPosture } = await import('@theocode/agent/config')
-  const specsDeHooks = parseHooks(execCfg.hooks)
-  const surfaceHooks = buildHookHandlers(specsDeHooks, {
+  const hookSpecs = parseHooks(execCfg.hooks)
+  const surfaceHooks = buildHookHandlers(hookSpecs, {
     trusted: resolveTrustPosture(process.cwd()).allows.hooks,
     approved: new Set([...loadApprovedHooks(process.cwd()).keys()]),
   })

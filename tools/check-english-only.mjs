@@ -317,6 +317,28 @@ export const isPortuguese = (w) => {
  * are below the 3-character floor today, which makes relying on that accidental.
  */
 /**
+ * Portuguese POSSESSIVE construction in an identifier — B-084.
+ *
+ * Sixteen identifiers shipped built on `Do`/`Da`/`De` (`pluginDeHooks`, `propsDoSlot`,
+ * `TOOLS_DO_REVIEWER`) and every detector here reported the tree clean. Correctly, too: the
+ * identifier scan splits camelCase and decides per WORD, and `do`, `da` and `de` are all in
+ * `/usr/share/hunspell/en_US.dic` — `do` the verb, `de` the prefix. Each word was declined right
+ * and the construction survived, which is B-083's blind spot wearing a different hat.
+ *
+ * This detects the SHAPE instead: an INTERIOR `Do|Da|De|Dos|Das` segment between two other
+ * segments. English does not build identifiers that way; Portuguese builds `X do Y` constantly.
+ *
+ * Interior is load-bearing — `doSomething` and `DOM_ELEMENT` start with it and are English, so a
+ * head match would be the false-positive flood that killed version one of this guard.
+ */
+const PT_POSSESSIVE_CAMEL = /[a-z0-9](?:Do|Da|De|Dos|Das)[A-Z]/
+const PT_POSSESSIVE_SNAKE = /[A-Za-z0-9]_(?:DO|DA|DE|DOS|DAS)_[A-Za-z0-9]/
+
+export function portugueseConstruction(identifier) {
+  return PT_POSSESSIVE_CAMEL.test(identifier) || PT_POSSESSIVE_SNAKE.test(identifier)
+}
+
+/**
  * Portuguese inside STRING LITERALS — the text that reaches a user.
  *
  * The accent detector misses unaccented prose, and the identifier scan strips strings before it
@@ -477,6 +499,17 @@ function main() {
         }
 
         for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+            // Detector 6 — the Portuguese POSSESSIVE construction (B-084). The word loop below
+            // cannot see it: `do`, `da` and `de` are all English dictionary entries, so every part
+            // of `pluginDeHooks` is declined correctly and the identifier passes whole.
+            if (portugueseConstruction(identifier)) {
+              violations.push({
+                at,
+                why: `Portuguese possessive construction in "${identifier}"`,
+                text: line.trim().slice(0, 100),
+              })
+              return
+            }
             for (const w of wordParts(identifier)) {
               if (isPortuguese(w)) {
                 violations.push({

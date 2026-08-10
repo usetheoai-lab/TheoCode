@@ -15,7 +15,7 @@ import { useBacktrack } from '../backtrack/index.js'
 import { type ApprovalMode } from '../consent/index.js'
 import { useTuiSession } from './use-tui-session.js'
 
-export function depsDoComposer(
+export function composerDeps(
   s: ReturnType<typeof useTuiSession>,
   screen: ReturnType<typeof useScreenState>,
   extra: {

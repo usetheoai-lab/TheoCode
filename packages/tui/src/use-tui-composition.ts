@@ -6,7 +6,7 @@ import {
   makeInterruptTurn,
   getTuiRoot,
 } from './agent-session/index.js'
-import { depsDoComposer } from './composition/composer-deps.js'
+import { composerDeps } from './composition/composer-deps.js'
 import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
@@ -198,7 +198,7 @@ export function useTuiComposition() {
   })
 
   const { handleSubmit } = useComposerCommands(
-    depsDoComposer(s, screen, {
+    composerDeps(s, screen, {
       backtrack,
       goalAbort: conv.goalAbort,
       lastSentMessage: conv.lastSentMessage,
@@ -227,7 +227,7 @@ export function useTuiComposition() {
   }
   return {
     conversationProps: conversationProps(c),
-    propsDoSlot: propsDoSlot(c),
+    slotProps: slotProps(c),
     footerProps: footerProps(c),
   }
 }
@@ -267,7 +267,7 @@ function conversationProps(c: {
   }
 }
 
-function propsDoSlot(c: Composition & SlotExtras) {
+function slotProps(c: Composition & SlotExtras) {
   return {
     customCommands: c.customCommands,
     trusted: c.trusted,

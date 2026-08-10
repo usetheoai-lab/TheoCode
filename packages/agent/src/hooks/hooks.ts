@@ -22,9 +22,9 @@ export type BudgetDecision =
   | { readonly kind: 'run'; readonly effectiveTimeout: number }
   | { readonly kind: 'exceeded'; readonly remaining: number }
 
-function decideBudget(remaining: number, timeoutDoHook: number): BudgetDecision {
+function decideBudget(remaining: number, hookTimeout: number): BudgetDecision {
   if (remaining < SPAWN_FLOOR_MS) return { kind: 'exceeded', remaining }
-  return { kind: 'run', effectiveTimeout: Math.min(timeoutDoHook, remaining) }
+  return { kind: 'run', effectiveTimeout: Math.min(hookTimeout, remaining) }
 }
 
 const hookSchema = z
@@ -294,7 +294,7 @@ function policyBlock(
   }
 }
 
-async function vetoDePreToolUse(
+async function preToolUseVeto(
   pre: readonly HookSpec[],
   ctx: { name?: string; args?: Record<string, unknown> },
   onVeto?: (veto: { tool: string; reason: string }) => void,
@@ -460,7 +460,7 @@ export function buildHookHandlers(
 
   const pre = by('PreToolUse')
   if (pre.length > 0) {
-    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx, opts.onVeto)
+    handlers.pre_tool_call = (ctx) => preToolUseVeto(pre, ctx, opts.onVeto)
   }
 
   const allPost = by('PostToolUse')

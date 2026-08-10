@@ -2320,7 +2320,31 @@ dod:
 
 ---
 
-## B-084 — Sixteen Portuguese identifiers pass the English-only guard   [ ]
+## B-084 — Sixteen Portuguese identifiers pass the English-only guard   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - all 16 renamed, plus 4 the item's own scan MISSED because it only looked at camelCase:
+    `OPT_OUT_DE_ENV`, `TOOLS_DO_ANALYST`, `TOOLS_DO_REVIEWER` (SCREAMING_SNAKE) and `doSchema`.
+    Twenty in total. The measurement in this item was itself incomplete, which is worth recording
+  - the rename reached beyond `packages/`: `TOOLS_DO_REVIEWER` was a public back-compat ALIAS whose
+    own docstring set the sunset — "delete once nothing outside this file reads it". Removing the
+    Portuguese name IS that moment, so the alias is gone and its one consumer reads a re-export
+    instead of a second identifier that could drift
+  - the guard catches the CONSTRUCTION, not these twenty words: detector 6 flags an INTERIOR
+    `Do|Da|De|Dos|Das` segment, in camelCase and SCREAMING_SNAKE. Interior is load-bearing —
+    `doSomething` and `DOM_ELEMENT` start with it and are English
+  - scored for false positives BEFORE landing, per the method B-083 wrote down: zero hits across
+    `doSomething`, `undo`, `redoLayout`, `DOM_ELEMENT`, `readFile`, `DEFAULT_MODE`, `decodeUrl`,
+    `daemonStart`, `encodeProjectDir`. Both directions are locked by tests
+  - PROVEN by planting: `timeoutDoTeste` added to a source file turns `npm run lint` red, and the
+    tree is clean without it. A detector never seen to fail is not evidence
+  - two collisions the renames caused were caught by typecheck, not by luck: `providerPlugins`
+    already named a function, and `REVIEWER_TOOLS` already named an import
+  - MY OWN ERROR, recorded because it nearly shipped: while proving the detector I backed up the
+    wrong file (a `cp ... || cp ...` whose first branch succeeded) and restored `image-root.ts` with
+    unrelated content. Caught by typecheck and the suite in the same run, and rewritten. Nothing
+    reached a commit
 
 domain: theocode
 repo: TheoCode

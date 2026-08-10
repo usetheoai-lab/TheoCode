@@ -77,7 +77,7 @@ export function buildChatAgent(overrides: {
   // site because on the wire a blocked call is indistinguishable from a successful one, by the
   // SDK's design (see `buildHookHandlers`).
   const lifecycleHooks = chatHookChain(cfg, posture, cwd, overrides?.onHookVeto)
-  const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
+  const providerPlugins = resolveProviderPlugins(overrides?.model, modelId)
   const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
 
   const withWrites = withWriteTools(base, {
@@ -146,7 +146,7 @@ function projectDocument(posture: TrustPosture, cwd: string): string {
   return [loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
 
-function pluginsDoProvider(
+function resolveProviderPlugins(
   requestedModel: string | undefined,
   modelId: string,
 ): ReturnType<typeof Provider.builtins> {

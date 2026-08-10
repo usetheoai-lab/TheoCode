@@ -59,13 +59,13 @@ export async function runReviewCommand(
   deps: ReviewCommandDeps,
 ): Promise<void> {
   const { setToast, setReviewResult } = deps
-  const cfgDoReview = resolveEffectiveConfig({ cwd: workingDirectory() })
+  const reviewCfg = resolveEffectiveConfig({ cwd: workingDirectory() })
   setToast({ message: `>> Code review started <<`, variant: 'info' })
   const shutdown = reviewShutdown(setToast)
   const detach = installSignal(shutdown)
   try {
     const { execFileSync } = await import('node:child_process')
-    const surfaceHooks = await hookChain(cfgDoReview.hooks)
+    const surfaceHooks = await hookChain(reviewCfg.hooks)
     const result = await runReview(arg, {
       git: (args) => {
         try {
@@ -78,7 +78,7 @@ export async function runReviewCommand(
         }
       },
       createAgent: createReviewAgent({
-        config: cfgDoReview,
+        config: reviewCfg,
         cwd: workingDirectory(),
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,

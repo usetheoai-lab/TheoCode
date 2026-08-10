@@ -17,7 +17,7 @@ export function App(): ReactElement {
       <InkInputProvider>
         <Stack gap={1}>
           <ConversationRegion {...tui.conversationProps} />
-          <InputSlot {...tui.propsDoSlot} />
+          <InputSlot {...tui.slotProps} />
           <SessionFooter {...tui.footerProps} />
         </Stack>
       </InkInputProvider>

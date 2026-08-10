@@ -13,12 +13,12 @@ interface AgentWithThread {
   thread: Parameters<typeof prepareThread>[0]
 }
 
-export interface TimelineDaTui {
+export interface TuiTimeline {
   readonly events: ReturnType<typeof deriveTimeline>
   readonly lastUsage: ReturnType<typeof readTurnUsage> | undefined
 }
 
-export function useTimeline(agent: AgentWithThread, resumed: boolean): TimelineDaTui {
+export function useTimeline(agent: AgentWithThread, resumed: boolean): TuiTimeline {
   const greeting: UIMessageLike = {
     id: 'greeting',
     role: 'assistant',

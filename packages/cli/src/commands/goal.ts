@@ -95,12 +95,12 @@ async function resolveGoalContext(args: ExecGoal) {
     await import('@theocode/agent/config')
   const { routeGoalModel } = await import('@theocode/agent/goal')
   const routingCred = resolveCredential({ env: process.env, home: homedir() })
-  const cwdDoGoal = process.cwd()
-  const posture = resolveTrustPosture(cwdDoGoal, TRUST_STORE)
-  const cfg = resolveEffectiveConfig({ cwd: cwdDoGoal, store: TRUST_STORE, cli: args.overrides })
+  const goalCwd = process.cwd()
+  const posture = resolveTrustPosture(goalCwd, TRUST_STORE)
+  const cfg = resolveEffectiveConfig({ cwd: goalCwd, store: TRUST_STORE, cli: args.overrides })
   const routedModel = args.model ?? routeGoalModel(routingCred, cfg.model)
   const cred = await resolveCredentialForModel(routedModel, { env: process.env, home: homedir() })
-  return { cwd: cwdDoGoal, posture, cfg, oracle: cfg.goal_oracle, routedModel, cred }
+  return { cwd: goalCwd, posture, cfg, oracle: cfg.goal_oracle, routedModel, cred }
 }
 
 export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<void> {

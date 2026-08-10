@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Twenty identifiers written in Portuguese are now English, and the guard that is supposed to catch them can finally see that shape. It could not before: names like `pluginDeHooks` are built from words that are each valid English — `do` the verb, `de` a prefix — so every part was checked, cleared, and the Portuguese construction passed whole. The check now recognises the construction itself, was scored against real English names before it landed, and was proven by planting a violation and watching the build fail (B-084)
+
 ### Added
 
 - The agent can look at an image in your repository. Attaching one with `/image` still works, but that requires you to anticipate that a picture matters — a design mock, an architecture diagram or a screenshot of a failing test was invisible to it otherwise. It reads only inside the workspace: a path pointing outside is refused and said so, never quietly redirected somewhere allowed (B-082)

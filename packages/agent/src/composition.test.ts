@@ -293,7 +293,7 @@ describe('path 2 — createReviewAgent composes the reviewer', () => {
     await createAgent({ agentId: 'r1', systemPrompt: 'review it' })
     const names = captured?.tools.map((t) => t.name).sort() ?? []
 
-    // The expected set is written OUT here rather than compared against `TOOLS_DO_REVIEWER`.
+    // The expected set is written OUT here rather than compared against `REVIEWER_TOOLS`.
     // Measured: comparing to the constant made this test tautological — a mutation adding
     // `apply_patch` to the constant changed both sides at once and survived. A characterization
     // test has to state the expectation independently of the thing it characterises.
@@ -319,8 +319,8 @@ describe('path 2 — createReviewAgent composes the reviewer', () => {
     // and `resolveToolScope` but not the name list, so the registry's own vocabulary is not part
     // of the module's public face.
     const { REGISTRY_TOOL_NAMES } = await import('./tools/registry.js')
-    const { TOOLS_DO_REVIEWER } = await import('./review/create-agent.js')
-    for (const name of TOOLS_DO_REVIEWER) {
+    const { REVIEWER_TOOLS } = await import('./review/create-agent.js')
+    for (const name of REVIEWER_TOOLS) {
       expect(
         (REGISTRY_TOOL_NAMES as readonly string[]).includes(name),
         `the reviewer declares "${name}", which the registry does not build`,

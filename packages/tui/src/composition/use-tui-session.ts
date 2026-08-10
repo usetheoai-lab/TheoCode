@@ -1,12 +1,12 @@
 /**
  * B-085 — the session bundle, lifted out of the composition root.
  *
- * It was LOCAL to `use-tui-composition.ts`, and that is what made `depsDoComposer` unextractable:
+ * It was LOCAL to `use-tui-composition.ts`, and that is what made `composerDeps` unextractable:
  * anything referencing `ReturnType<typeof useTuiSession>` had to live in the same file, so the root
  * could only grow. Adding a single field to the composer bundle put the root past two lint budgets
  * at once, which is what blocked B-075.
  *
- * Both move here, together. Extracting `depsDoComposer` ALONE is what would have created the cycle
+ * Both move here, together. Extracting `composerDeps` ALONE is what would have created the cycle
  * `depcruise` refuses — measured, not assumed: with both moved, the graph stays acyclic and nothing
  * imports back into the root.
  */
