@@ -2802,6 +2802,11 @@ traced_2026-08-10: measured to the boundary and it is a FEATURE, not a dropped f
   execution" (:26). The spawn happens inside `@theokit/sdk`, one package deeper, and nothing returns
   a per-server outcome upward: there is no channel to carry "this one failed", so no layer above can
   report it however carefully it is written.
+  CONFIRMED ONE LAYER DEEPER: `@theokit/sdk`'s `internal/local-agent/mcp-pool.ts` is 120 lines with
+  NO `catch` and no error handling at all. So the SDK does not capture a per-server failure either —
+  this is not a captured result waiting to be exposed, which would have been a small change. A
+  failing server's error leaves that pool unhandled, which is arguably its own defect and is worth
+  someone's attention independently of this listing.
   WHAT IT WOULD TAKE: an addition to the SDK's agent-creation contract — a per-server result surfaced
   from where the clients are spawned. That changes what every in-process consumer receives, not only
   this product, and it is the deepest package in the stack. It is a feature in another project's
