@@ -2866,7 +2866,7 @@ dod:
 
 ---
 
-## B-091 — B-053's rename was committed upstream and never published   [ ]
+## B-091 — B-053's rename was committed upstream and never published   [x]
 
 domain: theocode
 repo: TheoCode
@@ -2882,7 +2882,17 @@ why_now: B-053 reads CLOSED while its subject is unchanged in the product — th
   catches inside this repo, one layer up where nothing checks. It also blocks the English-only rule
   at the boundary: `packages/agent/src/session/agent-list.ts:30` has to write a Portuguese type name
   in a comment to explain why `Agent.list` cannot paginate.
-status: raw
+fixed_in: PENDING
+dod_verified:
+  - published as `@theokit/agents@7.4.1`, then `7.4.2` once B-092 showed 7.4.1 could not be
+    installed. The three consuming manifests declare `^7.4.2` and `node_modules` holds it
+  - `ListOptionsSemPaginacao`, `AgentComListaEstreitada` and `DefinicaoOuThunk` are GONE from the
+    installed `.d.ts`, verified by reading it. `ToolComNome` remains, deliberately: B-053's DoD kept
+    the old names as deprecated aliases for one minor, and removing it here would break that promise
+    early
+  - B-053's record was corrected to say its fix was unreleased, so it stops claiming an effect it
+    did not have
+status: shipped
 severity: MEDIUM
 dod:
   - a published `@theokit/agents` carries the rename, and TheoCode consumes it. PUBLISHED
@@ -2900,7 +2910,7 @@ dod:
 
 ---
 
-## B-092 — `npm install` fails on a clean checkout   [ ]
+## B-092 — `npm install` fails on a clean checkout   [x]
 
 domain: theocode
 repo: TheoCode
@@ -2918,7 +2928,23 @@ why_now: found while trying to consume the `@theokit/agents@7.4.1` published min
   fresh clone of this repository cannot be built by anyone using npm. It has been invisible because
   every working checkout already has a populated `node_modules`; the failure only appears to someone
   starting from nothing, which is every new contributor and every CI job that does not cache.
-status: raw
+fixed_in: PENDING
+fixed_upstream: `@theokit/agents@7.4.2` (the blocker) and `@theokit/sdk-pty@0.3.1` (hygiene)
+dod_verified:
+  - `npm install` succeeds from a CLEAN CLONE: `git archive HEAD` into an empty directory, no
+    `node_modules`, `npm install` → exit 0. Verified there rather than in a working tree that had
+    already resolved, which is the only place the defect was ever visible
+  - THE BLOCKER WAS NOT WHERE IT FIRST APPEARED. The scan pointed at `@theokit/sdk-pty`, whose
+    `devDependencies` carried `workspace:*` — real, and fixed as 0.3.1 — but the install still
+    failed after removing it. The actual blocker was `@theokit/agents`, which shipped
+    `"@theokit/presenter": "workspace:*"` in `dependencies`: npm MUST resolve a runtime dependency,
+    and skips a transitive package's devDependencies entirely. The first fix was hygiene, not the cause
+  - MY OWN REGRESSION, recorded: `@theokit/agents@7.4.1` was published earlier in this session
+    (for B-091) WITH that range still in place. The defect predates it — 7.4.0 had it too — but a
+    version was cut without checking, so the fix and the oversight ride together in 7.4.2
+  - a check for the next publish is NOT built and is named rather than implied: nothing yet stops a
+    `workspace:` range reaching a tarball. B-093 carries it
+status: shipped
 severity: HIGH
 dod:
   - `npm install` succeeds from a clean clone with no `node_modules`, verified in a temporary copy
@@ -2930,5 +2956,34 @@ dod:
     this class of defect is invisible until someone starts from zero
   - B-091 is completed once the install works: the range is already declared at `^7.4.1` in the
     three consuming manifests and only the install is blocked
+
+---
+
+## B-093 — Nothing stops a `workspace:` range reaching a published tarball   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: B-092, measured 2026-08-10. TWO published packages carried it —
+  `@theokit/sdk-pty@0.3.0` in `devDependencies` and `@theokit/agents@7.4.0`/`7.4.1` in
+  `dependencies` — and one of them was published DURING this session, by this agent, without the
+  problem being noticed. The consequence was that `npm install` failed outright for anyone starting
+  without a populated `node_modules`.
+why_now: the class is invisible by construction. `workspace:*` is correct in the source of a pnpm
+  monorepo and only wrong in the tarball, so it reads as fine in every editor and every local run,
+  and the failure reaches only someone starting from zero. Two packages had it; nothing says a third
+  does not.
+status: raw
+severity: MEDIUM
+dod:
+  - a check refuses to publish a manifest containing a `workspace:` range in any dependency section
+  - it runs where publishing happens, not only in a test someone remembers to run — `prepublishOnly`
+    is the seam `@theokit/tui` already uses for its gates
+  - every currently-published `@theokit/*` package is audited once against the registry, not against
+    its source, because the source is where the range legitimately lives
+  - HONEST SCOPE: this belongs to `theokit-framework`, which `cycle-backlog.md § Domain routing`
+    places outside this install. Filed here because this is where it was measured and where it bit,
+    and carried across rather than worked from here — the same caveat B-053 carries
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

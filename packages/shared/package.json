@@ -10,6 +10,6 @@
     "./shutdown": "./src/shutdown.ts"
   },
   "dependencies": {
-    "@theokit/agents": "^7.4.1"
+    "@theokit/agents": "^7.4.2"
   }
 }
