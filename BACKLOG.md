@@ -1912,6 +1912,22 @@ dod_verified:
     `resolveTrustPosture`, the same source `use-consent.ts` uses, not threaded from React state
   - an unreadable `hooks` block is REPORTED, never rendered as "no hooks" — the fail-open B-039 had
     to fix in the consent gate, which a listing could easily have reintroduced
+  - SEAM DESIGNED 2026-08-10, measured at the build site so the next attempt is one pass rather than
+    four. `packages/agent/src/chat.ts:309-327` already computes every value, each as a single
+    expression, and throws the decision away after handing it to the builder:
+
+        .mcp(posture.allows.mcp ? loadMcpJson(ctx.cwd) : {})
+        .skills(posture.allows.skills ? [...cfg.skills] : [])
+        .settingSources(projectSourceAllowed(posture.allows) ? ['project', 'user'] : ['user'])
+        .hooks(lifecycleHooks)
+
+    So the record is built from those SAME expressions at that SAME point — never re-read — which is
+    literally the bullet above. Shape: `{ mcp: {servers, suppressedByTrust}, skills: {...},
+    hooks: {...}, subagents: {...} }`, computed once and held on the composition root the TUI already
+    owns (`getTuiRoot`), the way `onHookVeto` is.
+    Build it ONCE for all four consumers — B-069 (mcp), B-070 (skills), this item (hooks) and the
+    session-switch half of B-077. Building it privately for one command is what B-085 had to undo
+    for the composer, and doing that four times is the same mistake at four times the cost.
   - STILL OPEN: the listing must report what was WIRED. That needs the agent build to expose its
     handler set — the same seam B-069 (MCP) and B-070 (skills) need, which is why those three should
     land together rather than each re-reading its own config
