@@ -189,9 +189,6 @@ function turn(action: CommandAction, text: string, cap: TurnCapabilities): boole
         setToast,
       })
       return true
-    case 'memoryInfo':
-      handleMemoryInfo(setToast)
-      return true
     default:
       return false
   }
@@ -212,6 +209,10 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
   switch (action.kind) {
     case 'quit':
       exit()
+      return true
+    case 'memoryInfo':
+      // B-077 — inspection, not turn: it renders a panel and starts no turn.
+      handleMemoryInfo(action.arg, setToast, setPanel)
       return true
     case 'showStatus': {
       setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner))

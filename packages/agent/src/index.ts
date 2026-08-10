@@ -1,3 +1,5 @@
 export { buildChatAgent } from './chat.js'
 export { wiredCapabilities } from './wired-capabilities.js'
+export { memoryEnabledForSession, setMemoryEnabledForSession } from './memory-switch.js'
+export { memoryFacts, withFactRemoved } from './memory-facts.js'
 export type { WiredCapabilities, WiredEntity } from './wired-capabilities.js'

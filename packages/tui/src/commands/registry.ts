@@ -36,7 +36,7 @@ export type CommandAction =
   // M48 — user-defined command (loaded from .theokit/commands/); arg = raw argument string.
   | { kind: 'custom'; name: string; arg: string }
   // M49 — durable-memory status (enabled/trusted, store path, fact count).
-  | { kind: 'memoryInfo' }
+  | { kind: 'memoryInfo'; arg: string }
   // M50 — manual context compaction (Codex /compact parity).
   | { kind: 'compact' }
   // Codex parity (`/ps`, `/stop`): inventory and stop for background PTYs. We were creating
@@ -84,7 +84,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'skills', description: 'list the skills this agent actually loaded' },
   { name: 'mcp', description: 'list the MCP servers this agent started' },
   { name: 'rename', description: 'rename the current session' },
-  { name: 'memory', description: 'durable-memory status' },
+  { name: 'memory', description: 'memory: list facts, /memory off|on, /memory forget <n>' },
   { name: 'compact', description: 'summarize the conversation to free context' },
   { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
   { name: 'quit', description: 'exit the TUI' },
@@ -112,7 +112,7 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/new', { kind: 'new' }],
   ['/help', { kind: 'toggleHelp' }],
   ['/usage', { kind: 'toggleUsage' }],
-  ['/memory', { kind: 'memoryInfo' }],
+
   ['/status', { kind: 'showStatus' }],
   ['/init', { kind: 'initAgents' }],
   ['/quit', { kind: 'quit' }],
@@ -142,6 +142,7 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/approval', (arg) => ({ kind: 'approvalMode', arg })],
   ['/image', (arg) => ({ kind: 'image', arg })],
   ['/model', (arg) => ({ kind: 'model', arg })],
+  ['/memory', (arg) => ({ kind: 'memoryInfo', arg })],
   ['/effort', (arg) => ({ kind: 'effort', arg })],
   ['/review', (arg) => ({ kind: 'review', arg })],
   ['/goal', (arg) => ({ kind: 'goal', arg })],

@@ -1,5 +1,6 @@
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
+import { memoryEnabledForSession } from './memory-switch.js'
 import {
   createGenericHttpSearchAdapter,
   createQuestionTool,
@@ -479,7 +480,10 @@ function baseAgent(ctx: {
       // enabled only for a TRUSTED directory — same gate as AGENTS.md/skills. `{enabled:false}` and an
       // omitted field are equivalent to the SDK gate (`enabled !== true`); the explicit false makes the
       // decision observable in the compiled definition.
-      .memory({ enabled: posture.allows.memory })
+      // B-077 — trust decides whether memory is POSSIBLE; the session switch can only restrict it
+      // further. ANDed rather than overridden, so `/memory off` cannot be read as permission and a
+      // session cannot re-enable what an untrusted directory forbids.
+      .memory({ enabled: posture.allows.memory && memoryEnabledForSession() })
       // B-059 — WHICH registry tools this agent holds is decided by the shared composition entry
       // (`composition/agent-spec.ts`), the same one the reviewer and the delegated roles go
       // through. The fluent chain is untouched: the entry returns a SHAPE and the tools are fed in

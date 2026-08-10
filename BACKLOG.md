@@ -1825,7 +1825,7 @@ dod:
 
 ---
 
-## B-068 — The composer drops Home and End   [ ]
+## B-068 — The composer drops Home and End   [x]
 
 domain: theocode
 repo: TheoCode
@@ -1833,8 +1833,22 @@ suggested_mode: bug
 source: human
 evidence: none-yet
 why_now: `Home` and `End` do nothing in the composer. Measured A/B through one channel (`tmux send-keys`) with Codex in the adjacent pane as the CONTROL, which rules out terminal encoding: the identical key events moved Codex's cursor and were dropped by ours. Ours — `XYZ/` + `Home` + `Q` produces `XYZQ/` instead of `QXYZ/`; `XY`,`←`,`End`,`Z` produces `XZY` instead of `XYZ`. `Backspace` and `Ctrl+U` were ALSO suspected and cleared: from a known cursor position both behave correctly, and the first reading was an artifact of a stale cursor left by an earlier `←`. On a long prompt, every correction is arrow-key-by-arrow-key.
-status: blocked_on_release
-fixed_upstream: theokit-framework/theokit-tui 427ce6d (branch `workspace`, unreleased)
+status: shipped
+fixed_in: PENDING
+fixed_upstream: theokit-framework/theokit-tui 427ce6d, RELEASED as `@theokit/tui@0.50.3`
+dod_verified:
+  - `Home` and `End` move the cursor, VERIFIED LIVE against the PUBLISHED package — `npm install
+    @theokit/tui@0.50.3` from the registry, not a hand-staged build. `XY` + Home + `Q` → `QXY`;
+    + End + `Z` → `QXYZ`, matching the Codex control measured when this was filed
+  - the fix went upstream rather than being patched around locally, which is what the third DoD
+    bullet required: the keys are the framework's to project, and reimplementing key handling here
+    would have been the divergent second copy B-009/B-037 record
+  - PUBLISHING FOUND TWO MORE THINGS, both the repo's own gates working:
+    `prepublishOnly` runs `format:check`, which rejected four files — two mine, two inherited from
+    the commit before mine, meaning HEAD~1 was ALREADY unpublishable and nothing had noticed because
+    the gate only fires on publish. And `public_entry_exposes_version_constant` caught the bumped
+    manifest drifting from the exported `VERSION`, which is exactly the drift its comment says it
+    exists to prevent ("at the first release bump"). Both fixed before publishing; neither bypassed
 blocked_by: `@theokit/tui` has no release carrying 427ce6d. TheoCode consumes 0.50.2 from the
   registry, so the product still drops both keys. Publishing is the operator's call — it is an
   outward-facing action, and a `file:` dependency or a hand-patched `node_modules` would be exactly

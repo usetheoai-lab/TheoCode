@@ -1,5 +1,5 @@
-import { countMemoryFacts } from '../formatting/index.js'
-import { readFileSync } from 'node:fs'
+import { memoryFacts, withFactRemoved, memoryEnabledForSession, setMemoryEnabledForSession } from '@theocode/agent'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -21,9 +21,10 @@ import {
   knownProviders,
 } from '@theocode/agent/auth'
 import type { AuthMethod } from '@theokit/agents/auth'
-import type { ToastPayload } from '../screen-types.js'
+import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
 
+type SetPanel = (panel: ContentPanel) => void
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
 const KNOWN_PROVIDERS = knownProviders()
@@ -224,21 +225,85 @@ export function handleRename(
     )
 }
 
-export function handleMemoryInfo(setToast: SetToast): void {
-  const memPath = join(workingDirectory(), '.theokit', 'memory', 'MEMORY.md')
-  const memTrusted = resolveTrustPosture(workingDirectory()).allows.memory
-  let factCount = 0
+/**
+ * B-077 — `/memory` reports, `/memory off|on` configures, `/memory forget <n>` removes.
+ *
+ * It used to report only. A user watching the fact count climb had been told a store exists and
+ * where, and given no way to see what was in it or stop it without editing files outside the
+ * product.
+ */
+function memoryStorePath(): string {
+  return join(workingDirectory(), '.theokit', 'memory', 'MEMORY.md')
+}
+
+function readMemoryStore(): string {
   try {
-    factCount = countMemoryFacts(readFileSync(memPath, 'utf8'))
+    return readFileSync(memoryStorePath(), 'utf8')
   } catch {
-    // no store yet — factCount stays 0
+    // No store yet is the normal first-run state, not an error to raise at someone asking.
+    return ''
   }
-  process.stderr.write(`[memory] enabled=${memTrusted} facts=${factCount}\n`)
+}
+
+/** B-077 — `/memory off|on`. Restricts only; trust still decides whether memory is possible. */
+function toggleMemory(on: boolean, setToast: SetToast): void {
+  setMemoryEnabledForSession(on)
   setToast({
-    message: memTrusted
-      ? `Memory ON (trusted dir) — ${factCount} fact(s) at ${memPath}. Say "Remember: <fact>" to store one.`
-      : 'Memory OFF — directory is untrusted (memory writes to the repo; trust the dir to enable).',
-    variant: 'info',
+    // Says WHEN it applies. The agent is rebuilt per turn, so claiming immediate effect would be
+    // wrong for the turn already in flight.
+    message: `Memory generation ${on ? 'on' : 'off'} for this session — applies from the next turn. Not persisted; set it in config to make it durable.`,
+    variant: 'success',
+  })
+}
+
+/** B-077 — `/memory forget <n>`, by the number the listing shows. */
+function forgetFact(rawIndex: string, setToast: SetToast): void {
+  const store = readMemoryStore()
+  const n = Number(rawIndex)
+  const updated = Number.isInteger(n) ? withFactRemoved(store, n) : undefined
+  if (updated === undefined) {
+    // Reported, never a silent no-op: writing the file back unchanged and claiming success is the
+    // failure `rules/error-handling.md` § 2 forbids.
+    setToast({
+      message: `no fact ${rawIndex || '(none given)'} — /memory lists them by number`,
+      variant: 'error',
+    })
+    return
+  }
+  writeFileSync(memoryStorePath(), updated, 'utf8')
+  setToast({
+    message: `forgot fact ${String(n)} — ${String(memoryFacts(updated).length)} left`,
+    variant: 'success',
+  })
+}
+
+function memoryHeader(trusted: boolean): string {
+  if (!trusted) return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
+  if (!memoryEnabledForSession()) {
+    return 'Memory OFF for this session (/memory on to resume) — existing facts are still recalled.'
+  }
+  return `Memory ON — ${memoryStorePath()}`
+}
+
+/**
+ * B-077 — `/memory` lists, `/memory off|on` configures, `/memory forget <n>` removes.
+ *
+ * It used to report only. A user watching the fact count climb had been told a store exists and
+ * where, and given no way to see what was in it or stop it without editing files outside the product.
+ */
+export function handleMemoryInfo(arg: string, setToast: SetToast, setPanel: SetPanel): void {
+  const verb = arg.trim().toLowerCase()
+  if (verb === 'off' || verb === 'on') return toggleMemory(verb === 'on', setToast)
+  if (verb.startsWith('forget')) return forgetFact(verb.slice('forget'.length).trim(), setToast)
+
+  const facts = memoryFacts(readMemoryStore())
+  const header = memoryHeader(resolveTrustPosture(workingDirectory()).allows.memory)
+  setPanel({
+    title: 'memory',
+    body:
+      facts.length === 0
+        ? `${header}\n\nno facts stored yet — say "Remember: <fact>" to store one`
+        : `${header}\n\n${facts.map((f, i) => `  ${String(i + 1)}. ${f}`).join('\n')}\n\n/memory forget <n> removes one`,
   })
 }
 
