@@ -8,6 +8,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **TheoCode:** backlog B-095 — `/mcp` asserts servers were handed to the agent when the session has no MCP tools (#188).
+
+### Added
 - **TheoCode:** backlog B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the run-event sink (#188).
 
 ### Added

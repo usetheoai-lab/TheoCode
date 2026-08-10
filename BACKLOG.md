@@ -3228,3 +3228,53 @@ notes: |
   and needs one release.
 
 > Registered 2026-08-10 by hand while closing B-088 (slug: `mcp-failure-sink-awaits-agents-release`).
+
+## B-095 — `/mcp` says servers were "handed to the agent" when no MCP tool exists   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: |
+  LIVE, 2026-08-10, TUI on the repo root with a `.mcp.json` declaring two servers —
+  `filesystem` (the official `@modelcontextprotocol/server-filesystem`, verified runnable) and
+  `deliberately-broken` (a command that does not exist).
+
+  `/mcp` listed BOTH and closed with "these were handed to the agent". Asked in the same
+  session, the agent answered: "I don't have any available tools whose names start with
+  `mcp_`." So neither server reached it — not even the working one.
+
+  The panel reads `wiredCapabilities`, which is derived from configuration + trust, never from
+  what the SDK actually received. Trust was NOT the cause: a suppressed listing renders
+  "DIRECTORY UNTRUSTED" and this one did not.
+
+  Instrumented rather than guessed. `setDiagnosticsSink` (the SDK's public API) was installed
+  and DID deliver three unrelated SDK diagnostics, so the channel was open — and no
+  `mcp listTools failed` line appeared. A probe on the `RunEvent` sink recorded zero events of
+  any type. Both probes were removed afterwards.
+
+  Path so far: `chat.ts:111` loads the servers when `posture.allows.mcp`, and `chat.ts:369`
+  hands them to `.mcp(ctx.mcpServers)`. Where they stop between the builder and the in-process
+  loop is NOT yet measured, and is the first thing to establish.
+why_now: |
+  Found while verifying B-094's live path. It is strictly worse than the gap B-088 closed:
+  B-088 was a listing that could not report a failure, this is a listing that makes a positive
+  claim ("handed to the agent") which is false. A user reads it and concludes their server is
+  configured correctly while nothing is wired.
+status: raw
+severity: major
+dod:
+  - the panel's claim is measured against what the SDK received, not against configuration —
+    either the servers genuinely reach the agent, or the wording stops asserting they did
+  - a real MCP server declared in `.mcp.json` produces `mcp_`-prefixed tools in the session,
+    demonstrated live rather than by unit test
+  - B-094's failure path is re-verified once servers actually reach the agent, since it could
+    never have fired while the map was empty
+notes: |
+  This invalidates the shape of my earlier reasoning on B-094, and the correction is worth
+  keeping: I read one turn's phrase "listed the project root with the filesystem tool" as proof
+  the MCP server worked. It was the agent's own built-in tools, described loosely. The direct
+  question — "list your tools starting with mcp_" — is what produced the real answer. A
+  paraphrase from the thing under test is not evidence about the thing under test.
+
+> Registered 2026-08-10 by hand during B-094 live verification (slug: `mcp-panel-claims-unwired-servers`).
