@@ -2869,6 +2869,13 @@ root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing do
   translator: either the client reconstruction (`useAgent` / `readUIMessageStream`) does not land it
   on `UIMessage.metadata`, or persistence writes the message without it. Those two are the remaining
   candidates and nothing measured yet separates them.
+  NARROWED ONCE MORE, statically: `packages/agents/src/client/*.ts` mentions `metadata` only as
+  REQUEST context (`agent-client.ts:259,282`, `channel-transport.ts:64` — the per-request seam M43
+  added), never as the turn metadata landing on a reconstructed message. So the client package does
+  not do that reconstruction itself; it comes from the ai-sdk's `readUIMessageStream`, which the
+  translator's docstring names. The candidates are therefore (a) that reconstruction not carrying
+  `messageMetadata` onto `UIMessage.metadata` in the installed ai-sdk version, or (b) persistence
+  writing the message without it.
   NEXT MEASUREMENT, and it needs no API: instrument the TUI's `useTimeline` to dump one assistant
   message object after a turn and look for `.metadata`. A turn succeeds in the TUI today (the
   `429` blocks only the headless CLI path), so this is reachable now — I did not do it because it
