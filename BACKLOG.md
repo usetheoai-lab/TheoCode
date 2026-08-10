@@ -1784,7 +1784,29 @@ dod:
 
 ---
 
-## B-067 — The footer advertises an agents panel that was never built   [ ]
+## B-067 — The footer advertises an agents panel that was never built   [x]
+
+fixed_in: b7b05a6
+dod_verified:
+  - the footer names no affordance without a handler. Verified LIVE, not only by test: the TUI was
+    restarted in the tmux pane and the command popup opened — the state where the string appeared —
+    and the hint is gone. The first check was worthless and is worth recording: `C-c` did not kill
+    the TUI, `npm run dev` went into the composer, and the pane kept rendering a process started
+    before the fix. A stale pane looks exactly like a failed fix
+  - keyed on the SOURCE, not the string: `footerHint()` assembles the hint from declared
+    capabilities and CANNOT return undefined, which is what reached `StatusFooter`'s default
+    parameter. Passing `undefined` again is now inexpressible rather than merely discouraged
+  - the tests render the component and assert what the user READS, so a hint supplied by us, by the
+    toolkit's default, or by a future toolkit version fails identically. Verified by mutation in
+    both directions — flipping `AGENTS_PANEL_WIRED` to true, and restoring the original
+    `undefined` — each turns the suite red
+  - B-028's over-broad claim is corrected in `composer-shortcuts.ts` rather than in a commit
+    message: the sentence "the next unwired shortcut cannot be advertised either" is what made the
+    second channel look already covered
+  - HONEST LIMIT: `StatusFooter` has a `mode !== 'default'` branch that renders `← for agents`
+    HARDCODED, ignoring `hint` entirely. This build never passes `mode`, so the branch is
+    unreachable here and the fix holds — but it is upstream's, not ours, and passing `mode` one day
+    would reintroduce the defect past this test. Recorded, not silently relied upon
 
 domain: theocode
 repo: TheoCode
