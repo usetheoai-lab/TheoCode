@@ -2850,6 +2850,19 @@ evidence: measured 2026-08-10 while closing B-080. `packages/tui/src/components/
   live pane the footer showed only the left side (`gpt-5.4 medium · suggest · sandbox:… · oauth`)
   and never `N/M context`. `useTimeline` returns `lastUsage` from `ultimoUsage(agent.thread,
   readTurnUsage)`, so the reading is either absent from the thread or not being found there.
+root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing downstream is at
+  fault. Measured on disk, with no API call — a real TUI transcript
+  (`~/.theokit/projects/<project>/tui-5c0e09db….jsonl`, 26 lines: 13 user + 13 assistant turns)
+  contains ZERO lines carrying `"usage"` or `"metadata"`. `useTimeline` reads `agent.thread`, which
+  is fed from that persistence, so `readTurnUsage` correctly finds nothing and `latestUsage` is
+  correctly `undefined`. Every layer this repository owns behaves as written.
+  WHERE IT BELONGS: `@theokit/agents` documents that "the translator attaches per-turn usage to the
+  ai-sdk `finish` chunk's `messageMetadata`" (`bridge-entry-*.d.ts:644`). The TUI consumes
+  `streamAgentTurnInProcess`. So either that path does not attach it, or it attaches it and
+  persistence drops it before the thread is rebuilt. Both are upstream, and distinguishing them is
+  the next measurement — it needs a working turn, which a `429 rate_limit` blocked twice today.
+  NOT FIXED HERE, deliberately: inventing a token count in the TUI would put a fabricated number in
+  front of a user, and estimating it would be worse than the current honest blank.
 why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
   usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
   cannot fire without it. A feature advertised on the first screen and absent in practice is the
