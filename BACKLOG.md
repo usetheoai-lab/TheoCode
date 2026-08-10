@@ -2680,7 +2680,7 @@ dod:
 
 ## B-087 — The TUI lists sessions it cannot open   [x]
 
-fixed_in: PENDING
+fixed_in: 05456d1
 dod_verified:
   - `/resume <id>` opens a session `/sessions` lists. Decision logic is a PURE function with six
     tests; the refusals are what carry the risk, not the happy path
