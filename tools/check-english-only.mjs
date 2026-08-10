@@ -332,6 +332,20 @@ export const isPortuguese = (w) => {
  * false positive that would get this detector deleted.
  *
  * Import/export specifiers are skipped — a Portuguese path is detector 4's job, not this one's.
+ *
+ * SECOND LIMIT, stated because it admits USER-FACING text and is therefore worse than the comment
+ * one above (B-083). This detector decides per WORD, and a word is Portuguese only when a PT
+ * lexicon has it and an EN lexicon does not. So a Portuguese SENTENCE built entirely from EN/PT
+ * homographs is invisible to it. Measured, not hypothetical: `(use /model <name> para trocar)`
+ * shipped to a toast while this guard printed `clean`, because every word in it is in
+ * `/usr/share/hunspell/en_US.dic` — including `para` (paragraph/parachute) and `trocar` (a surgical
+ * instrument). Each word was declined CORRECTLY; the sentence still got through.
+ *
+ * Do NOT close this by adding those words to a Portuguese list: `para` is documented in this
+ * guard's own test suite as a deliberate EN/PT collision, and forcing either word would break the
+ * collision handling version two was written to get right. Closing it needs a phrase-level or
+ * grammar-level signal, scored for false positives against this corpus BEFORE it lands — a guard
+ * that cries wolf is what killed version one.
  */
 export function portugueseInStrings(line) {
   if (/^\s*(?:import|export)\s.*\sfrom\s/.test(line)) return []

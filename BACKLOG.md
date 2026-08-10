@@ -2104,4 +2104,60 @@ dod:
   - a path outside the permitted roots is refused with a typed error, not silently ignored
   - the capability is skipped rather than errored when the configured model cannot accept images
 
+---
+
+## B-083 — A Portuguese sentence made only of English homographs is invisible to the guard   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - the `/model` toast reads in English, pinned by a test that fails on the Portuguese form. The
+    test lives with the other user-facing-string guards rather than in the detector, because the
+    detector CANNOT see this line and a test that pretended otherwise would be the false green
+  - the real limit is now stated in `portugueseInStrings`'s docstring, next to the comment-prose
+    limit it already admitted, and it says explicitly NOT to close it by adding `para`/`trocar` to a
+    Portuguese list — that would break the EN/PT collision handling version two exists to get right
+  - the cause was MEASURED against the lexicons on disk, and the first draft of this item was wrong:
+    it blamed a closed-list gap and proposed growing the list. `trocar` is missing from nothing; it
+    is in the English dictionary. The correction is recorded in `why_now` rather than quietly edited
+  - scan recorded: exactly ONE occurrence across `packages/*/src`
+  - HONEST LIMIT, and the reason this item is worth more than the string it fixed: the blind spot is
+    NOT closed. A phrase-level signal was not built, because it needs false-positive scoring against
+    this corpus first and that is its own scope. What changed is that the limit is written down
+    instead of being discovered again by accident
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: `packages/tui/src/commands/command-content.ts:45` renders the toast for a bare `/model`:
+  `` `model: ${...} (use /model <name> para trocar)` ``. `node tools/check-english-only.mjs` exits 0
+  and prints `english-only: clean`; `portugueseInStrings()` returns `[]` for that line.
+  CAUSE, measured against the lexicons on disk rather than guessed: EVERY word in it is present in
+  `/usr/share/hunspell/en_US.dic` — `use`, `model`, `name`, `para` (paragraph/parachute) and
+  `trocar` (a surgical instrument). The rule "Portuguese iff a PT lexicon has it and an EN one does
+  not" therefore declines every word CORRECTLY, and the sentence passes.
+why_now: found while reading `command-content.ts` for B-069. The ACTIVE PLAN `english-only-completion`
+  declares its goal met — 0 violations with the string-literal detector enabled — and a live
+  user-facing Portuguese string sits behind that claim.
+  CORRECTION, recorded because the first draft of this item carried the wrong cause: it said "a
+  closed-list gap" and proposed growing the word list. That was wrong. `trocar` is missing from
+  nothing — it is IN the English dictionary, exactly like `para`, which the guard's own test suite
+  already documents as a deliberate EN/PT collision. Adding either word to a Portuguese list would
+  break the collision handling the guard was rewritten to get right.
+status: raw
+severity: HIGH
+dod:
+  - the `/model` toast reads in English. This half is trivial and is NOT what the item is about
+  - the guard's real limit is written down where the next reader meets it: word-membership cannot
+    see a Portuguese sentence whose every word is an English homograph. The docstring states the
+    comment-prose limit honestly; this limit is unstated and strictly worse, because it admits
+    USER-FACING text
+  - anything proposed next is measured, not assumed: a phrase-level or grammar-level signal is
+    scored for false positives against this corpus BEFORE it lands, because a guard that cries wolf
+    gets deleted — which is what the docstring says killed version one
+  - the scan for the same shape is recorded. Measured 2026-08-10 across `packages/*/src`: exactly
+    ONE occurrence, this line. The blast radius is small; the blind spot is not
+
+---
+
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Asking for the current model no longer answers half in Portuguese. `/model` with no argument said `(use /model <name> para trocar)`, and the guard that is supposed to catch exactly this reported the file clean — every word in that sentence is also an English word, including `para` and `trocar`, so it was declined one word at a time and passed as a whole. The text is now English, a test pins it, and the guard's blind spot is written down where the next person editing it will see it (B-083)
+
 - The status bar no longer offers you an agents panel that does not exist. Opening the command menu replaced the `? for shortcuts` hint with `? for shortcuts · ← for agents`, and pressing the left arrow did nothing, because asking the toolkit to show no hint is what made it show its own — which lists everything the toolkit can do rather than what this build wires. The hint is now assembled from the capabilities that are actually present, so an unbuilt feature cannot be advertised by omission (B-067)
 
 ### Added

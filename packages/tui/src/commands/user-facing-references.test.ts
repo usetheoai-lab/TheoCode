@@ -73,3 +73,30 @@ describe('B-046 — user-facing strings cite only what exists', () => {
     expect(offenders, 'the product sent the user to a document that does not exist').toEqual([])
   })
 })
+
+/**
+ * B-083 — the English-only guard cannot see this one, so a test must.
+ *
+ * `(use /model <name> para trocar)` reached users while `check-english-only.mjs` printed `clean`.
+ * Not a bug in the guard: every word in that sentence is in `/usr/share/hunspell/en_US.dic` —
+ * `para` (paragraph/parachute) and `trocar` (a surgical instrument) included — so the rule
+ * "Portuguese iff a PT lexicon has it and an EN one does not" declines each word correctly.
+ *
+ * Word-membership cannot see a sentence built entirely from homographs. This test does not fix
+ * that limit; it pins the one line that proved it, so the string cannot come back while the
+ * general detector question is still open.
+ */
+describe('B-083 — the toast the guard could not read', () => {
+  it('test_no_user_facing_string_says_para_trocar', () => {
+    const offenders = sources().flatMap(({ path, text }) =>
+      codeLines(text)
+        .filter(({ line }) => /\bpara trocar\b/.test(line))
+        .map(({ n }) => `${path.replace(ROOT, '')}:${String(n)}`),
+    )
+
+    expect(
+      offenders,
+      'a Portuguese instruction is rendered to the user; the english-only guard cannot detect it (B-083)',
+    ).toEqual([])
+  })
+})

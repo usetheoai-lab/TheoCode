@@ -42,7 +42,7 @@ export function switchModel(
   const target = arg.trim()
   if (target.length === 0) {
     setToast({
-      message: `model: ${SESSION.sessionModel() ?? SESSION.cfg().modelLabel} (use /model <name> para trocar)`,
+      message: `model: ${SESSION.sessionModel() ?? SESSION.cfg().modelLabel} (use /model <name> to switch)`,
       variant: 'info',
     })
     return
