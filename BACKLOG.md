@@ -1899,7 +1899,7 @@ dod:
 
 ---
 
-## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [x]
+## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [ ]
 
 fixed_in: 371544a
 dod_verified:
@@ -1912,6 +1912,9 @@ dod_verified:
     `resolveTrustPosture`, the same source `use-consent.ts` uses, not threaded from React state
   - an unreadable `hooks` block is REPORTED, never rendered as "no hooks" — the fail-open B-039 had
     to fix in the consent gate, which a listing could easily have reintroduced
+  - STILL OPEN: the listing must report what was WIRED. That needs the agent build to expose its
+    handler set — the same seam B-069 (MCP) and B-070 (skills) need, which is why those three should
+    land together rather than each re-reading its own config
   - HONEST LIMIT, and it is a real one: only the EMPTY case is verified live. Writing a valid
     `[[hooks]]` block into `.theokit/config.toml` did not populate the listing, and a probe showed
     why — `resolveEffectiveConfig({ cwd })` returned `hooks: []` for a TRUSTED directory with that
