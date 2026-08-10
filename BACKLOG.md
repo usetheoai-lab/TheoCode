@@ -2268,7 +2268,7 @@ dod:
 
 ## B-085 — The TUI composition root cannot absorb another dependency   [x]
 
-fixed_in: PENDING
+fixed_in: 006b79a
 dod_verified:
   - `useTuiSession` and `depsDoComposer` live in `packages/tui/src/composition/`; the root went from
     431 to 339 lines. `npm run depcruise` returns 0 — NO CYCLE, which is the proof, not inspection.
