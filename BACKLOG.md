@@ -2732,7 +2732,33 @@ dod:
 
 ---
 
-## B-089 — Selecting a command from the popup discards the argument you typed   [ ]
+## B-089 — Selecting a command from the popup discards the argument you typed   [x]
+
+fixed_in: PENDING
+fixed_upstream: theokit-framework/theokit-tui, RELEASED as `@theokit/tui@0.50.4`
+dod_verified:
+  - typing a full command with its argument and pressing Enter submits what was typed. VERIFIED
+    LIVE against the PUBLISHED package with ONE Enter and no Escape: `/sandbox read-only` now reports
+    `sandbox: read-only — applies from the next turn`, where before it was accepted and changed nothing
+  - CAUSE, measured at the model: `deriveSlashMenu` filtered on the first token after the slash, so
+    `/sandbox read-only` still matched the command `sandbox` and the menu stayed OPEN. Enter then
+    completed the selection instead of submitting
+  - fixed UPSTREAM, not worked around here — it is the framework's composer, and a local
+    intercept would have been the divergent second copy B-009/B-037 record
+  - a test in the framework drives the model with an argument present, plus three floors: the menu
+    still opens on a bare `/`, on a partial name, and still reports its filter when closed by an
+    argument (the dismissal latch reads it)
+  - AN EXISTING TEST WAS ASSERTING THE BUG: `filter_token_follows_codex_contract` asserted
+    `open: true` for `/clear something`. That assertion was the defect, not the contract — the filter
+    contract the test exists for is unchanged, and the reason is written into the test rather than
+    silently flipped
+  - HONEST LIMIT: the reference gates the popup on the CARET being inside the `/name` token, which
+    also reopens it when a user moves back to edit the name with an argument already typed. The model
+    does not receive the cursor, so it uses "a space follows the name". That one editing case differs
+    and is non-destructive. Recorded at the code
+  - this bug had made `/export` and `/delete` look broken during their own live tests earlier in the
+    same session, and was written off as a tmux artefact each time. It was filed only when a third
+    command failed the same way
 
 domain: theocode
 repo: TheoCode
