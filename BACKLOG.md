@@ -1867,7 +1867,7 @@ dod:
 
 ## B-069 — MCP servers are spawned with no way to see them, or to see one fail   [x]
 
-fixed_in: 2eb9c26 PENDING
+fixed_in: 2eb9c26 ea99717
 dod_verified:
   - `/mcp` lists the servers the agent was given, from the build record rather than a re-read of
     `.mcp.json`. VERIFIED LIVE: a declared `probe` server appears after one turn
