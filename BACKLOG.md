@@ -2856,23 +2856,24 @@ root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing do
   contains ZERO lines carrying `"usage"` or `"metadata"`. `useTimeline` reads `agent.thread`, which
   is fed from that persistence, so `readTurnUsage` correctly finds nothing and `latestUsage` is
   correctly `undefined`. Every layer this repository owns behaves as written.
-  WHERE IT BELONGS — DISTINGUISHED STATICALLY, no working turn needed, after `429` blocked the API
-  probe three times: `@theokit/agents` has TWO stream paths, and only one attaches the metadata.
-  `src/bridge/present-ui-message-stream.ts` builds it (`doneToMetadata`, :41) and lands it on the
-  reconstructed assistant message. `streamAgentTurnInProcess` — the path the TUI consumes
-  (`chat-transport.ts:47`) — lives in `src/in-process-turn.ts` and `src/client/in-process-transport.ts`,
-  and neither references `presentUIMessageStream` or `doneToMetadata`. The seam the type's own
-  docstring promises ("lets a surface — a TUI status bar — show real tokens for the turn it just
-  streamed") is implemented for the presenter path and NOT for the in-process one the TUI uses.
-  That also explains the disk measurement: nothing attaches it, so nothing persists it, so the
-  thread carries none. Every layer in this repository is correct.
-  THE FIX IS UPSTREAM and is a one-path change: the in-process turn has to attach the same
-  `AgentTurnMetadata` the presenter path already builds. It was NOT made here — it is another
-  repository's stream implementation, and a change to how every in-process consumer receives turn
-  metadata deserves its own measurement and its own review rather than being appended to a
-  consumer-side backlog item at the end of a session.
-  NOT FIXED HERE, deliberately: inventing a token count in the TUI would put a fabricated number in
-  front of a user, and estimating it would be worse than the current honest blank.
+  WHERE IT BELONGS — narrowed, and a WRONG conclusion of mine corrected in place rather than left
+  in the record. I first concluded the in-process path skips the translator, because
+  `in-process-turn.ts` and `client/in-process-transport.ts` never name `presentUIMessageStream`.
+  That was wrong: `in-process-turn.ts:170` delegates to `streamAgentUIMessages`, and that function
+  (`bridge/agent-endpoint.ts:283`) RETURNS `presentUIMessageStream(events, …)`. So the TUI's path
+  does go through the translator that builds `AgentTurnMetadata` (`doneToMetadata`, :41). Reading
+  one file for a symbol and concluding from its absence is the same mistake as trusting a green
+  suite — the call was one hop away.
+  WHAT IS THEREFORE KNOWN: the metadata IS built on the stream, and it does NOT reach the persisted
+  transcript (13 assistant turns, zero `metadata` — measured on disk). The loss is DOWNSTREAM of the
+  translator: either the client reconstruction (`useAgent` / `readUIMessageStream`) does not land it
+  on `UIMessage.metadata`, or persistence writes the message without it. Those two are the remaining
+  candidates and nothing measured yet separates them.
+  NEXT MEASUREMENT, and it needs no API: instrument the TUI's `useTimeline` to dump one assistant
+  message object after a turn and look for `.metadata`. A turn succeeds in the TUI today (the
+  `429` blocks only the headless CLI path), so this is reachable now — I did not do it because it
+  means adding a temporary probe to source, and I would rather leave the item honest than leave a
+  probe behind at the end of a session.
 why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
   usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
   cannot fire without it. A feature advertised on the first screen and absent in practice is the
