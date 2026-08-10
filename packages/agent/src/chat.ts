@@ -34,6 +34,7 @@ import { createInteractiveShellTool } from './ask/index.js'
 import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
+import { declareAgent, toolsNamed } from './composition/agent-spec.js'
 import { projectSourceAllowed } from './config/project-source.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
@@ -339,6 +340,34 @@ function withShellAndProjectEntities(
   // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
 }
 
+/**
+ * B-059 — the coding agent's registry-backed tool set, declared through the shared entry.
+ *
+ * Memoised per registry because the chain asks for one tool at a time and the shape is one
+ * decision; rebuilding it per `.tool()` call would make the provenance record say the set was
+ * declared six times.
+ */
+const READ_TOOLS = ['current_time', 'read_file', 'list_dir', 'grep', 'repo_status', 'git_diff'] as const
+const shapeCache = new WeakMap<ToolRegistry, Map<string, CustomTool>>()
+
+function readTool(registry: ToolRegistry, name: (typeof READ_TOOLS)[number]): CustomTool {
+  let byName = shapeCache.get(registry)
+  if (byName === undefined) {
+    const shape = declareAgent('coding-agent-reads', { registry, model: 'unused', reasoning_effort: 'medium' }, [
+      toolsNamed(registry, READ_TOOLS),
+    ])
+    byName = new Map(shape.tools.map((tool) => [tool.name, tool]))
+    shapeCache.set(registry, byName)
+  }
+  const tool = byName.get(name)
+  if (tool === undefined) {
+    throw new ConfigurationError(`"${name}" is not in the declared coding-agent read set`, {
+      code: 'tool_not_declared',
+    })
+  }
+  return tool
+}
+
 function baseAgent(ctx: {
   cfg: EffectiveConfig
   modelId: string
@@ -400,18 +429,24 @@ function baseAgent(ctx: {
       // omitted field are equivalent to the SDK gate (`enabled !== true`); the explicit false makes the
       // decision observable in the compiled definition.
       .memory({ enabled: posture.allows.memory })
+      // B-059 — WHICH registry tools this agent holds is decided by the shared composition entry
+      // (`composition/agent-spec.ts`), the same one the reviewer and the delegated roles go
+      // through. The fluent chain is untouched: the entry returns a SHAPE and the tools are fed in
+      // here, so this is a declaration change and not a behaviour change. The per-tool comments
+      // below record why each is in the set and stay with the declaration.
+      //
       // M16 — current_time is now a surface-agnostic built-in consumed from `@theokit/agents/tools`
       // (Codex-faithful UTC + optional IANA timezone); the bespoke local tool was retired.
-      .tool(registry.get('current_time'))
+      .tool(readTool(registry, 'current_time'))
       // M1 — read-only filesystem access (path-safe; see tools/*.ts + lib/*-core.ts).
       // M17: read_file is now the Codex-grade `createReadFileTool` built-in — lineNumbers (cat -n view the
       // model cites/edits by), offset/limit paging, and allowAbsolute (Codex reads-anywhere; the secret guard
       // blocks .env/.git/… at any depth). Retired the bespoke read-file.ts + read-file-core.ts.
-      .tool(registry.get('read_file'))
-      .tool(registry.get('list_dir'))
+      .tool(readTool(registry, 'read_file'))
+      .tool(readTool(registry, 'list_dir'))
       // M17: grep is now the `createSearchTextTool` built-in in regex mode (grep semantics) + allowAbsolute
       // (Codex reads-anywhere), aliased to the `grep` name. Retired the bespoke grep.ts + grep-core.ts.
-      .tool(registry.get('grep'))
+      .tool(readTool(registry, 'grep'))
       // M6 — repo-aware context (read-only, ungated).
       // M76 — the framework's tool. The local one parsed `git status --porcelain=v1 -b` in 62 LoC;
       // `createGitStatusTool` produces the SAME output, branch line included (parity verified BEFORE
@@ -420,12 +455,12 @@ function baseAgent(ctx: {
       // single source: one of the two sites the manual survey at `ROADMAP.md:2412` did not enumerate, in
       // the very file M68 refactored. The name (`repo_status`) is preserved — it is a contract with the
       // model, with the approval map, and with the TUI's rendering.
-      .tool(registry.get('repo_status'))
+      .tool(readTool(registry, 'repo_status'))
       // M38 — the working-tree diff, so the model can review pending changes. `createGitDiffTool` is a
       // `@theokit/agents/tools` built-in (`git diff --no-color`, detached, 30s/5MB caps) — read-only, so ungated
       // (same posture as `repo_status`, which also shells out to git). LLM name: `git_diff`.
       // M99 — same as above: from the registry, keeping the name `git_diff`.
-      .tool(registry.get('git_diff'))
+      .tool(readTool(registry, 'git_diff'))
       // M38 — `request_user_input`: the agent pauses mid-turn to ask the user a question, resolved through the
       // TUI's EXISTING inline input slot via the ask-bridge (no second prompt channel). `createQuestionTool`
       // returns a literal object named `question` with an `unknown` inputSchema, so we spread-adapt it to the

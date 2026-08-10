@@ -4,6 +4,7 @@ import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
 import { hooksForMember } from './hooks-for-member.js'
+import { declareAgent, toolsNamed, type SpecContext } from '../composition/agent-spec.js'
 import { EFFORT_LEVELS, parseEffort } from '../config/index.js'
 import type { ReasoningEffort, TrustPosture } from '../config/index.js'
 
@@ -51,8 +52,22 @@ export interface RoleAgentContext {
   createAgent?: (opts: Parameters<typeof Agent.create>[0]) => Promise<SDKAgent>
 }
 
-function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
-  return new ToolRegistry(opts).resolve(names)
+/**
+ * B-059 — a role's tools go through the same composition entry the reviewer uses.
+ *
+ * The role names come from its `.theokit/agents/<name>.md`, so this is the one of the three sites
+ * whose list is DATA rather than source — which is exactly why it must share the entry: the fail-
+ * loud resolution and the provenance record apply to a repository-supplied list too.
+ */
+function resolveRoleTools(
+  name: string,
+  names: readonly string[],
+  opts: ToolScope,
+  model: { model: string; reasoning_effort: ReasoningEffort },
+): CustomTool[] {
+  const registry = new ToolRegistry(opts)
+  const ctx: SpecContext = { registry, ...model }
+  return [...declareAgent(name, ctx, [toolsNamed(registry, names)]).tools]
 }
 
 function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
@@ -140,7 +155,12 @@ async function roleAgentOptions(
       cwd,
       ...(role.sandbox !== undefined ? { sandboxOptions: { enabled: role.sandbox } } : {}),
     },
-    tools: resolveRoleTools(role.tools, { cwd, writeRoot, sandbox: ctx.sandbox }),
+    tools: resolveRoleTools(
+      name,
+      role.tools,
+      { cwd, writeRoot, sandbox: ctx.sandbox },
+      { model: modelId, reasoning_effort: effort as ReasoningEffort },
+    ),
     ...(pluginDeHooks !== undefined
       ? { plugins: [pluginDeHooks] as unknown as AgentOptions['plugins'] }
       : {}),

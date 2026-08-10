@@ -2,6 +2,7 @@ import { Agent, buildModelSelection } from '@theokit/agents'
 import type { CustomTool, HookHandlers } from '@theokit/agents'
 
 import { hooksForMember } from '../delegation/index.js'
+import { REVIEWER_TOOLS, reviewerShape } from '../composition/agent-spec.js'
 
 import type { AgentConfig } from '../config/index.js'
 import { ToolRegistry, resolveToolScope, type ToolScope } from '../tools/index.js'
@@ -9,7 +10,14 @@ import type { ReviewAgentLike, ReviewDeps } from './run-review.js'
 
 export const REVIEWER_SHELL_CAP = 30_000
 
-export const TOOLS_DO_REVIEWER = ['git_diff', 'read_file', 'grep', 'run_shell'] as const
+/**
+ * B-059 — the reviewer's tool set is DECLARED in `composition/agent-spec.ts`, not stated here.
+ *
+ * This alias is the migration path, not a second source: it re-exports the declaration so a caller
+ * pinned to the old name keeps compiling and cannot drift from it. Sunset: delete once nothing
+ * outside this file reads it.
+ */
+export const TOOLS_DO_REVIEWER = REVIEWER_TOOLS
 
 export type ConfigDoReviewer = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
@@ -55,6 +63,14 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
   const registry = new ToolRegistry(reviewerScope(deps.config, deps.cwd))
+  // B-059 — the ONE composition entry. It returns the reviewer's SHAPE (a value); this factory
+  // still creates the agent through the same `Agent.create` it always used, which is what keeps
+  // this a declaration change and not a behaviour change.
+  const shape = reviewerShape({
+    registry,
+    model: deps.config.model,
+    reasoning_effort: deps.config.reasoning_effort ?? 'medium',
+  })
   const pluginDeHooks = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
@@ -65,7 +81,7 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
       model: buildModelSelection(deps.config.model, deps.config.reasoning_effort),
       local: { cwd: deps.cwd },
       systemPrompt,
-      tools: registry.resolve([...TOOLS_DO_REVIEWER]),
+      tools: [...shape.tools],
       ...(pluginDeHooks !== undefined
         ? { plugins: [pluginDeHooks] as unknown as Parameters<typeof Agent.create>[0]['plugins'] }
         : {}),
