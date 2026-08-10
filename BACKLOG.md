@@ -2882,7 +2882,7 @@ why_now: B-053 reads CLOSED while its subject is unchanged in the product — th
   catches inside this repo, one layer up where nothing checks. It also blocks the English-only rule
   at the boundary: `packages/agent/src/session/agent-list.ts:30` has to write a Portuguese type name
   in a comment to explain why `Agent.list` cannot paginate.
-fixed_in: PENDING
+fixed_in: 2c0b81f
 dod_verified:
   - published as `@theokit/agents@7.4.1`, then `7.4.2` once B-092 showed 7.4.1 could not be
     installed. The three consuming manifests declare `^7.4.2` and `node_modules` holds it
@@ -2928,7 +2928,7 @@ why_now: found while trying to consume the `@theokit/agents@7.4.1` published min
   fresh clone of this repository cannot be built by anyone using npm. It has been invisible because
   every working checkout already has a populated `node_modules`; the failure only appears to someone
   starting from nothing, which is every new contributor and every CI job that does not cache.
-fixed_in: PENDING
+fixed_in: 2c0b81f
 fixed_upstream: `@theokit/agents@7.4.2` (the blocker) and `@theokit/sdk-pty@0.3.1` (hygiene)
 dod_verified:
   - `npm install` succeeds from a CLEAN CLONE: `git archive HEAD` into an empty directory, no
