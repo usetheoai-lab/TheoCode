@@ -2353,7 +2353,7 @@ dod:
 
 ## B-081 — Nothing diagnoses the install   [x]
 
-fixed_in: PENDING
+fixed_in: 2ff1f8e
 dod_verified:
   - one command reports auth state, resolved config with model/effort/sandbox/approval, trust
     posture, and the MCP/skill/hook sets ACTUALLY wired — the last from the same record `/mcp`,
