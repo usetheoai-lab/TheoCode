@@ -11,6 +11,8 @@ import type {
   SessionTheInterpreterUses,
 } from './command-capabilities.js'
 import { workingDirectory } from '../working-directory.js'
+import { THEME_RESOLUTION } from '../theme.js'
+import { THEME_BASES } from '../theme-base.js'
 
 export function sendMessage(
   text: string,
@@ -74,6 +76,15 @@ export function statusPanel(
       `cwd:        ${workingDirectory()}`,
       `session:    ${currentSessionId()}`,
       `shells:     ${String(ptyOwner.backend().activeSessionCount())} in background`,
+      // B-073 — the source answers "why is it this colour?", which is the only question anyone
+      // asks about a theme. It is also where an unusable THEOCODE_THEME value surfaces: the
+      // resolver falls back so a typo cannot end the session, and reporting it here is what keeps
+      // that from being a swallowed error.
+      `theme:      ${THEME_RESOLUTION.base} (${THEME_RESOLUTION.source})${
+        THEME_RESOLUTION.invalid === undefined
+          ? ''
+          : ` — ignored THEOCODE_THEME=${THEME_RESOLUTION.invalid}, expected ${THEME_BASES.join(' | ')}`
+      }`,
     ].join('\n'),
   }
 }

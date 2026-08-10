@@ -1,10 +1,19 @@
 import type { TheoThemeProp } from '@theokit/tui'
 import { AGENT } from '@theocode/shared/agent'
+import { resolveThemeBase } from './theme-base.js'
 
 export const ACCENT = '#d97757'
 
+/**
+ * B-073 — resolved once at module load, from the process environment. The resolver itself takes an
+ * env argument so it stays deterministic under test; this is the single place that reads the real
+ * one. `invalid` is surfaced by `App` rather than dropped here — a module-level side effect would
+ * print during test collection.
+ */
+export const THEME_RESOLUTION = resolveThemeBase(process.env)
+
 export const THEME: TheoThemeProp = {
-  base: 'dark', // 'dark' · 'light' · 'no-color'
+  base: THEME_RESOLUTION.base, // 'dark' · 'light' · 'no-color'
   override: {
     accent: '', // the input border (the banner uses ACCENT directly, so it always stays colored)
     role: {

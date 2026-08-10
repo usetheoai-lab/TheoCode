@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The colour scheme is no longer fixed to dark. `THEOCODE_THEME=light` switches it, and a terminal that cannot render colour at all — piped output, a log, a screen reader — is served by `no-color`, which was previously unreachable from outside the source. `NO_COLOR` is honoured too, so anyone who already sets that convention for other tools gets it here for free, and it wins over the product's own setting because it is an accessibility signal rather than a preference. A value that is not one of the three falls back to dark and SAYS so in `/status`, which also now answers the only question anyone asks about a theme: why is it this colour (B-073)
+
 ### Fixed
 
 - Asking for the current model no longer answers half in Portuguese. `/model` with no argument said `(use /model <name> para trocar)`, and the guard that is supposed to catch exactly this reported the file clean — every word in that sentence is also an English word, including `para` and `trocar`, so it was declined one word at a time and passed as a whole. The text is now English, a test pins it, and the guard's blind spot is written down where the next person editing it will see it (B-083)
