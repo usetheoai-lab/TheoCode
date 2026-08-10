@@ -2783,7 +2783,7 @@ dod:
 
 ---
 
-## B-088 — An MCP server that fails to start is silent   [ ]
+## B-088 — An MCP server that fails to start is silent   [x]
 
 domain: theocode
 repo: TheoCode
@@ -2830,7 +2830,7 @@ why_now: `/mcp` now exists and answers the easy half. Someone reading it will re
   listed server is working, which is a stronger claim than the data supports — a listing that
   overstates is worse than no listing, and B-067 is this repository's precedent for that costing a
   reopened item.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a server that failed to start is reported as failed, distinct from absent and from trust-suppressed
@@ -2838,6 +2838,22 @@ dod:
     than guessed at locally — a health probe invented here would report on a connection this product
     does not own
   - until then `/mcp` says what it can and cannot know, instead of letting a listed name imply health
+fixed_in: theokit-sdk@994808fec (upstream — `feat(sdk): a failed MCP server reaches the consumer`)
+dod_verified: |
+  CORRECTING MY OWN EARLIER MEASUREMENT. I stopped at the first absent `catch` and concluded nothing
+  was captured. Following the path to its end found the opposite: `safeListTools`
+  (`sdk/internal/agent-loop/loop-context-init.ts:206`) ALREADY caught the failure per server, with
+  the server name and the reason — and sent it to `diag()`, the SDK's stderr, which an embedding UI
+  never reads. Captured and discarded, not absent. My "there is nothing to expose" was wrong, and it
+  was wrong in the direction that made the work look bigger than it was.
+  FIXED UPSTREAM, additively: a new `@public` `RunEvent` variant `mcp_server_failed` carrying
+  `serverName` + `message`, emitted on that same catch path through the existing opt-in
+  `SendOptions.onRunEvent` sink. No existing signature changed; `Agent.create` is untouched; the []
+  fallback stays, so one broken server still cannot take a turn down. Two tests, RED first.
+  DoD bullet 2 is met exactly as written — measured, then closed UPSTREAM rather than guessed at
+  locally. Bullet 3 already held. Bullet 1 is now true at the source; TheoCode's `/mcp` panel shows
+  it once the release reaches this repo THROUGH CI. I am not publishing by hand again — that was the
+  bypass, and closing an item with it would be the same defect wearing this item's name.
 
 ---
 

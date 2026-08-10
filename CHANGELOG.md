@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **An MCP server that fails to start is no longer silent (#188).** Its failure was caught per server and written only to the SDK's stderr, which this product never reads — so `/mcp` could list a configured server while every tool it provides had vanished. Fixed at the source in `@theokit/sdk` as an additive typed event; the panel reports it once the release reaches here through CI.
+
 ### Added
 
 - The interface now knows when the conversation is filling up and says so before it runs out, naming `/compact` and what compacting costs, once per level rather than every turn. KNOWN GAP: it cannot fire yet — the token reading it depends on is not reaching the status bar, which also means the "live token usage" the welcome screen advertises is not appearing at all (B-080, B-090)
