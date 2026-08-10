@@ -1221,6 +1221,15 @@ fixed_in: 94fd582e (theokit)
 dod_verified:
   - the three names are renamed in `@theokit/agents` with deprecated aliases kept for one minor — `packages/agents/src/{index.ts,capability/{index,toolset}.ts}`, typecheck + lint clean, 896 tests across 122 files pass
   - NOT YET EFFECTIVE HERE: TheoCode consumes the PUBLISHED `@theokit/agents@7.4.0`, so the rename reaches this repo only on the next release. The english-only guard needs no allowlist entry today because the SDK type names are not written in TheoCode's own source
+  - RE-MEASURED 2026-08-10: still not effective, and now known to be BLOCKED rather than pending.
+    `npm view @theokit/agents version` returns 7.4.0 — the same version installed here — so
+    `94fd582e` was committed and NEVER PUBLISHED. `ListOptionsSemPaginacao`,
+    `AgentComListaEstreitada` and `ToolComNome` are still in the installed `.d.ts` at :1121, :1125
+    and :1130, and `packages/agent/src/session/agent-list.ts:30` still has to write one in a comment
+    to explain the narrowing. This is the state B-068 was in until the operator supplied a token:
+    a fix that exists in a repository and not in the product. Registered as B-091 so the release is
+    tracked rather than assumed — an item that reads closed while its subject is unchanged is the
+    drift `crossval` exists to catch, one layer up
   - the migration path collided with two of theokit's own lint rules (`redundant-type-aliases`, `no-deprecated`) — three targeted disables carry a reason and a sunset; a fourth was written and removed once measured as unnecessary
 
 domain: theocode
@@ -2854,5 +2863,36 @@ dod:
   - B-080's warning is re-verified live once the reading exists — its logic is already tested and
     was blocked only by this
   - if the reading is genuinely unavailable, the banner stops advertising it
+
+---
+
+## B-091 — B-053's rename was committed upstream and never published   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10. `npm view @theokit/agents version` → `7.4.0`; the installed
+  `node_modules/@theokit/agents/package.json` → `7.4.0`. B-053 records `fixed_in: 94fd582e
+  (theokit)`, so that commit is in a repository and in no release. The Portuguese type names it
+  renamed are still on the public surface here: `ListOptionsSemPaginacao` (`index.d.ts:1121`),
+  `AgentComListaEstreitada` (`:1125`), `ToolComNome` (in the export list at `:1130`), and
+  `DefinicaoOuThunk` in the same list.
+why_now: B-053 reads CLOSED while its subject is unchanged in the product — the drift `crossval`
+  catches inside this repo, one layer up where nothing checks. It also blocks the English-only rule
+  at the boundary: `packages/agent/src/session/agent-list.ts:30` has to write a Portuguese type name
+  in a comment to explain why `Agent.list` cannot paginate.
+status: raw
+severity: MEDIUM
+dod:
+  - a published `@theokit/agents` carries the rename, and TheoCode consumes it
+  - `ListOptionsSemPaginacao`, `AgentComListaEstreitada`, `ToolComNome` and `DefinicaoOuThunk` are
+    gone from the installed `.d.ts`, verified by reading it rather than by the changelog
+  - `agent-list.ts:30` no longer needs a Portuguese name to explain itself
+  - B-053's `dod_verified` is corrected to say the fix was unreleased, so the record stops claiming
+    an effect it did not have
+  - the same check is applied to the OTHER upstream items in `## Upstream`: a fix committed in a
+    dependency and never released is indistinguishable from no fix, and this is the second one
+    (B-068 was the first)
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
