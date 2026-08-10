@@ -1882,7 +1882,25 @@ dod:
 
 ---
 
-## B-070 — Skills load from disk, or are silently removed by trust, with no way to tell which   [ ]
+## B-070 — Skills load from disk, or are silently removed by trust, with no way to tell which   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `/skills` lists what the agent LOADED, from the record `buildChatAgent` publishes at build time —
+    not a re-read of config. That is the bullet B-071 was reopened for, and it is why the seam was
+    built first rather than four times
+  - a skill removed by trust-gating SAYS so and NAMES what was dropped. The three failure modes the
+    item listed — misnamed directory, never configured, removed by trust — are now distinguishable
+    without reading source
+  - VERIFIED LIVE in the tmux pane, in both states that matter: before any turn it reports "no agent
+    has been built yet" rather than "no skills", and after one real turn it lists `daily-briefing`
+  - the "no agent yet" state is deliberately NOT flattened into an empty list. Answering "none"
+    before anything is built describes an agent that was never constructed, at exactly the moment a
+    user opens the listing
+  - the record is held at module level, not in React state: it describes THE PROCESS's agent, is
+    written outside render, and threading it through state would make it pretend to change during one
+  - mutation-verified at the record: treating empty as suppression, and ignoring trust, each turn
+    the suite red
 
 domain: theocode
 repo: TheoCode

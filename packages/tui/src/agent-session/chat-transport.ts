@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
 import { streamAgentTurnInProcess } from '@theokit/agents'
@@ -55,6 +56,9 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
               ...(model !== undefined ? { model } : {}),
               sessionPty: deps.getSessionPty(),
               ...(deps.onHookVeto === undefined ? {} : { onHookVeto: deps.onHookVeto }),
+              // B-070 — capture what THIS build wired, so `/skills` reports the agent that exists
+              // rather than re-reading config and describing one that might not.
+              onWired: recordWiring,
             }),
           },
           key,

@@ -15,6 +15,8 @@ import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { listSubagents, subagentDir } from './subagent-inventory.js'
 import { hookInventory, renderHookInventory } from './hook-inventory.js'
+import { skillsPanelBody } from './wiring-panels.js'
+import { currentWiring } from '../agent-session/wiring-record.js'
 import { classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
 import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
 
@@ -105,4 +107,9 @@ export function handleListHooks(setPanel: (p: ContentPanel) => void): void {
       }),
   })
   setPanel({ title: 'hooks', body: renderHookInventory(inventory) })
+}
+
+/** B-070 — the skills the LAST BUILD loaded, never a re-read of config. */
+export function handleListSkills(setPanel: (p: ContentPanel) => void): void {
+  setPanel({ title: 'skills', body: skillsPanelBody(currentWiring()) })
 }
