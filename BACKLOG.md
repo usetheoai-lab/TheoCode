@@ -2885,7 +2885,10 @@ why_now: B-053 reads CLOSED while its subject is unchanged in the product — th
 status: raw
 severity: MEDIUM
 dod:
-  - a published `@theokit/agents` carries the rename, and TheoCode consumes it
+  - a published `@theokit/agents` carries the rename, and TheoCode consumes it. PUBLISHED
+    2026-08-10 as `@theokit/agents@7.4.1`, and the three consuming manifests now declare `^7.4.1` —
+    but the INSTALL is blocked by B-092, so `node_modules` still holds 7.4.0. Half done, and the
+    half that is missing is not this item's
   - `ListOptionsSemPaginacao`, `AgentComListaEstreitada`, `ToolComNome` and `DefinicaoOuThunk` are
     gone from the installed `.d.ts`, verified by reading it rather than by the changelog
   - `agent-list.ts:30` no longer needs a Portuguese name to explain itself
@@ -2894,5 +2897,38 @@ dod:
   - the same check is applied to the OTHER upstream items in `## Upstream`: a fix committed in a
     dependency and never released is indistinguishable from no fix, and this is the second one
     (B-068 was the first)
+
+---
+
+## B-092 — `npm install` fails on a clean checkout   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: measured 2026-08-10. `npm install` at the repository root fails with
+  `EUNSUPPORTEDPROTOCOL — Unsupported URL Type "workspace:": workspace:*`. Traced to
+  `node_modules/@theokit/sdk-pty/package.json:33-34`, whose `devDependencies` carry
+  `"@theokit/sdk": "workspace:*"` — a pnpm-only protocol npm cannot resolve. The published tarball
+  carries it: a standalone `npm install @theokit/sdk-pty@0.3.0` in an empty project SUCCEEDS
+  (npm does not install a dependency's devDependencies), but a workspace-root install resolves the
+  full tree and stops there.
+why_now: found while trying to consume the `@theokit/agents@7.4.1` published minutes earlier for
+  B-091 — the upgrade cannot be installed. So this blocks B-091 and, more importantly, it means a
+  fresh clone of this repository cannot be built by anyone using npm. It has been invisible because
+  every working checkout already has a populated `node_modules`; the failure only appears to someone
+  starting from nothing, which is every new contributor and every CI job that does not cache.
+status: raw
+severity: HIGH
+dod:
+  - `npm install` succeeds from a clean clone with no `node_modules`, verified in a temporary copy
+    rather than in a working tree that already resolved
+  - the fix is upstream in `@theokit/sdk-pty` — a published package must not ship a `workspace:`
+    range in ANY dependency section, because the protocol is a workspace-manager detail and not part
+    of the npm registry contract
+  - a check exists so the next publish cannot reintroduce it; a manifest inspection is cheap and
+    this class of defect is invisible until someone starts from zero
+  - B-091 is completed once the install works: the range is already declared at `^7.4.1` in the
+    three consuming manifests and only the install is blocked
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

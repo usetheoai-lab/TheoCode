@@ -7,6 +7,6 @@
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
-    "@theokit/agents": "^7.4.0"
+    "@theokit/agents": "^7.4.1"
   }
 }
