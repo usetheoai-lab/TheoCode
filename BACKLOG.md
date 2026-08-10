@@ -2184,4 +2184,37 @@ dod:
 
 ---
 
+---
+
+## B-084 — Sixteen Portuguese identifiers pass the English-only guard   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 across `packages/*/src`, excluding tests — 16 distinct identifiers
+  built on Portuguese prepositions: `pluginDeHooks` (6 uses), `propsDoSlot` (4), `OptOutDeEnv` (4),
+  `cwdDoGoal` (4), `ConfigDoReviewer` (3), `cfgDoReview` (3), `writeCredentialDoStore`,
+  `vetoDePreToolUse`, `timeoutDoHook`, `TimelineDaTui`, `specsDeHooks`, `readAuthFileDoStore`,
+  `pluginsDoProvider`, `depsDoComposer`, `credentialHomeDoStore`, `authFilePathDoStore` (2 each).
+  `node tools/check-english-only.mjs` exits 0 over all of them.
+why_now: found in `App.tsx:20` while wiring B-073. Same cause as B-083, one detector over: the
+  identifier scan splits camelCase into words and decides per word, and `do`, `da` and `de` are all
+  in `/usr/share/hunspell/en_US.dic` — `do` the verb, `de` the prefix. Each word is declined
+  CORRECTLY and the Portuguese construction survives. B-083 proved the blind spot admits
+  user-facing prose; this proves it also admits the public shape of the code, which is what a
+  reader meets first.
+status: raw
+severity: MEDIUM
+dod:
+  - the 16 identifiers read in English, renamed with the suite as the proof they were mechanical
+  - the rename is checked for reach beyond `packages/` — `ConfigDoReviewer` and `TimelineDaTui` are
+    type names, and a type name can be exported
+  - a guard catches the CONSTRUCTION rather than these 16 words: an interior `Do`/`Da`/`De`/`Dos`/`Das`
+    between two capitalised segments is a Portuguese possessive shape, and no English identifier is
+    built that way. Renaming the 16 without it leaves the next one to be found by eye — which is how
+    these survived
+  - the guard is scored against this corpus for false positives BEFORE it lands, per the method
+    B-083 wrote down. `doDoSomething` and any legitimate hit are decided explicitly, not by luck
+
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
