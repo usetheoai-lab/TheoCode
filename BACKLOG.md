@@ -1381,7 +1381,34 @@ dod:
   - B-061 lands first: without a test asserting what an agent is composed of, this refactor is unverifiable and a dropped approval would ship green
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `agent-composition-three-routines`).
-## B-060 — The one reusable primitive is unreachable from outside its package   [ ]
+## B-060 — The one reusable primitive is unreachable from outside its package   [x]
+
+fixed_in: (decision)
+status_note: KILLED — measured 2026-08-10, the hypothesis did not hold.
+kill_reason: >
+  The premise was that an agent built outside `packages/agent` cannot reach `ToolRegistry`.
+  True, and it blocks nothing: measured, NOTHING outside the package wants it.
+  `grep -rn 'ToolRegistry|resolveToolScope|ToolScope|REGISTRY_TOOL_NAMES' packages/tui/src
+  packages/cli/src` returns zero, and neither surface imports `@theokit/agents/tools` at all —
+  they render tool calls, they do not build tools.
+
+  Three candidate importers were examined and each fails on its own terms.
+  `HEADERS_BY_TOOL` (`tui/formatting/tool-header.ts:36`) is keyed by `string` and covers
+  `interactive_shell`, `write_stdin` and `update_plan` — names built by framework factories in
+  `chat.ts`, NOT registry names — so constraining it to `RegistryToolName` would make it wrong,
+  not safer. `EDIT_TOOLS = new Set(['apply_patch'])` (`tui/consent/approval-mode.ts:5`) is a
+  one-element literal; importing a type across a package boundary to constrain it is ceremony
+  (parsimony ladder, rung 5). B-061's tests live inside `packages/agent` and reach the registry
+  by relative path, needing no export at all.
+
+  So adding `./tools` today would declare a subpath with zero importers — which is precisely the
+  defect B-049 measured and deleted (`@theocode/agent` declared `./chat-acp` with no consumer).
+  The item was filed on a speculative need; the second DoD bullet anticipated this outcome and
+  it is the one that held.
+
+  RE-FILE, with a new id and `supersedes: B-060`, the moment a real consumer exists — the most
+  likely source is B-059, if its composition entry ends up outside this package. Do not resurrect
+  this id: the number is the audit trail.
 
 domain: theocode
 repo: TheoCode
@@ -1396,7 +1423,32 @@ dod:
   - `./delegation` judged on the same rule — exported if something outside the package consumes it, left alone if not
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `tool-registry-not-exported`).
-## B-061 — No test asserts what an agent is composed of   [ ]
+## B-061 — No test asserts what an agent is composed of   [x]
+
+fixed_in: 20e43db
+dod_verified:
+  - `packages/agent/src/composition.test.ts` builds an agent through all THREE paths and asserts the
+    resolved tool names and the approval map for each: `buildChatAgent` (8 tests), `createReviewAgent`
+    (3), `buildRoleAgent` (3). 14 tests; suite 268 -> 282
+  - runs with no credential and no network. `.build()` is a pure compile boundary, so the framework's
+    `./testing` mock-stream seam is deliberately NOT used — it drives a RUN, and there is no run here.
+    The item's own DoD bullet asked for that seam; measuring showed the bullet was wrong, and using it
+    would have been ceremony over a thing that needs no I/O
+  - the suite was SHOWN to fail: 11 mutations applied to a clean tree one at a time, 11 caught
+    (approval dropped, tool dropped, each of the three trust gates opened, read-only granting writes,
+    headless keeping `request_user_input`, reviewer widened, role tools ignored, role cwd ignored,
+    untrusted role source reopened)
+  - TWO mutations survived the first version and both were real vacuity, fixed rather than excused:
+    the MCP assertion passed with or without its gate because the loader returns `{}` on a directory
+    with no `.mcp.json` (the loader now offers a server, so the gate is what empties it); the reviewer
+    assertion compared production to itself via `TOOLS_DO_REVIEWER` (the expected set is now written
+    out independently, plus the property behind it)
+  - production change: `RoleAgentContext.createAgent`, one line plus its type, mirroring
+    `ReviewFactoryDeps.createInstance` rather than inventing a second convention. Path 3 called
+    `Agent.create` directly and could not be observed without a real credential
+  - NOT met: coverage is of the three paths' OUTPUT, not of `squad.ts`'s sandbox half, which
+    `TEST-EXEMPTIONS.md` still lists as owed. `roles.ts` moved from owed to HALF covered there —
+    effort inheritance (`wireEffort`) is still read by no test
 
 domain: theocode
 repo: TheoCode
