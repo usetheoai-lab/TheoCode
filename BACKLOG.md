@@ -2802,6 +2802,16 @@ traced_2026-08-10: measured to the boundary and it is a FEATURE, not a dropped f
   execution" (:26). The spawn happens inside `@theokit/sdk`, one package deeper, and nothing returns
   a per-server outcome upward: there is no channel to carry "this one failed", so no layer above can
   report it however carefully it is written.
+  MEASURED ACROSS THE WHOLE PATH (three layers, 2026-08-10):
+    1. `@theokit/agents` forwards `mcpServers` to `Agent.create` and returns nothing per server.
+    2. `sdk/internal/local-agent/mcp-pool.ts` is GENERIC over the client type — its own docstring
+       says it "knows about keys, reuse and idleness, and nothing about MCP". The absent `catch`
+       there is correct, not a defect: an MCP startup outcome does not belong in that file.
+    3. `buildMcpMap` (`real-local-run.ts:255`) is SYNCHRONOUS and returns `Map<string, McpClient>` —
+       it constructs clients, it does not spawn. The spawn is lazy, in `StdioMcpClient.initialize()`
+       (`internal/mcp/client.ts:241`, `await super.initialize()`), which THROWS on failure.
+  So a failing server raises out of a lazy call with no per-server result collected anywhere on the
+  path. There is nothing captured to expose — which is what would have made this small.
   CONFIRMED ONE LAYER DEEPER: `@theokit/sdk`'s `internal/local-agent/mcp-pool.ts` is 120 lines with
   NO `catch` and no error handling at all. So the SDK does not capture a per-server failure either —
   this is not a captured result waiting to be exposed, which would have been a small change. A
