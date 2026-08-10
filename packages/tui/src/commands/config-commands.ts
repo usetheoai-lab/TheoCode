@@ -1,4 +1,5 @@
 import { expandTemplate } from './command-template.js'
+import { subagentDir } from './subagent-inventory.js'
 import type { CustomCommand } from './custom-commands.js'
 import { nextApprovalMode, parseApprovalMode, type ApprovalMode } from '../consent/index.js'
 import { execFile } from 'node:child_process'
@@ -143,9 +144,13 @@ function withDelegationInstruction(
   expanded: string,
   setToast: CustomCommandDeps['setToast'],
 ): string {
+  // B-072 — the directory comes from `subagentDir`, the same function `/subagents` lists from.
+  // It was an inline `join(...)` here and a second literal in the listing, so the two could drift
+  // into a listing that promises an agent this router then fails to find. One definition, one
+  // possible answer.
   const agentExists =
     command.agent !== undefined &&
-    existsSync(join(workingDirectory(), '.theokit', 'agents', `${command.agent}.md`))
+    existsSync(join(subagentDir(workingDirectory()), `${command.agent}.md`))
   if (command.agent !== undefined && !agentExists) {
     setToast({
       message: `/${name}: subagent "${command.agent}" not found in .theokit/agents/ — running in main context`,
