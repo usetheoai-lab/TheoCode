@@ -2284,6 +2284,18 @@ why_now: B-075 was implemented, tested green, and then REVERTED because of this 
   refactor unblocks five items; doing it inside any of them would hide a structural change inside a
   feature commit.
 status: raw
+attempted_2026-08-10: the extraction was performed and REVERTED. It WORKED structurally, and that
+  result is worth keeping:
+  - moving `useTuiSession` and `depsDoComposer` into `packages/tui/src/composition/` took the root
+    from 431 to 342 lines, `npm run typecheck` returned 0 errors, `npm run depcruise` returned 0 —
+    NO CYCLE. The circular-import fear that blocked B-075 is resolved by moving BOTH together, since
+    the cycle only existed while `depsDoComposer` was extracted alone
+  - the full suite passed UNCHANGED (311 tests, 53 files), which is the behaviour-neutrality claim
+  - what defeated the attempt was not the design: the two new files were seeded with the root's
+    whole import block, and pruning the unused ones with a regex mangled a docstring. The lesson is
+    about METHOD, not structure — this move needs an editor or a codemod, not text surgery
+  - so the next attempt should redo exactly this move and write the two import blocks BY HAND. The
+    structure is proven; only the mechanics failed
 severity: HIGH
 dod:
   - `useTuiSession` and `depsDoComposer` live outside `use-tui-composition.ts`, with no cycle —
