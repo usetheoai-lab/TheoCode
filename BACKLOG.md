@@ -2887,10 +2887,21 @@ root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing do
   THE PROBE WAS TEMPORARY AND IS GONE: added to `use-timeline.ts`, run against one real turn, output
   read from `.theokit/tui-stderr.log`, reverted. `git status` clean, 414 tests green. It is recorded
   here rather than left in the tree, which is the whole reason it was worth doing this way.
-  WHAT REMAINS is a fix outside this repository: either the ai-sdk reconstruction is configured to
-  carry message metadata, or `@theokit/agents` stops relying on it and attaches the usage where its
-  own client can see it. Choosing between those is that project's call, and it is now a decision
-  with a measurement behind it rather than an open question.
+  CHAIN TRACED TO ONE FUNCTION, and it is not the ai-sdk. `ai@7.0.14` DOES carry `messageMetadata`
+  in its chunk types — but that reader is no longer used. `@theokit/agents`'
+  `client/consume-ui-message-stream.ts` delegates reconstruction to `readMessageStream` from
+  `@theokit/presenter/wire`, and its own docstring records why: plan `remove-ai-dependency` replaced
+  the ai-sdk reader with TheoKit's own, stating "The FRAME FORMAT is unchanged".
+  The frame format is indeed unchanged — the RECONSTRUCTION is not. The translator still emits
+  `messageMetadata` on the finish chunk; `readMessageStream` never lands it on the message, which is
+  why the live thread shows `["id","role","parts"]` and no `metadata`.
+  SO THIS IS A REGRESSION OF THAT MIGRATION, in a THIRD package (`@theokit/presenter`), at one
+  function. Not an architectural choice between two designs, which is what I called it before
+  tracing the last hop: the documented behaviour simply stopped happening when the reader was
+  swapped, and nothing tested the field across that swap.
+  NOT FIXED HERE: it is a wire reader in another repository and it needs its own regression test —
+  one asserting a finish chunk's metadata survives reconstruction, which is precisely the test whose
+  absence let the migration drop it silently.
 why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
   usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
   cannot fire without it. A feature advertised on the first screen and absent in practice is the
