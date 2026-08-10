@@ -2322,7 +2322,7 @@ dod:
 
 ## B-084 — Sixteen Portuguese identifiers pass the English-only guard   [x]
 
-fixed_in: PENDING
+fixed_in: 58dd5d6
 dod_verified:
   - all 16 renamed, plus 4 the item's own scan MISSED because it only looked at camelCase:
     `OPT_OUT_DE_ENV`, `TOOLS_DO_ANALYST`, `TOOLS_DO_REVIEWER` (SCREAMING_SNAKE) and `doSchema`.
