@@ -1934,40 +1934,31 @@ dod:
 
 ## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [x]
 
-fixed_in: 371544a
+fixed_in: 2eb9c26 ec1495b
+history: closed once, REOPENED by `npm run crossval`, closed again after the reopening was answered
+  rather than argued with. The first version re-read the config, and the DoD refuses exactly that:
+  "the listing comes from what was actually wired, not from re-reading the config file — those two
+  can disagree, and the disagreement is the bug worth catching." A re-read cannot detect that
+  disagreement by construction, because it IS the config. Three of four bullets held; closing on
+  three would have been the false PASS.
 dod_verified:
-  - `/hooks` lists the registered set with the event each is bound to, and its trust status
-  - a hook suppressed because the DIRECTORY is untrusted is shown as suppressed, never omitted — and
-    the banner is asserted to come BEFORE the list, because a reader who skims must not reach the
-    hooks and conclude they are protecting them
-  - the listing derives from the consent gate's OWN three inputs (effective config, approved store,
-    `classifyHooks`) rather than a second read of the config. Trust is resolved from
-    `resolveTrustPosture`, the same source `use-consent.ts` uses, not threaded from React state
-  - an unreadable `hooks` block is REPORTED, never rendered as "no hooks" — the fail-open B-039 had
-    to fix in the consent gate, which a listing could easily have reintroduced
-  - SEAM DESIGNED 2026-08-10, measured at the build site so the next attempt is one pass rather than
-    four. `packages/agent/src/chat.ts:309-327` already computes every value, each as a single
-    expression, and throws the decision away after handing it to the builder:
-
-        .mcp(posture.allows.mcp ? loadMcpJson(ctx.cwd) : {})
-        .skills(posture.allows.skills ? [...cfg.skills] : [])
-        .settingSources(projectSourceAllowed(posture.allows) ? ['project', 'user'] : ['user'])
-        .hooks(lifecycleHooks)
-
-    So the record is built from those SAME expressions at that SAME point — never re-read — which is
-    literally the bullet above. Shape: `{ mcp: {servers, suppressedByTrust}, skills: {...},
-    hooks: {...}, subagents: {...} }`, computed once and held on the composition root the TUI already
-    owns (`getTuiRoot`), the way `onHookVeto` is.
-    Build it ONCE for all four consumers — B-069 (mcp), B-070 (skills), this item (hooks) and the
-    session-switch half of B-077. Building it privately for one command is what B-085 had to undo
-    for the composer, and doing that four times is the same mistake at four times the cost.
-  - STILL OPEN: the listing must report what was WIRED. That needs the agent build to expose its
-    handler set — the same seam B-069 (MCP) and B-070 (skills) need, which is why those three should
-    land together rather than each re-reading its own config
-  - LIVE VERIFICATION NOW COMPLETE (B-086, 2026-08-10): the earlier limitation was MY error, not the
-    product's — the probe wrote to `.theokit/config.toml` and this product reads
-    `.theocode/config.toml`. With the block at the correct path, `/hooks` rendered
-    `PreToolUse  trusted` and its command in the live pane
+  - `/hooks` reads the BUILD RECORD published by `buildChatAgent`, derived from the same `posture`,
+    `cfg` and hook chain the builder received, at the point it received them
+  - the re-read implementation was DELETED, not left beside the new one — `hook-inventory.ts` and its
+    test are gone. An orphaned second source is the drift this item exists to prevent
+  - the record carries event AND command. A listing showing only the event tells a user something is
+    allowed to block them without saying what runs — the half that matters for a cloned directory
+  - a directory that is untrusted is reported as SUPPRESSED, never as empty, and the banner precedes
+    the list: a reader who skims must not reach the hooks and conclude they are protected
+  - "no agent has been built yet" stays distinct from "no hooks are wired". Answering the second for
+    the first describes an agent that was never constructed
+  - VERIFIED LIVE with a real `[[hooks]]` block at `.theocode/config.toml`:
+    `PreToolUse  ./scripts/guard.sh`
+  - MY ERROR, recorded rather than dropped: an earlier limitation blamed the product for not seeing a
+    declared hook. The probe had written `.theokit/config.toml`; this product reads `.theocode/`.
+    B-086 closed that and documented both paths
+  - third and last consumer of the seam (B-085 → the record). All three listings — mcp, skills,
+    hooks — now answer from ONE record built once
 
 domain: theocode
 repo: TheoCode
