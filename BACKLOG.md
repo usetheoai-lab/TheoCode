@@ -428,7 +428,7 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 |---|---|---|---|
 | U-1 | No session garbage-collection or retention primitive. An exhaustive grep for `gc\|prune\|cleanup\|sweep\|purge\|retention` across both packages' public and internal `.d.ts` returns only in-memory pooling and `Task.retentionMs`. The barrel exports every ingredient and no collector; the never-delete rule `forkTranscript` internalises is re-derived by hand in the consumer | `agents/persistence.d.ts:1`, `transcript-ops.d.ts:12-19` (PS-012) | open |
 | U-2 | `toErrorJson` matched the superclass first and discarded `max`/`liveSessionIds` from `MaxSessionsError` — the fields `sdk-pty`'s docblock says exist "by design" | `sdk-tools/index.js:1006`, `sdk-pty/index.d.ts:33-37` (TIP-02) | **fixed** — structural check ahead of the superclass branch (`theokit-sdk`, changeset `interactive-cap-keeps-its-fields`); **released as 0.26.2** |
-| U-3 | `ToolsetError extends Error`, outside the `TheokitAgentError` hierarchy — the SDK argues against this itself elsewhere | `agents/index.d.ts:824`, `bridge-entry:2162` (TIP-15) | **fixed upstream, unreleased** — `theokit` commit `92b962ad`, changeset `toolset-error-joins-the-hierarchy`. The argument was already written in that package (M61 unified two `ConfigurationError` classes for the identical reason) and simply had not been applied. Consequence here: `translateError()` in `tools/registry.ts` exists only to bridge the gap and can be deleted on the next `@theokit/agents` bump — NOT before, since 7.4.0 predates the fix and removing it now would change which error type callers see |
+| U-3 | `ToolsetError extends Error`, outside the `TheokitAgentError` hierarchy — the SDK argues against this itself elsewhere | `agents/index.d.ts:824`, `bridge-entry:2162` (TIP-15) | **fixed upstream, unreleased** — `theokit` commit `92b962ad`, changeset `toolset-error-joins-the-hierarchy`. The argument was already written in that package (M61 unified two `ConfigurationError` classes for the identical reason) and simply had not been applied. Consequence here: `translateError()` in `tools/registry.ts` exists only to bridge the gap and can be deleted on the next `@theokit/agents` bump — NOT before, since 7.4.0 predates the fix and removing it now would change which error type callers see. **SCOPE CORRECTION (B-063, 2026-08-10):** this row names ONE class and the pattern is wider — 10 of the 13 error classes in `@theokit/agents` extend plain `Error`. Closing this row on the `ToolsetError` fix would retire it while the defect it describes stays true nine more times. See U-11 |
 | U-4 | `assertSecureModes` is private — consumers cannot apply the same permission check to their own store | (SAC-01) | open |
 | U-5 | `@theokit/agents/auth` omitted the OAuth engine that `@theokit/sdk/auth` exports | (SAC-07) | **fixed and released** — `@theokit/agents@7.4.0`. The four engine symbols now cross over; `resolveCredential` deliberately stays out, locked by a test. The other half of SAC-07 (a re-declared `ResolvedCredential`) is NOT a defect: the SDK generalises to `provider: string` by design and this application narrows it to `Provider` for exhaustiveness — recorded in the type's own docstring |
 | U-6 | No export answers "what may this sandbox mode write?" — hence a second oracle over the SDK's own three-mode vocabulary | (SAC-09) | open |
@@ -436,6 +436,7 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 | U-8 | `StatusFooterProps.mode` is a closed three-value union that does not cover the consumer's real modes | (F-tui-12) | open |
 | U-9 | `FreeTextInput` has no masked/secret mode, forcing 60 LOC of hand-rolled masked input | (F-tui-13) | open |
 | U-10 | `WindowView` reports overflow as booleans, and `readJsonlTail` returns no absolute index — both force re-derivation in the consumer | `transcript-ops.d.ts:57-73` (F-tui-14) | open |
+| U-11 | Ten of thirteen `@theokit/agents` error classes extend plain `Error` instead of `TheokitAgentError`, so a consumer's `catch (e instanceof TheokitAgentError)` misses them and each one that has to cross the boundary buys another shim like `tools/registry.ts:56`. Measured 2026-08-10: typed are `McpFileError` (`bridge/mcp-file.ts:86`) and `ToolsetError` (`capability/toolset.ts:58`); untyped are `CapabilityConflictError:38`, `UnknownCapabilityError:9`, `AgentDefinitionError:26`, `ApprovalAbortedError:85`, `DelegationError:74`, `DelegationBudgetExceededError:52`, `RefreshFailure:49`, `GuardrailViolationError:40`, `CostBudgetExceededError:52`, `InProcessApprovalRequiredError:82`. Bare `throw new Error` is 18 of 69 throw sites (26%); this repository, for comparison, is 3 of 56 (5.4%) with 11 of 12 classes typed. **The argument is already written in that package** — `src/errors.ts:8-16` documents the exact bug mixed hierarchies caused there (a `catch` matching one path and silently missing the other) and the fix was then applied to one class rather than to the pattern | `errors.ts:8-16`, `capability/capability.ts:38`, `capability/registry.ts:9` (B-063) | open |
 
 ### Decision to record (not an item, not a gap)
 
@@ -1373,7 +1374,29 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 by a `/loop-cross-validation` run against `@theokit/agents@7.4.0` (`cross-validation-output/final_report.md`). NOT a `cycle-discover` run — no falsification criterion was declared in advance and no evidence gate applied, so this stays `raw` until DISCOVER confirms it. Three construction sites: `chat.ts:42` `buildChatAgent` (469-LoC `AgentBuilder` chain), `review/create-agent.ts:54` `createReviewAgent` (`Agent.create` + the hardcoded 4-name `TOOLS_DO_REVIEWER` at `:12`), `delegation/roles.ts:138` `buildRoleAgent` (`Agent.create` + disk definitions). None delegates to another. Grep census over `packages/**/*.ts(x)`: `Capability`, `Capabilities`, `CapabilityRegistry`, `CapabilityPreset`, `ModelCapability`, `ToolsCapability`, `SkillsCapability`, `defineAgent`, `CompiledAgentOptions`, `compileAgent`, `AgentManifest` — **zero references, every one**, from a barrel this package imports 24 other symbols from.
 why_now: the repository now holds THREE bespoke agent constructions where it held one. `review/` and `delegation/` were both written after `chat.ts` and both bypass it, because `buildChatAgent`'s twelve override fields can add a tool or swap a scalar and cannot remove a link — `chat.ts:320` states the constraint in its own source: "there is no way to skip a link in the middle of it". An agent needing LESS than the coding agent is inexpressible here, so each one becomes a new file. One bespoke construction is a design; three is a pattern, and the fourth is foreseeable. `profileTools()` at `chat.ts:439` is the workaround already in the tree: a hand-written switch over a closed `interactive|headless` enum, which is the variation point the chain could not express pushed into an enum that cannot grow.
-status: raw
+status: triaged
+feasibility_measured: >
+  2026-08-10, against the INSTALLED build (not the reference source — that distinction cost a claim
+  earlier in this cycle). The full path runs end to end:
+
+    CapabilityPreset -> applyCapabilities -> FinalizedDraft
+                     -> toAgentFactory(draft, { apiKey, approvals })
+                     -> factory(sessionId) -> a real agent handle with `send`
+
+  Verified by execution, not by reading types. `applyCapabilities`, `createDraft`, `setOnce`,
+  `CapabilityPreset`, `CapabilityRegistry`, `ModelCapability`, `ToolsCapability`, `SkillsCapability`
+  and the 14 field capabilities are all `typeof === 'function'` from the bare `@theokit/agents`
+  barrel at 7.4.0, and the draft carries `provenance` (which capability contributed which field).
+
+  Two corrections to this item's own framing, both found by measuring:
+    - `defineAgent` has ZERO occurrences in the installed dist. The declarative authoring path is
+      reference-source only, so it is NOT an available remedy and the gap that named it was wrong.
+    - `assembleM8CreateOptions` is named in dist doc comments but never exported. The draft reaches
+      a runnable agent through `toAgentFactory`, whose opts key is `approvals` (not
+      `approvalPosture`) and whose return is `(sessionId) => Promise<SdkAgentHandle>`.
+
+  So the remedy is adoption of a resolved dependency, as this item claimed — and the entry point is
+  `toAgentFactory`, not the assembler the reference source discusses.
 dod:
   - the three sites go through one composition entry, demonstrated by expressing at least one of them (review is the smallest and already the best-inverted) over it without changing its behaviour
   - that entry REQUIRES a working directory instead of defaulting to `process.cwd()` — folded in from `chat.ts:106`, the residue B-015 and B-032 left when they closed the read sites but not the optional default
@@ -1487,7 +1510,19 @@ dod:
   - the remaining age-sensitive claims in the same file are re-checked in the same pass — "three commits old" is the other one, and it was measured on the same day as the zero
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `theocode-specialist-stale-test-claim`).
-## B-063 — Upstream: ten of thirteen framework error classes sit outside the typed hierarchy   [ ]
+## B-063 — Upstream: ten of thirteen framework error classes sit outside the typed hierarchy   [x]
+
+fixed_in: (decision)
+dod_verified:
+  - reported through this ecosystem's established upstream mechanism — the `## Upstream` table — as
+    **U-11**, naming all ten classes with file:line, the measured bare-throw ratio on both sides, and
+    the argument the framework's own `errors.ts:8-16` already makes
+  - U-3's row updated with a SCOPE CORRECTION: it names one class, and closing it on the `ToolsetError`
+    fix would have retired the row while the defect stayed true nine more times
+  - NOT met, and stated rather than glossed: nothing was filed on theokit's own tracker. This install
+    governs TheoCode only (`cycle-backlog.md` § Repos this table does not cover), so the registry is
+    the reporting surface available from here. U-11 is `open`, not `reported` — a human with access to
+    that repository still has to carry it across, and the row says so
 
 domain: theocode
 repo: TheoCode
