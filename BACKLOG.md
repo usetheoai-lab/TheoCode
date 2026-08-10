@@ -2397,7 +2397,7 @@ dod:
 
 ## B-086 — Nobody can say where the project hook config is read from   [x]
 
-fixed_in: PENDING
+fixed_in: 54e772b
 dod_verified:
   - ANSWERED: `<project>/.theocode/config.toml`, with `~/.theocode/config.toml` as the user layer
     (`packages/agent/src/config/config.ts:335-337`). NOT `.theokit/`, which is the SDK filebase and
