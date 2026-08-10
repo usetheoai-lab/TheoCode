@@ -2203,7 +2203,29 @@ dod:
 
 ---
 
-## B-077 — `/memory` reports the memory state and cannot change it   [ ]
+## B-077 — `/memory` reports the memory state and cannot change it   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - generation can be turned off for the session without editing files outside the product:
+    `/memory off|on`. It only ever RESTRICTS — trust still decides whether memory is possible at all,
+    and `chat.ts` ANDs the two so a session switch cannot re-enable what an untrusted directory
+    forbids. VERIFIED LIVE, including that `/memory` then reports the session state back
+  - the facts are readable, numbered. VERIFIED LIVE: `1. prefers tabs`, `2. deploys on Fridays`
+  - a single fact can be removed and the removal SURVIVES A RESTART — verified by reading the FILE
+    after `/memory forget 1`, not by watching the panel. It survives by construction: the markdown
+    file IS the store
+  - an index naming no fact is REPORTED (`no fact 9 — /memory lists them by number`), never a silent
+    no-op that writes the file back unchanged and claims success
+  - the switch says WHEN it applies (next turn — the agent is rebuilt per turn, so claiming immediate
+    effect would be wrong for the turn in flight) and that it is NOT persisted, because a preference
+    flipped once and forgotten is worse than one set deliberately in config
+  - `countMemoryFacts` was REPLACED, not left beside the new parser: it returned only the length of
+    the list it had already built. The count is now derived from `memoryFacts`, so the two cannot
+    disagree about what a fact is, and the orphan was deleted
+  - the earlier measurement in this item was right that the three bullets cost differently — the
+    session switch turned out to be one line (`.memory({ enabled: allows.memory && session })`) once
+    the agent was the place holding the flag, which is what the B-085 seam work established
 
 domain: theocode
 repo: TheoCode

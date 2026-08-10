@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `/memory` now shows what it remembers and lets you change it. It reported that a store existed, where it was and how many facts it held — and nothing else, so watching the count climb left you editing files outside the product to do anything about it. It now lists the facts by number, `/memory forget <n>` removes one from disk, and `/memory off` stops it generating more for this session. The switch says when it applies and that it is not saved, because a preference you flipped once and forgot is worse than one you have to set deliberately (B-077)
+
 - `/hooks` now reports the hooks the agent is actually running, with the command each one executes — not what the configuration file asks for. Those two can disagree, and the disagreement is the thing worth catching: an untrusted directory wires none of them, and the panel says so before listing anything, so a list of hooks can never read as protection you do not have (B-071)
 
 - `/mcp` shows which external tool servers the agent started. They are spawned as real processes when the directory is trusted, and until now nothing told you which ones had loaded — or that an untrusted directory had refused to start them at all. The untrusted case names the servers and says why they are gated: they run before any per-tool approval (B-069)
