@@ -1933,7 +1933,31 @@ dod:
 
 ---
 
-## B-073 — The theme is a hardcoded dark constant   [ ]
+## B-073 — The theme is a hardcoded dark constant   [x]
+
+fixed_in: 75671c2
+dod_verified:
+  - the base is resolved, with dark unchanged as the default so an upgrade repaints nobody's
+    terminal — asserted as an explicit floor, not left implied
+  - resolved from the ENVIRONMENT rather than `config.toml`, deliberately: the theme is a surface
+    concern and `AgentConfig` is the agent's contract, so a rendering preference does not cross the
+    boundary `rules/architecture.md` § 1 draws for a value the agent never reads
+  - `no-color` is reachable, and `NO_COLOR` is honoured — reused, not invented (parsimony rung 3).
+    It outranks `THEOCODE_THEME` because it is an accessibility signal rather than a preference.
+    Per no-color.org, PRESENCE of a non-empty value is the signal and an empty value is not; both
+    directions are pinned, because getting the empty case backwards would strip colour from every
+    shell that exports the variable blank
+  - an unusable value falls back AND is reported in `/status` — `theme: dark (default) — ignored
+    THEOCODE_THEME=drak, expected dark | light | no-color`. A silent fallback is the swallowed error
+    `rules/error-handling.md` forbids, and `/status` is where a user asks why the colour is what it is
+  - the resolver takes its env as an argument, so no test depends on process state or ordering
+  - VERIFIED LIVE in the tmux pane, both paths: `NO_COLOR=1` renders the no-color base (borders and
+    the assistant glyph visibly change) and reports `no-color (NO_COLOR)`; `THEOCODE_THEME=drak`
+    renders dark and names what it ignored
+  - verified by mutation: ignoring `NO_COLOR`, and dropping the invalid report, each turn the suite
+    red. The first attempt at the second mutation did not apply and passed green — it was redone
+    with an assertion that the target text exists, because a mutation that silently fails to apply
+    proves nothing while looking like proof
 
 domain: theocode
 repo: TheoCode
