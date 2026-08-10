@@ -1688,7 +1688,42 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `split-and-untracked-knowledge-base`).
 
-## B-065 — The English-only rule is enforced in one framework repo out of ten   [ ]
+## B-065 — The English-only rule is enforced in one framework repo out of ten   [x]
+
+fixed_in: 6913b28
+fixed_in_other_repos: >
+  theokit 55ecfd33 · theokit-di 354642f · theokit-example 1bcf8d5 · theokit-gateways 5009417 ·
+  theokit-plugins e356586 · theokit-skill 3eb5e86 · theokit-studio 7e17fd5 · theokit-tui 00eac9e ·
+  usetheo-ui f41e3ac2
+dod_verified:
+  - the `.mts` gap is closed (6913b28, in THIS repo): `EXTS` covers `.ts .tsx .mts .cts .mjs .cjs`,
+    is exported, and two tests lock it — verified by reverting the list, which turns them red.
+    Widening it took `theokit` from 4 reported violations to 17 on the spot
+  - all nine unguarded repositories now run a Portuguese guard in their own suite. NOT a tenth
+    hand-written variant: it is `theokit-sdk/packages/sdk/tests/lint/no-ptbr.test.ts`, copied —
+    two tiers, its own docstring carrying the reasoning AND the record of its past mistakes (a
+    lexicon entry removed for firing on ordinary English, a scan root widened twice after missing
+    whole packages). That decision is bullet 4 of this DoD: reuse the proven one, and the reason
+    against a shared dependency is that TheoCode is a private app — shipping it would mean
+    publishing a package to solve a nine-file copy
+  - PROVEN both ways, which is the bullet that mattered most: planting a Portuguese identifier and
+    comment turns all 9 red; removing them turns all 9 green. My first probe used `configuracao`,
+    which the deliberately conservative lexicon does not carry, and all nine 'passed' — my probe
+    was wrong, not the gates, and I only knew that because I checked instead of believing the green
+  - per-repo escape hatches are measured, never guessed, and each carries its reason in the file:
+    `wiki/` in theokit (850 matches — the historical record; rewriting it edits what was said at
+    the time), every CHANGELOG via a PREDICATE rather than one entry per package (a hand-kept list
+    is what this guard's own docstring warns decays), the sibling `task-marker.test.ts` whose
+    fixtures exist to prove it tells Portuguese `todo` from English `TODO:`, telegram-pro's
+    few-shot prompt (the Portuguese IS the behaviour being taught), gitignored `build/` output,
+    and one comment that QUOTES the word it replaced
+  - real fixes the install surfaced: ~15 Portuguese identifiers and 4 test names in `theokit`
+    packages, a user-facing 'Prompt vazio.' in a gateway example, two Portuguese test names in
+    usetheo-ui. 901 tests pass in theokit/packages/agents
+  - NOT DONE, and named rather than absorbed: `theokit-gateways`'s 418-line manual runbook
+    (`examples/telegram-pro/TEST-PLAN.md`) is exempted, not translated. A step-by-step script a
+    human follows deserves a careful human pass, and doing it badly mid-task is worse than leaving
+    it. Registered as B-066, and the exemption comment says it is deleted the day that lands
 
 domain: theocode
 repo: TheoCode
@@ -1712,3 +1747,19 @@ dod:
   - NOT a copy of the detector into nine repos: decide once whether it ships as a shared dev dependency or as a per-repo file, and record the reason
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `english-only-guard-per-framework-repo`).
+
+## B-066 — telegram-pro's manual test runbook is 418 lines of Portuguese   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 while installing the English-only guard across the framework (B-065). `theokit-framework/theokit-gateways/examples/telegram-pro/TEST-PLAN.md` is 418 tracked lines, written entirely in Portuguese — a step-by-step production runbook ("Roteiro de Teste", "Manda / Espera / Sucesso / Log" per step). It is the ONLY exemption in the nine new guards that exists for cost rather than for correctness: every other one protects something that would break if translated (few-shot prompts, Unicode fixtures, a quoted word, released changelog entries, the historical wiki).
+why_now: B-065 put a gate in front of all ten framework repos, and this file is the one thing it is deliberately not looking at. The exemption comment names this item and says it is deleted the day the translation lands, so the debt is countable rather than permanent — but until then the example's own test procedure is unreadable to anyone who does not speak Portuguese, in a repository that now enforces English everywhere else.
+status: raw
+dod:
+  - `examples/telegram-pro/TEST-PLAN.md` is English, translated by someone who can check that each expectation still reads correctly against what the bot actually does — not a machine pass
+  - the exemption entry is removed from `packages/gateway/tests/lint/no-ptbr.test.ts` and the guard passes without it
+  - the `@theo_paulo_bot` id and the concrete commands in it are verified as still current, or the runbook says they are illustrative — a runbook that names a dead bot is worse than one in the wrong language
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `telegram-pro-runbook-translation`).
