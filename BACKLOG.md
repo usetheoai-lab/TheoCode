@@ -2264,4 +2264,34 @@ dod:
   - the guard is scored against this corpus for false positives BEFORE it lands, per the method
     B-083 wrote down. `doDoSomething` and any legitimate hit are decided explicitly, not by luck
 
+---
+
+## B-085 — The TUI composition root cannot absorb another dependency   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: measured 2026-08-10 by attempting B-075. `packages/tui/src/use-tui-composition.ts` holds
+  `useTuiSession`, `useConversationState`, `depsDoComposer` and `useTuiComposition` in one file.
+  Adding ONE field (`events`) to the dependency bundle put `useTuiComposition` at 61 lines against a
+  limit of 60, and the file past its own line budget — two lint errors from a one-line addition.
+  The obvious fix, extracting `depsDoComposer`, does not work: it references `useTuiSession`, which
+  is LOCAL to that file, and exporting it makes the import circular, which `depcruise` refuses.
+why_now: B-075 was implemented, tested green, and then REVERTED because of this — not because the
+  feature was wrong. The same wall stands in front of B-069, B-070, B-071 and B-072: every one of
+  them needs the command layer to see something the composition root currently holds privately. One
+  refactor unblocks five items; doing it inside any of them would hide a structural change inside a
+  feature commit.
+status: raw
+severity: HIGH
+dod:
+  - `useTuiSession` and `depsDoComposer` live outside `use-tui-composition.ts`, with no cycle —
+    `npm run depcruise` is the proof, not inspection
+  - adding one field to the composer dependency bundle no longer touches the length budget of
+    anything. Demonstrated by actually adding `events` and watching lint stay green
+  - behaviour is unchanged: this is a move, and the existing suite passing is the claim. No test is
+    rewritten to accommodate the new shape — a rewritten test proves the move was not behaviour-neutral
+  - B-075 is re-attempted on top of it, and lands or is re-blocked for a DIFFERENT reason
+
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
