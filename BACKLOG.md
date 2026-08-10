@@ -2873,7 +2873,7 @@ repo: TheoCode
 suggested_mode: review
 source: human
 evidence: measured 2026-08-10. `npm view @theokit/agents version` → `7.4.0`; the installed
-  `node_modules/@theokit/agents/package.json` → `7.4.0`. B-053 records `fixed_in: 94fd582e
+  `node_modules/@theokit/agents/package.json` → `7.4.0`. B-053 records `fixed_in: 0811ddc
   (theokit)`, so that commit is in a repository and in no release. The Portuguese type names it
   renamed are still on the public surface here: `ListOptionsSemPaginacao` (`index.d.ts:1121`),
   `AgentComListaEstreitada` (`:1125`), `ToolComNome` (in the export list at `:1130`), and
