@@ -17,6 +17,7 @@ const input = (over: Partial<Parameters<typeof wiredCapabilities>[0]> = {}) => (
   mcpServers: { fixtures: {}, api: {} },
   configuredSkills: ['daily-briefing'],
   hookEvents: ['PreToolUse'],
+  sandboxMode: 'workspace-write',
   ...over,
 })
 
@@ -88,5 +89,20 @@ describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
       hooks: { active: expect.any(Array) },
       projectSources: expect.any(Boolean),
     })
+  })
+})
+
+/**
+ * B-076 — the sandbox mode travels in the record so the footer stops resolving config itself.
+ */
+describe('B-076 — the record carries the sandbox mode', () => {
+  it('test_it_reports_the_mode_the_build_was_given', () => {
+    expect(wiredCapabilities(input()).sandboxMode).toBe('workspace-write')
+  })
+
+  it('test_it_reports_a_session_override_rather_than_the_configured_value', () => {
+    // The whole point: `chatContext` applies the override before this is built, so what arrives
+    // here is what the agent got — not what config says.
+    expect(wiredCapabilities(input({ sandboxMode: 'read-only' })).sandboxMode).toBe('read-only')
   })
 })

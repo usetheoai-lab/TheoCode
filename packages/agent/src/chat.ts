@@ -131,6 +131,8 @@ export function buildChatAgent(overrides: {
     mcpServers,
     configuredSkills: cfg.skills,
     hookEvents: configuredHookEvents(cfg),
+    // Already carries the session override — `chatContext` applied it once, above.
+    sandboxMode: cfg.sandbox_mode,
   })
 
   overrides?.onWired?.(wired)

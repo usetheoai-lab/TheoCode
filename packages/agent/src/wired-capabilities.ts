@@ -33,6 +33,12 @@ export interface WiredCapabilities {
   readonly hooks: WiredEntity
   /** Whether `.theokit/agents/*.md` were allowed to load — subagents and project hooks ride on it. */
   readonly projectSources: boolean
+  /**
+   * B-076 — the sandbox mode this build was given, AFTER any session override. The footer used to
+   * resolve config itself and therefore kept showing the mode the session started with, while the
+   * agent had already been rebuilt with another. Two sources, one label, and the label was wrong.
+   */
+  readonly sandboxMode: string
 }
 
 function entity(requested: readonly string[], allowed: boolean): WiredEntity {
@@ -54,11 +60,13 @@ export function wiredCapabilities(input: {
   readonly configuredSkills: readonly string[]
   /** The hook events handed to `.hooks()`, in the order they were registered. */
   readonly hookEvents: readonly string[]
+  readonly sandboxMode: string
 }): WiredCapabilities {
   return {
     mcp: entity(Object.keys(input.mcpServers).sort(), input.posture.allows.mcp),
     skills: entity([...input.configuredSkills], input.posture.allows.skills),
     hooks: entity([...input.hookEvents], input.posture.allows.hooks),
     projectSources: input.projectSourcesAllowed,
+    sandboxMode: input.sandboxMode,
   }
 }

@@ -6,6 +6,7 @@ import { StatusFooter } from '@theokit/tui'
 
 import { fmtK } from '../formatting/index.js'
 import { footerHint } from './composer-shortcuts.js'
+import { currentWiring } from '../agent-session/wiring-record.js'
 import type { ApprovalMode } from '../consent/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 
@@ -14,6 +15,21 @@ import type { ReasoningEffort } from '@theocode/agent/config'
  * one (B-072), never before: the footer is not the place to announce intent.
  */
 const AGENTS_PANEL_WIRED = false
+
+/**
+ * B-076 — the sandbox the AGENT was built with, falling back to config before the first turn.
+ *
+ * It used to read `SESSION.cfg()` unconditionally, so after `/sandbox read-only` the footer kept
+ * showing the mode the session started with while the agent had already been rebuilt with another.
+ * Two sources, one label, and the label was the wrong one — the shape B-069/B-070/B-071 each had to
+ * fix in their own listing.
+ */
+function sandboxLabel(SESSION: FooterProps['SESSION']): string {
+  const wired = currentWiring()?.sandboxMode
+  // The `sandbox:` prefix belongs to the LABEL, and the record carries the raw mode — re-added here
+  // rather than stored twice, so the two cannot drift into different spellings.
+  return wired === undefined ? SESSION.cfg().sandboxLabel : `sandbox:${wired}`
+}
 
 export interface FooterProps {
   readonly SESSION: {
@@ -40,7 +56,7 @@ export function SessionFooter(props: FooterProps): ReactElement {
       left={
         <Text>
           {SESSION.sessionModel() ?? SESSION.cfg().modelLabel} {effort} · {approvalMode} ·{' '}
-          {SESSION.cfg().sandboxLabel}
+          {sandboxLabel(SESSION)}
           {goalBadge} · {credentialSource()}
         </Text>
       }

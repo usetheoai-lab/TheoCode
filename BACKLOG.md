@@ -2186,7 +2186,7 @@ dod:
 
 ---
 
-## B-076 — The sandbox mode is displayed and cannot be changed   [ ]
+## B-076 — The sandbox mode is displayed and cannot be changed   [x]
 
 domain: theocode
 repo: TheoCode
@@ -2195,9 +2195,8 @@ source: human
 evidence: none-yet
 why_now: the footer reports `sandbox:workspace-write` and `/approval` changes the approval mode, so of the two settings that decide what the agent may do to the disk, one is editable at runtime and the other is a readout. B-014 already found that a sandbox mode change did not reach live PTYs, which means the value is understood as mutable elsewhere in the system; the surface just never exposes it. A user who realises mid-session that the posture is wrong has to quit and relaunch.
 status: raw
-partial_2026-08-10: the agent half is BUILT and tested; the surface half is NOT, and the gap is the
-  same two-sources problem this backlog keeps finding.
-  DONE:
+fixed_in: 2eb9c26 PENDING
+dod_verified:
   - `setSandboxModeForSession` in the agent, applied ONCE in `chatContext` via the free function
     `withSandboxMode`, so every consumer in a build (write policy, PTY `setMode`, wrap command, the
     reported label) sees one value. The mode used to be read from `cfg` at four points, which is how
@@ -2209,14 +2208,17 @@ partial_2026-08-10: the agent half is BUILT and tested; the surface half is NOT,
     `read-only` → `confirm` cannot grant the abandoned request. Tested
   - the security floor is deliberately NOT re-applied: it governs config LAYERS, and a session
     switch has the standing of the `cli` layer, which may loosen. Written down where it is decided
-  NOT DONE, and why this stays open:
-  - the FOOTER still reads the TUI's own resolved config, so after `/sandbox read-only` it keeps
-    showing `sandbox:workspace-write`. Verified live. The switch reaches the AGENT on the next turn;
-    the label the user is looking at does not know. Closing on that would ship a product that says
-    one thing and does another — the B-067 defect, in the surface this item is about
-  - the fix is the shape B-069/B-070/B-071 already established: the footer should read the WIRED
-    record rather than resolve config itself. `wiredCapabilities` does not yet carry the sandbox
-    mode; adding it there is the one-pass fix, and doing it any other way adds a third source
+  - the FOOTER now reads the WIRED record — `wiredCapabilities` carries the sandbox mode the build
+    was given, override included, so the label and the agent cannot disagree. This was left OPEN in
+    the first pass rather than closed with the gap, and closed only once the surface followed
+  - VERIFIED LIVE end to end: `/sandbox read-only`, one turn, and the footer reads
+    `suggest · sandbox:read-only`
+  - THE LIVE TEST FOUND A SEPARATE BUG, which is why the first attempt looked like a failure:
+    selecting a command from the completion popup with Enter DISCARDS the typed argument, so
+    `/sandbox read-only` submitted as bare `/sandbox` and silently changed nothing. Dismissing the
+    popup with Escape first submits the full line and works. Filed as B-089 — it affects every
+    command that takes an argument, and it had already made `/export` and `/delete` look broken
+    earlier in the same session
 severity: MEDIUM
 dod:
   - the sandbox mode is changeable from the TUI, and the change reaches live PTYs — B-014 is the regression test, not a separate concern
@@ -2727,5 +2729,32 @@ dod:
     than guessed at locally — a health probe invented here would report on a connection this product
     does not own
   - until then `/mcp` says what it can and cannot know, instead of letting a listed name imply health
+
+---
+
+## B-089 — Selecting a command from the popup discards the argument you typed   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: reproduced repeatedly across this session while live-testing `/delete`, `/export` and
+  `/sandbox`. Typing `/sandbox read-only` and pressing Enter selects `/sandbox` from the completion
+  popup and REPLACES the composer with the bare command, dropping ` read-only`; a second Enter then
+  submits the argument-less form. Pressing Escape to dismiss the popup first, then Enter, submits
+  the full line and works. Measured last on `/sandbox`: with Enter-Enter the mode never changed;
+  with Escape-Enter the toast read `sandbox: read-only — applies from the next turn`.
+why_now: every command that takes an argument is affected — `/export <path>` wrote to the default
+  name, `/delete <id>` reached the handler with no id, `/sandbox <mode>` silently did nothing. The
+  failure is SILENT for `/sandbox` in particular: the user sees the command accepted and the posture
+  unchanged, which is the worst shape for a setting about what the agent may do to their disk.
+status: raw
+severity: HIGH
+dod:
+  - typing a full command with its argument and pressing Enter submits what was typed
+  - a regression test drives the completion popup with an argument present, because this survived
+    an entire session of manual testing precisely by looking like a product bug each time
+  - if the behaviour belongs to `@theokit/tui`'s composer rather than to this app, it is fixed
+    upstream with the same evidence rather than worked around locally
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

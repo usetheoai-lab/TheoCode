@@ -40,6 +40,7 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     mcpServers: {},
     configuredSkills: [],
     hookEvents: [],
+    sandboxMode: cfg.sandbox_mode,
   })
   agent.buildChatAgent({ cwd, surface: 'headless', onWired: (w) => (wired = w) })
 
