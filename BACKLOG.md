@@ -2205,7 +2205,7 @@ dod:
 
 ## B-077 — `/memory` reports the memory state and cannot change it   [x]
 
-fixed_in: PENDING
+fixed_in: 75312d8
 dod_verified:
   - generation can be turned off for the session without editing files outside the product:
     `/memory off|on`. It only ever RESTRICTS — trust still decides whether memory is possible at all,
