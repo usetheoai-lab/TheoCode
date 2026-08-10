@@ -2266,7 +2266,26 @@ dod:
 
 ---
 
-## B-085 — The TUI composition root cannot absorb another dependency   [ ]
+## B-085 — The TUI composition root cannot absorb another dependency   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `useTuiSession` and `depsDoComposer` live in `packages/tui/src/composition/`; the root went from
+    431 to 339 lines. `npm run depcruise` returns 0 — NO CYCLE, which is the proof, not inspection.
+    The cycle only ever existed when `depsDoComposer` was extracted ALONE; moving both together
+    dissolves it, and that was the discovery
+  - adding a field to the composer bundle no longer touches any budget. DEMONSTRATED rather than
+    argued: `events` was added back, lint reported no length or complexity error, and the change was
+    then reverted. That is the exact addition B-075 died on
+  - behaviour is unchanged — 311 tests across 53 files pass UNTOUCHED. No test was adapted to the
+    new shape, which is what would have signalled the move was not neutral
+  - METHOD, recorded because it is what actually failed twice before this succeeded: the first two
+    attempts seeded the new files with the root's whole import block and pruned it with a regex. One
+    mangled a docstring; an earlier one deleted 247 lines from the wrong region. Both were reverted
+    to a green tree. This attempt wrote the two import blocks BY HAND and cleaned the root's four
+    orphans with an editor, one at a time. The structure was never the problem
+  - B-075 is now unblocked and stays open, per its own DoD — it must land or be re-blocked for a
+    DIFFERENT reason
 
 domain: theocode
 repo: TheoCode

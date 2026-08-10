@@ -6,16 +6,15 @@ import {
   makeInterruptTurn,
   getTuiRoot,
 } from './agent-session/index.js'
+import { depsDoComposer } from './composition/composer-deps.js'
+import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
 import { useGoalRun } from './persistence/index.js'
 import { useTimeline, useScreenState } from './rendering/index.js'
 import { useTuiKeyboard } from './terminal-io/index.js'
-import { useApp, useStdout } from 'ink'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { useTurnElapsed } from '@theokit/tui'
-import { useAgent } from '@theokit/agents/client/react'
 
 import { homedir } from 'node:os'
 
@@ -27,57 +26,6 @@ import type { ReasoningEffort } from '@theocode/agent/config'
 
 process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
 
-function depsDoComposer(
-  s: ReturnType<typeof useTuiSession>,
-  screen: ReturnType<typeof useScreenState>,
-  extra: {
-    backtrack: ReturnType<typeof useBacktrack>
-    goalAbort: { current: AbortController | null }
-    lastSentMessage: { current: string | null }
-    approvalMode: ApprovalMode
-    goalRun: ReturnType<typeof useGoalRun>['goalRun']
-    goalActive: boolean
-    setGoalRun: ReturnType<typeof useGoalRun>['setGoalRun']
-    credential: Parameters<typeof useComposerCommands>[0]['credential']
-    setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
-  },
-) {
-  const {
-    backtrack,
-    goalAbort,
-    lastSentMessage,
-    approvalMode,
-    goalRun,
-    goalActive,
-    setGoalRun,
-    setApprovalMode,
-    credential,
-  } = extra
-  return {
-    agent: s.agent,
-    agentRef: s.agentRef,
-    SESSION: s.SESSION,
-    ptyOwner: s.ptyOwner,
-    customCommands: s.customCommands,
-    customCommandNames: s.customCommandNames,
-    backtrack,
-    goalAbort,
-    lastSentMessage,
-    stdout: s.stdout,
-    approvalMode,
-    goalRun,
-    goalActive,
-    currentSessionId: s.currentSessionId,
-    forkCurrentSession: s.forkCurrentSession,
-    resetSession: s.resetSession,
-    credential,
-    exit: s.exit,
-    ...screen,
-    setEffort: s.setEffort,
-    setApprovalMode,
-    setGoalRun,
-  }
-}
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -111,46 +59,6 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
   }
 }
 
-function useTuiSession() {
-  const ROOT = getTuiRoot()
-  const SESSION = ROOT.session
-  const GOAL_POINTER = ROOT.goalPointer
-  const customCommands = ROOT.customCommands
-  const customCommandNames = ROOT.customCommandNames
-  const ptyOwner = ROOT.ptyOwner
-  const resetSession = ROOT.resetSession
-  const forkCurrentSession = ROOT.sessionFork
-  const setSessionAndPersist = ROOT.pointToSession
-  const currentSessionId = useCallback((): string => SESSION.session(), [SESSION])
-  const agent = useAgent<{ message: string }>(ROOT.transport)
-  const agentRef = useRef(agent)
-  agentRef.current = agent
-  const streaming = agent.status === 'streaming'
-  const elapsed = useTurnElapsed(streaming)
-  const { exit } = useApp()
-  const { stdout } = useStdout()
-  const [effort, setEffort] = useState<ReasoningEffort>(SESSION.effort())
-  return {
-    ROOT,
-    SESSION,
-    GOAL_POINTER,
-    customCommands,
-    customCommandNames,
-    ptyOwner,
-    resetSession,
-    forkCurrentSession,
-    setSessionAndPersist,
-    currentSessionId,
-    agent,
-    agentRef,
-    streaming,
-    elapsed,
-    exit,
-    stdout,
-    effort,
-    setEffort,
-  }
-}
 
 function turnInterrupt(d: {
   agent: { abort: () => void }

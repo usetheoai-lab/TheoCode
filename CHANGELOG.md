@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The screen's wiring was split into three files instead of one. Everything that assembles the terminal interface lived together, and it had grown to the point where adding a single new piece of information for a command to read broke two size limits at once — a feature was written, tested, and thrown away because of it. The parts that build the session and the parts that hand dependencies to the input box now live on their own, the behaviour is identical, and the whole test suite passes untouched, which is what makes that claim checkable (B-085)
+
 ### Added
 
 - A session can now be deleted, not just archived. Archiving only hid a conversation behind an `(archived)` label — the transcript stayed on disk and stayed listed — so a session that captured a pasted credential could not be removed through the product at all. `/delete <id>` removes both the entry and the file. It always requires the id: archiving defaults to the current session because it can be undone, and this cannot. It also refuses to delete a session something is still writing to (B-078)
