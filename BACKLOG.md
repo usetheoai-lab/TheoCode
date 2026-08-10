@@ -1915,12 +1915,10 @@ dod_verified:
   - STILL OPEN: the listing must report what was WIRED. That needs the agent build to expose its
     handler set — the same seam B-069 (MCP) and B-070 (skills) need, which is why those three should
     land together rather than each re-reading its own config
-  - HONEST LIMIT, and it is a real one: only the EMPTY case is verified live. Writing a valid
-    `[[hooks]]` block into `.theokit/config.toml` did not populate the listing, and a probe showed
-    why — `resolveEffectiveConfig({ cwd })` returned `hooks: []` for a TRUSTED directory with that
-    file present. The command reads the correct source; the source does not read that file. The
-    populated, suppressed and error paths are covered by unit tests against injected inputs, NOT by
-    a live run. B-086 carries the unanswered question
+  - LIVE VERIFICATION NOW COMPLETE (B-086, 2026-08-10): the earlier limitation was MY error, not the
+    product's — the probe wrote to `.theokit/config.toml` and this product reads
+    `.theocode/config.toml`. With the block at the correct path, `/hooks` rendered
+    `PreToolUse  trusted` and its command in the live pane
 
 domain: theocode
 repo: TheoCode
@@ -2397,7 +2395,26 @@ dod:
 
 ---
 
-## B-086 — Nobody can say where the project hook config is read from   [ ]
+## B-086 — Nobody can say where the project hook config is read from   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - ANSWERED: `<project>/.theocode/config.toml`, with `~/.theocode/config.toml` as the user layer
+    (`packages/agent/src/config/config.ts:335-337`). NOT `.theokit/`, which is the SDK filebase and
+    holds subagents, skills and rules. Two directories, one letter apart in intent and nothing alike
+    in purpose — which is exactly why the earlier probe read `hooks: []` and looked like a defect
+  - written down where a user looks: README § "Where configuration lives", with the table of both
+    directories, the trust caveat, and the four valid hook events. Not only in the resolver's source
+  - PROVEN, not asserted: a `[[hooks]]` block at that path reaches `parseHooks`. The first probe
+    with `event = "PreToolCall"` threw `HookError: unknown event ... expected one of PreToolUse,
+    PostToolUse, Stop, SessionStart` — which is itself the proof the file was read, and the reason
+    the valid event names are now documented
+  - B-071's populated listing is VERIFIED END-TO-END: with the block at the correct path, `/hooks`
+    rendered `PreToolUse  trusted` and the command. That closes the live-verification limitation
+    B-071 was forced to record — its remaining gap is the separate "report what was WIRED" bullet
+  - the silent-ignore concern is answered by documentation rather than by code: a wrong path is not
+    detectable (any directory may legitimately hold an unrelated `config.toml`), so the honest fix is
+    to make the right path findable. Recorded as a choice
 
 domain: theocode
 repo: TheoCode

@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The README now says where configuration actually lives. There are two directories — `.theocode/` for the product's own settings and `.theokit/` for subagents, skills and rules — and putting a setting in the wrong one is ignored with no error at all. That matters most for hooks, which run a command of your choosing on every tool call: a block in the wrong file protects nothing and says nothing. The valid hook event names are written down for the same reason (B-086)
+
 ### Removed
 
 - A planned "ask something without keeping the conversation" feature was dropped before it was built. It existed because a side question forced you to fork a session that could never be removed; now that sessions can be deleted, the cost is one command rather than a permanent entry, and building a second kind of session to avoid it would have added more than it saved (B-079)
