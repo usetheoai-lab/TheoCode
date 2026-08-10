@@ -27,7 +27,7 @@ export class CursorNotDrainedError extends TheokitAgentError {
  * B-020 — this listing CANNOT produce a cursor, and that is the SDK's guarantee rather than an
  * omission here.
  *
- * `@theokit/agents` narrows `Agent.list` to a non-paginated overload (`ListOptionsSemPaginacao`:
+ * `@theokit/agents` narrows `Agent.list` to a non-paginated overload (`ListOptionsWithoutPagination`:
  * `limit?: never; cursor?: never`) whose return type is `Omit<ListResult, 'nextCursor'>`. There is
  * no cursor to forward, and asking for a page is a type error.
  *
