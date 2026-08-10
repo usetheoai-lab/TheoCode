@@ -1901,7 +1901,7 @@ dod:
 
 ## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [x]
 
-fixed_in: PENDING
+fixed_in: 371544a
 dod_verified:
   - `/hooks` lists the registered set with the event each is bound to, and its trust status
   - a hook suppressed because the DIRECTORY is untrusted is shown as suppressed, never omitted — and
