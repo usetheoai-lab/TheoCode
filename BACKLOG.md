@@ -1366,7 +1366,31 @@ dod:
   - `check-english-only.mjs` (or its equivalent) wired into each repository's lint, so the
     result is enforced rather than achieved once
 
-## B-059 — Three agent-construction routines that do not call each other   [ ]
+## B-059 — Three agent-construction routines that do not call each other   [x]
+
+fixed_in: 3049d80 cc1c224
+dod_verified:
+  - all THREE sites go through `composition/agent-spec.ts` (cc1c224). `review/create-agent.ts` asks
+    for `reviewerShape()`, `delegation/roles.ts` calls `declareAgent()` for the role's tools, and
+    `chat.ts` takes its registry set through `readTool()`. Each keeps the SDK entry it already used,
+    which is what makes this a declaration change rather than a behaviour change
+  - behaviour unchanged, PROVEN rather than asserted: `composition.test.ts` (B-061) pins the compiled
+    tool set, approval map and trust gates for all three agents and stayed green across the move
+  - `cwd` is required (3049d80); the ambient default that survived B-015 and B-032 is gone
+  - a FOURTH agent is a list: `agent-spec.test.ts` declares a read-only auditor in three lines and
+    pins that it is strictly SMALLER than the reviewer — the thing the fluent chain could not express
+    at all, and the reason review/ and delegation/ each became a routine
+  - composed through the framework's capability layer, not a local array (parsimony rung 4), so the
+    shape carries `provenance` and raises `CapabilityConflictError` instead of last-wins. Presence in
+    the INSTALLED build verified by execution, not by reading the reference source
+  - 4 mutations, 4 caught: reviewer narrowed, reviewer widened, chat's read set narrowed, and the
+    registry's fail-loud policy replaced by a silent filter
+  - NOT met, and deliberately: the entry stops at the SHAPE and does not compose through to a running
+    handle. `toAgentFactory` accepts a draft (measured), but taking that step would rewrite the review
+    agent's agentId/delete/dispose lifecycle, which B-043 hardened after a real leak — and this DoD's
+    contract was explicitly 'without changing its behaviour'. Re-file if a caller ever needs it
+  - NOT met: `chat.ts` still declares its non-registry tools (web, interactive, plan, analyst) inline
+    in the chain. Only the registry-backed set moved. Narrowing that is a separate item, not this one
 
 domain: theocode
 repo: TheoCode
