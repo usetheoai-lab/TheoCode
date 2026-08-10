@@ -18,6 +18,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md` — this file, required by Unbreakable Rule 6 and recorded as finding CI-010 in that same review
 
 ### Added
+- Portuguese was removed from the framework this product is built on, not just reported. Four of the ten framework repositories carried it in source — comments, error messages the user could see, and identifiers including one on the published interface; 129 occurrences are now English and four repositories are clean. What remains is verified false positives: OpenTelemetry field names, a Unicode test corpus, and the word list belonging to another repository'''s own Portuguese guard (B-058)
 - The Portuguese names still on the framework's public interface were measured precisely, and the answer is much smaller than assumed: four type names, none of them reachable at runtime, one of which this project mentions once in a comment. The change that had been treated as needing a major version needs four deprecation aliases in a minor — and the specific function the concern named turns out never to have been published at all (B-058)
 
 ### Changed

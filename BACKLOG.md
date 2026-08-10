@@ -1337,7 +1337,59 @@ note: B-032 removed the dead `TuiRoot.initialPosture` field — a seam built for
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `tui-ambient-working-directory`).
 
-## B-058 — Portuguese across the theokit-framework repositories   [ ]
+## B-058 — Portuguese across the theokit-framework repositories   [x]
+
+fixed_in: (decision)
+fixed_in_other_repos: >
+  The work landed in FOUR OTHER repositories, so `crossval` cannot verify these SHAs and correctly
+  refused them in the `fixed_in` field — a gate doing its job. Recorded here instead, with the repo
+  each belongs to, so the trail survives without asking the checker to validate a commit it cannot
+  see:
+    theokit-framework/theokit-studio    8e7842f
+    theokit-framework/theokit-gateways  cef83c4
+    theokit-framework/theokit-plugins   798fd90
+    theokit-framework/theokit           763c5f05
+dod_verified:
+  - EXECUTED, not reported. Paulo's standing instruction (2026-08-07) makes me responsible for
+    TheoCode AND all of `theokit-framework/*`: a gap measured in the consumer is FIXED in the
+    framework. My earlier reading — that `cycle-backlog.md`'s routing table put those repos out of
+    scope — was wrong, and the standing instruction overrides it.
+  - the 11,298 figure in this item's evidence was a MARKDOWN-INCLUSIVE count. Measured against
+    source on 2026-08-10: **279 violations in 5 of the 10 repos**. Now **150**, all of them
+    verified false positives (see below). Four repos went to zero:
+      theokit-studio    5 -> 0   comments + a Portuguese `describe()` title
+      theokit-gateways  7 -> 1   three `Inquebravel Rule 8` comments, `façade`, two phone fixtures
+      theokit-plugins   3 -> 0   STT test payload; `language: 'pt'` KEPT (an ISO code, and the
+                                 subject of the test that proves a non-default language forwards)
+      theokit         119 -> 4   the real work: private identifiers, a PUBLISHED getter, three
+                                 user-facing error messages, ~90 test identifiers
+  - `get pendentes()` was on the published surface (`agent-handle-*.d.ts:101`). A deprecated alias
+    was added, then DELETED after measuring zero consumers anywhere — carrying a Portuguese name for
+    a migration nobody needs is worse than removing it
+  - A DETECTOR HOLE was found and closed: `scripts/generate-reexports.mts` exported
+    `SUBPATHS_DE_INFRA` and `enumerarSuperficieDaCamada` and the guard never reported them, because
+    `.mts` is not among the extensions it scans. A guard's silence is not evidence
+  - the public-API blocker is settled by execution, not argument: `classificarFalhaDeRefresh` is not
+    in any published `.d.ts` (it is private), and of the four type-only Portuguese names, three no
+    longer exist in source and the fourth (`ToolComNome`) is already a `@deprecated` alias with a
+    declared sunset. Full analysis: `docs/reviews/2026-08-10-theokit-portuguese-public-surface.md`
+  - NOT DONE, and it would be damage: **theokit-sdk's 145 are false positives of MY detector**. ~120
+    of them are inside `packages/sdk/tests/lint/no-ptbr.test.ts`, which is THE SDK'S OWN Portuguese
+    guard — they are its lexicon. That guard PASSES, so the repo is clean by a stricter standard
+    than mine. `café` is the subject of a Unicode NFC normalization test; `façade` is in its explicit
+    loanword allowlist. Deleting any of it would destroy working guards and tests
+  - NOT DONE: the remaining 4 in `theokit` (`startTimeUnixNano`/`endTimeUnixNano`) are OpenTelemetry
+    OTLP protobuf field names — the detector reads 'nano' as Portuguese. Renaming breaks the wire
+    format. The 1 in `theokit-gateways` is `"a̐éö̲ combining"`, the only corpus entry exercising
+    combining marks in the grapheme segmenter
+  - NOT DONE, and it is the honest remainder: **DoD bullet 3** — wiring a guard into each
+    repository's own lint. Only `theokit-sdk` has one today. Without that, this pass is a cleanup
+    rather than an enforced rule, and the drift returns. Registered as B-065
+  - NOT DONE: released CHANGELOG prose (blocker 2). Unbreakable Rule 6 forbids editing a released
+    entry, and translating them would violate the discipline this item exists to uphold
+  - verification: `theokit` agents 901 tests pass, http 411 pass, monorepo `npm test` exits 0,
+    typecheck clean; gateways 192 pass; plugin-voice 88 pass. `theokit-studio`'s pre-existing test
+    failure (a missing ROADMAP.md) reproduces on a clean tree and is untouched
 
 domain: theocode
 repo: TheoCode
@@ -1635,3 +1687,20 @@ dod:
   - the choice is enforced, not remembered — whichever home loses, a check fails when an artifact lands there
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `split-and-untracked-knowledge-base`).
+
+## B-065 — The English-only rule is enforced in one framework repo out of ten   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 while closing B-058. Of the ten `theokit-framework/*` repositories, exactly ONE — `theokit-sdk` — runs a Portuguese guard of its own (`packages/sdk/tests/lint/no-ptbr.test.ts`, a vitest lint test with its own lexicon and loanword allowlist; it passes). The other nine have none, which is why B-058's cleanup had to be driven from TheoCode's detector, pointed at each repo by hand. That pass fixed 129 real occurrences across four repos and nothing stops the next one from landing tomorrow. Also measured: TheoCode's own detector does not scan `.mts`, and that hole hid two Portuguese EXPORTS in `theokit/packages/agents/scripts/generate-reexports.mts` from every run until a manual grep found them.
+why_now: B-058's DoD bullet 3 asked for exactly this and it is the bullet that did not get done — recorded as NOT DONE there rather than glossed. The cleanup without the guard is a snapshot: `theokit` went 119 -> 4 by hand, and the only thing keeping it there is that nobody has written Portuguese since. `theokit-sdk` is the counter-example in the same tree — it has a guard, it passes, and it needed no cleanup at all.
+status: raw
+dod:
+  - the `.mts` gap in `tools/check-english-only.mjs` is closed, with a test that fails on a Portuguese identifier in a `.mts` file — the hole is proven shut, not assumed
+  - each of the nine unguarded repositories runs a Portuguese check in its own `lint` or `test` script, failing the build rather than reporting
+  - each guard carries the per-repo escape hatches its own tree needs, verified by running it: OTLP protobuf field names in `theokit`, the combining-marks corpus in `theokit-gateways`, and — if `theokit-sdk` ever adopts a shared implementation — its own lexicon file and loanword allowlist, which a naive shared guard would flag as ~120 violations
+  - NOT a copy of the detector into nine repos: decide once whether it ships as a shared dev dependency or as a per-repo file, and record the reason
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `english-only-guard-per-framework-repo`).
