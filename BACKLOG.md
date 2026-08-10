@@ -2009,7 +2009,7 @@ dod:
 
 ## B-074 — The two surfaces implement disjoint subsets of session management   [x]
 
-fixed_in: PENDING
+fixed_in: 8a9eb8c
 dod_verified:
   - the CLI gained `sessions list|archive|rename|delete|fork`, closing five of the six gaps the audit
     measured. Verified against the BUILT binary, not only by unit test: `sessions list` printed a
