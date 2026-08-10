@@ -61,6 +61,10 @@ export function composerDeps(
     currentSessionId: s.currentSessionId,
     forkCurrentSession: s.forkCurrentSession,
     resetSession: s.resetSession,
+    // B-087 — the repointing seam and the turn state, so `/resume` can move the session and refuse
+    // to do it under a running turn.
+    setSessionAndPersist: s.setSessionAndPersist,
+    streaming: s.streaming,
     credential,
     exit: s.exit,
     ...screen,

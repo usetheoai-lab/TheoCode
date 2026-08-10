@@ -1,4 +1,5 @@
 import { memoryFacts, withFactRemoved, memoryEnabledForSession, setMemoryEnabledForSession } from '@theocode/agent'
+import { planResume } from './resume-command.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -322,5 +323,48 @@ export function handleCompact(sessionId: string, setToast: SetToast): void {
         variant: 'error',
       })
     }
+  })()
+}
+
+/**
+ * B-087 — `/resume <id>`.
+ *
+ * Repoints through `setSessionAndPersist`, the SAME seam `backtrack` uses to move after a fork,
+ * rather than a second way to switch sessions. B-074 exists because two halves of session
+ * management grew separately; a second switch path here would be that again.
+ *
+ * The session being left is not lost and needs no saving: its transcript is appended continuously
+ * and stays listed by `/sessions`. What IS discarded is an unsent composer draft, which is why the
+ * message says so instead of leaving the user to notice.
+ */
+export function handleResume(
+  arg: string,
+  deps: {
+    currentSessionId: () => string
+    streaming: boolean
+    setSessionAndPersist: (id: string) => void
+    setClearEpoch: Dispatch<SetStateAction<number>>
+    setToast: SetToast
+  },
+): void {
+  void (async () => {
+    const known = (await listSessions()).map((s) => s.agentId)
+    const plan = planResume({
+      arg,
+      current: deps.currentSessionId(),
+      streaming: deps.streaming,
+      known,
+    })
+    if (plan.kind === 'refused') {
+      deps.setToast({ message: plan.reason, variant: 'info' })
+      return
+    }
+    const leaving = deps.currentSessionId()
+    deps.setSessionAndPersist(plan.id)
+    deps.setClearEpoch((e) => e + 1)
+    deps.setToast({
+      message: `resumed ${plan.id} — ${leaving} is still listed; any unsent draft was discarded`,
+      variant: 'success',
+    })
   })()
 }

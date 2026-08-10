@@ -49,6 +49,10 @@ export interface CommandCapabilities {
   readonly currentSessionId: () => string
   readonly forkCurrentSession: () => { newId: string; copied: boolean }
   readonly resetSession: () => void
+  /** B-087 — repoints the live session, the same seam `backtrack` uses to move after a fork. */
+  readonly setSessionAndPersist: (id: string) => void
+  /** B-087 — a session cannot be swapped under a turn that is still running. */
+  readonly streaming: boolean
   readonly startGoal: (
     objective: string,
     base?: { turns: number; tokens: number; startedAt: number },
@@ -76,6 +80,8 @@ export type SessionAndScreenCapabilities = Pick<
   | 'goalAbort'
   | 'stdout'
   | 'resetSession'
+  | 'setSessionAndPersist'
+  | 'streaming'
   | 'setToast'
   | 'setShowHelp'
   | 'setShowUsage'
@@ -87,7 +93,15 @@ export type SessionAndScreenCapabilities = Pick<
 
 export type IdentityCapabilities = Pick<
   CommandCapabilities,
-  'currentSessionId' | 'forkCurrentSession' | 'resetSession' | 'setToast' | 'setLoginProvider'
+  | 'currentSessionId'
+  | 'forkCurrentSession'
+  | 'resetSession'
+  | 'setToast'
+  | 'setLoginProvider'
+  // B-087 — /resume lives with the other session verbs and needs the repointing seam.
+  | 'setSessionAndPersist'
+  | 'setClearEpoch'
+  | 'streaming'
 >
 
 export type TurnCapabilities = Pick<

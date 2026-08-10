@@ -2678,7 +2678,28 @@ dod:
 
 ---
 
-## B-087 — The TUI lists sessions it cannot open   [ ]
+## B-087 — The TUI lists sessions it cannot open   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `/resume <id>` opens a session `/sessions` lists. Decision logic is a PURE function with six
+    tests; the refusals are what carry the risk, not the happy path
+  - it reuses `setSessionAndPersist` — the SAME seam `backtrack` already uses to move after a fork,
+    which is production-tested — rather than a second way to switch sessions. B-074 exists because
+    two halves of session management grew separately
+  - the current session is handled EXPLICITLY: the toast names the session being left and says it
+    stays listed, and says an unsent draft was discarded. Nothing is silently lost — the transcript
+    is appended continuously, so there is nothing to save
+  - a turn in flight is a HARD refusal, and it outranks an unknown id: telling a user their id is
+    wrong while a turn runs sends them to fix the wrong thing. Both ordered and tested
+  - "already in <id>" is REPORTED rather than a silent no-op. B-089 had just cost a setting that
+    was accepted and did nothing; doing nothing without saying so reads as broken
+  - VERIFIED LIVE: `/resume` with no id, with an unknown id (`no session tui-ghost in this
+    directory`), and with the current id (`already in tui-5c0e09db-…`)
+  - HONEST LIMIT: the visible switch BETWEEN two distinct sessions was not captured live. `/new`
+    did not produce a second session id in this build, so there was nothing to switch to, and that
+    is itself worth knowing. What backs it is the six unit tests plus the fact that the repointing
+    call is `backtrack`'s, which moves sessions in production today
 
 domain: theocode
 repo: TheoCode

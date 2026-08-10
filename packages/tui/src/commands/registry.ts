@@ -32,6 +32,8 @@ export type CommandAction =
   | { kind: 'listMcp' }
   // B-076 — the other half of the disk decision `/approval` already owned.
   | { kind: 'sandbox'; arg: string }
+  // B-087 — open a session `/sessions` already lists.
+  | { kind: 'resume'; arg: string }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -68,6 +70,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'retry', description: 're-send the last message' },
   { name: 'fork', description: 'branch the current session into a new one' },
   { name: 'sessions', description: 'list your sessions' },
+  { name: 'resume', description: 'open a session: /resume <id>' },
   { name: 'logout', description: 'remove the stored credential' },
   { name: 'plan', description: 'demo: plan approval card' },
   { name: 'ask', description: 'demo: question prompt' },
@@ -146,6 +149,7 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/image', (arg) => ({ kind: 'image', arg })],
   ['/model', (arg) => ({ kind: 'model', arg })],
   ['/sandbox', (arg) => ({ kind: 'sandbox', arg })],
+  ['/resume', (arg) => ({ kind: 'resume', arg })],
   ['/memory', (arg) => ({ kind: 'memoryInfo', arg })],
   ['/effort', (arg) => ({ kind: 'effort', arg })],
   ['/review', (arg) => ({ kind: 'review', arg })],

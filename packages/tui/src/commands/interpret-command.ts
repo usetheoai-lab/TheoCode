@@ -27,6 +27,7 @@ import {
   handleLogin,
   handleLogout,
   handleMemoryInfo,
+  handleResume,
   handleRename,
 } from './session-commands.js'
 import type {
@@ -139,6 +140,15 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
       return true
     case 'listSessions':
       handleListSessions(currentSessionId, setToast)
+      return true
+    case 'resume':
+      handleResume(action.arg, {
+        currentSessionId,
+        streaming: cap.streaming,
+        setSessionAndPersist: cap.setSessionAndPersist,
+        setClearEpoch: cap.setClearEpoch,
+        setToast,
+      })
       return true
     case 'archive':
       handleArchive(action.arg, { currentSessionId, resetSession, setToast })
