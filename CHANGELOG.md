@@ -8,6 +8,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **TheoCode:** backlog B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the run-event sink (#188).
+
+### Added
 - **`/mcp` reports a server that was started and did not answer (#188).** Its tools silently vanish from the session, and the panel previously could only say whether each server answered was "not reported here" — true while no layer below knew. `@theokit/sdk@4.41.0` now emits that failure per server with its reason, and the panel names it, distinct from a server withheld by trust. Absence of a failure is still not reported as health: the turn may not have run yet, and a server that recovers stops being reported as failed on the next turn.
 
 ### Fixed

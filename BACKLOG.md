@@ -3186,3 +3186,45 @@ dod:
     and carried across rather than worked from here — the same caveat B-053 carries
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
+
+## B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the sink   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED BOTH WAYS, 2026-08-10. With the LOCAL build of `@theokit/agents` (carrying
+  theokit#196) installed into `node_modules`, the full chain compiles and runs: 427 tests
+  pass, `npm run typecheck` exits 0, `npm run lint` exits 0, with
+  `onRunEvent: mcpFailureSink` present in `packages/tui/src/agent-session/chat-transport.ts`.
+  With the PUBLISHED `@theokit/agents@7.4.2` restored, that same line produces exactly one
+  error and no others:
+    chat-transport.ts(75,13): error TS2353: Object literal may only specify known
+    properties, and 'onRunEvent' does not exist in type 'StreamAgentTurnInProcessInput'.
+  So the blocker is the registry, not the design. The line was reverted rather than left
+  in a red tree.
+why_now: |
+  Everything else for B-088 shipped. `@theokit/sdk@4.41.0` emits `mcp_server_failed`
+  (verified inside the published tarball), and this repo's record, sink and panel are
+  written, tested and committed. `@theokit/agents` is the only hop still unpublished:
+  theokit#196 is merged to `develop`, and theokit#199 (`develop` -> `main`) is OPEN.
+status: raw
+severity: minor
+dod:
+  - `@theokit/agents` publishes a version whose `StreamAgentTurnInProcessInput` carries
+    `onRunEvent`, verified inside the published tarball rather than by version number
+  - the dependency here is raised to that version and `onRunEvent: mcpFailureSink` is restored
+    in `chat-transport.ts`, with typecheck and lint at 0
+  - a failing MCP server is exercised for real and `/mcp` names it — the panel is not
+    accepted on unit tests alone, since the whole point of the item is the live path
+notes: |
+  A workaround exists and was REFUSED. `StreamAgentTurnDeps.stream` is injectable in 7.4.2
+  today, and `streamAgentUIMessages` already accepts `onRunEvent`, so TheoCode could supply
+  its own stream function and attach the sink now. Its own docstring says the seam exists to
+  "let tests drive a deterministic stream": using it in production would make this repo carry
+  a copy of a default it does not own, and a later change to that default would diverge here
+  in silence — the same failure that reopened B-071. The correct fix is upstream, is merged,
+  and needs one release.
+
+> Registered 2026-08-10 by hand while closing B-088 (slug: `mcp-failure-sink-awaits-agents-release`).
