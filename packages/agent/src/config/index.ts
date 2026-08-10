@@ -8,8 +8,10 @@ export {
   optOutsThatExemptNothing,
   EFFORT_LEVELS,
   parseEffort,
+  SANDBOX_MODES,
   type AgentConfig,
   type ReasoningEffort,
+  type SandboxMode,
 } from './config.js'
 
 export {

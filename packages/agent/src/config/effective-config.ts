@@ -47,6 +47,8 @@ export class EffectiveConfig {
     return modelLabel(this.model)
   }
 
+
+
   /**
    * B-006 — the posture behind `sandboxLabel`. It was computed only to render the `⚠ tool-gating`
    * warning, so the interactive surface could tell the user confinement was absent and still
@@ -115,3 +117,21 @@ export function effectiveConfigUnderPosture(
  * should be checked against `doctor`'s output, because that output is what a user will be told
  * when they ask why a setting did not take effect.
  */
+
+/**
+ * B-076 — the same config with a different sandbox mode.
+ *
+ * A FREE function, not a method, deliberately: callers legitimately hold a plain config object as
+ * well as an `EffectiveConfig`, and a method would force every one of them through the class. It
+ * reads fields and returns a new object, so both work.
+ *
+ * The security floor is NOT re-applied, and that is a decision rather than an omission. The floor
+ * stops a lower-trust LAYER (project/profile/env) from loosening what user/defaults settled on
+ * (`security-floor.ts` § CANNOT_LOOSEN). A session switch is the user acting directly — the same
+ * standing as the `cli` layer, which may loosen. The guard that belongs to loosening is a
+ * CONFIRMATION at the command, not a silent refusal here.
+ */
+export function withSandboxMode<T extends { sandbox_mode: SandboxMode }>(cfg: T, mode: SandboxMode): T {
+  if (mode === cfg.sandbox_mode) return cfg
+  return { ...cfg, sandbox_mode: mode }
+}

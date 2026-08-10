@@ -30,6 +30,8 @@ export type CommandAction =
   | { kind: 'listSkills' }
   // B-069 — which MCP servers the agent started, and which trust refused to spawn.
   | { kind: 'listMcp' }
+  // B-076 — the other half of the disk decision `/approval` already owned.
+  | { kind: 'sandbox'; arg: string }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -83,6 +85,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'hooks', description: 'list the lifecycle hooks registered for this directory' },
   { name: 'skills', description: 'list the skills this agent actually loaded' },
   { name: 'mcp', description: 'list the MCP servers this agent started' },
+  { name: 'sandbox', description: 'show or change the sandbox mode for this session' },
   { name: 'rename', description: 'rename the current session' },
   { name: 'memory', description: 'memory: list facts, /memory off|on, /memory forget <n>' },
   { name: 'compact', description: 'summarize the conversation to free context' },
@@ -142,6 +145,7 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/approval', (arg) => ({ kind: 'approvalMode', arg })],
   ['/image', (arg) => ({ kind: 'image', arg })],
   ['/model', (arg) => ({ kind: 'model', arg })],
+  ['/sandbox', (arg) => ({ kind: 'sandbox', arg })],
   ['/memory', (arg) => ({ kind: 'memoryInfo', arg })],
   ['/effort', (arg) => ({ kind: 'effort', arg })],
   ['/review', (arg) => ({ kind: 'review', arg })],

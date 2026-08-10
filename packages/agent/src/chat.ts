@@ -1,6 +1,8 @@
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
 import { memoryEnabledForSession } from './memory-switch.js'
+import { sandboxModeForSession } from './sandbox-switch.js'
+import { withSandboxMode } from './config/effective-config.js'
 import {
   createGenericHttpSearchAdapter,
   createQuestionTool,
@@ -165,7 +167,11 @@ function chatContext(overrides: {
 }) {
   const cwd = overrides.cwd
   const posture = overrides?.posture ?? resolveTrustPosture(cwd)
-  const cfg = overrides?.config ?? resolveEffectiveConfig({ cwd })
+  const resolved = overrides?.config ?? resolveEffectiveConfig({ cwd })
+  // B-076 — the session may have overridden the sandbox mode. Applied HERE, once, so every consumer
+  // in this build (write policy, PTY backend, tool scope, the reported label) sees one value —
+  // previously the mode was read from `cfg` at four points, which is how B-014 happened.
+  const cfg = withSandboxMode(resolved, sandboxModeForSession(resolved.sandbox_mode))
   return {
     posture,
     cfg,

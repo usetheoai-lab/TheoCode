@@ -16,6 +16,15 @@ import { conversationToMarkdown, lastAssistantText } from '../transcript-export.
 import { listSubagents, subagentDir } from './subagent-inventory.js'
 import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
+import {
+  armLoosening,
+  clearArmed,
+  isLoosening,
+  parseSandboxMode,
+  takeArmed,
+} from './sandbox-command.js'
+import { SANDBOX_MODES } from '@theocode/agent/config'
+import { setSandboxModeForSession } from '@theocode/agent'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
@@ -104,4 +113,58 @@ export function handleListSkills(setPanel: (p: ContentPanel) => void): void {
 /** B-069 — the MCP servers the LAST BUILD started, never a re-read of `.mcp.json`. */
 export function handleListMcp(setPanel: (p: ContentPanel) => void): void {
   setPanel({ title: 'mcp servers', body: mcpPanelBody(currentWiring()) })
+}
+
+/**
+ * B-076 — `/sandbox [mode]`, and `/sandbox confirm` for a loosening.
+ *
+ * The change reaches LIVE PTYs because the agent is rebuilt each turn and `resolveInteractiveBackend`
+ * calls `sessionPty.setMode(cfg.sandbox_mode)` on the resolved config — which now carries the
+ * session override. B-014 is the regression test for that path and stays the proof.
+ */
+export function handleSandbox(
+  arg: string,
+  current: () => string,
+  setToast: (t: ToastPayload) => void,
+): void {
+  const raw = arg.trim().toLowerCase()
+  if (raw.length === 0) {
+    clearArmed()
+    setToast({
+      message: `sandbox: ${current()} — /sandbox <${SANDBOX_MODES.join(' | ')}>`,
+      variant: 'info',
+    })
+    return
+  }
+  if (raw === 'confirm') {
+    const mode = takeArmed()
+    if (mode === undefined) {
+      setToast({ message: 'nothing to confirm — /sandbox <mode> first', variant: 'info' })
+      return
+    }
+    setSandboxModeForSession(mode)
+    setToast({ message: `sandbox: ${mode} — applies from the next turn`, variant: 'success' })
+    return
+  }
+  const mode = parseSandboxMode(raw)
+  if (mode === null) {
+    clearArmed()
+    setToast({
+      message: `unknown sandbox mode "${arg.trim()}" — use ${SANDBOX_MODES.join(' | ')}`,
+      variant: 'error',
+    })
+    return
+  }
+  const from = parseSandboxMode(current())
+  if (from !== null && isLoosening(from, mode)) {
+    armLoosening(mode)
+    setToast({
+      message: `${mode} gives the agent MORE of your disk than ${from}. /sandbox confirm to apply.`,
+      variant: 'error',
+    })
+    return
+  }
+  clearArmed()
+  setSandboxModeForSession(mode)
+  setToast({ message: `sandbox: ${mode} — applies from the next turn`, variant: 'success' })
 }

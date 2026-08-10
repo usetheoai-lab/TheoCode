@@ -5,6 +5,7 @@ import {
   handleListHooks,
   handleListMcp,
   handleListSkills,
+  handleSandbox,
   handleListSubagents,
 } from './transcript-commands.js'
 import { join } from 'node:path'
@@ -275,6 +276,9 @@ function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapa
       return true
     case 'listMcp':
       handleListMcp(cap.setPanel)
+      return true
+    case 'sandbox':
+      handleSandbox(action.arg, () => cap.SESSION.cfg().sandboxLabel, cap.setToast)
       return true
     default:
       return false

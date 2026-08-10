@@ -1,6 +1,7 @@
 export { buildChatAgent } from './chat.js'
 export { wiredCapabilities } from './wired-capabilities.js'
 export { memoryEnabledForSession, setMemoryEnabledForSession } from './memory-switch.js'
+export { sandboxModeForSession, setSandboxModeForSession } from './sandbox-switch.js'
 export { memoryFacts, withFactRemoved } from './memory-facts.js'
 export { collectChecks, diagnose, renderDiagnosis } from './doctor.js'
 export type { Check, CheckStatus, Diagnosis } from './doctor.js'

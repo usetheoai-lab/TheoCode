@@ -24,6 +24,9 @@ const POLICIES = ['untrusted', 'on-request', 'never'] as const
 
 export type ReasoningEffort = (typeof EFFORTS)[number]
 export type SandboxMode = (typeof SANDBOXES)[number]
+
+/** B-076 — exported so a surface offering the choice lists the same values the parser accepts. */
+export const SANDBOX_MODES: readonly SandboxMode[] = SANDBOXES
 export type ApprovalPolicy = (typeof POLICIES)[number]
 
 export type GoalOracle = 'judge' | 'update_goal'

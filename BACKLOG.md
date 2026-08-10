@@ -2195,6 +2195,28 @@ source: human
 evidence: none-yet
 why_now: the footer reports `sandbox:workspace-write` and `/approval` changes the approval mode, so of the two settings that decide what the agent may do to the disk, one is editable at runtime and the other is a readout. B-014 already found that a sandbox mode change did not reach live PTYs, which means the value is understood as mutable elsewhere in the system; the surface just never exposes it. A user who realises mid-session that the posture is wrong has to quit and relaunch.
 status: raw
+partial_2026-08-10: the agent half is BUILT and tested; the surface half is NOT, and the gap is the
+  same two-sources problem this backlog keeps finding.
+  DONE:
+  - `setSandboxModeForSession` in the agent, applied ONCE in `chatContext` via the free function
+    `withSandboxMode`, so every consumer in a build (write policy, PTY `setMode`, wrap command, the
+    reported label) sees one value. The mode used to be read from `cfg` at four points, which is how
+    B-014 happened
+  - `/sandbox [mode]` and `/sandbox confirm`, with loosening gated behind an explicit confirmation
+    and tightening applied immediately — the asymmetry is deliberate: hardening protects the user
+    and should not be argued with; loosening grants the agent more disk and should have to be meant
+  - the arming latch is single-use and REPLACED by a later request, so `danger-full-access` →
+    `read-only` → `confirm` cannot grant the abandoned request. Tested
+  - the security floor is deliberately NOT re-applied: it governs config LAYERS, and a session
+    switch has the standing of the `cli` layer, which may loosen. Written down where it is decided
+  NOT DONE, and why this stays open:
+  - the FOOTER still reads the TUI's own resolved config, so after `/sandbox read-only` it keeps
+    showing `sandbox:workspace-write`. Verified live. The switch reaches the AGENT on the next turn;
+    the label the user is looking at does not know. Closing on that would ship a product that says
+    one thing and does another — the B-067 defect, in the surface this item is about
+  - the fix is the shape B-069/B-070/B-071 already established: the footer should read the WIRED
+    record rather than resolve config itself. `wiredCapabilities` does not yet carry the sandbox
+    mode; adding it there is the one-pass fix, and doing it any other way adds a third source
 severity: MEDIUM
 dod:
   - the sandbox mode is changeable from the TUI, and the change reaches live PTYs — B-014 is the regression test, not a separate concern
