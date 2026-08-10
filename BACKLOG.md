@@ -2045,7 +2045,7 @@ dod:
 
 ## B-078 — A session can be archived but never deleted   [x]
 
-fixed_in: PENDING
+fixed_in: ab4e318
 dod_verified:
   - the transcript is GONE FROM DISK, asserted by reading the store rather than by the listing no
     longer showing it — and that bullet earned itself. MEASURED in the SDK: `Agent.delete` is
