@@ -11,6 +11,7 @@ import {
 } from './config-commands.js'
 import {
   handleArchive,
+  handleDelete,
   handleCompact,
   handleFork,
   handleListSessions,
@@ -132,6 +133,9 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
       return true
     case 'archive':
       handleArchive(action.arg, { currentSessionId, resetSession, setToast })
+      return true
+    case 'delete':
+      handleDelete(action.arg, { setToast })
       return true
     case 'rename':
       handleRename(action.arg, currentSessionId, setToast)

@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A session can now be deleted, not just archived. Archiving only hid a conversation behind an `(archived)` label — the transcript stayed on disk and stayed listed — so a session that captured a pasted credential could not be removed through the product at all. `/delete <id>` removes both the entry and the file. It always requires the id: archiving defaults to the current session because it can be undone, and this cannot. It also refuses to delete a session something is still writing to (B-078)
+
 - The colour scheme is no longer fixed to dark. `THEOCODE_THEME=light` switches it, and a terminal that cannot render colour at all — piped output, a log, a screen reader — is served by `no-color`, which was previously unreachable from outside the source. `NO_COLOR` is honoured too, so anyone who already sets that convention for other tools gets it here for free, and it wins over the product's own setting because it is an accessibility signal rather than a preference. A value that is not one of the three falls back to dark and SAYS so in `/status`, which also now answers the only question anyone asks about a theme: why is it this colour (B-073)
 
 ### Fixed

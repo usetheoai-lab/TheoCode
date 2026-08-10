@@ -100,3 +100,29 @@ describe('B-083 — the toast the guard could not read', () => {
     ).toEqual([])
   })
 })
+
+/**
+ * B-078 — `/delete` is routed and never defaults to the current session.
+ *
+ * A command that parses and reaches no handler is the B-028 defect in another costume, so the route
+ * is asserted rather than assumed. The bare form is asserted too: archiving defaults to the current
+ * session because it is reversible, and deletion must not inherit that gesture.
+ */
+describe('B-078 — /delete routing', () => {
+  it('test_delete_routes_with_its_argument', async () => {
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/delete tui-abc')).toEqual({ kind: 'delete', arg: 'tui-abc' })
+  })
+
+  it('test_bare_delete_carries_no_target', async () => {
+    // Routed, but with an empty arg the handler refuses — the guard lives there, and this pins that
+    // the router does NOT helpfully substitute the current session on the way.
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/delete')).toEqual({ kind: 'delete', arg: '' })
+  })
+
+  it('test_delete_is_advertised_in_the_command_list', async () => {
+    const { BUILTIN_COMMAND_NAMES } = await import('./registry.js')
+    expect(BUILTIN_COMMAND_NAMES.has('delete')).toBe(true)
+  })
+})

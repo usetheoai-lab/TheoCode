@@ -13,14 +13,14 @@
  * an existing transcript still cannot be overwritten — the loser gets a bare EEXIST instead of a
  * typed error the callers can tell apart. That is why this was MEDIUM, not HIGH.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { encodeProjectDir } from '@theokit/agents/persistence'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { protectedSessions } from './session-ops.js'
+import { LiveSessionDeletionError, deleteSession, protectedSessions } from './session-ops.js'
 
 let base: string
 let cwd: string
@@ -77,5 +77,113 @@ describe('B-003 — protectedSessions covers what the caller can see', () => {
     writeFileSync(join(cwd, '.theokit', 'tui-session'), 'only-one\n')
 
     expect(protectedSessions(cwd, base)).toHaveLength(1)
+  })
+})
+
+/**
+ * B-078 — deletion removes the transcript, not just the listing.
+ *
+ * `Agent.archive` only flips a flag: `/sessions` still lists the session, suffixed `(archived)`, and
+ * the transcript stays on disk. So a session that captured a pasted credential could not be removed
+ * through the product at all.
+ *
+ * The trap this pins was MEASURED in the SDK, not guessed: `Agent.delete` is
+ * `removeRegisteredAgent(agentId); await flushRegistrySaves()` — an in-memory registry delete plus a
+ * save. It never touches the file. Calling it alone would empty the listing and leave the transcript
+ * exactly where it was, which is the failure mode that reads as success.
+ *
+ * The live-session guard reuses `protectedSessions`, the same set `forkSession` already refuses to
+ * overwrite (B-003) — deleting the transcript a running TUI is appending to is worse than forking
+ * onto it.
+ */
+describe('B-078 — deleteSession', () => {
+  it('test_removes_the_transcript_from_disk', async () => {
+    // A NEWER transcript must exist, or the target is the most recent one and the live guard
+    // correctly refuses it. The first draft of this test omitted it and read as a product failure.
+    const path = writeTranscript('tui-doomed', 500)
+    writeTranscript('tui-current', 1)
+    expect(existsSync(path)).toBe(true)
+
+    const result = await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async () => {},
+    })
+
+    expect(result.transcriptRemoved).toBe(true)
+    expect(existsSync(path), 'the transcript survived a delete that reported success').toBe(false)
+  })
+
+  it('test_removes_the_registry_entry_too', async () => {
+    writeTranscript('tui-doomed', 500)
+    writeTranscript('tui-current', 1)
+    const removed: string[] = []
+
+    await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async (id) => {
+        removed.push(id)
+      },
+    })
+
+    // Both halves or neither: a transcript gone from disk while the registry still lists it leaves a
+    // session that cannot be opened and cannot be removed.
+    expect(removed).toEqual(['tui-doomed'])
+  })
+
+})
+
+/** The guard half — separated so each block stays readable, not to dodge the length rule. */
+describe('B-078 — deleteSession refuses a live session', () => {
+  it('test_refuses_to_delete_a_live_session', async () => {
+    // The newest transcript is the one a running TUI is most likely still appending to.
+    writeTranscript('tui-old', 5000)
+    const live = writeTranscript('tui-live', 1)
+
+    await expect(
+      deleteSession('tui-live', { cwd, baseDir: base, removeFromRegistry: async () => {} }),
+    ).rejects.toThrow(LiveSessionDeletionError)
+
+    expect(existsSync(live), 'a refused delete still removed the file').toBe(true)
+  })
+
+  it('test_refusing_leaves_the_registry_untouched', async () => {
+    // Order matters: removing the registry entry and THEN refusing would leave the session
+    // unreachable and undeletable — worse than either outcome alone.
+    writeTranscript('tui-old', 5000)
+    writeTranscript('tui-live', 1)
+    const removed: string[] = []
+
+    await expect(
+      deleteSession('tui-live', {
+        cwd,
+        baseDir: base,
+        removeFromRegistry: async (id) => {
+          removed.push(id)
+        },
+      }),
+    ).rejects.toThrow(LiveSessionDeletionError)
+
+    expect(removed).toEqual([])
+  })
+
+  it('test_a_missing_transcript_is_reported_not_invented', async () => {
+    // The registry can outlive the file. Deleting must still clear the entry, and must SAY the file
+    // was already gone rather than claim it removed one.
+    writeTranscript('tui-other', 5000)
+    const removed: string[] = []
+
+    writeTranscript('tui-current', 1)
+    const result = await deleteSession('tui-ghost', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async (id) => {
+        removed.push(id)
+      },
+    })
+
+    expect(result.transcriptRemoved).toBe(false)
+    expect(removed).toEqual(['tui-ghost'])
   })
 })

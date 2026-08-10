@@ -2043,7 +2043,36 @@ dod:
 
 ---
 
-## B-078 — A session can be archived but never deleted   [ ]
+## B-078 — A session can be archived but never deleted   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - the transcript is GONE FROM DISK, asserted by reading the store rather than by the listing no
+    longer showing it — and that bullet earned itself. MEASURED in the SDK: `Agent.delete` is
+    `removeRegisteredAgent(agentId)` plus a registry save, an in-memory Map delete that never
+    touches the file. Shipping it alone would have emptied the listing, left every transcript on
+    disk, and read as success. A mutation removing the `rmSync` turns the suite red
+  - deletion is confirmed and distinguishable from archiving: `/delete` ALWAYS requires the id and
+    never defaults to the current session, while `/archive` does — the reversible operation keeps
+    the convenient gesture, the irreversible one does not get it. HONEST LIMIT: typing the id IS the
+    confirmation; a two-key armed confirm was NOT built, and would be the stronger guard if this
+    ever gains a default target
+  - a live session is refused BEFORE anything mutates, reusing `protectedSessions` — the same set
+    `forkSession` already refuses to overwrite (B-003) rather than a second notion of "live".
+    Ordering is asserted separately: clearing the registry and then refusing would leave a session
+    that can be neither opened nor deleted
+  - a registry entry outliving its file is reported, not invented — the result says whether a
+    transcript was actually removed, because the GC removes transcripts by age and that state is
+    normal rather than an error to raise at the user
+  - VERIFIED LIVE in the tmux pane: bare `/delete` renders the refusal naming `/sessions` and
+    `/archive`. Two earlier live checks were WRONG and are recorded rather than dropped — keystrokes
+    landed before the TUI finished booting and the text was sent to the model as prose, which reads
+    exactly like a broken route. Re-run after confirming boot, the command routes and no turn starts
+  - the two test-setup bugs found on the way are recorded too: the first drafts of two tests wrote a
+    single transcript, which made the target the most recent one and therefore correctly protected.
+    They read as product failures and were not
+  - NOT DONE, and named rather than left implied: the CLI has no `delete`. B-074 carries the
+    surface asymmetry as a whole and is still open
 
 domain: theocode
 repo: TheoCode

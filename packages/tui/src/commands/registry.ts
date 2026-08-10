@@ -17,6 +17,8 @@ export type CommandAction =
   | { kind: 'fork' }
   | { kind: 'listSessions' }
   | { kind: 'archive'; arg: string }
+  // B-078 — permanent, and unlike /archive it never defaults to the current session.
+  | { kind: 'delete'; arg: string }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -63,6 +65,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'login', description: 'authenticate a provider: /login <provider>' },
   { name: 'image', description: 'attach an image to the NEXT turn: /image <path>' },
   { name: 'archive', description: 'archive a session [id]' },
+  { name: 'delete', description: 'permanently delete a session: /delete <id>' },
   { name: 'rename', description: 'rename the current session' },
   { name: 'memory', description: 'durable-memory status' },
   { name: 'compact', description: 'summarize the conversation to free context' },
@@ -122,6 +125,7 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/goal', (arg) => ({ kind: 'goal', arg })],
   ['/login', (arg) => ({ kind: 'login', arg })],
   ['/archive', (arg) => ({ kind: 'archive', arg })],
+  ['/delete', (arg) => ({ kind: 'delete', arg })],
   ['/rename', (arg) => ({ kind: 'rename', arg })],
 ]
 

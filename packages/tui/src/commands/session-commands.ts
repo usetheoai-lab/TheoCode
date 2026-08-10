@@ -7,6 +7,7 @@ import type { Dispatch, SetStateAction } from 'react'
 
 import {
   archiveSession,
+  deleteSession,
   compactSession,
   legacyRootHint,
   listSessions,
@@ -167,6 +168,40 @@ export function handleArchive(
     })
     .catch((e: unknown) =>
       setToast({ message: `Archive failed: ${(e as Error).message}`, variant: 'error' }),
+    )
+}
+
+/**
+ * B-078 — permanent deletion, deliberately harder to reach than archiving.
+ *
+ * `/delete` REQUIRES the id. Archiving defaults to the current session because it is reversible;
+ * this is not, so there is no gesture that destroys a transcript without naming it. Typing the id
+ * IS the confirmation step — recorded as a choice, not an omission: a two-key armed confirm was not
+ * built, and would be the stronger guard if this ever defaults to the current session.
+ */
+export function handleDelete(arg: string, deps: { setToast: SetToast }): void {
+  const { setToast } = deps
+  const target = arg.trim()
+  if (target.length === 0) {
+    setToast({
+      message:
+        'delete needs the session id: /delete <id> — it is permanent and does not default to the ' +
+        'current session. Use /sessions to see them, or /archive to hide one reversibly.',
+      variant: 'info',
+    })
+    return
+  }
+  void deleteSession(target)
+    .then((r) =>
+      setToast({
+        message: r.transcriptRemoved
+          ? `Deleted ${target} permanently — transcript removed from disk.`
+          : `Deleted ${target} from the session list; its transcript was already gone.`,
+        variant: 'success',
+      }),
+    )
+    .catch((e: unknown) =>
+      setToast({ message: `Delete failed: ${(e as Error).message}`, variant: 'error' }),
     )
 }
 
