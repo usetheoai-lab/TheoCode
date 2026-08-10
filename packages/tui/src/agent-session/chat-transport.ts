@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 import { startMcpFailureTurn } from './mcp-failure-record.js'
+import { mcpFailureSink } from './mcp-failure-sink.js'
 import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
@@ -69,6 +70,10 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
           {
             ...input,
             sessionId: deps.getSessionId(),
+            // B-088 — subscribe to the SDK's typed run events. Only `mcp_server_failed` is read
+            // (see `mcpFailureSink`); every other event is deliberately ignored, so an MCP panel
+            // never fills with unrelated runtime noise.
+            onRunEvent: mcpFailureSink,
             ...(images !== undefined ? { images } : {}),
           },
         )
