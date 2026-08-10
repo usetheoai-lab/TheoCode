@@ -1884,7 +1884,7 @@ dod:
 
 ## B-070 — Skills load from disk, or are silently removed by trust, with no way to tell which   [x]
 
-fixed_in: PENDING
+fixed_in: 3ec779f
 dod_verified:
   - `/skills` lists what the agent LOADED, from the record `buildChatAgent` publishes at build time —
     not a re-read of config. That is the bullet B-071 was reopened for, and it is why the seam was
