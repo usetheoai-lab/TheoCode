@@ -1834,7 +1834,7 @@ source: human
 evidence: none-yet
 why_now: `Home` and `End` do nothing in the composer. Measured A/B through one channel (`tmux send-keys`) with Codex in the adjacent pane as the CONTROL, which rules out terminal encoding: the identical key events moved Codex's cursor and were dropped by ours. Ours — `XYZ/` + `Home` + `Q` produces `XYZQ/` instead of `QXYZ/`; `XY`,`←`,`End`,`Z` produces `XZY` instead of `XYZ`. `Backspace` and `Ctrl+U` were ALSO suspected and cleared: from a known cursor position both behave correctly, and the first reading was an artifact of a stale cursor left by an earlier `←`. On a long prompt, every correction is arrow-key-by-arrow-key.
 status: shipped
-fixed_in: PENDING
+fixed_in: 77f2bb1
 fixed_upstream: theokit-framework/theokit-tui 427ce6d, RELEASED as `@theokit/tui@0.50.3`
 dod_verified:
   - `Home` and `End` move the cursor, VERIFIED LIVE against the PUBLISHED package — `npm install
