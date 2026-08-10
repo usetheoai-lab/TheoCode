@@ -14,6 +14,9 @@ import { workingDirectory } from '../working-directory.js'
 import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { listSubagents, subagentDir } from './subagent-inventory.js'
+import { hookInventory, renderHookInventory } from './hook-inventory.js'
+import { classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
+import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
@@ -80,4 +83,26 @@ export function handleListSubagents(setPanel: (p: ContentPanel) => void): void {
         ? `no subagents in ${subagentDir(cwd)} — a custom command naming one will run in the main context instead`
         : names.map((n) => `  ${n}`).join('\n'),
   })
+}
+
+/**
+ * B-071 — the hook inventory, rendered.
+ *
+ * The three inputs are the consent gate's own: effective config, the approved store, and
+ * `classifyHooks`. Reading the config a second way here would make this a rival source of truth
+ * about what runs.
+ */
+export function handleListHooks(setPanel: (p: ContentPanel) => void): void {
+  const cwd = workingDirectory()
+  // Trust is resolved from `resolveTrustPosture`, the same source `use-consent.ts` reads, rather
+  // than threaded down from React state. One less wire, and it cannot go stale against the posture
+  // that actually decided whether the hooks were wired.
+  const inventory = hookInventory({
+    directoryTrusted: resolveTrustPosture(cwd).level === 'trusted',
+    classified: () =>
+      classifyHooks(parseHooks(resolveEffectiveConfig({ cwd }).hooks), loadApprovedHooks(cwd), {
+        previousByEvent: true,
+      }),
+  })
+  setPanel({ title: 'hooks', body: renderHookInventory(inventory) })
 }

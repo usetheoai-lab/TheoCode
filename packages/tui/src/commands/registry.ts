@@ -24,6 +24,8 @@ export type CommandAction =
   | { kind: 'export'; arg: string }
   // B-072 — which subagents exist, answerable before naming one.
   | { kind: 'listSubagents' }
+  // B-071 — what is allowed to block me here, before the first turn.
+  | { kind: 'listHooks' }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -74,6 +76,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'copy', description: 'copy the last reply to the clipboard as markdown' },
   { name: 'export', description: 'write the conversation to a file: /export [path]' },
   { name: 'subagents', description: 'list the subagents this project defines' },
+  { name: 'hooks', description: 'list the lifecycle hooks registered for this directory' },
   { name: 'rename', description: 'rename the current session' },
   { name: 'memory', description: 'durable-memory status' },
   { name: 'compact', description: 'summarize the conversation to free context' },
@@ -113,6 +116,7 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/compact', { kind: 'compact' }],
   ['/copy', { kind: 'copy' }],
   ['/subagents', { kind: 'listSubagents' }],
+  ['/hooks', { kind: 'listHooks' }],
   ['/retry', { kind: 'retry' }],
   ['/fork', { kind: 'fork' }],
   ['/sessions', { kind: 'listSessions' }],

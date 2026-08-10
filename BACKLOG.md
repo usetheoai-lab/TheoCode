@@ -1899,7 +1899,25 @@ dod:
 
 ---
 
-## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [ ]
+## B-071 — Hooks run, and can veto a tool call, with no way to list what is registered   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `/hooks` lists the registered set with the event each is bound to, and its trust status
+  - a hook suppressed because the DIRECTORY is untrusted is shown as suppressed, never omitted — and
+    the banner is asserted to come BEFORE the list, because a reader who skims must not reach the
+    hooks and conclude they are protecting them
+  - the listing derives from the consent gate's OWN three inputs (effective config, approved store,
+    `classifyHooks`) rather than a second read of the config. Trust is resolved from
+    `resolveTrustPosture`, the same source `use-consent.ts` uses, not threaded from React state
+  - an unreadable `hooks` block is REPORTED, never rendered as "no hooks" — the fail-open B-039 had
+    to fix in the consent gate, which a listing could easily have reintroduced
+  - HONEST LIMIT, and it is a real one: only the EMPTY case is verified live. Writing a valid
+    `[[hooks]]` block into `.theokit/config.toml` did not populate the listing, and a probe showed
+    why — `resolveEffectiveConfig({ cwd })` returned `hooks: []` for a TRUSTED directory with that
+    file present. The command reads the correct source; the source does not read that file. The
+    populated, suppressed and error paths are covered by unit tests against injected inputs, NOT by
+    a live run. B-086 carries the unanswered question
 
 domain: theocode
 repo: TheoCode
@@ -2360,5 +2378,34 @@ dod:
   - behaviour is unchanged: this is a move, and the existing suite passing is the claim. No test is
     rewritten to accommodate the new shape — a rewritten test proves the move was not behaviour-neutral
   - B-075 is re-attempted on top of it, and lands or is re-blocked for a DIFFERENT reason
+
+---
+
+## B-086 — Nobody can say where the project hook config is read from   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 while live-verifying B-071. With `.theokit/config.toml` containing a
+  valid `[[hooks]]` block and `resolveTrustPosture(cwd).level === 'trusted'`, a probe run inside the
+  workspace printed `cfg.hooks: []` and `parsed: []`. `resolveEffectiveConfig({ cwd })` does not read
+  that file — or reads project config from a path this repository does not document.
+why_now: it blocked the live verification of B-071's populated case, which had to be closed with the
+  limitation stated rather than proven. More importantly it means NOBODY can currently answer "where
+  do I declare a hook for this project?" by reading the repo — and hooks are arbitrary command
+  execution on every tool call, which is the one setting whose location must not be folklore.
+status: raw
+severity: MEDIUM
+dod:
+  - the path `resolveEffectiveConfig` reads project config from is identified and written down where
+    a user looks for it, not only in the resolver's source
+  - a declared `[[hooks]]` block at that path is proven to reach `parseHooks`, by a probe or a test
+    that fails when the path is wrong
+  - B-071's populated listing is verified end-to-end against that path, closing the limitation it
+    was forced to record
+  - if `.theokit/config.toml` is a path users would reasonably expect and it is NOT read, either it
+    is read or the product says why not — silently ignoring a plausible config file is worse than
+    not supporting it
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

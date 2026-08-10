@@ -1,5 +1,10 @@
 import { existsSync } from 'node:fs'
-import { handleCopy, handleExport, handleListSubagents } from './transcript-commands.js'
+import {
+  handleCopy,
+  handleExport,
+  handleListHooks,
+  handleListSubagents,
+} from './transcript-commands.js'
 import { join } from 'node:path'
 
 import { CLEAR_SCREEN } from '../terminal-io/index.js'
@@ -258,6 +263,9 @@ function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapa
       return true
     case 'listSubagents':
       handleListSubagents(cap.setPanel)
+      return true
+    case 'listHooks':
+      handleListHooks(cap.setPanel)
       return true
     default:
       return false
