@@ -2157,6 +2157,21 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `/memory` returns durable-memory status — enabled/trusted, store path, fact count. There is no way to turn generation off, to drop a fact, or to inspect what was written. A user who watches the fact count climb has been told a store exists, where it lives, and nothing about what is in it; the only remedy available is editing the store file by hand outside the product.
+measured_2026-08-10: the three DoD bullets are NOT equal in cost, and the item read as if they were.
+  - the store is a plain markdown file: `.theokit/memory/MEMORY.md`, facts are `-`/`*` bullets under
+    a `## Facts` heading (`packages/tui/src/formatting/memory-info.ts`). `countMemoryFacts` already
+    parses exactly that and throws the list away to return a number — READING the facts is a
+    three-line change to return the array and count its length at the call site
+  - REMOVING one is also file-local: rewrite the section without that bullet. It survives a restart
+    for free, because the file IS the store
+  - TURNING GENERATION OFF for the session is the expensive bullet and the reason this is not a
+    quick win. Memory is enabled by TRUST (`resolveTrustPosture(cwd).allows.memory`, read at
+    `chat.ts`), so a session-level switch means a state the agent build reads and the TUI owns —
+    the same seam B-069/B-070/B-071 need. Doing it here would build that seam privately for one
+    command, which is what B-085 had to undo for the composer
+  RECOMMENDATION: land the read/forget half only after, or together with, the agent-state seam. Two
+  of three bullets are cheap and the third decides the shape, so closing the cheap two first would
+  fix the shape wrongly.
 status: raw
 severity: MEDIUM
 dod:
