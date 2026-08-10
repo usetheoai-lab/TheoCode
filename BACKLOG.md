@@ -1994,7 +1994,7 @@ dod:
 
 ## B-075 — There is no way to get a reply out of the terminal   [x]
 
-fixed_in: PENDING
+fixed_in: 2245936
 dod_verified:
   - `/copy` puts the last reply on the clipboard as markdown; `/export [path]` writes the whole
     conversation. Both VERIFIED LIVE in the tmux pane
