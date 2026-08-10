@@ -2375,7 +2375,7 @@ source: human
 evidence: none-yet
 why_now: `/compact` (`packages/tui/src/commands/registry.ts:102`) is the ONLY compaction path — grep across `packages/{agent,tui}` finds no auto-compaction, no threshold, and no context-remaining signal anywhere; the sole budget notion in the tree is `GOAL_DEFAULTS.tokenBudget` (`packages/agent/src/goal/goal.ts:52`), which governs the goal loop and nothing else. So the user is responsible for noticing context pressure, and the model has no way to observe its own remaining room. On a long session the failure arrives mid-turn, at the point where the work is least recoverable.
 status: raw
-fixed_in: PENDING
+fixed_in: 2c9c529
 dod_verified:
   - VERIFIED LIVE, both halves, once B-090 unblocked it: with a 7k window the footer read
     `5.7k/6.7k context !` and the toast fired — `context is filling up — /compact summarizes the
@@ -2861,7 +2861,7 @@ evidence: measured 2026-08-10 while closing B-080. `packages/tui/src/components/
   live pane the footer showed only the left side (`gpt-5.4 medium · suggest · sandbox:… · oauth`)
   and never `N/M context`. `useTimeline` returns `lastUsage` from `ultimoUsage(agent.thread,
   readTurnUsage)`, so the reading is either absent from the thread or not being found there.
-fixed_in: PENDING
+fixed_in: 2c9c529
 fixed_upstream: `@theokit/presenter@0.5.1` — `finish` now carries `messageMetadata` onto the message
 dod_verified:
   - the token count appears in the footer after a turn. VERIFIED LIVE, not by unit test:
