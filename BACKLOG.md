@@ -2876,11 +2876,21 @@ root_cause_located_2026-08-10: the usage NEVER REACHES THE THREAD, so nothing do
   translator's docstring names. The candidates are therefore (a) that reconstruction not carrying
   `messageMetadata` onto `UIMessage.metadata` in the installed ai-sdk version, or (b) persistence
   writing the message without it.
-  NEXT MEASUREMENT, and it needs no API: instrument the TUI's `useTimeline` to dump one assistant
-  message object after a turn and look for `.metadata`. A turn succeeds in the TUI today (the
-  `429` blocks only the headless CLI path), so this is reachable now — I did not do it because it
-  means adding a temporary probe to source, and I would rather leave the item honest than leave a
-  probe behind at the end of a session.
+  MEASURED 2026-08-10 with a temporary probe, now removed: an assistant message in the LIVE thread
+  has keys `["id","role","parts"]` and `metadata === undefined`. It never carries the field in
+  memory, which ELIMINATES persistence — the message reaching the store has nothing to drop.
+  So the loss is at the client reconstruction: the translator builds `AgentTurnMetadata` and emits
+  it on the ai-sdk `finish` chunk's `messageMetadata`, and the reconstructed `UIMessage` this thread
+  is built from does not carry it onto `.metadata`. That is `readUIMessageStream`'s contract in the
+  installed ai-sdk version, reached through `useAgent` — one hop outside `@theokit/agents`' own code
+  and outside this repository entirely.
+  THE PROBE WAS TEMPORARY AND IS GONE: added to `use-timeline.ts`, run against one real turn, output
+  read from `.theokit/tui-stderr.log`, reverted. `git status` clean, 414 tests green. It is recorded
+  here rather than left in the tree, which is the whole reason it was worth doing this way.
+  WHAT REMAINS is a fix outside this repository: either the ai-sdk reconstruction is configured to
+  carry message metadata, or `@theokit/agents` stops relying on it and attaches the usage where its
+  own client can see it. Choosing between those is that project's call, and it is now a decision
+  with a measurement behind it rather than an open question.
 why_now: it is the product's ONLY view of how much context is left, the README lists "Live token
   usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
   cannot fire without it. A feature advertised on the first screen and absent in practice is the
