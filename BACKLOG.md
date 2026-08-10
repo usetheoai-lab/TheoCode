@@ -2230,7 +2230,7 @@ dod:
 
 ## B-082 — The agent cannot open an image in the repository   [x]
 
-fixed_in: PENDING
+fixed_in: f644222
 dod_verified:
   - `view_image` is registered and RESOLVABLE — asserted through `ToolRegistry.resolve`, not by the
     name appearing in a list. B-018 recorded that this name is a contract three layers depend on
