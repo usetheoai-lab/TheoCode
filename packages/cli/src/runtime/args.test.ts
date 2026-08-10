@@ -159,3 +159,65 @@ describe('B-025 — every declared flag is exercised, and every subcommand route
     ).toEqual([])
   })
 })
+
+/**
+ * B-074 — the CLI reaches the session operations the TUI already had.
+ *
+ * The audit measured a 5+1 asymmetry: the TUI could list, fork, archive, rename and delete; the CLI
+ * could only `gc` and `resume`. Every operation already existed in `@theocode/agent/session`, so
+ * these parse into dispatch over tested code — a second implementation is what would let the two
+ * surfaces drift again.
+ */
+describe('B-074 — sessions actions', () => {
+  it('test_list_parses_without_a_target', () => {
+    const parsed = parseExecArgs(['sessions', 'list'], false)
+    expect(parsed.mode).toBe('sessions')
+    expect(parsed).toMatchObject({ action: 'list' })
+  })
+
+  it('test_archive_delete_and_fork_carry_the_id', () => {
+    for (const action of ['archive', 'delete', 'fork']) {
+      expect(parseExecArgs(['sessions', action, 'tui-abc'], false)).toMatchObject({
+        mode: 'sessions',
+        action,
+        target: 'tui-abc',
+      })
+    }
+  })
+
+  it('test_rename_carries_the_id_and_the_new_name', () => {
+    expect(parseExecArgs(['sessions', 'rename', 'tui-abc', 'triage'], false)).toMatchObject({
+      mode: 'sessions',
+      action: 'rename',
+      target: 'tui-abc',
+      name: 'triage',
+    })
+  })
+
+  it('test_an_action_that_names_a_session_refuses_without_one', () => {
+    // Defaulting to "the current session" has no meaning headless, and guessing would make
+    // `delete` destroy whichever transcript happened to be newest.
+    for (const action of ['archive', 'delete', 'fork', 'rename']) {
+      expect(parseExecArgs(['sessions', action], false)).toMatchObject({ mode: 'error' })
+    }
+  })
+
+  it('test_rename_refuses_without_the_new_name', () => {
+    expect(parseExecArgs(['sessions', 'rename', 'tui-abc'], false)).toMatchObject({ mode: 'error' })
+  })
+
+  it('test_gc_still_parses_as_before', () => {
+    // The floor: adding actions must not disturb the one that existed.
+    expect(parseExecArgs(['sessions', 'gc', '--apply'], false)).toMatchObject({
+      mode: 'sessions',
+      action: 'gc',
+      apply: true,
+    })
+  })
+
+  it('test_an_unknown_action_lists_the_valid_ones', () => {
+    const parsed = parseExecArgs(['sessions', 'nope'], false)
+    expect(parsed.mode).toBe('error')
+    expect((parsed as { message: string }).message).toContain('delete')
+  })
+})

@@ -2007,7 +2007,29 @@ dod:
 
 ---
 
-## B-074 — The two surfaces implement disjoint subsets of session management   [ ]
+## B-074 — The two surfaces implement disjoint subsets of session management   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - the CLI gained `sessions list|archive|rename|delete|fork`, closing five of the six gaps the audit
+    measured. Verified against the BUILT binary, not only by unit test: `sessions list` printed a
+    real session, `sessions delete` refused without an id, and an unknown action named the valid set
+  - ONE implementation per operation — each action calls `@theocode/agent/session`, the same
+    functions the TUI commands call. That was the bullet that mattered: a second copy here is
+    exactly how the two halves drifted apart, and B-037 records what one costs
+  - actions that name a session REQUIRE the id. Defaulting to "the current session" has no meaning
+    headless, and guessing would let `delete` remove whichever transcript happened to be newest
+  - the audit is recorded above as a table built from the real command tables, not from memory
+  - MEASURED ON THE WAY, and worth more than the feature: a fork copies the TRANSCRIPT, and the
+    agent registry only learns the id when something OPENS it. The TUI hides this because `/fork`
+    immediately points the live session at the new id (`composition-root.ts:112`); headless nothing
+    does, so the fork is real on disk and absent from `sessions list`. Rather than paper over it, the
+    CLI says so and names the command that opens it. Found by checking the disk instead of trusting
+    the success message
+  - REMAINING, and the reason this closes at 5 of 6: the TUI still cannot `resume`. That half is not
+    thin dispatch — it means repointing the live session and resetting the conversation, the path
+    `backtrack` uses — and appending it to a batch of CLI additions would have been the careless
+    version of the same asymmetry. B-087 carries it
 
 domain: theocode
 repo: TheoCode
@@ -2506,5 +2528,32 @@ dod:
   - if `.theokit/config.toml` is a path users would reasonably expect and it is NOT read, either it
     is read or the product says why not — silently ignoring a plausible config file is worse than
     not supporting it
+
+---
+
+## B-087 — The TUI lists sessions it cannot open   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `packages/cli/src/main.ts` implements `resume`; the TUI command table
+  (`packages/tui/src/commands/registry.ts`) has `/sessions`, `/fork`, `/archive`, `/rename`,
+  `/delete` and no resume. Measured as part of B-074's surface audit, which closed the other five
+  gaps and left this one.
+why_now: `/sessions` renders a list with no verb that re-enters an entry, so the listing itself
+  advertises something the surface cannot do — the B-067 shape, one command over. It was left out of
+  B-074 deliberately: the other five were dispatch over tested functions, and this one repoints the
+  LIVE session and resets the conversation, which is `backtrack`'s path and deserves its own care.
+status: raw
+severity: MEDIUM
+dod:
+  - a session listed by `/sessions` can be opened from the TUI
+  - it reuses the repointing path `backtrack` already uses rather than a second way to switch
+    sessions — B-074 exists because two halves grew separately
+  - the current session's unsaved state is handled explicitly: either carried, or the user is told
+    it is being left behind. Silently discarding a turn in progress is worse than refusing
+  - if resuming in place is deliberately not supported, `/sessions` says so instead of listing
+    entries with no verb attached
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).

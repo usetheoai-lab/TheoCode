@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The command line can now list, archive, rename, delete and fork sessions. It could only collect garbage and resume one, while the terminal interface could do everything else — so scripting anything about sessions meant driving the interactive app. Every operation calls the same code the interface calls, rather than a second copy, which is how the two halves drifted apart in the first place. Actions that name a session require the id: headless there is no "current session", and guessing would let `delete` remove whichever transcript happened to be newest (B-074)
+
 ### Changed
 
 - Twenty identifiers written in Portuguese are now English, and the guard that is supposed to catch them can finally see that shape. It could not before: names like `pluginDeHooks` are built from words that are each valid English — `do` the verb, `de` a prefix — so every part was checked, cleared, and the Portuguese construction passed whole. The check now recognises the construction itself, was scored against real English names before it landed, and was proven by planting a violation and watching the build fail (B-084)
