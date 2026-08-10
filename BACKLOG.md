@@ -1748,7 +1748,25 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `english-only-guard-per-framework-repo`).
 
-## B-066 — telegram-pro's manual test runbook is 418 lines of Portuguese   [ ]
+## B-066 — telegram-pro's manual test runbook is 418 lines of Portuguese   [x]
+
+fixed_in: (decision)
+fixed_in_other_repos: theokit-framework/theokit-gateways 5acfc62
+dod_verified:
+  - the runbook is English, translated in passes with the diff read back rather than by one blind
+    sweep. TWO errors of my own were caught that way and fixed instead of shipped: a blunt
+    `Cria` -> `Create` rule rewrote three lines that were INPUTS, and a blunt `não ` -> `not `
+    rule produced "not ignora a foto" and "not é apenas texto livre"
+  - the `📤 Send` rows stay Portuguese, deliberately: they are what the tester TYPES at the bot,
+    which is being exercised in Portuguese, and the expected replies are matched against those
+    exact phrases. Only the prose columns (Expect / Pass / Log) and the narration moved
+  - the exemption is REMOVED from `packages/gateway/tests/lint/no-ptbr.test.ts` and the guard
+    passes without it — the criterion that made this item worth closing rather than re-exempting.
+    Verified both ways: planting one Portuguese row turns it red
+  - the bot reference is marked ILLUSTRATIVE. `@theo_paulo_bot` / id `8982152421` appear NOWHERE in
+    the example's code — they were one person's development bot, so a reader following the runbook
+    literally would be talking to nothing. That third criterion turned out to name a real defect in
+    the document, independent of language
 
 domain: theocode
 repo: TheoCode
