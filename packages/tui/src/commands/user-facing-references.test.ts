@@ -126,3 +126,24 @@ describe('B-078 — /delete routing', () => {
     expect(BUILTIN_COMMAND_NAMES.has('delete')).toBe(true)
   })
 })
+
+/**
+ * B-075 — `/copy` and `/export` are routed and advertised.
+ *
+ * A command that parses and reaches no handler is the B-028 defect in another costume, so the route
+ * is asserted rather than assumed.
+ */
+describe('B-075 — transcript command routing', () => {
+  it('test_copy_and_export_route', async () => {
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/copy')).toEqual({ kind: 'copy' })
+    expect(routeCommand('/export notes.md')).toEqual({ kind: 'export', arg: 'notes.md' })
+    expect(routeCommand('/export')).toEqual({ kind: 'export', arg: '' })
+  })
+
+  it('test_both_are_advertised_in_the_command_list', async () => {
+    const { BUILTIN_COMMAND_NAMES } = await import('./registry.js')
+    expect(BUILTIN_COMMAND_NAMES.has('copy')).toBe(true)
+    expect(BUILTIN_COMMAND_NAMES.has('export')).toBe(true)
+  })
+})

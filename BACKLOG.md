@@ -1992,7 +1992,29 @@ dod:
 
 ---
 
-## B-075 — There is no way to get a reply out of the terminal   [ ]
+## B-075 — There is no way to get a reply out of the terminal   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `/copy` puts the last reply on the clipboard as markdown; `/export [path]` writes the whole
+    conversation. Both VERIFIED LIVE in the tmux pane
+  - code blocks survive unwrapped, because both read the EVENT DATA and never the rendered frame —
+    the wrap happens at render time and is the actual defect
+  - no clipboard reachable is an explicit typed failure naming `/export`, verified live on a machine
+    with none of `wl-copy`/`xclip`/`xsel`/`pbcopy` installed. No dependency was added
+  - `/export` refuses to overwrite (`wx`) and says which path already exists
+  - THE BUG LIVE VALIDATION CAUGHT, recorded because it is the lesson: the first implementation
+    typed the timeline as `{ role, parts[] }` — the shape the SDK CONSUMES — when `deriveTimeline`
+    produces `AgentEvent` (`{ id, kind, role, text }`). Every event was rejected, `/export` reported
+    every real conversation empty, and the unit tests passed GREEN because their fixtures were built
+    from the same wrong assumption. A fixture that agrees with the code's mistake proves nothing.
+    Fixed against the measured shape, and the tests now carry a tool and a thinking event so the
+    narrowing is exercised against the real union
+  - unblocked by B-085. This item was implemented, reverted, and re-implemented: the first attempt
+    died on the composition root, not on the feature
+  - NOTE, not a defect in this item: selecting a command from the popup with Enter drops the typed
+    argument, so `/export <path>` exported to the default name. Reproduced with `/delete` too — worth
+    its own item
 
 domain: theocode
 repo: TheoCode

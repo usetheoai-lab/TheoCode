@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { handleCopy, handleExport } from './transcript-commands.js'
 import { join } from 'node:path'
 
 import { CLEAR_SCREEN } from '../terminal-io/index.js'
@@ -55,7 +56,7 @@ const GROUPS: readonly ((
   action: CommandAction,
   text: string,
   cap: CommandCapabilities,
-) => boolean)[] = [sessionAndScreen, identity, turn, inspection, shells, conduct]
+) => boolean)[] = [sessionAndScreen, identity, turn, inspection, transcriptOut, shells, conduct]
 
 function sessionAndScreen(
   action: CommandAction,
@@ -236,6 +237,24 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
     }
     case 'compact':
       handleCompact(SESSION.session(), setToast)
+      return true
+    default:
+      return false
+  }
+}
+
+/**
+ * B-075 — getting the conversation OUT of the terminal. Its own group rather than another arm of
+ * `inspection`: those commands render a panel back into the TUI, these two hand text to something
+ * outside it, and folding them in pushed `inspection` past its complexity budget.
+ */
+function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
+  switch (action.kind) {
+    case 'copy':
+      handleCopy(cap.events, cap.setToast)
+      return true
+    case 'export':
+      handleExport(action.arg, cap.events, cap.currentSessionId, cap.setToast)
       return true
     default:
       return false

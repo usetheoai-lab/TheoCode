@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A reply can finally leave the terminal. `/copy` puts the last answer on the clipboard as markdown and `/export [path]` writes the whole conversation to a file — until now the only way out was selecting text with the mouse from a bordered box that wraps every line, which mangles exactly the code and commands people want to paste. Both read the conversation data rather than the drawn screen, so a long line inside a code block survives at its original width. Where there is no clipboard at all — over ssh, in a container, in CI — it says so and points at `/export`, instead of quietly doing nothing (B-075)
+
 ### Changed
 
 - The screen's wiring was split into three files instead of one. Everything that assembles the terminal interface lived together, and it had grown to the point where adding a single new piece of information for a command to read broke two size limits at once — a feature was written, tested, and thrown away because of it. The parts that build the session and the parts that hand dependencies to the input box now live on their own, the behaviour is identical, and the whole test suite passes untouched, which is what makes that claim checkable (B-085)

@@ -29,6 +29,8 @@ export function depsDoComposer(
     credential: Parameters<typeof useComposerCommands>[0]['credential']
     setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
   },
+  /** B-075 — the timeline, threaded to the command layer. B-085 made this affordable. */
+  events: readonly unknown[],
 ) {
   const {
     backtrack,
@@ -42,6 +44,7 @@ export function depsDoComposer(
     credential,
   } = extra
   return {
+    events,
     agent: s.agent,
     agentRef: s.agentRef,
     SESSION: s.SESSION,

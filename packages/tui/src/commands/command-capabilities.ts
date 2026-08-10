@@ -44,6 +44,8 @@ export interface CommandCapabilities {
   readonly approvalMode: ApprovalMode
   readonly goalRun: GoalRunState | null
   readonly goalActive: boolean
+  /** B-075 — the timeline, so /copy and /export read MESSAGES rather than the wrapped frame. */
+  readonly events: readonly unknown[]
   readonly currentSessionId: () => string
   readonly forkCurrentSession: () => { newId: string; copied: boolean }
   readonly resetSession: () => void
@@ -107,6 +109,7 @@ export type InspectionCapabilities = Pick<
   | 'lastSentMessage'
   | 'approvalMode'
   | 'currentSessionId'
+  | 'events'
   | 'exit'
   | 'setToast'
   | 'setPanel'

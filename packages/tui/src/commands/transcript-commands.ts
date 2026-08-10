@@ -1,0 +1,63 @@
+/**
+ * B-075 — the two commands that move a conversation OUT of the terminal.
+ *
+ * Their own module: `command-content.ts` is the panels-and-toasts file and these two do I/O
+ * (clipboard, filesystem). Both read the TIMELINE, never the rendered frame — the frame is
+ * hard-wrapped to a bordered box, which re-flows the code an answer usually contains.
+ */
+import type { Dispatch, SetStateAction } from 'react'
+import { writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+
+import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
+import { copyToClipboard } from '../clipboard.js'
+import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
+
+type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
+
+export function handleCopy(events: readonly unknown[], setToast: SetToast): void {
+  const text = lastAssistantText(events)
+  if (text === undefined) {
+    setToast({ message: 'nothing to copy — the agent has not replied yet', variant: 'info' })
+    return
+  }
+  try {
+    const { bin } = copyToClipboard(text)
+    setToast({ message: `copied the last reply (${bin})`, variant: 'success' })
+  } catch (e: unknown) {
+    // Reported, never swallowed: a copy that silently did nothing is discovered when the user
+    // pastes. The typed error already names /export as the way out.
+    setToast({ message: (e as Error).message, variant: 'error' })
+  }
+}
+
+export function handleExport(
+  arg: string,
+  events: readonly unknown[],
+  currentSessionId: () => string,
+  setToast: SetToast,
+): void {
+  const markdown = conversationToMarkdown(events)
+  if (markdown.length === 0) {
+    setToast({ message: 'nothing to export — this conversation is empty', variant: 'info' })
+    return
+  }
+  const name = arg.trim()
+  const target =
+    name.length > 0
+      ? resolve(workingDirectory(), name)
+      : join(workingDirectory(), `${currentSessionId()}.md`)
+  try {
+    // `wx` so an export never overwrites: the path may be a file the user cares about, and this
+    // command is not the place to discover that.
+    writeFileSync(target, `${markdown}\n`, { encoding: 'utf8', flag: 'wx' })
+    setToast({ message: `wrote ${target}`, variant: 'success' })
+  } catch (e: unknown) {
+    const detail =
+      (e as NodeJS.ErrnoException).code === 'EEXIST'
+        ? `${target} already exists — pass another path`
+        : (e as Error).message
+    setToast({ message: `export failed: ${detail}`, variant: 'error' })
+  }
+}

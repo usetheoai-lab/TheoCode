@@ -208,7 +208,7 @@ export function useTuiComposition() {
       setGoalRun: conv.setGoalRun,
       setApprovalMode: conv.setApprovalMode,
       credential,
-    }),
+    }, events),
   )
 
   const c = {

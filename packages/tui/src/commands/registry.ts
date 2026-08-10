@@ -19,6 +19,9 @@ export type CommandAction =
   | { kind: 'archive'; arg: string }
   // B-078 — permanent, and unlike /archive it never defaults to the current session.
   | { kind: 'delete'; arg: string }
+  // B-075 — getting a reply out of the terminal without mouse-selecting a wrapped box.
+  | { kind: 'copy' }
+  | { kind: 'export'; arg: string }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
@@ -66,6 +69,8 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'image', description: 'attach an image to the NEXT turn: /image <path>' },
   { name: 'archive', description: 'archive a session [id]' },
   { name: 'delete', description: 'permanently delete a session: /delete <id>' },
+  { name: 'copy', description: 'copy the last reply to the clipboard as markdown' },
+  { name: 'export', description: 'write the conversation to a file: /export [path]' },
   { name: 'rename', description: 'rename the current session' },
   { name: 'memory', description: 'durable-memory status' },
   { name: 'compact', description: 'summarize the conversation to free context' },
@@ -103,6 +108,7 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/ps', { kind: 'listPtys' }],
   ['/stop', { kind: 'stopPtys' }],
   ['/compact', { kind: 'compact' }],
+  ['/copy', { kind: 'copy' }],
   ['/retry', { kind: 'retry' }],
   ['/fork', { kind: 'fork' }],
   ['/sessions', { kind: 'listSessions' }],
@@ -126,6 +132,7 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/login', (arg) => ({ kind: 'login', arg })],
   ['/archive', (arg) => ({ kind: 'archive', arg })],
   ['/delete', (arg) => ({ kind: 'delete', arg })],
+  ['/export', (arg) => ({ kind: 'export', arg })],
   ['/rename', (arg) => ({ kind: 'rename', arg })],
 ]
 
