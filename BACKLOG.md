@@ -2994,10 +2994,19 @@ measured_2026-08-10: THE GUARD ALREADY EXISTS, and this item's premise was wrong
 status: raw
 severity: MEDIUM
 dod:
-  - a check refuses to publish a manifest containing a `workspace:` range in any dependency section —
-    EXISTS ALREADY; what is missing is that it cannot be reached by `npm publish`, so the remaining
-    work is `prepublishOnly` wiring or a release process that forbids manual publishing, and that is
-    a decision for the framework owner rather than a script I add at the end of a session
+  - a check refuses to publish a manifest containing a `workspace:` range in any dependency section.
+    MEASURED 2026-08-10, and the answer is worse than "not wired": the existing guard is
+    STRUCTURALLY UNABLE to catch the case that happened. It packs with the repo's own package
+    manager, and `pnpm pack` REWRITES `workspace:` into a real range while packing — so the tarball
+    it inspects is clean by construction. Proven by planting `"@theokit/presenter": "workspace:*"`
+    back into the manifest and running the guard: it reported 6 packages clean, and
+    `npm publish --dry-run` succeeded.
+    Wiring it into `prepublishOnly` was TRIED and REVERTED for that reason: a guard that passes
+    while the defect ships is worse than none, because it converts an open risk into false assurance.
+    WHAT WOULD ACTUALLY WORK, from the same measurement: when the publisher is `npm`, the ON-DISK
+    manifest IS the artifact — npm ships it verbatim — so the disk check the guard's docstring
+    rejects (correctly, for the pnpm path) is exactly the right check for the npm path. The guard
+    needs to branch on the publishing tool, not choose one view for both.
   - it runs where publishing happens, not only in a test someone remembers to run — `prepublishOnly`
     is the seam `@theokit/tui` already uses for its gates
   - every currently-published `@theokit/*` package is audited once against the registry, not against
