@@ -1364,3 +1364,106 @@ dod:
   - the exported-identifier subset scoped separately, with a deprecation path
   - `check-english-only.mjs` (or its equivalent) wired into each repository's lint, so the
     result is enforced rather than achieved once
+
+## B-059 — Three agent-construction routines that do not call each other   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 by a `/loop-cross-validation` run against `@theokit/agents@7.4.0` (`cross-validation-output/final_report.md`). NOT a `cycle-discover` run — no falsification criterion was declared in advance and no evidence gate applied, so this stays `raw` until DISCOVER confirms it. Three construction sites: `chat.ts:42` `buildChatAgent` (469-LoC `AgentBuilder` chain), `review/create-agent.ts:54` `createReviewAgent` (`Agent.create` + the hardcoded 4-name `TOOLS_DO_REVIEWER` at `:12`), `delegation/roles.ts:138` `buildRoleAgent` (`Agent.create` + disk definitions). None delegates to another. Grep census over `packages/**/*.ts(x)`: `Capability`, `Capabilities`, `CapabilityRegistry`, `CapabilityPreset`, `ModelCapability`, `ToolsCapability`, `SkillsCapability`, `defineAgent`, `CompiledAgentOptions`, `compileAgent`, `AgentManifest` — **zero references, every one**, from a barrel this package imports 24 other symbols from.
+why_now: the repository now holds THREE bespoke agent constructions where it held one. `review/` and `delegation/` were both written after `chat.ts` and both bypass it, because `buildChatAgent`'s twelve override fields can add a tool or swap a scalar and cannot remove a link — `chat.ts:320` states the constraint in its own source: "there is no way to skip a link in the middle of it". An agent needing LESS than the coding agent is inexpressible here, so each one becomes a new file. One bespoke construction is a design; three is a pattern, and the fourth is foreseeable. `profileTools()` at `chat.ts:439` is the workaround already in the tree: a hand-written switch over a closed `interactive|headless` enum, which is the variation point the chain could not express pushed into an enum that cannot grow.
+status: raw
+dod:
+  - the three sites go through one composition entry, demonstrated by expressing at least one of them (review is the smallest and already the best-inverted) over it without changing its behaviour
+  - that entry REQUIRES a working directory instead of defaulting to `process.cwd()` — folded in from `chat.ts:106`, the residue B-015 and B-032 left when they closed the read sites but not the optional default
+  - a fourth agent is a list of what it may do, not a new file beside `chat.ts` — shown by building one that is strictly smaller than the coding agent
+  - B-061 lands first: without a test asserting what an agent is composed of, this refactor is unverifiable and a dropped approval would ship green
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `agent-composition-three-routines`).
+## B-060 — The one reusable primitive is unreachable from outside its package   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). `ToolRegistry` + `resolveToolScope` are consumed by all four internal construction paths — `chat.ts:36`, `review/create-agent.ts:7`, `delegation/roles.ts:5`, `delegation/squad.ts:8` — which makes them empirically the reusable primitive of this package. `tools/` and `delegation/` are the ONLY source directories carrying an `index.ts` barrel that `packages/agent/package.json` does not list in `exports` (it publishes `.`, `./chat`, `./chat-acp`, `./ask`, `./auth`, `./config`, `./context`, `./goal`, `./hooks`, `./pty`, `./review`, `./session`).
+why_now: B-059 proposes that a new agent be composed rather than rewritten. Composed by whom is the question this item answers: today anything built outside `packages/agent` cannot import the registry that every internal path uses, so "reuse the primitive" is advice nobody can follow. The gap is two lines of JSON and it is the cheapest item in the batch.
+status: raw
+dod:
+  - `packages/agent/package.json` exports `./tools`, and a real importer outside `packages/agent` resolves `ToolRegistry` through it
+  - NOT added without that importer: B-049 deleted `./chat-acp` precisely because it was a declared subpath with zero consumers, and adding one on speculation recreates the defect that item closed
+  - `./delegation` judged on the same rule — exported if something outside the package consumes it, left alone if not
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `tool-registry-not-exported`).
+## B-061 — No test asserts what an agent is composed of   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). 48 `*.test.ts(x)` files across `packages/`, 30 of them under `packages/agent/src` + `packages/shared/src`, all co-located unit tests. None builds an agent. `@theokit/agents/testing` — which publishes `createMockAgentStream` for exactly this, "test agents without an LLM API key" (`src/testing/mock-stream.ts:1`) — returns **zero** hits across the tree, the only one of the framework's eleven subpath exports the repository never imports (the other ten: `persistence` 11 sites, `sandbox` 9, `auth` 6, `tools` 3, `pty` 3, `interactive` 3, `client/react` 2, `client` 1, bare barrel 47).
+why_now: the agent's composition decides which tools exist, which are approval-gated, which disk entities the trust posture admits, and what the sandbox confines — `chat.ts:276-317` alone carries the approval map, the MCP gate, the skills gate and the setting-sources gate. Nothing in the suite reads any of it. A regression that dropped an approval or widened a tool scope would pass green today, and B-059 proposes to move exactly that code.
+status: raw
+dod:
+  - a test builds an agent through each of the three construction paths and asserts its resolved tool names and its approval map
+  - it runs with no API key and no network, using the framework's own test seam rather than a hand-rolled double
+  - the suite is shown to FAIL when one tool or one approval is removed from a construction path — a composition test that cannot break is the failure mode this item exists to prevent
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `no-composition-test`).
+## B-062 — The domain specialist tells every cycle the repo has zero tests   [x]
+
+fixed_in: 3b9eafd
+dod_verified:
+  - the file states the measured count with its date: "Measured 2026-08-10: 49 test files, 268 tests, all passing"
+  - the "there is no suite" instruction is gone, and so is the "create the harness first" guidance derived from it
+  - all nine age-sensitive claims re-checked in the same pass, not just the one the item named: test count, test script, vitest config, vitest-never-imported, commit count (3 -> 131), framework version (^7.3.1 -> ^7.4.0), dependency-cruiser config, boundary enforcement, and the four LOC figures
+  - the "three commits old" section was REWRITTEN, not renumbered: its guidance ("git log cannot tell you whether something is dead", "the honest mode is usually evolve — or nothing") inverts at 131 commits
+  - added a Node-version warning to Build reality, because this item's own measurement pass wasted a cycle on it: under Node 18 the suite fails 5 files with `SyntaxError: Invalid regular expression flags` before a test runs, and `engines` requires >= 22
+  - NOT met, and it cannot be: `fixed_in` names a commit that does NOT contain the corrected file. `.gitignore:22` ignores all of `.claude/`, so `.claude/agents/theocode.md` is untracked and no commit can carry it; `3b9eafd` holds only the CHANGELOG line. `crossval` passes this item because the commit touched A file, which is exactly the guarantee it cannot give here. Registered as B-064
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: `.claude/agents/theocode.md:30-32` states "There is no `npm test`, and there is nothing for it to run… **zero** `*.test.*` / `*.spec.*` files in the entire tree", measured 2026-08-07. Counted on disk 2026-08-10: **48** test files under `packages/`, several over 180 lines (`session/gc/fail-open.test.ts` 194, `hooks/fail-safe-defaults.test.ts` 187, `ask/ask-bridge.test.ts` 146). The file's `description:` frontmatter repeats the claim, so it is loaded into every session that routes to this domain.
+why_now: the file does not merely carry a stale number — it issues instructions derived from it. `:36-37` orders "Do not report a passing test suite. There is no suite", and `:38-40` tells `/implement` and `/discover --mode bug` that satisfying the regression-test-first rule means creating the harness. Both are now false, and both steer work: an agent obeying them would rebuild a harness that exists, or decline to run a suite that passes.
+status: raw
+dod:
+  - the file states the measured test count with its date, or states nothing about test counts
+  - the "there is no suite" instruction and the "create the harness first" guidance are removed or rewritten to match the tree
+  - the remaining age-sensitive claims in the same file are re-checked in the same pass — "three commits old" is the other one, and it was measured on the same day as the zero
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `theocode-specialist-stale-test-claim`).
+## B-063 — Upstream: ten of thirteen framework error classes sit outside the typed hierarchy   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). In `@theokit/agents@7.4.0` source, 13 error classes are declared and only 2 extend `TheokitAgentError` (`McpFileError` at `bridge/mcp-file.ts:86`, `ToolsetError` at `capability/toolset.ts:58`). The other ten extend plain `Error`: `CapabilityConflictError:38`, `UnknownCapabilityError:9`, `AgentDefinitionError:26`, `ApprovalAbortedError:85`, `DelegationError:74`, `DelegationBudgetExceededError:52`, `RefreshFailure:49`, `GuardrailViolationError:40`, `CostBudgetExceededError:52`, `InProcessApprovalRequiredError:82`. Bare `throw new Error` accounts for 18 of 69 throw sites (26%). This repository, by comparison: 11 of 12 domain error classes extend `TheokitAgentError`, 3 bare throws in 56 (5.4%).
+why_now: `tools/registry.ts:56-65` carries `translateError` in production for precisely this reason — it bridges one framework error into the SDK hierarchy so a `catch (e instanceof TheokitAgentError)` here does not silently miss it. U-3 got that ONE class fixed upstream (`92b962ad`, unreleased). Ten remain, so the next one we have to catch across the boundary buys another shim. The argument is not ours to make either: `theokit/packages/agents/src/errors.ts:8-16` already documents the defect that mixed hierarchies caused there — a `catch` matching one path and silently missing the other — and the fix was applied to one class rather than to the pattern.
+status: raw
+dod:
+  - a report filed against `theokit` naming the ten classes and citing the argument its own `errors.ts` already contains
+  - U-3's row in `## Upstream` updated to record that the pattern is broader than the single class it names, so the row is not closed by a fix that leaves ten open
+  - OR: recorded as declined with the reason, if the owner judges the breaking-change cost too high — an unanswered upstream report is worse than a refused one
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `upstream-error-hierarchy-ten-classes`).
+
+## B-064 — The canonical knowledge-base is the gitignored one, and it has already diverged   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: measured 2026-08-10 while closing B-062. `.gitignore:22` ignores `.claude/` wholesale — `git ls-files .claude` returns **0** against **176 `.md` files on disk**, including all 32 rule files, both domain specialists and the entire `knowledge-base/`. `rules/knowledge-base-location.md` declares `<project>/.claude/knowledge-base/` **canonical, always**, and that is the half nobody can clone. A parallel VERSIONED trail exists at `docs/` (6 tracked files: 1 ADR, 2 plans, 2 reviews, 1 figure). Two files exist in both homes, and `english-only-completion-plan.md` has **already diverged** — 3 hunks, the `docs/` copy 39 minutes newer. `BACKLOG.md:42` links `.claude/knowledge-base/reviews/theokit-crossval-review-2026-08-07.md`, which resolves to nothing after `git clone` (one link, in the registry preamble — inside item blocks the citations correctly use `docs/`).
+why_now: this session hit the consequence rather than inferring it. The active-plan pointer resolved to `.claude/knowledge-base/plans/english-only-completion-plan.md` — the unversioned copy — while the tracked copy at `docs/plans/` was the newer of the two. `rules/knowledge-base-location.md` names this exact failure and says a second knowledge-base is a MAJOR finding, because "an audit reading the wrong one reports absence where evidence exists"; it then measured three sibling consumers with both directories present. This repository is the fourth, with the aggravation that its canonical half is not merely secondary — it is untracked, so it does not survive a clone and no review can ever read it.
+status: raw
+dod:
+  - one home for cycle artifacts, chosen deliberately and recorded — either `.claude/knowledge-base/` stops being ignored, or `rules/knowledge-base-location.md` is amended to name `docs/` for this project and the rule stops being violated by its own consumer
+  - no `.md` file exists in both homes; the diverged plan is reconciled rather than left with two truths
+  - `BACKLOG.md:42` cites a path that resolves in a fresh clone
+  - the choice is enforced, not remembered — whichever home loses, a check fails when an artifact lands there
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `split-and-untracked-knowledge-base`).
