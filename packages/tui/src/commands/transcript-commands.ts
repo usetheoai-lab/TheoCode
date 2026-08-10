@@ -9,10 +9,11 @@ import type { Dispatch, SetStateAction } from 'react'
 import { writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-import type { ToastPayload } from '../screen-types.js'
+import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
 import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
+import { listSubagents, subagentDir } from './subagent-inventory.js'
 
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
@@ -60,4 +61,23 @@ export function handleExport(
         : (e as Error).message
     setToast({ message: `export failed: ${detail}`, variant: 'error' })
   }
+}
+
+/**
+ * B-072 — the subagent inventory, rendered.
+ *
+ * Lives beside the transcript commands because both answer "what is here?" without starting a turn.
+ * The empty case names the directory: a user who defined agents somewhere else needs the path, not
+ * the word "none".
+ */
+export function handleListSubagents(setPanel: (p: ContentPanel) => void): void {
+  const cwd = workingDirectory()
+  const names = listSubagents(cwd)
+  setPanel({
+    title: 'subagents',
+    body:
+      names.length === 0
+        ? `no subagents in ${subagentDir(cwd)} — a custom command naming one will run in the main context instead`
+        : names.map((n) => `  ${n}`).join('\n'),
+  })
 }

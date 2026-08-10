@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `/subagents` lists the specialised agents a project defines. Until now the only way to find out which ones existed was to name one that did not and read the error — the set was discoverable exclusively through failure. When a project defines none, it says where it looked, because someone who put them elsewhere needs the path rather than the word "none" (B-072)
+
 - A reply can finally leave the terminal. `/copy` puts the last answer on the clipboard as markdown and `/export [path]` writes the whole conversation to a file — until now the only way out was selecting text with the mouse from a bordered box that wraps every line, which mangles exactly the code and commands people want to paste. Both read the conversation data rather than the drawn screen, so a long line inside a code block survives at its original width. Where there is no clipboard at all — over ssh, in a container, in CI — it says so and points at `/export`, instead of quietly doing nothing (B-075)
 
 ### Changed

@@ -1916,7 +1916,21 @@ dod:
 
 ---
 
-## B-072 — Delegation subagents are undiscoverable until one is missing   [ ]
+## B-072 — Delegation subagents are undiscoverable until one is missing   [x]
+
+fixed_in: PENDING
+dod_verified:
+  - `/subagents` lists the set before anything is invoked. VERIFIED LIVE both ways in the tmux pane:
+    with none on disk, and with two written, listed sorted
+  - it resolves through the SAME path the router uses — `.theokit/agents/<name>.md` under the working
+    directory, pinned by a test — so the listing cannot promise a subagent `config-commands.ts` would
+    then fail to find. A listing derived independently is a second source of truth, and the two drift
+  - the empty case NAMES the directory it searched. "none" is useless to someone who put their agents
+    somewhere else; the path is what they need
+  - an unreadable directory yields an empty list rather than throwing: "this project defines none" is
+    the normal case, not an error to raise at someone who opened a listing
+  - HONEST LIMIT: this closes DISCOVERY, not the thread switching Codex's `/agent` does. The footer
+    hint that advertised an agents PANEL stays suppressed (B-067) — nothing here wires one
 
 domain: theocode
 repo: TheoCode
