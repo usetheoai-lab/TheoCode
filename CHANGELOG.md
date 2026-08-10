@@ -9,6 +9,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `/sandbox` changes what the agent is allowed to do to your disk without restarting. Only the approval mode could be changed mid-session; the sandbox was a label in the status bar, so realising the posture was wrong meant quitting. Tightening applies immediately; loosening asks you to confirm, because granting the agent more of your disk should be something you meant to do. KNOWN GAP: the status bar still shows the mode it started with — the change reaches the agent on the next turn, and the label does not know yet (B-076)
+
 - `theocode doctor` reports what your installation will actually do: whether you are logged in, which directory it trusts, the model, sandbox and approval it resolved, and which MCP servers, skills and hooks an agent built here would really get. It reports the RESOLVED state rather than re-printing your config, because the gap between the two is the thing that goes wrong. It exits non-zero when something is broken so it can be used in a script, and it never prints a credential — presence only, since a diagnostic is what people paste into an issue (B-081)
 
 - `/memory` now shows what it remembers and lets you change it. It reported that a store existed, where it was and how many facts it held — and nothing else, so watching the count climb left you editing files outside the product to do anything about it. It now lists the facts by number, `/memory forget <n>` removes one from disk, and `/memory off` stops it generating more for this session. The switch says when it applies and that it is not saved, because a preference you flipped once and forgot is worse than one you have to set deliberately (B-077)
