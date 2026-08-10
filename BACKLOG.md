@@ -2868,6 +2868,7 @@ dod:
 
 ## B-091 — B-053's rename was committed upstream and never published   [x]
 
+fixed_in: 0811ddc
 domain: theocode
 repo: TheoCode
 suggested_mode: review
