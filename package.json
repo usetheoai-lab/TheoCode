@@ -44,5 +44,8 @@
   },
   "bin": {
     "theocode": "./dist/theocode.mjs"
+  },
+  "overrides": {
+    "@theokit/presenter": "^0.5.1"
   }
 }
