@@ -1833,7 +1833,30 @@ suggested_mode: bug
 source: human
 evidence: none-yet
 why_now: `Home` and `End` do nothing in the composer. Measured A/B through one channel (`tmux send-keys`) with Codex in the adjacent pane as the CONTROL, which rules out terminal encoding: the identical key events moved Codex's cursor and were dropped by ours. Ours — `XYZ/` + `Home` + `Q` produces `XYZQ/` instead of `QXYZ/`; `XY`,`←`,`End`,`Z` produces `XZY` instead of `XYZ`. `Backspace` and `Ctrl+U` were ALSO suspected and cleared: from a known cursor position both behave correctly, and the first reading was an artifact of a stale cursor left by an earlier `←`. On a long prompt, every correction is arrow-key-by-arrow-key.
-status: raw
+status: blocked_on_release
+fixed_upstream: theokit-framework/theokit-tui 427ce6d (branch `workspace`, unreleased)
+blocked_by: `@theokit/tui` has no release carrying 427ce6d. TheoCode consumes 0.50.2 from the
+  registry, so the product still drops both keys. Publishing is the operator's call — it is an
+  outward-facing action, and a `file:` dependency or a hand-patched `node_modules` would be exactly
+  the workaround this item forbids. Closing on "fixed upstream" while the product is unchanged
+  would be a false PASS.
+measured:
+  - the keys were PARSED and then discarded upstream, not unhandled: `parse-keypress` maps every
+    terminal form (`[H`/`[1~`/`[7~`/`OH`, `[F`/`[4~`/`[8~`/`OF`) to "home"/"end", those names sit in
+    `nonAlphanumericKeys` so `input` was blanked, and `projectKey`'s `Key` carried no field for
+    either. The event reached the composer as nothing at all
+  - everything below was already built and already reachable: `move-home`/`move-end` in the text
+    buffer, `move-line-start`/`move-line-end` as editor actions, both already bound to ctrl+a/ctrl+e.
+    Only two `Key` fields and two chord entries were missing — a connection, not a feature
+  - VERIFIED LIVE in this product: with the upstream build staged into `node_modules`, the TUI in
+    the tmux pane moved the cursor correctly (`XY` + Home + `Q` → `QXY`; + End + `Z` → `QXYZ`),
+    matching the Codex control exactly. The staged build was then REMOVED and the suite re-run
+    green against the released 0.50.2, so this tree is not silently running an unpublished artifact
+  - upstream is tested at three levels (projection, chord resolution, end-to-end from raw escape
+    bytes to cursor offset) and mutation-verified at two
+  - PRE-EXISTING upstream, measured with this change stashed, NOT introduced by it: two failures at
+    HEAD (`readme_quickstart_symbols_resolve`, `parity_corpus_matches_ink_within_budget`) plus
+    load-dependent flakiness in `tool-call.test.tsx`; all pass in isolation
 severity: MEDIUM
 dod:
   - `Home` moves the cursor to the start of the composer and `End` to the end, asserted by a test that fails on today's code
