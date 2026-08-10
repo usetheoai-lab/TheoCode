@@ -1918,7 +1918,7 @@ dod:
 
 ## B-072 — Delegation subagents are undiscoverable until one is missing   [x]
 
-fixed_in: 8e5b131
+fixed_in: d1ef467
 dod_verified:
   - `/subagents` lists the set before anything is invoked. VERIFIED LIVE both ways in the tmux pane:
     with none on disk, and with two written, listed sorted
