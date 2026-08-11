@@ -3406,6 +3406,26 @@ slice_1_shipped: |
   NOT DONE, and not scheduled by this: the precedence chain, the trust posture that gates disk
   entities, and the consumer migration. This slice is the security floor only. B-097 remains the
   keystone for B-107(b), B-108 and the harder half of B-106 — none of them is unblocked by this.
+slice_2_shipped: |
+  SECOND SLICE 2026-08-11 — `foldLayers` / `verifyLayerOrdering`, in `@theokit/sdk`.
+
+  Same extraction test as the floor: the layer NAMES are data the caller supplies, so `profile` —
+  which is this product's idea — never reaches the framework.
+
+  Two rules and one trap. Later layers win and `undefined` never overwrites. The trap is
+  ACCUMULATION: with plain last-wins a project file DISPLACES the user's entries for a list-valued
+  key rather than adding to them, and for `hooks` that is the difference between a repository adding
+  a hook and a repository removing yours.
+
+  15 cases; five mutations, four detected. The fifth is recorded as NOT detected in both the source
+  and the test — copying the accumulator before returning it is unobservable, and the comment says
+  no test stands behind it rather than letting a reader assume one does.
+
+  STILL NOT DONE, and this is the part that keeps B-097 open: the TRUST POSTURE. Precedence and the
+  floor are the arithmetic; the posture is the decision about which disk entities are withheld from
+  an untrusted directory, and it is what B-107(b) and B-108 actually wait on — B-108 needs a trust
+  decision to REPORT, and B-107(b) needs a config-key registry, neither of which these two slices
+  create. The consumer migration is also untouched.
 status: triaged
 severity: major
 dod:
