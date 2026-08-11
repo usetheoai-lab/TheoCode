@@ -29,7 +29,8 @@ import type { CommandCapabilities } from './command-capabilities.js'
 import { interpretCommand } from './interpret-command.js'
 import type { CommandAction } from './registry.js'
 
-function harness() {
+/** The collaborators a command may reach through, as opposed to the effects it may cause. */
+function stubCollaborators() {
   const agent = { send: vi.fn(), reset: vi.fn(), abort: vi.fn() }
   const SESSION = {
     attachImages: vi.fn(),
@@ -44,7 +45,12 @@ function harness() {
   const ptyOwner = {
     backend: vi.fn(() => ({ activeSessionCount: () => 0, killAll: vi.fn() })),
   }
-  const spies = {
+  return { agent, SESSION, ptyOwner }
+}
+
+/** Every effect a command can cause, one spy each. Wired into the capabilities by name below. */
+function stubSpies() {
+  return {
     resetSession: vi.fn(),
     setSessionAndPersist: vi.fn(),
     startGoal: vi.fn(),
@@ -65,8 +71,17 @@ function harness() {
     forkCurrentSession: vi.fn(() => ({ newId: 'sess-2', copied: true })),
     stdoutWrite: vi.fn(),
   }
+}
+
+function harness() {
+  const { agent, SESSION, ptyOwner } = stubCollaborators()
+  const spies = stubSpies()
 
   const cap = {
+    // Spread rather than listed one by one: the previous form named every spy twice, so a new one
+    // was easy to add to the record and forget to wire — and an unwired spy never fires, which
+    // reads exactly like a command that correctly did nothing.
+    ...spies,
     agent,
     SESSION,
     ptyOwner,
@@ -80,24 +95,6 @@ function harness() {
     goalActive: false,
     events: [],
     streaming: false,
-    currentSessionId: spies.currentSessionId,
-    forkCurrentSession: spies.forkCurrentSession,
-    resetSession: spies.resetSession,
-    setSessionAndPersist: spies.setSessionAndPersist,
-    startGoal: spies.startGoal,
-    exit: spies.exit,
-    setToast: spies.setToast,
-    setPanel: spies.setPanel,
-    setMode: spies.setMode,
-    setShowHelp: spies.setShowHelp,
-    setShowUsage: spies.setShowUsage,
-    setClearEpoch: spies.setClearEpoch,
-    setEffort: spies.setEffort,
-    setApprovalMode: spies.setApprovalMode,
-    setGoalRun: spies.setGoalRun,
-    setGoalFeed: spies.setGoalFeed,
-    setLoginProvider: spies.setLoginProvider,
-    setReviewResult: spies.setReviewResult,
   } as unknown as CommandCapabilities
 
   return { cap, agent, SESSION, ptyOwner, ...spies }
