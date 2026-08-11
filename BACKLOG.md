@@ -3695,6 +3695,29 @@ slice_1_shipped: |
   its contract is the consumer's vocabulary, and a public API cannot be taken back.
 
   Consumer migration (deleting TheoCode's copies) is also NOT done — the item's third DoD bullet.
+slice_3_shipped: |
+  DONE 2026-08-11 — the third DoD bullet, measured.
+
+  `terminal-io/` production: 387 -> 308 LoC, delta -79.
+
+    log-rotation.ts   33 -> 0    deleted outright; only stderr-guard used it
+    stderr-guard.ts   66 -> 17   binds this product's `[theocode]` label
+    write-queue.ts    21 -> 24   GREW by three lines
+
+  The growth is the honest part and is the right trade: the framework ships a FACTORY rather than
+  module-level state, so the application must own the single instance explicitly. Two queues over
+  one file would interleave writes with nothing failing loudly. "LoC returned" is not uniformly
+  down, and reporting only the total would be picking the flattering number.
+
+  Verified: 71 files / 487 cases green, typecheck clean, depcruise clean over 216 modules. The 33
+  cases covering terminal-io and persistence pass UNCHANGED, which is what makes this a migration
+  rather than a rewrite.
+
+  Bullet 2 — "a consumer builds a second agent CLI without owning any of the three" — remains
+  unprovable and will until a second surface exists. Recorded as not-provable rather than as done.
+
+  Slice 2 (the keypress router) is unchanged: its mechanism generalises, its vocabulary is this
+  surface's, and a public API designed against one consumer is one the second routes around.
 status: triaged
 severity: major
 dod:
