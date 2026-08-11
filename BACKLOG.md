@@ -3682,6 +3682,19 @@ discover_outcome: |
   this stops short of prescribing the API.
 
   Opportunity: `knowledge-base/discoveries/opportunities/tui-terminal-loop-opportunity.md`.
+slice_1_shipped: |
+  RELEASED 2026-08-11 in `@theokit/tui@0.51.0`, verified against the registry rather than the
+  source: installed into a clean project, the queue serialises per key, the guard redirects stderr
+  to its log, and rotation refuses a nonsense argument with a typed RangeError.
+
+  `./terminal` ships `installStderrGuard`, `createWriteQueue` and `rotateLog`. `createWriteQueue` is
+  a FACTORY, not the module-level Map the consumer had — fine in an application, wrong in a library,
+  where two consumers in one process would serialise against each other.
+
+  Slice 2 (the keypress router) is NOT done and is not scheduled by this. Its mechanism generalises;
+  its contract is the consumer's vocabulary, and a public API cannot be taken back.
+
+  Consumer migration (deleting TheoCode's copies) is also NOT done — the item's third DoD bullet.
 status: triaged
 severity: major
 dod:
@@ -4435,7 +4448,7 @@ dod:
 > Registered 2026-08-11 by `/backlog-item` (slug: `empty-repository-url-blocks-provenance`).
 
 
-## B-122 — `theokit-tui` CI has been red on `develop` for at least 8 runs, and the cause is step order   [ ]
+## B-122 — `theokit-tui` CI has been red on `develop` for at least 8 runs, and the cause is step order   [x]
 
 domain: theokit
 repo: theokit-tui
@@ -4475,7 +4488,7 @@ why_now: |
   A gate nobody can pass is a gate nobody reads. Eight consecutive red runs on the integration branch
   means every promotion since has been merged past a failing check, so the check is no longer
   protecting anything — and the next real regression arrives looking exactly like the current noise.
-status: raw
+status: shipped
 severity: major
 dod:
   - `pnpm build` runs before `pnpm test` in `ci.yml`, so publint resolves against a real artifact
