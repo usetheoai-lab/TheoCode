@@ -63,12 +63,14 @@ loud parse failure, not a skipped hook.
 
 ## What is deliberately not here
 
-This repository holds **production source only**. The following were left out by an explicit
-decision — stated here so nobody assumes they were forgotten:
+This repository holds **production source and its tests**. `npm test` runs them:
+**67 files, 427 cases** (measured 2026-08-11). The following were left out by an explicit decision —
+stated here so nobody assumes they were forgotten:
 
-- **The test suite** (152 files, 1,524 cases) and the **12 architecture gates**. `npm test` does not
-  exist here. Any claim about this code's behaviour is currently unverified in this repository.
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
+  `.gitignore` keeps all of `.claude/` local by design (`docs/adr/0002-cycle-artifacts-are-promoted-to-docs.md`),
+  so someone who clones this repository gets the agent, not the maintenance scaffolding of the people
+  who write it.
 - **The reference documentation** written against a different layout (journey map, parity register,
   configuration reference), whose paths no longer resolve.
 
