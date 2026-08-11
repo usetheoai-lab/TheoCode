@@ -3983,8 +3983,27 @@ evidence: |
   status, so git's failure was never visible — the "exit 0" that made this look like a git defect
   was never git's. The original tag-push observation was made through the same pipe shape.
 
-  What remains open is why the transfer produced no output and no error at all, which points at the
-  process being killed rather than at git failing. Not yet measured cleanly.
+  CAUSE FULLY ESTABLISHED, same day, by running the push with NO pipe so the status was git's own:
+
+  ```
+  git push origin workspace; echo "EXIT_DO_GIT=$?"   # -> EXIT_DO_GIT=141
+  git rev-list --count origin/workspace..workspace   # -> 11, nothing transferred
+  ```
+
+  141 is 128+13 — **SIGPIPE**. The push is killed while the `pre-push` hook writes its output (the
+  full `pnpm validate` run, thousands of lines) to a consumer that has stopped reading. SIGPIPE
+  terminates silently, which is precisely why the failure had no error message and read as success.
+
+  So the two candidate causes from intake are both refuted. The refname was never involved — this
+  reproduces on a plain branch name. And it is not "still transferring when the command returned":
+  the process was killed outright, before any transfer began.
+
+  Two independent defects compose into the observed shape: SIGPIPE kills the push silently, and the
+  `| tail -N` masks the 141 behind tail's own 0. Either alone would have been visible; together they
+  produce a step that reports success and does nothing.
+
+  Redirecting to a file (`git push ... > log 2>&1 < /dev/null`) gives the stream a consumer that
+  always reads, and the push completes.
 why_now: |
   Whatever the cause, the failure mode is the dangerous one: a release step that reports success and
   does nothing. It was caught because the tag was checked against the remote afterwards; nothing in
