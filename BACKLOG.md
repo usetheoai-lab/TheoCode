@@ -3973,6 +3973,18 @@ evidence: |
   `'@theokit/sdk@4.41.1'` may resolve as a revision rather than a ref; or the push was still
   transferring when the surrounding command returned. The first attempt at the same push had been
   killed by a 5-minute timeout, so the sequence is not clean enough to blame either.
+
+  REPRODUCED 2026-08-11, on a BRANCH rather than a tag, which refutes the refname hypothesis:
+  `git push origin workspace 2>&1 | tail -6` reported exit 0 and ended in `pre-push gates passed`,
+  and `git rev-list --count origin/workspace..workspace` was still 11 afterwards.
+
+  One cause IS established, and it is neither of the two guessed at intake: **the exit code of a
+  shell pipeline is the exit code of its LAST command.** `git push ... | tail -6` reports `tail`'s
+  status, so git's failure was never visible — the "exit 0" that made this look like a git defect
+  was never git's. The original tag-push observation was made through the same pipe shape.
+
+  What remains open is why the transfer produced no output and no error at all, which points at the
+  process being killed rather than at git failing. Not yet measured cleanly.
 why_now: |
   Whatever the cause, the failure mode is the dangerous one: a release step that reports success and
   does nothing. It was caught because the tag was checked against the remote afterwards; nothing in
