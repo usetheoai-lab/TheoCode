@@ -3426,6 +3426,31 @@ slice_2_shipped: |
   an untrusted directory, and it is what B-107(b) and B-108 actually wait on — B-108 needs a trust
   decision to REPORT, and B-107(b) needs a config-key registry, neither of which these two slices
   create. The consumer migration is also untouched.
+slice_3_shipped: |
+  THIRD SLICE 2026-08-11 — `resolveTrustPosture`, in `@theokit/sdk@4.47.0`, verified against the
+  registry.
+
+  Extracted by the same test as the floor and the fold: the 8 capability keys, the environment
+  variable's name and the store lookup are all this product's, expressible as data and as a
+  function. The framework owns the SHAPE of the answer.
+
+  The value is the invariant, not the arithmetic: untrusted means every declared capability is off,
+  and `allows` is built FROM the declared list, so a ninth capability cannot be forgotten. That
+  failure is invisible — the new capability simply works in a directory where it should not.
+  Removing the derivation turns five cases red.
+
+  `source` is reported because "trusted because the operator recorded this directory" and "trusted
+  because a blanket switch is on" are different facts, and only the second stays on across every
+  directory the process opens.
+
+  I had said this piece deserved a clean session. That was an argument about me, not about the
+  work — the other deferrals have substantive reasons (a data-deleting API, a semver-bound
+  vocabulary, a missing prerequisite) and this one did not. Recorded because the reasoning is the
+  part worth keeping.
+
+  REMAINING in B-097: the consumer migration (TheoCode's `config/` shrinking to its own keys plus
+  composition, the third DoD bullet) and the layer-to-disk-entity wiring that turns a posture into
+  actual withheld loaders.
 status: triaged
 severity: major
 dod:
@@ -4037,6 +4062,16 @@ discover_outcome: |
     - **The wiring point is `agent-builder.ts` (149 LoC)**, where `.skills()` and its siblings
       receive their values — the moment at which a record would be an observation rather than a
       re-derivation.
+unblocked: |
+  2026-08-11 — the block is GONE. `resolveTrustPosture` shipped in `@theokit/sdk@4.47.0`, so the
+  framework now makes a trust decision and can therefore report one. B-108's second DoD bullet
+  ("withheld because the directory is untrusted is distinguishable from none configured") is
+  implementable.
+
+  What remains is B-108's own work, not an impediment: recording, at the moment the builder receives
+  its values, which entities were requested and which were wired. The wiring point is
+  `agent-builder.ts`, and the property to preserve is that the record is an OBSERVATION rather than
+  a second read of configuration — the defect B-071 was reopened for.
 status: triaged
 severity: major
 dod:
