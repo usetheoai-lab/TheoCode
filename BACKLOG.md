@@ -3686,6 +3686,30 @@ consumer_slice_outcome: |
 
   Plan: `knowledge-base/plans/theocode-context-migration-plan.md` (gitignored, ADR 0002).
   Still unproven: `parseRules`/`shouldActivateRule` against TheoCode's frontmatter block format.
+correction: |
+  CORRECTED 2026-08-11, against `@theokit/sdk@4.48.0`. Two claims in `consumer_slice_outcome` do not
+  survive re-measurement, and are recorded here rather than left to be inherited.
+
+  1. "It does not carry the MAX_CHARS truncation ... or the tail-truncation that keeps the nearest
+     instructions." WRONG. `@theokit/sdk/context` documents a per-file cap of 40 000 characters with
+     a 70%/20% head/tail split and a marker (ADR D155). That is the same policy, with a different
+     number, and the head/tail split is arguably better than a pure tail cut.
+
+  2. "It does not carry the traversal budget and its typed RangeError." TRUE as a fact and MISLEADING
+     as a gap. The SDK's walk is bounded by construction: `git-root-walk` stops at the git root and
+     `globbed` is a glob relative to cwd. TheoCode's `descend` is an open recursion, which is why it
+     needs `maxDepth`/`maxFiles`. Filing an upstream item for a budget the SDK's design does not need
+     would be importing this consumer's problem into a shape that does not have it.
+
+  What still holds: the SDK dedups symlink chains by `realpath` rather than by inode, has no
+  `AGENTS.local.md` (product vocabulary, correctly absent), and exposes no injected readFile/warn
+  seams. Whether any of those is worth an upstream item is UNMEASURED, and no successor is registered
+  on that basis — registering one now would repeat the mistake this item already caught once, where
+  "~430 LoC could be returned" turned out to be derived from file sizes rather than from capability.
+
+  The item stays `triaged` because that is what it is: measured, decided against for the migration,
+  and with no verified successor. It is not `killed` — the underlying gap ("what a consumer reaches
+  is the easy half") was not refuted, only the proposed action.
 status: triaged
 severity: major
 evidence_measured: |
