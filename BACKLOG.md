@@ -4232,3 +4232,59 @@ dod:
     apply the fix, observe the difference
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `npmrc-env-token-masks-auth-as-404`).
+
+## B-119 — `globbed` discovery cannot see a nested rule, and the SDK already has the code that could   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED 2026-08-11 while planning B-103's consumer migration, by executing both sides against the
+  same fixture rather than by reading either.
+
+  TheoCode's `loadRules` descends recursively; the SDK's `theokit-rules` spec
+  (`.theokit/rules/*.md`, scope `globbed`) does not. Against a tree holding
+  `.theokit/rules/top.md` and `.theokit/rules/deep/nested/inner.md`:
+
+  ```
+  runDiscovery({ specs: [theokit-rules] })   top=true   nested=FALSE
+  ```
+
+  Migrating TheoCode onto it as-is would silently drop every nested rule — and `rules.ts` feeds
+  `config/trust-posture.ts`, which decides whether a project's `[[hooks]]` are honoured (B-086).
+
+  It is not a matter of writing a better pattern. `.theokit/rules/**/*.md` returns NOTHING, not even
+  the top-level file:
+
+  ```
+  pattern .theokit/rules/**/*.md   ->  top=false  nested=false
+  ```
+
+  `walkUpForGlob` (`context-discovery.ts:208`) splits the pattern at the LAST `/`, treats the prefix
+  as a literal directory and does a single `readdir` of it. So `**` in the directory part becomes a
+  literal directory named `**`, `existsSync` fails, and the spec matches nothing.
+
+  The material to fix it is already in the package and unused on this path:
+  `context-glob.ts:12` `globToRegex` compiles `**` correctly (`**/` → `(?:.*/)?`), while
+  `walkUpForGlob` builds its own weaker matcher in `filePartToRegex` (`context-discovery.ts:232`)
+  that handles only `*`. Two implementations of one rule, and the enumerator uses the weaker —
+  the same shape as B-115, one file over.
+
+  Also worth naming: `walkUpForGlob` does not walk up. It reads one directory.
+why_now: |
+  It blocks B-103's consumer migration, which is in the current goal's scope, and it blocks it in the
+  most dangerous way available — a migration that looks successful while dropping rules nobody
+  notices are missing, on the path that decides whether repository hooks execute.
+status: raw
+severity: major
+dod:
+  - a spec whose pattern contains `**` finds files at every depth, proven against a fixture with a
+    nested file, and the failing test exists before the fix
+  - `.theokit/rules/*.md` keeps its current FLAT meaning — `*` never crosses a `/`, so no existing
+    consumer silently starts picking up nested files
+  - the enumerator and the matcher share one implementation; `filePartToRegex` does not survive as a
+    second copy of the rule
+  - a pattern that resolves to no directory still returns empty rather than throwing
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `globbed-discovery-is-not-recursive`).

@@ -29,6 +29,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **theocode:** backlog B-116 — the most stateful surface subsystems are the least tested.
 - **theokit-sdk:** backlog B-117 — two containment guards judge a path by its name, so a symlink out of the root is judged by where it sits rather than where it points.
 - **theokit-sdk:** backlog B-118 — the repo `.npmrc` makes every local publish fail as a 404, sending the diagnosis to token permissions.
+- **theokit-sdk:** backlog B-119 — `globbed` discovery cannot see a nested rule, and a pattern written to say so matches nothing at all.
 
 ### Changed
 - **`ehRotaChatGPT` is now `isRouteChatGPT`.** The last Portuguese identifier in the auth routing path; the project's convention is that code is English and only the conversation is not. Private to `model-route.ts`, so no caller changed and no public surface moved.
