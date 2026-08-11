@@ -4162,3 +4162,46 @@ dod:
     reach it
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-lexical-containment-guards`).
+
+## B-118 — The repo `.npmrc` makes every local publish fail as "404", and says so in a warning nobody reads   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED 2026-08-11, after three failed publish attempts blamed on the wrong thing.
+
+  `.npmrc` at the repo root is `//registry.npmjs.org/:_authToken=${NPM_TOKEN}` — correct for CI,
+  where the workflow supplies the variable. Locally `NPM_TOKEN` is unset, so pnpm resolves the line
+  to an empty token, that empty token OVERRIDES a valid user-level credential, and the registry
+  answers the unauthenticated PUT with `404 Not Found` rather than 401.
+
+  The diagnosis this produces is wrong in a specific, expensive way: a 404 on
+  `PUT /@theokit%2fsdk` reads as "this package does not exist for you", so the investigation goes to
+  token scopes and package ownership. `npm whoami` succeeds, `npm owner ls` names you as the owner,
+  and the conclusion drawn was "granular token whose allowlist excludes this package" — which was
+  false.
+
+  ```
+  pnpm publish  -> npm error 404 Not Found - PUT https://registry.npmjs.org/@theokit%2fsdk
+  npm publish   -> + @theokit/sdk@4.42.1        # same token, same machine, same minute
+  ```
+
+  pnpm printed the cause on EVERY invocation, twice per command, for the whole session:
+  `WARN Issue while reading ".../.npmrc". Failed to replace env in config: ${NPM_TOKEN}`.
+why_now: |
+  It blocked a SECURITY release for hours and sent the diagnosis to token permissions, which only
+  the account owner could have "fixed" — so the block looked external when it was local and
+  one-line. A warning that prints on every command for months is not a warning; it is background
+  noise, and this is what background noise costs when it turns out to be the answer.
+status: raw
+severity: major
+dod:
+  - a local publish either works with an ordinary user credential or fails with a message naming the
+    unresolved `${NPM_TOKEN}` — never with a bare 404 that points at permissions
+  - the CI publish path is unchanged and still authenticates from the workflow secret
+  - the fix is shown to work by reproducing the failure first: unset `NPM_TOKEN`, observe the 404,
+    apply the fix, observe the difference
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `npmrc-env-token-masks-auth-as-404`).
