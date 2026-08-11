@@ -3794,3 +3794,241 @@ dod:
   - `git rev-list --count origin/develop..origin/main` is 0 immediately after a release
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `release-leaves-develop-behind`).
+
+## B-110 — The README tells every reader this repository has no test suite   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-08-11 by execution. `README.md` § "What is deliberately not here" states:
+
+  > **The test suite** (152 files, 1,524 cases) and the **12 architecture gates**. `npm test` does
+  > not exist here. Any claim about this code's behaviour is currently unverified in this repository.
+
+  All three clauses are false. `package.json` declares `"test": "vitest run"`; the tree holds 67
+  test files; `npm test` reports **427 passed in 14s**.
+
+  Sibling of B-062, which found the same disease in `.claude/agents/theocode.md` ("the repo has zero
+  tests") and closed it. Two artifacts, one root: a claim about the suite written once and never
+  re-measured.
+why_now: |
+  The sentence does not merely age — it instructs. It tells a reader that every behavioural claim in
+  the repository is unverified, which is the opposite of true, and `rules/public-copy.md` § 3 forbids
+  exactly this class of unearned statement in the other direction. A contributor arriving at a repo
+  whose README says the tests are absent does not run them.
+status: raw
+severity: minor
+dod:
+  - the paragraph states what is measurably true, with the date of the measurement, or is deleted
+  - no remaining sentence in `README.md` asserts the absence of a suite that `npm test` runs
+  - the claim is derivable — a reader can check it with one command that the README names
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `readme-denies-its-own-test-suite`).
+
+## B-111 — The tarball guard covers one publishing repo, and today's release came from the other   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  HIT 2026-08-11 while publishing `@theokit/sdk@4.41.1`.
+
+  B-093 (shipped) records that `theokit/scripts/check-pack-no-workspace.mjs` packs each publishable
+  package and refuses a `workspace:` range in the TARBALL, wired into `theokit`'s CI. Measured now:
+  `theokit-sdk/scripts/` holds `check-bundle-budget`, `check-capability-map`, `phase7-peerdep-bump`,
+  `scope-rename`, `smoke-real*` — and **no** `check-pack-no-workspace.mjs`. Running it there fails
+  with `MODULE_NOT_FOUND`.
+
+  `.claude/agents/theokit.md` states the guard "proves the tarballs are clean" for the domain, which
+  covers both repos. It covers one.
+
+  Worse, B-093's own "Honest limits" note says a publish run from a developer's machine bypasses the
+  guard entirely — and that is exactly the path `4.41.1` took, because the CI publish failed with
+  E404 (expired token) and the release was completed by hand. The tarball was verified manually
+  (`tar -xzO package/package.json | grep workspace:`), so nothing shipped wrong; the guarantee came
+  from an operator remembering, which is the state B-093 exists to end.
+why_now: |
+  `theokit-sdk` publishes 16 packages. A `workspace:` range in a published tarball cannot be fixed,
+  only deprecated — B-092 measured `npm install` failing outright on a clean checkout because of it.
+  The repo that ships the most packages is the one without the guard.
+status: raw
+severity: major
+dod:
+  - `theokit-sdk` runs the same tarball check in CI over every publishable package, and it fails the
+    build rather than warning
+  - the check runs on the PUBLISH path, not only on PR CI, so a manual release cannot skip it
+  - `agents/theokit.md` states which repos the guard actually covers, measured rather than assumed
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-has-no-tarball-guard`).
+
+## B-112 — The release workflow disables provenance citing a repository privacy that no longer holds   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-08-11. `.github/workflows/release.yml` disables npm provenance with this reason:
+
+  > PROVENANCE IS DISABLED: npm refuses provenance attestation for PRIVATE source repositories
+  > (E422 …). This repo is currently private […] Migration path: when the repo goes public
+  > (Apache-2.0 open SDK), re-add NPM_CONFIG_PROVENANCE + publishConfig.provenance and configure
+  > trusted publishers […] to go fully tokenless+attested.
+
+  `gh repo view usetheodev/theokit-sdk --json visibility` answers **PUBLIC**. The stated
+  precondition for the migration is already met and nothing acted on it.
+why_now: |
+  It is not cosmetic. The same file's header documents that this workflow has now failed publish
+  TWICE on an expired `NPM_TOKEN` (E404 on PUT, ~2026-07-24 and again on 2026-08-11 — the second
+  blocked a SECURITY release and forced a manual publish). Trusted-publisher binding removes the
+  token from the workflow entirely, which removes that failure class rather than renewing it on a
+  schedule. The comment's own migration path is the fix, and its precondition already holds.
+status: raw
+severity: major
+dod:
+  - the workflow publishes through an npm trusted publisher with no `NODE_AUTH_TOKEN` in its env, or
+    an ADR records why token auth is kept with the repository public
+  - `provenance` is enabled and a published version carries an attestation, verified on the registry
+    rather than asserted from a green job
+  - the header comment and the step it describes agree — the file's own rule about itself
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-provenance-precondition-already-met`).
+
+## B-113 — The pre-push gate re-runs the full validate for a push that introduces no commits   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11. `.githooks/pre-push` runs `pnpm validate` — biome, build, typecheck, the full
+  4 174-case suite, ls-lint, publint, attw, knip, cycles, depcruise, cross-cluster, loc, duplication,
+  audit and the bundle budget.
+
+  It fires per PUSH, not per commit content. Pushing the annotated tag `@theokit/sdk@4.41.1` — which
+  points at a commit already on `main`, already validated by the same gate and by CI — ran the entire
+  pipeline again. Two pushes in this session exceeded a 5-minute budget and had to be backgrounded;
+  the tag push took long enough that a first attempt was killed by timeout and the tag silently did
+  not transfer (B-114).
+why_now: |
+  The hook already knows how to exempt a caller: it skips itself under `CI`/`GITHUB_ACTIONS` with the
+  reasoning that a context running its own gates should not re-run them. A tag push carrying zero new
+  commits is the same argument, and it is the push that happens during a release — when the cost of
+  a ten-minute gate is paid at the worst moment.
+status: raw
+severity: minor
+dod:
+  - a push whose ref introduces no new commits (a tag at an already-pushed commit) does not re-run
+    the full validate, and the exemption is stated in the hook rather than discovered
+  - a push that DOES introduce commits still runs it — verified by a case, not by inspection
+  - the release path documents which gate ran where, so "gates passed" cannot be read as covering a
+    transfer that did not happen
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `pre-push-gate-ignores-ref-content`).
+
+## B-114 — A tag push reported success and transferred nothing   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  OBSERVED 2026-08-11, cause NOT established — filed as a hypothesis, which is what intake is for.
+
+  `git push origin 'refs/tags/@theokit/sdk@4.41.1'` completed with **exit code 0** and its output
+  ended in `✓ pre-push gates passed`. `git ls-remote --tags origin` then showed only `4.41.0`. The
+  tag was on the remote only after a second push with an explicit `src:dst` refspec.
+
+  Two candidate causes, neither confirmed: the refname contains `@` twice and a bare
+  `'@theokit/sdk@4.41.1'` may resolve as a revision rather than a ref; or the push was still
+  transferring when the surrounding command returned. The first attempt at the same push had been
+  killed by a 5-minute timeout, so the sequence is not clean enough to blame either.
+why_now: |
+  Whatever the cause, the failure mode is the dangerous one: a release step that reports success and
+  does nothing. It was caught because the tag was checked against the remote afterwards; nothing in
+  the flow requires that check, and a missing release tag is discovered weeks later by someone
+  bisecting.
+status: raw
+severity: minor
+dod:
+  - the cause is established by reproduction, or the item is killed with the measurement that refuted it
+  - the release path verifies a pushed ref against the remote rather than trusting the exit code
+  - if the refname is the cause, tags are pushed with a form that cannot be read as a revision
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `tag-push-succeeded-without-transferring`).
+
+## B-115 — Nothing tests what the SDK does with a file the repository controls   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-08-11, from a defect rather than from a survey. `resolveImportPath` accepted `~/…`
+  and absolute paths with no containment root, so a repository-supplied `CLAUDE.md` could inline any
+  readable file into the system prompt. It shipped in every version through 4.41.0 and was found by a
+  consumer audit, not by the suite — which was green at 4 131 cases.
+
+  The suite tested that imports RESOLVE. Nothing tested what they may not resolve TO. The traversal
+  guard the package does own (`isSafePattern`, `TRAVERSAL_RE`) is tested, and it guards the discovery
+  pattern rather than the import target — so the tests were pointed one layer away from the boundary.
+
+  The same shape is untested elsewhere on the same path and was NOT audited: `walkUpForGlob`,
+  `loadPlainMarkdown`, and the `.cursor/rules/*.mdc` and `.theokit/rules/*.md` parsers all read files
+  the repository chooses.
+why_now: |
+  This is the class B-102 named — a gap with no observable consequence to assert against — with one
+  difference that makes it worse: this one COULD have failed a test, and no test asked. Every file
+  the SDK reads because a repository named it is untrusted input, and the framework's whole value to
+  a consumer is that it decided this once, correctly, for everyone.
+status: raw
+severity: major
+dod:
+  - every path where the SDK reads a file whose name came from repository content has a test that a
+    target outside the declared root is refused, symlinks resolved
+  - the audit enumerates those paths rather than sampling them, and the enumeration is recorded so a
+    new discovery spec inherits the question
+  - a new `DiscoverySpec` with `followImports: true` and no root fails a test rather than shipping
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-untested-repo-controlled-reads`).
+
+## B-116 — The most stateful surface subsystems are the least tested   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-08-11 across the whole tree (67 test files, 427 cases, all passing).
+
+  | Subsystem | Prod LoC | Test cases |
+  |---|---:|---:|
+  | `tui/src/commands` | 2 614 | 42 across 5 of 19 files |
+  | `tui/src/terminal-io` | 387 | 2, all in `stderr-guard` |
+
+  `terminal-io/input-router.ts` is a 115-LoC modal state machine — it decides what Ctrl-C, Esc and
+  Enter do across seven surface states (open question, demo, consent gate, login, backtrack ladder,
+  streaming turn, composer) — and has zero direct tests. `apply-key-action.ts` and `write-queue.ts`
+  likewise. `commands/interpret-command.ts` (378 LoC) routes every slash command through seven
+  capability groups and is exercised only indirectly.
+
+  These are the two subsystems B-104 measures at ZERO framework coupling — the code most specific to
+  this product is also the code least covered.
+why_now: |
+  Not a coverage-percentage complaint. `routeKey` is where "Esc interrupts the turn" and "Esc opens
+  the backtrack ladder" are told apart, and a wrong answer there is silent: the key appears to do
+  nothing, or does the other thing. B-029 is the record of exactly that — the backtrack ladder was
+  dead because a flag was raised before the data it announced, and no test saw it.
+status: raw
+severity: minor
+dod:
+  - `routeKey` has a case per surface state, asserting the ACTIONS it returns rather than the effect
+    of applying them — it is a pure function and needs no terminal
+  - the slash-command router has a case per capability group, including the refusals (a goal running,
+    a turn streaming)
+  - each new test is shown to detect: a mutation of the branch it covers turns it red, recorded
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `least-tested-most-stateful-surfaces`).

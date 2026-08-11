@@ -17,6 +17,13 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **theokit-sdk:** backlog B-107 — the two invariants that keep a trust posture honest live only in the consumer.
 - **theokit:** backlog B-108 — what an agent actually wired is not observable from the framework.
 - **theokit-sdk:** backlog B-109 — every release leaves `develop` behind `main`, and the next release PR would re-publish shipped work.
+- **theocode:** backlog B-110 — the README tells every reader this repository has no test suite (it has 67 files, 427 cases).
+- **theokit-sdk:** backlog B-111 — the tarball guard covers one publishing repo, and today's release came from the other.
+- **theokit-sdk:** backlog B-112 — the release workflow disables provenance citing a repository privacy that no longer holds.
+- **theokit-sdk:** backlog B-113 — the pre-push gate re-runs the full validate for a push that introduces no commits.
+- **theokit-sdk:** backlog B-114 — a tag push reported success and transferred nothing.
+- **theokit-sdk:** backlog B-115 — nothing tests what the SDK does with a file the repository controls.
+- **theocode:** backlog B-116 — the most stateful surface subsystems are the least tested.
 
 ### Security
 - **Upgraded to `@theokit/sdk@4.41.1`,** which confines `@path` context imports to the repository that declares them. Before it, a repository this agent was pointed at could inline any file readable by the process — an SSH key, a `.env` — into the system prompt via a `CLAUDE.md` line that was exactly `@~/.ssh/id_rsa`. Found and fixed upstream from here; TheoCode's own `AGENTS.md` loader was already contained (B-042), but the SDK's discovery path runs whenever the `project` setting source is enabled for a trusted directory.
