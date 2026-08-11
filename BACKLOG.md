@@ -4030,7 +4030,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-owns-sovereign-env-and-key-coverage`).
 
-## B-108 — What an agent actually wired is not observable from the framework   [ ]
+## B-108 — What an agent actually wired is not observable from the framework   [x]
 
 domain: theokit
 repo: theokit
@@ -4097,7 +4097,27 @@ unblocked: |
   its values, which entities were requested and which were wired. The wiring point is
   `agent-builder.ts`, and the property to preserve is that the record is an OBSERVATION rather than
   a second read of configuration — the defect B-071 was reopened for.
-status: triaged
+shipped: |
+  SHIPPED 2026-08-11. All three DoD bullets hold.
+
+  `recordWiring` is in `@theokit/sdk@4.48.0`, verified against the registry: a withheld capability
+  reports empty `active` while still naming what was asked for, and "withheld because untrusted" is
+  distinguishable from "none configured" — the second bullet, and the one that needed B-097 first.
+
+  The framework version added a guard the consumer never had. A recorded capability the posture does
+  not gate now THROWS instead of defaulting to denied: the default lies in the direction the reader
+  cannot check, since the capability would read as suppressed and send them looking for a trust
+  setting that does not exist.
+
+  Third bullet: `wired-capabilities.ts` is now a projection, 35 -> 31 lines of code. The number is
+  small for an honest reason — this implementation was already thin. What moved is the invariant,
+  which now has one home and one suite.
+
+  Mutation-measured on the projection, 8 wiring mutations. Seven detected immediately; the eighth
+  found a real hole and was closed: `projectSources` pinned to `true` passed the entire suite. It
+  gates whether `.theokit/agents/*.md` load, and subagents plus repository-declared hooks ride on it,
+  so a stuck `true` lets an untrusted repository redirect the model of a squad member.
+status: shipped
 severity: major
 dod:
   - the build reports which disk entities were requested, which were wired, and which were withheld,

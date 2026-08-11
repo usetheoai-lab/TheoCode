@@ -59,6 +59,14 @@ describe('B-069/B-070/B-071 — wiredCapabilities', () => {
     expect(w.hooks.active).toEqual(['PreToolUse'])
   })
 
+  it('test_project_sources_reports_whether_they_were_allowed', () => {
+    // Found by mutation: pinning this to `true` passed the whole suite. It gates whether
+    // `.theokit/agents/*.md` load, and subagents plus repository-declared hooks ride on it — so a
+    // stuck `true` means an untrusted repository gets to redirect the model of a squad member.
+    expect(wiredCapabilities(input()).projectSources).toBe(true)
+    expect(wiredCapabilities(input({ projectSourcesAllowed: false })).projectSources).toBe(false)
+  })
+
   it('test_it_performs_no_io', () => {
     // "No second read" is the DoD bullet B-071 was reopened for. It is checkable here because the
     // function takes already-resolved values: a nonexistent cwd cannot change the answer.
