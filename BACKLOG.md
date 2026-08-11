@@ -4011,9 +4011,34 @@ why_now: |
   difference that makes it worse: this one COULD have failed a test, and no test asked. Every file
   the SDK reads because a repository named it is untrusted input, and the framework's whole value to
   a consumer is that it decided this once, correctly, for everyone.
-status: raw
+status: triaged
 severity: major
+evidence_measured: |
+  MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
+  `.claude/knowledge-base/discoveries/opportunities/sdk-untested-repo-controlled-reads-opportunity.md`
+  (SHIPPABLE 98.5). The hypothesis predicted an INCIDENTAL, untested containment; the measurement
+  found something worse — an EXPLICIT check that does not hold.
+
+  `internal/runtime/context/context-manager.ts:289` guards a repository-controlled path (it arrives
+  as `path: e.frontmatter.path`) with `absolute.startsWith(resolvePath(cwd))`. Proven by execution:
+
+      cwd = /home/user/proj
+      ../proj-evil/secret.md  -> /home/user/proj-evil/secret.md   PASSES
+      ../../etc/passwd        -> /home/etc/passwd                 refused
+
+  A sibling directory whose name merely EXTENDS the project's is admitted — no separator boundary,
+  no `realpath`. The obvious escapes ARE refused, which is what makes the check look correct. The SDK
+  therefore ships two containment implementations of different strength; the weaker one is reachable
+  by ordinary configuration (the legacy per-file context config).
+
+  Two further rows are safe-but-untested, which the plan recorded in advance as CONFIRMING rather
+  than refuting: `subagents-loader` is safe only because `Dirent.isFile()` is false for a symlink.
 dod:
+  - `context-manager.ts:289` compares after `realpath` and with a separator boundary, reusing the
+    shape row 1 already uses rather than adding a third containment implementation
+  - a test feeds `../<cwd-basename>-evil/secret.md` and asserts the source is excluded; it fails today
+  - mutating the fixed guard back to `startsWith` turns that test red — detection verified, not assumed
+  - a test pins `subagents-loader`'s symlink skip, so its incidental safety becomes a stated one
   - every path where the SDK reads a file whose name came from repository content has a test that a
     target outside the declared root is refused, symlinks resolved
   - the audit enumerates those paths rather than sampling them, and the enumeration is recorded so a
