@@ -4243,7 +4243,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `npmrc-env-token-masks-auth-as-404`).
 
-## B-119 — `globbed` discovery cannot see a nested rule, and the SDK already has the code that could   [ ]
+## B-119 — `globbed` discovery cannot see a nested rule, and the SDK already has the code that could   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4286,7 +4286,7 @@ why_now: |
   It blocks B-103's consumer migration, which is in the current goal's scope, and it blocks it in the
   most dangerous way available — a migration that looks successful while dropping rules nobody
   notices are missing, on the path that decides whether repository hooks execute.
-status: raw
+status: shipped
 severity: major
 dod:
   - a spec whose pattern contains `**` finds files at every depth, proven against a fixture with a
@@ -4342,7 +4342,7 @@ dod:
 > Registered 2026-08-11 by `/backlog-item` (slug: `guard-clean-on-unreadable-ref`).
 
 
-## B-121 — Six publishable packages cannot publish with provenance: `repository.url` is empty   [ ]
+## B-121 — Six publishable packages cannot publish with provenance: `repository.url` is empty   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4372,7 +4372,7 @@ why_now: |
   Six packages are unreleasable as of the change that landed today. It is not a regression of
   provenance so much as a latent defect provenance exposed — the field was empty before and nothing
   needed it. Left alone, the next release of any of those six fails the same way, after signing.
-status: raw
+status: shipped
 severity: major
 dod:
   - every publishable package declares a `repository.url` matching this repository, with `directory`
