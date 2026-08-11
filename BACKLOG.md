@@ -3977,7 +3977,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-reaps-its-own-artifacts`).
 
-## B-107 — The two invariants that keep a trust posture honest live only in the consumer   [ ]
+## B-107 — The two invariants that keep a trust posture honest live only in the consumer   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4043,7 +4043,34 @@ outcome_b: |
   B-097 is now the keystone for three separate items: this bullet, B-108 (wiring observability), and
   the harder half of B-106. Naming that is more useful than three independent "blocked" notes,
   because it says which single item unblocks the group.
-status: triaged
+outcome_b_resolved: |
+  RESOLVED 2026-08-11, and the bullet is met in a NARROWER form than it asks. Saying which part is
+  met matters more than the checkbox.
+
+  `outcome_b` recorded this as blocked on B-097, expecting B-097 to produce a config-key registry the
+  check could range over. B-097 shipped, and it produced the opposite: measured against
+  `@theokit/sdk@4.48.0`, the framework has no config-key registry, no `config` subpath, and by
+  B-097's own design will not have one — the keys are the consumer's vocabulary, which is exactly why
+  `applySecurityFloor`, `foldLayers` and `resolveTrustPosture` all take theirs as parameters. So the
+  block was not lifted; the premise was refuted.
+
+  What IS implementable, and shipped as `auditEnvReachability` in `@theokit/sdk@4.49.0`: the
+  framework owns the RULE and the consumer ranges over its own keys with it. The bullet's literal
+  ask — "a key fails THERE rather than in a consumer's own detector" — is NOT met and cannot be: the
+  failure still surfaces in TheoCode's own suite. What the consumer no longer WRITES is the detector,
+  and that is where the subtlety lives.
+
+  The subtle half is the second axis, which everyone forgets: an opt-out written for a key that has
+  since gained an environment path, or for a key that no longer exists, still reads as a considered
+  decision while exempting nothing — the same rot as an expired allowlist entry. Both axes are
+  answered by one call so a consumer cannot check the gap and skip the rot.
+
+  Bullet 3 holds outright: `keysWithoutEnvPath` and `optOutsThatExemptNothing` keep their signatures
+  and now delegate, so `env-knobs.test.ts` is unchanged and a consumer adding a key inherits both.
+  Both axes verified to detect — swapping one for the other turns the gate red.
+
+  10 cases in the framework, seven mutations all detected.
+status: shipped
 severity: major
 dod:
   - the framework's own project-env loading refuses to let a project-scoped source set the keys that
