@@ -17,6 +17,8 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { canonical } from './trust-store.js'
+
 import { TRUST_CAPABILITIES, resolveTrustPosture } from './trust-posture.js'
 
 let dir: string
@@ -98,6 +100,28 @@ describe('the posture actually gates the capabilities', () => {
     const { allows } = resolveTrustPosture(dir, store, {})
 
     expect(Object.keys(allows).sort()).toEqual([...TRUST_CAPABILITIES.map((c) => c.key)].sort())
+  })
+
+  it('test_a_directory_the_operator_recorded_is_trusted_from_the_store', () => {
+    // The normal way trust is granted — the operator answers the consent prompt — and it was
+    // untested here: replacing the store lookup with a constant `false` left every case green while
+    // every trusted directory in the world silently became untrusted.
+    writeFileSync(store, JSON.stringify({ trusted: [canonical(dir)] }), { mode: 0o600 })
+
+    const posture = resolveTrustPosture(dir, store, {})
+
+    expect(posture.level).toBe('trusted')
+    expect(posture.source, 'trust came from somewhere other than the store').toBe('store')
+    expect(Object.values(posture.allows).every(Boolean)).toBe(true)
+  })
+
+  it('test_the_environment_outranks_the_store_and_says_which_one_answered', () => {
+    // Two facts a surface must be able to tell apart: a directory the operator recorded, and a
+    // blanket switch that stays on for every directory the process ever opens. Only the second is
+    // worth warning about.
+    writeFileSync(store, JSON.stringify({ trusted: [canonical(dir)] }), { mode: 0o600 })
+
+    expect(resolveTrustPosture(dir, store, { THEOCODE_TRUST_ALL_DIRS: '1' }).source).toBe('env')
   })
 
   it('test_the_deprecated_alias_still_grants_trust', () => {
