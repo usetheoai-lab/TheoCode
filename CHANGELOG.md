@@ -7,11 +7,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- **TheoCode:** backlog B-095 — `/mcp` asserts servers were handed to the agent when the session has no MCP tools (#188).
-
-### Added
-- **TheoCode:** backlog B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the run-event sink (#188).
+## [0.2.0] - 2026-08-10
 
 ### Added
 - **`/mcp` reports a server that was started and did not answer (#188).** Its tools silently vanish from the session, and the panel previously could only say whether each server answered was "not reported here" — true while no layer below knew. `@theokit/sdk@4.41.0` now emits that failure per server with its reason, and the panel names it, distinct from a server withheld by trust. Absence of a failure is still not reported as health: the turn may not have run yet, and a server that recovers stops being reported as failed on the next turn. Requires `@theokit/agents` 7.5.0, which forwards the run-event sink through the in-process turn. Verified live against a real MCP server: a configured server that never completes its handshake is named in the panel with its reason.
