@@ -84,7 +84,7 @@ suggested_mode: evolve
 source: human
 evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
 why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
@@ -103,7 +103,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `packages/agent/src/chat-acp.ts:25` → `packages/agent/src/chat.ts:419` (AC-01)
 why_now: the 2026-08-07 cross-validation measured that `buildChatAgent()` is called without `surface`, falling through to the `'interactive'` default, which registers `request_user_input` against a bridge only the TUI subscribes to — every call stalls on the built-in's 5-minute timeout. `chat.ts:286` documents this very defect one screen above, and the ACP surface commits it anyway.
-status: triaged
+status: shipped
 severity: BLOCKER
 dod:
   - `chat-acp.ts:25` passes `surface: 'headless'`, the same value `run-composition.ts:57` uses
@@ -120,7 +120,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `context/instructions.ts:1`, `shared/agent.ts:9,12`, `tui/components/Banner.tsx:9`, `tui/theme.ts:45`, `tui/components/ConsentGates.tsx:71`, `chat.ts:224,237` (CI-001, CI-002, CI-003, CI-011, AC-02, AC-07, TIP-08)
 why_now: measured 82 imports of `@theokit/agents` and **0** of `@theokit/sdk`, while the system prompt and the greeting tell the user the agent runs on `@theokit/sdk` as "Theokit Builder" — a product renamed to TheoCode in commit `b0fbda1`. Four of the six literals are rendered, including the dialog that asks for filesystem and command-execution permission.
-status: triaged
+status: shipped
 severity: HIGH (4 HIGH findings)
 dod:
   - `grep -rn "Theokit Builder" packages/` returns 0
@@ -138,7 +138,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `session/gc/filesystem.ts:104,127`, `session/gc/all-sessions.ts:51,303`, `session/session-ops.ts:59,61`, `session/gc/per-session.ts:56` (PS-001, PS-002, PS-004, PS-005, PS-016)
 why_now: `filesystem.ts` swallows any read error on the live-session pointer and returns `undefined`, disarming both layers of the guard — while its sibling `per-session.ts:56-68` treats the same condition as fail-fast ("refusing to GC — would risk the live session"). And `hasLiveWriter`, a required field wired to the SDK's `sessionHasWriter`, is never called in the plan phase. That is ~740 LoC deleting user transcripts, with 0 tests, even though every options interface was designed as an injectable seam.
-status: triaged
+status: shipped
 severity: HIGH (4 HIGH findings)
 dod:
   - the four sites deriving `.theokit/tui-session` inline use a single `readPointerId` with the fail-fast posture
@@ -156,7 +156,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `ask/ask-bridge.ts:26,32-35,60,68`, `ask/concurrent-question-error.ts:4-15`, `ask/index.ts:1-4` (TIP-03, TIP-04, TIP-05, TIP-06, TIP-07)
 why_now: `abandonar()` calls `pending.delete()` and discards the `resolve` captured in the closure — and `perguntar()` never captures `reject`, so there is no path to reject at all. ESC frees the UI and leaves the turn stalled for 5 minutes. In parallel, `createQuestionTool` only catches `err.message === "timeout"`, so `ConcurrentQuestionError` (Portuguese message) escapes as an exception and its `code` never reaches the model.
-status: triaged
+status: shipped
 severity: HIGH (2 HIGH findings)
 dod:
   - `abandonar()` settles the promise (rejecting with a typed error) and a test covers that ESC unblocks the turn
@@ -174,7 +174,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `config/trust-store.ts:19,40`, `hooks/hook-trust.ts:73,81`, `hooks/hook-runner.ts:39` (SAC-01, SAC-11)
 why_now: `~/.theokit/trusted-dirs.json` decides which directories are trusted **and** which hook command lines are pre-approved — and a hook is `spawn(cmd, {shell:true, detached:true})`. Neither reader checks permissions, and `mkdirSync(..., {mode:0o700})` is a no-op on an existing directory, with no `chmodSync` to repair it. The directory is shared with the SDK's transcript root, created without a mode: whoever gets there first sets the permissions. The SDK does the opposite for a store of comparable sensitivity (`assertSecureModes`).
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - the consent store's directory and file have permissions verified on read and repaired on write
@@ -191,7 +191,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `tui/consent/use-approvals.ts:44` → `tui/consent/approval-mode.ts:13`; contrast with `config/approval-policy.ts:19-27`; `config/layers.ts:19`; `config/config.ts:46,202`; `config/trust-posture.ts:94`; `tools/registry.ts:76` (SAC-02, SAC-03, SAC-04, SAC-05)
 why_now: headless refuses to auto-approve without an enforced sandbox, in writing ("refusing instead of claiming a confinement that does not exist"). The TUI auto-approves every tool under `full-auto` with no posture check — while the same screen renders `sandbox:<mode> ⚠ tool-gating` warning that confinement is absent. And `sandbox_mode`/`approval_policy` are last-wins scalars: `env` (50) and `project` (30) outrank the user's own file (20). The codebase already solved this risk once for `hooks` (`ACCUMULATING_KEYS`) and did not apply it to the two sandbox keys.
-status: triaged
+status: shipped
 severity: HIGH (2 HIGH findings)
 dod:
   - the TUI consults the posture before auto-approving, with the same refusal as headless
@@ -209,7 +209,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `chat-acp.ts:19`, `tui/agent-session/credential-helpers.ts:20`, `auth/credentials.ts:40,55,342` (AC-03, SAC-06, SAC-08, SAC-10)
 why_now: a typed credential error becomes `apiKey: ''`, turning "I could not authenticate" into a request that fails later with an irrelevant message — a direct violation of Unbreakable Rule 8 (fail loud, fail clear). On top of that, `ensureAuthHome` mutates the environment object it receives, and the `openai-chatgpt/` route passes `env: {}`, discarding more than it intends.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - credential failure propagates a typed error; no path returns an empty bearer
@@ -226,7 +226,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `chat.ts:281`, `config/trust-posture.ts:54-58`, `hooks/hook-trust.ts:34`, `hooks/hooks.ts:381,391` (AC-04, AC-11)
 why_now: `.settingSources(['project','user'])` enables hooks from `.theokit/hooks.json` through the SDK path, and the SDK states this twice in its own docs. TheoCode's hooks pass a second gate — a per-hook sha256 fingerprint whose whole purpose is catching a hook whose command changed after approval. The SDK path does not pass that gate, and the trust catalog does not know it.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - both hook paths pass the same fingerprint gate, or the asymmetry is recorded in an ADR with justification
@@ -245,7 +245,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `ask/interactive-shell-tool.ts:49-78` vs `sdk-tools/index.js:1014-1034` (TIP-01)
 why_now: the SDK's Zod schema and handler body were copied verbatim, with a single divergence (`:74`); the SDK factory is called only to harvest `.name`/`.description` and the object is discarded. Result: the description shown to the model comes from the SDK while the schema is a frozen copy — `cwd`/`ttl_ms`/`cols`/`rows` already exist in `StartInteractiveOptions` and will drift silently. The motivation is legitimate and recorded (see § Upstream U-2); the form is not.
-status: triaged
+status: shipped
 severity: HIGH
 status_note: CLOSED. U-2 was fixed at the source and released as `@theokit/sdk-tools@0.26.2`; this
   package now resolves it, the fork is gone (74 lines to 26), and a test asserts the behaviour the
@@ -266,7 +266,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `tools/build-cli.mjs:46`, `packages/tui/package.json:11,18,21`, `packages/cli/package.json:11`, `packages/agent/package.json:9,15,21`, `README.md:16` (CI-004, CI-005, CI-006, CI-007, CI-008, F-tui-1, F-tui-10)
 why_now: both declared bins break on first invocation, from two cumulative causes — neither entrypoint has a shebang (the shell runs it as a script and `import` resolves to the ImageMagick binary, reproduced), and even forcing `node` it is raw TypeScript (`ERR_MODULE_NOT_FOUND`). The build resolves `@theokit/sdk` without declaring it, working only via hoisting and degrading silently. `figlet` is installed with no consumer. Four subpath exports have no consumer. The README claims an enforceability that `tsconfig.json` undoes.
-status: triaged
+status: shipped
 severity: HIGH (2 HIGH findings)
 dod:
   - `npx theocode --help` and `npx theocode-exec --help` work from a clean checkout, OR the bins are removed while the packages remain `private`
@@ -286,7 +286,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `tui/components/Banner.tsx`, `ConversationRegion.tsx:117`, `ConversationSlot.tsx`, `InputSlot.tsx`, `commands/registry.ts`, `backtrack/BacktrackOverlay.tsx`, `consent/pending-approvals.ts` (F-tui-2, F-tui-3, F-tui-4, F-tui-5, F-tui-6, F-tui-7, F-tui-8, F-tui-9)
 why_now: `Banner.tsx` rewrites the `WelcomeBanner` whose docstring **literally names** the two headings written by hand. `/diff` runs `git diff HEAD` and dumps the raw unified diff into a single `<Text>` — no color, no folding, no scroll — while `DiffViewerProps.patch` is documented as taking exactly that shape, and `Pager` exists unused. The approval ledger (97 LOC) duplicates `findPendingApproval` with divergent ordering, and the approval shape is declared in three places.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `/diff` uses `DiffViewer`; long panels use `Pager`
@@ -321,7 +321,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `session/backtrack.ts:20,25,33,40,52`, `session/agent-list.ts:29`, `session/atomic-write-temp.ts:5`, `tui/persistence/goal-store.ts:28` (PS-003, PS-006, PS-007, PS-008, PS-009, PS-010, PS-015, PS-017)
 why_now: `parseTranscript` reimplements `loadJsonl`, including the "tolerate a truncated last line" behaviour the SDK exposes as a flag, and throws a bare `SyntaxError` where the SDK throws `JsonlParseError` with a line number. Every backtrack read loads the whole transcript to show a few lines, with `readJsonlTail` available. A stale cast (PS-006) undoes the very type the SDK started declaring in order to remove it. `CursorNotDrainedError` is unreachable because the adapter drops `nextCursor` before the guard. Six exported symbols have zero call sites.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `loadJsonl` / `readJsonlTail` adopted where they fit; the triplicated `compact_boundary` scan becomes one function
@@ -340,7 +340,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `tui/persistence/session-store.ts:17`, `tui/persistence/use-goal-run.ts:23`, `tui/terminal-io/write-queue.ts:5-12` (PS-011)
 why_now: `enqueue` attaches `catch` to the tail it stores, not to the promise it returns — so the rejection reaches the `void` with no handler. `atomicWriteText` genuinely rejects (ENOSPC, EACCES, EROFS, EXDEV), and the declared engine is `node >=22`, whose default is `--unhandled-rejections=throw`. A failed pointer write would kill the TUI instead of degrading.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - both sites handle the rejection, surfacing a toast/stderr line
@@ -357,7 +357,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `pty/session-pty-owner.ts:44-59`, `chat.ts:102`, `tui/agent-session/composition-root.ts:75` (TIP-09)
 why_now: `setMode` changes the wrap for future sessions only, and `rotate()` is called only on session reset — a `bash -i` started under `danger-full-access` survives the switch to read-only. Mitigated today by `interactive_shell`/`write_stdin` being approval-gated.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - changing the mode terminates or re-wraps live PTYs, or the limitation is documented and surfaced to the user at switch time
@@ -373,7 +373,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `chat.ts` (`process.cwd()` at 6 sites, `withShellAndProjectEntities`), `tui/agent-session/chat-transport.ts`, `hooks/hooks.ts:~220` (AC-05, AC-06, AC-09, AC-10)
 why_now: `buildChatAgent` reads `process.cwd()` at six independent sites while the CLI composition root injects the directory — two sources of truth for one fact. Four composition sites build the agent with four different argument sets, which is the condition that produced B-001. `withShellAndProjectEntities` does far more than its name claims (SRP).
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - the working directory has a single, injected source
@@ -391,7 +391,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `hooks/hooks-test-helpers.ts`, `tools/registry.ts:53-84`, `ask/ler-ate.ts:1-34`, `ask/interactive-shell-tool.ts:8,26,45`, `config/config.ts:31`, `ask/ask-bridge.ts:22,32,41,60` (AC-08, TIP-10, TIP-11, TIP-12, TIP-13, TIP-18, TIP-19, SAC-12)
 why_now: the repository ships `hooks-test-helpers.ts` and injection seams built in `session-pty-owner.ts:25-26` — fixtures for a suite that does not exist. `withDefaultGuidance`/`DEFAULT_TOOL_GUIDANCE` cover the failure codes of 6 of the registry's 9 tools and have zero consumption. `lerAte`/`Drenavel` have no caller and throw bare `Error`, contradicting the neighbouring file. TheoCode's `AgentConfig` collides by name with the SDK's exported `AgentConfig`.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - `/code-quality` reports no `dead_code_unallowlisted_typescript` in this scope
@@ -409,7 +409,7 @@ suggested_mode: bug
 source: discover-review
 evidence: `.gitignore:62-63`, `.prettierignore:9`, `CHANGELOG.md` (CI-009, CI-010, CI-012)
 why_now: `.gitignore:62-63` carries the self-cancelling pair `.theocode/` followed by `!.theocode/`; `git check-ignore -v .theocode/sessions/x.json` confirms **not ignored**, contradicting the comment right above declaring it local runtime state. `.prettierignore` ignores a non-existent file. `CHANGELOG.md` was created alongside this registry (that part is already resolved).
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - `git check-ignore` confirms `.theocode/` runtime state is ignored while preserving `config.example.toml`
@@ -461,7 +461,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #68, #79 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-005
 why_now: The 2026-08-08 review measured that `assertPrivate()` landed in `trust-store.ts` `lerDocumento()` while `hook-trust.ts:74` keeps its own `readStore()` on the SAME file with a bare `readFileSync`. Directory trust is gated; the hook-approval set is not — and that set decides which command lines reach `spawn(cmd, {shell:true, detached:true})` (`hook-runner.ts:39`). B-005's own docstring names hook execution as the threat it defends, and B-005's own `evidence` field already cited `hooks/hook-trust.ts:73,81`. `assertPrivate` is module-private, which is why the second consumer duplicated the read instead of reusing the gate.
-status: triaged
+status: shipped
 severity: CRITICAL
 dod:
   - every reader of TRUST_STORE goes through one gated reader — proven by grep returning a single `readFileSync` of that path
@@ -486,7 +486,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #69, #70, #71, #72, #73, #81, #85, #86 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-003, B-012
 why_now: Five independent swallowed-error sites on the only code path that deletes user data all fail in the same direction. `dfsExistencia` continues past an unreadable directory and returns `NAO_ACHOU` -> `MORTO`; `ehDiretorio` maps any statSync failure to false -> `MORTO`; `listRealProject` maps any statSync failure to mtimeMs=0, which is infinitely old AND sorts last so `keepLast` cannot protect it; `resolverGuardas` returns an EMPTY protection set for `MORTO`, so `--keep-last` has no effect on exactly the projects the collector deletes from; and `listagemPadrao` drops `nextCursor` so the registry guard is page one. `classifyDirectory` already has `INDETERMINADO` for 'I cannot tell' and uses it on one branch only. Both existing tests force `VIVO` or keepLast:0, so a green suite cannot see any of it.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - an unreadable directory, an unstat-able cwd and an unstat-able transcript each produce `INDETERMINADO`, never `MORTO` — one failing test per site
@@ -510,7 +510,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #74, #77 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-008
 why_now: `buildHookHandlers(opts.approved?)` installs every parsed spec with no sha256 fingerprint check when the argument is omitted — the gate B-008 exists to enforce. `OpcoesApplyAll.hasLiveWriter?`/`readPointer?` make the apply-phase TOCTOU backstops opt-in, and `backstopRefusal` returns undefined outright when `hasLiveWriter` is absent. `resolveHeadlessApproval(policy, posture?)` returns `approved:true` for full-auto when `posture` is omitted, skipping the enforced-sandbox refusal that is its stated purpose. Callers pass them today, so nothing is broken now — the defect is that the TYPE permits the unsafe call and the default branch is the permissive one. The sibling `OpcoesPlanoAll.hasLiveWriter` is required, which shows the correct polarity was already known here. Separately, `appliesTo` returns true for an empty tool name, so a matcher-scoped hook fires out of scope.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - the three parameters are required, or their absent-value branch is the refusing one — typecheck fails on the unsafe call
@@ -531,7 +531,7 @@ suggested_mode: bug
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #6 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: All five USAGE lines in `args.ts:59` teach `theocode exec <sub>`; the parser has no `exec` branch, so the token becomes the PROMPT. Following the CLI's own documentation fires a billable model turn instead of running `sessions gc` / `review` / `goal`. Reproduced by running the parser: `exec sessions gc` yields `mode=run, prompt="exec sessions gc"`. `README.md:32` shows the correct form, so the drift is in the text the user is shown at the moment they are already wrong.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `theocode exec sessions gc` either runs the collector or exits with a usage error — never starts a model turn
@@ -553,7 +553,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #7, #8, #9, #10, #20 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `--uncommitted` is parsed and validated but never reaches the review target; `-m/--model` and `-o/--output-last-message` are documented globally but ignored by `review` and `sessions`; `--last` is accepted outside `resume` and ignored; `-C/--cd` does not affect .env resolution; and there is no `--help`/`-h` at all — the usage text is reachable only by triggering an error. A flag that parses and does nothing is worse than an unknown flag, which at least errors.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - each flag either changes behaviour or is rejected where it does not apply — one test per flag
@@ -575,7 +575,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #11, #12, #15 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `composeRun`'s `CompositionSeams` parameter has no caller and no test — the injection seam built for testability is itself untested and unused. `baseInstructions` is accepted but no caller can supply it. `RunComposition.cfg` is computed and returned and never read. Three separate pieces of scaffolding for a use that never arrived.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - each of the three is either exercised by a test that would fail without it, or deleted
@@ -596,7 +596,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #13 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The argument parser is pure, has no I/O, and decides whether a command runs or a billable model turn starts (see the `exec` drift). It is the cheapest possible thing to test and has no test at all. DISTINCT FROM B-018, which is scoped to the 19 `packages/agent` files the TDD gate lists because they were TOUCHED during the B-001..B-017 remediation: `packages/cli` was never touched, so it is in neither the gate's list nor B-018's DoD. Working B-018 to completion leaves this untouched, and vice versa.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - the parser has a test covering every subcommand and every documented flag
@@ -618,7 +618,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #14 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `main.ts:8` places bootstrap statements between import declarations, which reads as ordered setup but is not: ESM hoists every import and evaluates all of them before any statement runs. Any import with a side effect that depends on the bootstrap sees the pre-bootstrap state. The intent expressed by the source order is not the intent achieved.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - bootstrap runs before any module that depends on it, proven by a test that observes the ordering
@@ -639,7 +639,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #2 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `vetoReason()` is unreachable on three independent counts: it bails on `'ok' in p` and every SDK tool result carries `ok`; it reads `p.exitCode` where results use `exit_code` (the sibling at `:189` gets it right); and nothing in repo or SDK produces exit code 126. The hook veto path DOES fire, so the user loses the one signal built to tell them a hook blocked their tool.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - a hook-vetoed tool call renders `Blocked`, covered by a test that fails on the current code
@@ -660,7 +660,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #24 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `ConversationSlot.tsx:150` documents `!` = 'Run a shell command'. `ChatComposer` never receives `onShellCommand`, and the SDK gates the feature on that prop, so `!npm test` is sent to the model as prose. The capability is fully present — `ptyOwner`, `run_shell`, `/ps`, `/stop` all exist — only the wiring is missing, which makes this a wire-up rather than a feature.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `!cmd` runs a shell command, covered by a test asserting the composer receives the handler
@@ -683,7 +683,7 @@ suggested_mode: bug
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #30, #53, #60, #65, #67 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `primeBacktrack` calls `setRewindPrimed(true)` BEFORE `setRewindCount`/`setRewindPreviews`, and the adapter builds the ladder inside `setRewindPrimed` — so it captures unset state. Verified by execution, not by reading: a probe returning 3 previews prints `{"armed":true,"nth":-1,"total":0,"previews":[]}`. The overlay returns null on the empty list so nothing draws, and the second Esc emits `reset-backtrack`. Around it: `resetBacktrack()` has no caller, `confirmBacktrack`'s post-fork statements sit in a try with no catch while the caller voids the promise, the instructions render in Portuguese and the toast for the same keypress in English, and the existing test asserts `length > 0` where the contract is 'you lose the partial line and nothing else'.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - arming the rewind yields the real turn count and previews, covered by a test that fails on the current ordering
@@ -707,7 +707,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #1 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `coalesced-memo.ts:11` cites `test_the_clock_is_monotonic_non_decreasing` and `ADR-0023` as the reason an export must stay. Neither exists anywhere in the tree. The comment pre-emptively disarms the dead-code detector, so the export survives on the strength of an artifact nobody checked — the same shape as a fabricated citation in a plan, at the code level.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - the cited test exists and fails when the export is removed, or the citation and the export are both deleted
@@ -730,7 +730,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #29 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-013
 why_now: The remediation's own docstring says 'the two persistence calls'; there are five. Protected: the startup path (`session-store.ts:18`) and the goal store (`use-goal-run.ts:24`). Unprotected: `composition-root.ts:75, 84, 89`, which are `/new`, `/clear`, `/fork`, the Esc-interrupt and the backtrack confirm — the hot paths. Those hand a bare `void` to a promise whose rejection is uncaught by construction (`write-queue.ts:10` catches the stored tail, `:12` returns the uncaught one) under `node >=22`, where the default is `--unhandled-rejections=throw`. B-013's `fixed_in` commit touched none of the three files its own evidence field named.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - all five persist call sites route through the reporting wrapper — proven by grep finding no bare `void persist`
@@ -753,7 +753,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #27, #39, #47, #54 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-015
 why_now: `squad.ts:49` still calls `resolveToolScope(..., process.cwd())` and `TeamContext` has no `cwd` field, so `delegate_to_team` escapes the injection — and `resolveToolScope` derives both `writeRoot` and the sandbox `workDir` from that argument, which makes this the one bypass with a confinement consequence. The TUI half was never done: it re-resolves config and posture ambiently at 7 sites and `TuiRoot.initialPosture`, the seam built for exactly this, has no reader. `ConsentGates.tsx:71` re-derives `process.cwd()` twice (latent — the root is itself `process.cwd()` today). `withShellAndProjectEntities` was neither decomposed nor renamed, which was also a B-015 bullet.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `delegate_to_team` confines a worker to the injected cwd, covered by a test that fails on the current code
@@ -778,7 +778,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #26, #40 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-006
 why_now: The `env` parameter was added to the PRIVATE `trustOrigin`; the only exported entry calls it with two arguments, so all 10 production call sites read ambient env. The disagreement is reachable today: `run-composition.ts:38` takes the posture from ambient env while `:42` passes `seams.env` into config resolution — the same run, two sources. Adjacent and same fix unit: an injected trust posture does not reach config resolution at all, and `effectiveConfigUnderPosture`, which exists for that, is dead.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `resolveTrustPosture` accepts an injected env from its exported entry, covered by a test that fails today
@@ -802,7 +802,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #3, #28, #31 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-007, B-004
 why_now: `credentials.ts:360` forces the file store with `env: {}`, which discards THEOCODE_HOME — the variable that LOCATES that store. The result is asymmetric and user-visible: the first resolution finds the credential, the routed second one does not. `git show 47eced3 --stat` proves the commit named as the fix never touched `credentials.ts`. `ensureAuthHome` still mutates its argument, also a B-007 bullet. Same file, same class as B-004: `MissingCredentialError` is unreachable by consumers — the sibling instance of the defect B-004 fixed once.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - the forced-file-store route preserves THEOCODE_HOME, covered by a test that fails on the current code
@@ -825,7 +825,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #35 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-004
 why_now: The B-004 bullet asked that `assinar()` either support multiple subscribers or be renamed to what it is. Neither happened. Worse, `ask-bridge.test.ts:95` — `test_a_second_subscriber_does_not_silently_replace_the_first` — asserts `first.calls + second.calls > 0` and that `second` was called. Both hold PRECISELY when the first subscriber IS silently replaced; `first` is never asserted on. The comment directly above states the intent the assertions fail to encode. A vacuous test is worse than a missing one: the missing test shows up in the gate output.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - the test fails when a second subscribe replaces the first — verified by mutation, not by reading
@@ -848,7 +848,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #36, #42 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-012
 why_now: Both were explicit B-012 bullets and neither was done. `countUserTurnsInWindow` is an exported function with no caller and no test, which is the third copy still standing.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - the window scan exists in exactly one place — proven by grep
@@ -871,7 +871,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #41 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-003
 why_now: `per-session.ts:55` `resolvePointerId` is a second copy of the pointer guard that B-003 unified — dead, and divergent from the surviving one. A dead copy that has drifted is the worst kind: the next reader cannot tell which is authoritative, and the class of bug B-003 fixed can be reintroduced by copying the wrong one.
-status: triaged
+status: shipped
 severity: LOW
 dod:
   - one pointer-reading implementation exists on the deletion path — proven by grep
@@ -893,7 +893,7 @@ source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #44 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 reopens: B-016
 why_now: The B-016 bullet asked for this to be resolved. The fixture file remains and the suite it was written for was never created, so the file is dead weight that reads as coverage.
-status: triaged
+status: shipped
 severity: LOW
 dod:
   - the helper file supports a real suite, or is deleted
@@ -916,7 +916,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #58, #61, #62, #63 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `stderr-guard.ts:17` has an empty `catch` and returns true unconditionally, and `mkdirSync` failure is already commented as 'guarded writes below will no-op'. This is the SOLE output channel of the B-013 remediation (`fire-and-forget.ts:22` defaults `report` to `process.stderr.write`), of hook-approval failures, and of the backtrack fork trace. On a non-writable cwd the TUI runs with every diagnostic dead and nothing says so. `shared/diagnostic-sink.ts:24-29` already solves the identical problem by falling back to stderr, and the pre-guard writer is held at `:7` and unused for this. Around it: the log is rotated once at startup and never again so a long session grows past CAP_BYTES unbounded; `rotate()` justifies swallowing its errors by citing `stderr-guard.ts:12`, a closing brace; and `HookError` is caught and discarded with no diagnostic, so a malformed hooks config disables the consent gate silently.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a diagnostic that cannot be written to the log file reaches stderr, covered by a test that fails today
@@ -939,7 +939,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #38, #57 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `consent.markReviewed()` runs synchronously after `aprovarHook` is INITIATED, but `aprovarHook` is async. On a rejected approve, `hooksRevisados` is already true, `InputSlot.tsx:70` stops rendering the gate for the session, `epoca` never bumps so `pendingHooks` never recomputes, and the only report goes to the redirected log (see the stderr-guard item). On the LAST pending hook this silently closes the gate as if approval had succeeded. The sibling `TrustGate` in the same file does the opposite for the identical failure class — toast plus state revert — so the correct shape is already present five lines away. Filed independently by two reviewers (#38, #57) on adjacent lines of the same defect.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a rejected hook approval leaves the gate open and surfaces a toast, covered by a test that fails today
@@ -961,7 +961,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #32, #34, #80 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A project `config.toml` replaces the user profiles table instead of merging it, so a project-level file silently removes user-level profiles. Five exported config drift-detectors are never called, which means the invariants they encode are documented and unenforced. `ENV_KNOBS` and `measuredPrecedenceChain` cite three source paths that do not resolve — a fabricated citation inside the config layer's own documentation of itself.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a project config merges into the user profiles table, covered by a test that fails today
@@ -983,7 +983,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #78 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The confinement that keeps an `AGENTS.md` import inside the project depends on a git root; outside a repo there is no boundary, and it does not resolve symlinks, so a link out of the tree is followed. The check exists, which means the threat was recognised — it just does not hold in the two cases where it matters.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - an import outside the project is refused with no git repo present, covered by a failing-first test
@@ -1005,7 +1005,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #82, #83, #84 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `parse.ts:56` degrades an unparseable reviewer response to `{findings: [], overall_correctness: ""}` — a clean verdict and a parse failure produce identical structured data, on a tool whose entire purpose is reporting defects. `runReview` compounds it: `result.result ?? ""` sends a run that returned nothing down the same path. `create-agent.ts:78` `descartar` marks itself done BEFORE the work, so a failed dispose permanently leaks the reviewer. `squad.ts:71` uses `Promise.all` over member disposal, so one cleanup failure overwrites the delegation result the user was waiting for.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - an unparseable response produces a typed error, not an empty finding list — covered by a failing-first test
@@ -1028,7 +1028,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #75, #76 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `hook-runner.ts:80` settles from the `exit` event deferred by a fixed 20 ms timer. Node documents `exit` as possibly preceding stdio close; `close` is the event that guarantees drained pipes. The 20 ms is a sleep, not a synchronisation, and it is a bare literal with no name. What can be lost is the DECISION channel: `parseFeedback` reads `decision: block` and `reason` out of hook stdout, and a PreToolUse non-zero exit turns its stdout into the veto reason — so a hook writing past the 64 KiB pipe buffer, or scheduled out under load, can have its block silently downgraded to empty output. `detached:true` widens the window. Same file: `cargaDoEvento`'s PostToolUse branch is unreachable, so PostToolUse hooks never receive args.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - hook output is harvested on `close`, covered by a test with a hook that writes more than the pipe buffer
@@ -1049,7 +1049,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #19, #66 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `shutdown.ts:44` returns exit code 1 unconditionally, so a clean Ctrl-C is indistinguishable from a cleanup that timed out — to a shell, to CI, and to anything wrapping the process. It is also on the public interface with no external caller, so the contract is both wrong and unexercised.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a clean shutdown exits 0 and a timed-out cleanup exits non-zero, covered by a test per path
@@ -1071,7 +1071,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #25, #33, #49, #50 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `commands/registry.ts` renders eleven strings citing M21/M35/M39/M49/M50/M51/M55/M64 — none resolve — and one instructs the user to read a CHANGELOG entry that was never written. A rendered error directs the user to `docs/CONFIGURATION.md`, which does not exist. A deprecation promises removal in M99 and no roadmap declaring M99 exists. `SessionFooter` advertises '? for shortcuts' unconditionally, but `?` only works while the ChatComposer is mounted with an empty buffer. Every one of these is the product telling the user something untrue at the moment they are already looking for help.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - every milestone, doc path and changelog reference in a user-visible string resolves — checked mechanically
@@ -1094,7 +1094,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #64 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: `SecretInput.tsx:42` stores the raw input chunk, so a key pasted with a trailing newline is submitted un-trimmed to `login()`. The failure is remote, delayed and opaque: the credential is stored, and authentication fails later with a message that says nothing about whitespace.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a pasted value with a trailing newline authenticates, covered by a test that fails on the current code
@@ -1116,7 +1116,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #37 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The test sets `columns: 120` under a non-TTY and never restores it, leaking into the worker for whatever runs next. It also never exercises the narrow branch — which is the branch the test exists to keep visible, and the one that broke three times in a row during the 2026-08-07 remediation.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - the test restores `process.stdout.columns` in a teardown
@@ -1140,7 +1140,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #4, #16, #17, #18, #43, #45, #46 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A deterministic scan (tests counted as referencing files, so this is not the weaker 'no test reaches it' claim) finds 146 of 492 exported symbols with no reference outside their defining file. Named instances: `teamMemberOptions`; `readSecret`, a complete echo-disabled secret reader with no caller and no CLI login command; `ToolRegistry.names()` and `ContinuationBudget.used`; three symbols in `drained-output.ts`. Also two package-surface defects: `@theocode/agent` declares a `./chat-acp` subpath with zero importers, and `@theocode/cli` exports `.` -> `main.ts`, which RUNS the CLI on import.
-status: triaged
+status: shipped
 severity: LOW
 dod:
   - the exported surface of each package is the surface something consumes — a dead-export scan returns zero public orphans, or each survivor is allowlisted with a reason
@@ -1161,7 +1161,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #21 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: A version-range floor divergence inside one repo means npm may resolve two copies, and the surface each workspace is typed against is not the surface it runs against. This is the kind of skew that produces a defect nobody can reproduce locally.
-status: triaged
+status: shipped
 severity: LOW
 dod:
   - all four workspaces declare the same floor for `@theokit/agents`
@@ -1182,7 +1182,7 @@ suggested_mode: review
 source: discover-review
 evidence: [`docs/reviews/2026-08-08-packages-review.md`](docs/reviews/2026-08-08-packages-review.md) findings #87 (the finding ids are the join key; `file`/`line` for each are in the local `code-review-output/code-review.db`, which is not versioned by design)
 why_now: The function documents and mostly honours a typed-error contract, then has a path that throws an untyped error — so a caller written against the contract cannot handle it. A contract that holds on most paths is a contract callers will trust on all of them.
-status: triaged
+status: shipped
 severity: LOW
 dod:
   - every throw from `readImageAttachment` is the declared typed error, covered by a test per failure path
@@ -1205,7 +1205,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-08 across `packages/**/*.ts{,x}` — **45 files of 185, 287 occurrences, 56 distinct tokens**. Heaviest: `session/gc/all-sessions.ts` (63), `session/liveness-oracle.ts` (26), `tui/backtrack/use-backtrack.ts` (18), `session/gc/filesystem.ts` (12), `config/trust-store.ts` (12), `config/cli-overrides.ts` (12). Most frequent tokens: `atual` (40), `proximo` (22), `janela` (21), `protegidos` (18), `ehDiretorio` (16), `arquivo` (11), `epoca` (9), `abandonar` (9), `VIVO`/`MORTO`/`NAO_ACHOU`/`INDETERMINADO` (21 combined).
 why_now: the project rule is that everything written in the repository is in English; only the conversation is in Portuguese. This was never enforced mechanically, so the two languages interleave inside single functions — `resolverGuardas` returns `protegidos`, `classificar` returns `MORTO`. Finding #67 caught the user-visible half of the same problem (the backtrack feature renders its instructions in Portuguese and its toast in English) and is filed under B-029. This item is the source-identifier half. Doing it EARLY is deliberate: the six heaviest files are the ones B-020 and B-029 are about to rewrite, so renaming afterwards would touch them twice.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - zero Portuguese identifiers in `packages/**` — proven by a scan that a human can re-run, not by inspection
@@ -1238,7 +1238,7 @@ suggested_mode: review
 source: discover-review
 evidence: `node_modules/@theokit/agents/dist/index.d.ts:1121` — `ListOptionsSemPaginacao`, `:1125` `AgentComListaEstreitada`, and `ToolComNome` in the export list at `:1130`. Found while measuring B-020: the SDK's own narrowing of `Agent.list` is what refuted that item's fourth DoD bullet, and reading it required parsing a Portuguese type name.
 why_now: TheoCode now enforces English-only in its own source (`tools/check-english-only.mjs`, B-052), and the rule it enforces cannot hold at the boundary: a consumer writing `const o: ListOptionsSemPaginacao = …` reintroduces Portuguese into an English file, through a name it does not own. This is upstream work in `theokit-framework`, filed here because this repo is where it was measured and where it bites.
-status: raw
+status: shipped
 severity: LOW
 dod:
   - the three names are renamed in `@theokit/agents` with the old ones kept as deprecated aliases for one minor version
@@ -1261,7 +1261,7 @@ suggested_mode: bug
 source: discover-live-test
 evidence: measured 2026-08-08 by execution, not by reading. `npx tsx packages/cli/src/main.ts sessions gc --all-projects --json` exits 124 under `timeout 25` — with and without `-C`, and identically at `b1611fc^`, so it PREDATES the B-020 work. Cause: `~/.theokit/projects` holds **13,269 project directories** on this machine (`ls ~/.theokit/projects | wc -l`); `planOneProject` calls `classify` for each, and for every project whose recorded cwd no longer resolves, `dfsExists` walks the filesystem from `/` up to `MAX_NOS_DFS = 20_000` nodes (`gc/filesystem.ts:29`). The upper bound is ~265 million readdir/stat calls for one run.
 why_now: the collector exists BECAUSE that accumulation happens, and the flag that collects across all of it is the one that cannot finish. The single-project path (`sessions gc`) returns fine, which is why this survived: the documented invocation for the problem the tool was built for is the broken one. Found while testing whether `-C` reaches `.env` (B-023 / B-026); the hang is not related to `-C`.
-status: triaged
+status: shipped
 severity: HIGH
 dod:
   - `sessions gc --all-projects --json` completes on a home with 13,000+ projects, under a stated time budget, covered by a test that fails on the current code
@@ -1286,7 +1286,7 @@ suggested_mode: review
 source: discover-review
 evidence: measured 2026-08-08 against the SDK's own declaration. A veto is `PreToolCallDecision = { block: true; message: string }` (`@theokit/sdk/dist/agent-BzZwYFiw.d.ts:1369`), returned from `pre_tool_call`, and the SDK docstring says it "surfaces `message` to the model". `packages/agent/src/hooks/hooks.ts` produces exactly that shape in `chainBudgetBlock` and `bloqueioPorPolitica`. What the renderer receives for a vetoed call was NOT measured.
 why_now: B-027 deleted the `Blocked <cmd>` rendering rather than repair it, because it detected `{ exitCode: 126 }` — a shell convention this product never emits — and rewiring it would have meant guessing the real wire shape. The user-visible gap is now explicit rather than disguised: a hook CAN block a tool call, and the terminal shows the user nothing that says so. The information exists at the point of veto, inside our own process; it is the transport to the surface that is missing.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a hook-vetoed tool call is visibly marked in the TUI, covered by a test that fails on the current code
@@ -1311,7 +1311,7 @@ suggested_mode: review
 source: discover-review
 evidence: measured 2026-08-08. `@theokit/tui` gates the shortcut on an `onShellCommand` prop (`dist/index.js:4390`) that this app does not pass. Wiring it needs an execution path the TUI does not have: `run_shell` in `packages/tui` is a RENDERER for the agent's tool calls (`formatting/tool-header.ts:141`), and the only shell execution in this product goes through the agent — where it passes the approval gate, `resolveToolScope`'s sandbox `workDir`, and any PreToolUse hook veto.
 why_now: B-028 stopped the help panel advertising `!`, which removes the false promise. It does not answer whether the feature should exist. A composer-driven shell run that bypassed the three gates above would be the same class as B-019 and B-021 — a path to execution that skips the confinement every other path has — and shipping it quickly to close a checkbox is how that class is created.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - a decision is recorded (ADR or a note in this item) on whether `!cmd` runs confined, unconfined-with-consent, or not at all
@@ -1336,7 +1336,7 @@ suggested_mode: review
 source: discover-review
 evidence: measured 2026-08-08 — `grep -rn 'process\.cwd()' packages/tui/src` returns **23 non-test sites** across 13 files (`main.tsx`, `interpret-command.ts`, `use-consent.ts`, `composition-root.ts`, `Banner.tsx`, `chat-transport.ts`, `credential-helpers.ts`, `tui-session.ts`, `ConsentGates.tsx`, `session-commands.ts`, `command-content.ts`, `review.ts`, `config-commands.ts`, `goal.ts`). `composition-root.ts:33` already resolves it once; the other 22 do not use that.
 why_now: B-015 gave `packages/agent` one injected working directory and B-032 closed the last bypass there (`delegate_to_team`). The TUI never got the same treatment. It is LATENT rather than active — the TUI parses no `--cd`, so all 23 reads agree today, which is why the review filed it MEDIUM and its `ConsentGates` instance LOW. It becomes a defect the moment the TUI gains a directory flag, and the failure then is silent: trust resolved for one directory, config for another.
-status: triaged
+status: shipped
 severity: MEDIUM
 dod:
   - `grep -rn 'process\.cwd()' packages/tui/src` returns one site outside tests — the composition root
@@ -1406,7 +1406,7 @@ suggested_mode: review
 source: discover-review
 evidence: measured 2026-08-09 with `tools/check-english-only.mjs`'s detectors pointed at `../theokit-framework/*` — **11,298 occurrences across 10 repositories**: 1,535 identifiers, 3,451 comments, 1,970 string literals, 4,342 markdown prose. Heaviest: `theokit` (5,472), `theokit-sdk` (1,535), `theokit-gateways` (886), `theokit-studio` (678). False positives were removed first: `vite`, `astro`, `cron`, `param`, `abi`, `goto` are Portuguese dictionary entries and accounted for ~19% of the raw count.
 why_now: TheoCode now enforces English-only over its own source, `tools/` and its filenames, comments and string literals (B-052 completed 2026-08-09, guard clean with six detectors). The same rule was never enforced on the framework this repository consumes, and the gap is measurable from here: `packages/agent/src/session/agent-list.ts:30` has to cite `ListOptionsSemPaginacao`, a Portuguese type name exported by `@theokit/agents`, because that is its real name.
-status: raw
+status: shipped
 scoped_2026_08_10: >
   DoD bullet 2 delivered: `docs/reviews/2026-08-10-theokit-portuguese-public-surface.md`. Measured
   against the PUBLISHED build, because the reference source runs ahead of its own dist at the same
@@ -1484,7 +1484,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 by a `/loop-cross-validation` run against `@theokit/agents@7.4.0` (`cross-validation-output/final_report.md`). NOT a `cycle-discover` run — no falsification criterion was declared in advance and no evidence gate applied, so this stays `raw` until DISCOVER confirms it. Three construction sites: `chat.ts:42` `buildChatAgent` (469-LoC `AgentBuilder` chain), `review/create-agent.ts:54` `createReviewAgent` (`Agent.create` + the hardcoded 4-name `TOOLS_DO_REVIEWER` at `:12`), `delegation/roles.ts:138` `buildRoleAgent` (`Agent.create` + disk definitions). None delegates to another. Grep census over `packages/**/*.ts(x)`: `Capability`, `Capabilities`, `CapabilityRegistry`, `CapabilityPreset`, `ModelCapability`, `ToolsCapability`, `SkillsCapability`, `defineAgent`, `CompiledAgentOptions`, `compileAgent`, `AgentManifest` — **zero references, every one**, from a barrel this package imports 24 other symbols from.
 why_now: the repository now holds THREE bespoke agent constructions where it held one. `review/` and `delegation/` were both written after `chat.ts` and both bypass it, because `buildChatAgent`'s twelve override fields can add a tool or swap a scalar and cannot remove a link — `chat.ts:320` states the constraint in its own source: "there is no way to skip a link in the middle of it". An agent needing LESS than the coding agent is inexpressible here, so each one becomes a new file. One bespoke construction is a design; three is a pattern, and the fourth is foreseeable. `profileTools()` at `chat.ts:439` is the workaround already in the tree: a hand-written switch over a closed `interactive|headless` enum, which is the variation point the chain could not express pushed into an enum that cannot grow.
-status: triaged
+status: shipped
 feasibility_measured: >
   2026-08-10, against the INSTALLED build (not the reference source — that distinction cost a claim
   earlier in this cycle). The full path runs end to end:
@@ -1561,7 +1561,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). `ToolRegistry` + `resolveToolScope` are consumed by all four internal construction paths — `chat.ts:36`, `review/create-agent.ts:7`, `delegation/roles.ts:5`, `delegation/squad.ts:8` — which makes them empirically the reusable primitive of this package. `tools/` and `delegation/` are the ONLY source directories carrying an `index.ts` barrel that `packages/agent/package.json` does not list in `exports` (it publishes `.`, `./chat`, `./chat-acp`, `./ask`, `./auth`, `./config`, `./context`, `./goal`, `./hooks`, `./pty`, `./review`, `./session`).
 why_now: B-059 proposes that a new agent be composed rather than rewritten. Composed by whom is the question this item answers: today anything built outside `packages/agent` cannot import the registry that every internal path uses, so "reuse the primitive" is advice nobody can follow. The gap is two lines of JSON and it is the cheapest item in the batch.
-status: raw
+status: shipped
 dod:
   - `packages/agent/package.json` exports `./tools`, and a real importer outside `packages/agent` resolves `ToolRegistry` through it
   - NOT added without that importer: B-049 deleted `./chat-acp` precisely because it was a declared subpath with zero consumers, and adding one on speculation recreates the defect that item closed
@@ -1601,7 +1601,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). 48 `*.test.ts(x)` files across `packages/`, 30 of them under `packages/agent/src` + `packages/shared/src`, all co-located unit tests. None builds an agent. `@theokit/agents/testing` — which publishes `createMockAgentStream` for exactly this, "test agents without an LLM API key" (`src/testing/mock-stream.ts:1`) — returns **zero** hits across the tree, the only one of the framework's eleven subpath exports the repository never imports (the other ten: `persistence` 11 sites, `sandbox` 9, `auth` 6, `tools` 3, `pty` 3, `interactive` 3, `client/react` 2, `client` 1, bare barrel 47).
 why_now: the agent's composition decides which tools exist, which are approval-gated, which disk entities the trust posture admits, and what the sandbox confines — `chat.ts:276-317` alone carries the approval map, the MCP gate, the skills gate and the setting-sources gate. Nothing in the suite reads any of it. A regression that dropped an approval or widened a tool scope would pass green today, and B-059 proposes to move exactly that code.
-status: raw
+status: shipped
 dod:
   - a test builds an agent through each of the three construction paths and asserts its resolved tool names and its approval map
   - it runs with no API key and no network, using the framework's own test seam rather than a hand-rolled double
@@ -1625,7 +1625,7 @@ suggested_mode: review
 source: human
 evidence: `.claude/agents/theocode.md:30-32` states "There is no `npm test`, and there is nothing for it to run… **zero** `*.test.*` / `*.spec.*` files in the entire tree", measured 2026-08-07. Counted on disk 2026-08-10: **48** test files under `packages/`, several over 180 lines (`session/gc/fail-open.test.ts` 194, `hooks/fail-safe-defaults.test.ts` 187, `ask/ask-bridge.test.ts` 146). The file's `description:` frontmatter repeats the claim, so it is loaded into every session that routes to this domain.
 why_now: the file does not merely carry a stale number — it issues instructions derived from it. `:36-37` orders "Do not report a passing test suite. There is no suite", and `:38-40` tells `/implement` and `/discover --mode bug` that satisfying the regression-test-first rule means creating the harness. Both are now false, and both steer work: an agent obeying them would rebuild a harness that exists, or decline to run a suite that passes.
-status: raw
+status: shipped
 dod:
   - the file states the measured test count with its date, or states nothing about test counts
   - the "there is no suite" instruction and the "create the harness first" guidance are removed or rewritten to match the tree
@@ -1652,7 +1652,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). In `@theokit/agents@7.4.0` source, 13 error classes are declared and only 2 extend `TheokitAgentError` (`McpFileError` at `bridge/mcp-file.ts:86`, `ToolsetError` at `capability/toolset.ts:58`). The other ten extend plain `Error`: `CapabilityConflictError:38`, `UnknownCapabilityError:9`, `AgentDefinitionError:26`, `ApprovalAbortedError:85`, `DelegationError:74`, `DelegationBudgetExceededError:52`, `RefreshFailure:49`, `GuardrailViolationError:40`, `CostBudgetExceededError:52`, `InProcessApprovalRequiredError:82`. Bare `throw new Error` accounts for 18 of 69 throw sites (26%). This repository, by comparison: 11 of 12 domain error classes extend `TheokitAgentError`, 3 bare throws in 56 (5.4%).
 why_now: `tools/registry.ts:56-65` carries `translateError` in production for precisely this reason — it bridges one framework error into the SDK hierarchy so a `catch (e instanceof TheokitAgentError)` here does not silently miss it. U-3 got that ONE class fixed upstream (`92b962ad`, unreleased). Ten remain, so the next one we have to catch across the boundary buys another shim. The argument is not ours to make either: `theokit/packages/agents/src/errors.ts:8-16` already documents the defect that mixed hierarchies caused there — a `catch` matching one path and silently missing the other — and the fix was applied to one class rather than to the pattern.
-status: raw
+status: shipped
 dod:
   - a report filed against `theokit` naming the ten classes and citing the argument its own `errors.ts` already contains
   - U-3's row in `## Upstream` updated to record that the pattern is broader than the single class it names, so the row is not closed by a fix that leaves ten open
@@ -1688,7 +1688,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 while closing B-062. `.gitignore:22` ignores `.claude/` wholesale — `git ls-files .claude` returns **0** against **176 `.md` files on disk**, including all 32 rule files, both domain specialists and the entire `knowledge-base/`. `rules/knowledge-base-location.md` declares `<project>/.claude/knowledge-base/` **canonical, always**, and that is the half nobody can clone. A parallel VERSIONED trail exists at `docs/` (6 tracked files: 1 ADR, 2 plans, 2 reviews, 1 figure). Two files exist in both homes, and `english-only-completion-plan.md` has **already diverged** — 3 hunks, the `docs/` copy 39 minutes newer. `BACKLOG.md:42` links `.claude/knowledge-base/reviews/theokit-crossval-review-2026-08-07.md`, which resolves to nothing after `git clone` (one link, in the registry preamble — inside item blocks the citations correctly use `docs/`).
 why_now: this session hit the consequence rather than inferring it. The active-plan pointer resolved to `.claude/knowledge-base/plans/english-only-completion-plan.md` — the unversioned copy — while the tracked copy at `docs/plans/` was the newer of the two. `rules/knowledge-base-location.md` names this exact failure and says a second knowledge-base is a MAJOR finding, because "an audit reading the wrong one reports absence where evidence exists"; it then measured three sibling consumers with both directories present. This repository is the fourth, with the aggravation that its canonical half is not merely secondary — it is untracked, so it does not survive a clone and no review can ever read it.
-status: raw
+status: shipped
 dod:
   - one home for cycle artifacts, chosen deliberately and recorded — either `.claude/knowledge-base/` stops being ignored, or `rules/knowledge-base-location.md` is amended to name `docs/` for this project and the rule stops being violated by its own consumer
   - no `.md` file exists in both homes; the diverged plan is reconciled rather than left with two truths
@@ -1740,7 +1740,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 while closing B-058. Of the ten `theokit-framework/*` repositories, exactly ONE — `theokit-sdk` — runs a Portuguese guard of its own (`packages/sdk/tests/lint/no-ptbr.test.ts`, a vitest lint test with its own lexicon and loanword allowlist; it passes). The other nine have none, which is why B-058's cleanup had to be driven from TheoCode's detector, pointed at each repo by hand. That pass fixed 129 real occurrences across four repos and nothing stops the next one from landing tomorrow. Also measured: TheoCode's own detector does not scan `.mts`, and that hole hid two Portuguese EXPORTS in `theokit/packages/agents/scripts/generate-reexports.mts` from every run until a manual grep found them.
 why_now: B-058's DoD bullet 3 asked for exactly this and it is the bullet that did not get done — recorded as NOT DONE there rather than glossed. The cleanup without the guard is a snapshot: `theokit` went 119 -> 4 by hand, and the only thing keeping it there is that nobody has written Portuguese since. `theokit-sdk` is the counter-example in the same tree — it has a guard, it passes, and it needed no cleanup at all.
-status: raw
+status: shipped
 progress:
   - DONE — the `.mts` gap. `EXTS` now covers `.ts .tsx .mts .cts .mjs .cjs`, is exported, and two
     tests lock it (verified by reverting the list, which turns them red). The widening immediately
@@ -1783,7 +1783,7 @@ suggested_mode: review
 source: human
 evidence: measured 2026-08-10 while installing the English-only guard across the framework (B-065). `theokit-framework/theokit-gateways/examples/telegram-pro/TEST-PLAN.md` is 418 tracked lines, written entirely in Portuguese — a step-by-step production runbook ("Roteiro de Teste", "Manda / Espera / Sucesso / Log" per step). It is the ONLY exemption in the nine new guards that exists for cost rather than for correctness: every other one protects something that would break if translated (few-shot prompts, Unicode fixtures, a quoted word, released changelog entries, the historical wiki).
 why_now: B-065 put a gate in front of all ten framework repos, and this file is the one thing it is deliberately not looking at. The exemption comment names this item and says it is deleted the day the translation lands, so the debt is countable rather than permanent — but until then the example's own test procedure is unreadable to anyone who does not speak Portuguese, in a repository that now enforces English everywhere else.
-status: raw
+status: shipped
 dod:
   - `examples/telegram-pro/TEST-PLAN.md` is English, translated by someone who can check that each expectation still reads correctly against what the bot actually does — not a machine pass
   - the exemption entry is removed from `packages/gateway/tests/lint/no-ptbr.test.ts` and the guard passes without it
@@ -1824,7 +1824,7 @@ source: human
 regression_of: B-028
 evidence: none-yet
 why_now: with the command popup open the footer reads `? for shortcuts · ← for agents`, and pressing `←` closes the popup and opens nothing. The string is the SDK's DEFAULT, not ours — `@theokit/tui/dist/index.js:5166` defines `AGENTS_HINT = "← for agents"` and folds it into `DEFAULT_HINT`; `packages/tui` never passes its own `hint`, so it inherits a promise it does not keep. This is the SAME defect B-028 closed for the `!` shortcut, and B-028's own `dod_verified` claims "the filter is keyed on the CAPABILITY, so the next unwired shortcut cannot be advertised either". That filter reads the help panel; this string arrives from the SDK's footer default, which the filter never sees. The invariant was narrower than the sentence that closed it.
-status: raw
+status: shipped
 severity: HIGH
 dod:
   - the footer does not name an affordance the product does not implement — either the hint is passed explicitly without the agents clause, or `←` opens something
@@ -1911,7 +1911,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `packages/agent/src/chat.ts:309` loads `.mcp.json` and the SDK SPAWNS those servers — arbitrary local processes, which is exactly why the same line trust-gates them. The user has no surface that lists which servers loaded, which tools they contributed, or which one failed to start. The comparison run made the cost concrete: the adjacent product printed `MCP client for 'add-fixture' failed to start` at boot, and the equivalent failure here is silent — the tools simply are not there, and the agent behaves as though they never existed.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a user can list the MCP servers configured for the current directory and see, per server, whether it started and which tools it contributed
@@ -1946,7 +1946,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `packages/agent/src/chat.ts:314` resolves each enabled skill from `.theokit/skills/<name>/SKILL.md` and passes an EMPTY list when the directory is untrusted. Both states — skill loaded, skill silenced by trust — are invisible. A user whose skill is not taking effect cannot tell whether they misnamed the directory, whether the config never listed it, or whether the repository is untrusted and the anti-prompt-injection gate removed it on purpose.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a user can see which skills are active in the current session and where each was resolved from
@@ -1989,7 +1989,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: hooks are wired at `packages/agent/src/chat.ts:428` and gated on a trusted directory, and B-055 established that a hook can VETO a tool call. B-055 made the veto visible at the moment it fires; nothing makes the registered set visible before it does. A user cannot answer "what is allowed to block me in this repository?" without opening `.theokit/` by hand — and for a cloned repository, that is the question worth asking before the first turn, not after.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a user can list the lifecycle hooks registered for the current directory, with the event each is bound to
@@ -2020,7 +2020,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: delegation is real — `packages/agent/src/delegation/roles.ts` builds role agents and `packages/tui/src/commands/config-commands.ts:146-157` routes a custom command to a named subagent from `.theokit/agents/<name>.md`. The only feedback a user ever gets about the set is a failure toast: `subagent "<name>" not found in .theokit/agents/ — running in main context`. So the way to learn which subagents exist is to name one that does not. Related but distinct from B-067: that item is the footer lying; this one is the capability the footer was lying about.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a user can list the subagents available in the current directory before invoking one
@@ -2061,7 +2061,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `packages/tui/src/theme.ts:6` sets `base: 'dark'` as a literal, and the SDK's own type admits `'dark' | 'light' | 'no-color'`. A user on a light terminal has no recourse, and `no-color` — the accessibility-relevant value, and the one a piped or screen-reader-driven terminal wants — is unreachable. The value is already a supported input; nothing reads it from config.
-status: raw
+status: shipped
 severity: LOW
 dod:
   - the base theme is resolved from configuration, with the current dark value as the default so nobody's terminal changes without asking
@@ -2100,7 +2100,7 @@ suggested_mode: review
 source: human
 evidence: none-yet
 why_now: measured on both surfaces, and the split runs in BOTH directions. The CLI has `resume` (`packages/cli/src/main.ts:75`) and `sessions gc`, and cannot archive, rename or fork. The TUI has `/sessions`, `/fork`, `/archive`, `/rename`, and cannot resume — so it lists sessions with no verb that re-enters one. Neither surface can delete (B-078). This is the surface-asymmetry shape B-006 already found once — "the two surfaces disagree on when it is safe to stop asking" — here disagreeing about which half of session management exists. BROADENED 2026-08-10: originally filed as "resume is missing from the TUI"; a sweep of the CLI subcommand surface showed the reverse hole is the same size, and fixing one direction would have left the other.
-status: raw
+status: shipped
 audit_2026-08-10: done, against the ACTUAL tables rather than from memory — the fourth DoD bullet.
   Sources — CORRECTED after `crossval` refused a closure citing the wrong files: the CLI surface is
   defined by `SESSION_ACTIONS` and the parser in `packages/cli/src/runtime/args.ts` plus the dispatch
@@ -2168,7 +2168,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: nothing in `packages/tui/src` touches a clipboard or writes a transcript — grep for `clipboard` across the package returns zero. The only way to move an answer somewhere else is mouse-selecting it out of a bordered box that hard-wraps every line, which re-flows the code it contains. For a terminal agent whose output is frequently a patch or a command, this is the most-used escape hatch after the answer itself, and it does not exist.
-status: raw
+status: shipped
 attempted_2026-08-10: implementation was built, tested and then REVERTED rather than shipped
   half-wired. What it measured, so the next attempt does not rediscover it:
   - the timeline is `AgentEvent[]`, a HETEROGENEOUS union — tool and file-edit events sit beside
@@ -2203,7 +2203,7 @@ suggested_mode: review
 source: human
 evidence: none-yet
 why_now: the footer reports `sandbox:workspace-write` and `/approval` changes the approval mode, so of the two settings that decide what the agent may do to the disk, one is editable at runtime and the other is a readout. B-014 already found that a sandbox mode change did not reach live PTYs, which means the value is understood as mutable elsewhere in the system; the surface just never exposes it. A user who realises mid-session that the posture is wrong has to quit and relaunch.
-status: raw
+status: shipped
 fixed_in: 2eb9c26 dc90f84
 dod_verified:
   - `setSandboxModeForSession` in the agent, applied ONCE in `chatContext` via the free function
@@ -2281,7 +2281,7 @@ measured_2026-08-10: the three DoD bullets are NOT equal in cost, and the item r
   RECOMMENDATION: land the read/forget half only after, or together with, the agent-state seam. Two
   of three bullets are cheap and the third decides the shape, so closing the cheap two first would
   fix the shape wrongly.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - memory generation can be turned off for the session without editing files outside the product
@@ -2327,7 +2327,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `packages/tui/src/commands/session-commands.ts` implements archive and rename; nothing deletes. `/sessions` renders archived sessions with an `(archived)` suffix, so archiving hides nothing — the transcript stays on disk and stays listed. A session that captured a pasted credential, or a customer's data, cannot be removed through the product. `theocode sessions gc` exists in the CLI for age-based pruning, which is not the same operation as removing one specific transcript now.
-status: raw
+status: shipped
 severity: HIGH
 dod:
   - a named session can be permanently deleted from the TUI, and the transcript is gone from disk afterwards — verified by reading the store, not by the listing no longer showing it
@@ -2380,7 +2380,7 @@ where_it_lives_now: `packages/tui/src/formatting/context-pressure.ts` (threshold
   filed against; the fix is new code beside them plus one upstream field, and `/compact` itself was
   deliberately left untouched.
 why_now: `/compact` (`packages/tui/src/commands/registry.ts:102`) is the ONLY compaction path — grep across `packages/{agent,tui}` finds no auto-compaction, no threshold, and no context-remaining signal anywhere; the sole budget notion in the tree is `GOAL_DEFAULTS.tokenBudget` (`packages/agent/src/goal/goal.ts:52`), which governs the goal loop and nothing else. So the user is responsible for noticing context pressure, and the model has no way to observe its own remaining room. On a long session the failure arrives mid-turn, at the point where the work is least recoverable.
-status: raw
+status: shipped
 fixed_in: 3dd8738 
 dod_verified:
   - VERIFIED LIVE, both halves, once B-090 unblocked it: with a 7k window the footer read
@@ -2467,7 +2467,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: the product has a lot to misconfigure — OAuth credentials, layered config (`packages/agent/src/config/effective-config.ts`), trust posture, sandbox backend, `.mcp.json` servers that are spawned, disk skills, hooks — and no command that reports on any of it. The CLI exposes four subcommands (`review`, `goal`, `run`, `resume`); none is diagnostic. When something does not take effect, the tools available are reading source and guessing, which is what B-069, B-070 and B-071 each describe from inside their own corner. This item is the shared half those three keep touching.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - one command reports auth state, resolved config with the layer each value came from, sandbox backend, trust posture, and the MCP/skill/hook sets actually wired
@@ -2504,7 +2504,7 @@ suggested_mode: evolve
 source: human
 evidence: none-yet
 why_now: `/image <path>` attaches an image to the NEXT turn, which is a user action. There is no tool the model can call to look at a file itself — grep for `view_image` across `packages/` returns nothing, and `REGISTRY_TOOL_NAMES` (`packages/agent/src/tools/registry.ts:31-41`) has nine entries, all text. A repository holding a design mock, an architecture diagram or a failing-test screenshot is opaque to the agent unless the user anticipates the need and attaches it.
-status: raw
+status: shipped
 severity: LOW
 dod:
   - the agent can read an image from the working tree by path, subject to the same sandbox and read-root rules as `read_file`
@@ -2551,7 +2551,7 @@ why_now: found while reading `command-content.ts` for B-069. The ACTIVE PLAN `en
   nothing — it is IN the English dictionary, exactly like `para`, which the guard's own test suite
   already documents as a deliberate EN/PT collision. Adding either word to a Portuguese list would
   break the collision handling the guard was rewritten to get right.
-status: raw
+status: shipped
 severity: HIGH
 dod:
   - the `/model` toast reads in English. This half is trivial and is NOT what the item is about
@@ -2611,7 +2611,7 @@ why_now: found in `App.tsx:20` while wiring B-073. Same cause as B-083, one dete
   CORRECTLY and the Portuguese construction survives. B-083 proved the blind spot admits
   user-facing prose; this proves it also admits the public shape of the code, which is what a
   reader meets first.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - the 16 identifiers read in English, renamed with the suite as the proof they were mechanical
@@ -2662,7 +2662,7 @@ why_now: B-075 was implemented, tested green, and then REVERTED because of this 
   them needs the command layer to see something the composition root currently holds privately. One
   refactor unblocks five items; doing it inside any of them would hide a structural change inside a
   feature commit.
-status: raw
+status: shipped
 attempted_2026-08-10: the extraction was performed and REVERTED. It WORKED structurally, and that
   result is worth keeping:
   - moving `useTuiSession` and `depsDoComposer` into `packages/tui/src/composition/` took the root
@@ -2720,7 +2720,7 @@ why_now: it blocked the live verification of B-071's populated case, which had t
   limitation stated rather than proven. More importantly it means NOBODY can currently answer "where
   do I declare a hook for this project?" by reading the repo — and hooks are arbitrary command
   execution on every tool call, which is the one setting whose location must not be folklore.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - the path `resolveEffectiveConfig` reads project config from is identified and written down where
@@ -2770,7 +2770,7 @@ why_now: `/sessions` renders a list with no verb that re-enters an entry, so the
   advertises something the surface cannot do — the B-067 shape, one command over. It was left out of
   B-074 deliberately: the other five were dispatch over tested functions, and this one repoints the
   LIVE session and resets the conversation, which is `backtrack`'s path and deserves its own care.
-status: raw
+status: shipped
 severity: MEDIUM
 dod:
   - a session listed by `/sessions` can be opened from the TUI
@@ -2899,7 +2899,7 @@ why_now: every command that takes an argument is affected — `/export <path>` w
   name, `/delete <id>` reached the handler with no id, `/sandbox <mode>` silently did nothing. The
   failure is SILENT for `/sandbox` in particular: the user sees the command accepted and the posture
   unchanged, which is the worst shape for a setting about what the agent may do to their disk.
-status: raw
+status: shipped
 severity: HIGH
 dod:
   - typing a full command with its argument and pressing Enter submits what was typed
@@ -2997,7 +2997,7 @@ why_now: it is the product's ONLY view of how much context is left, the README l
   usage in the footer" as a feature on the welcome banner, and B-080's warning — built and tested —
   cannot fire without it. A feature advertised on the first screen and absent in practice is the
   B-067 shape at the largest scale in this repository.
-status: raw
+status: shipped
 severity: HIGH
 dod:
   - the token count appears in the footer after a turn, verified live rather than by unit test
