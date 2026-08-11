@@ -3187,7 +3187,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `codex-parity-2026-08-10`).
 
-## B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the sink   [ ]
+## B-094 — `/mcp` cannot show a failed server until `@theokit/agents` publishes the sink   [x]
 
 domain: theocode
 repo: TheoCode
@@ -3209,7 +3209,7 @@ why_now: |
   (verified inside the published tarball), and this repo's record, sink and panel are
   written, tested and committed. `@theokit/agents` is the only hop still unpublished:
   theokit#196 is merged to `develop`, and theokit#199 (`develop` -> `main`) is OPEN.
-status: raw
+status: shipped
 severity: minor
 dod:
   - `@theokit/agents` publishes a version whose `StreamAgentTurnInProcessInput` carries
@@ -3228,8 +3228,32 @@ notes: |
   and needs one release.
 
 > Registered 2026-08-10 by hand while closing B-088 (slug: `mcp-failure-sink-awaits-agents-release`).
+fixed_in: c969e25 (TheoCode) · @theokit/agents@7.5.0 · @theokit/sdk@4.41.0
+dod_verified: |
+  VERIFIED LIVE, 2026-08-10, in tmux, with a REAL MCP server beside the broken one:
+  Context7 (`@upstash/context7-mcp`) and `deliberately-broken`.
 
-## B-095 — `/mcp` says servers were "handed to the agent" when no MCP tool exists   [ ]
+  `/mcp` rendered:
+      mcp servers
+        context7
+        deliberately-broken
+        DID NOT ANSWER — these servers were started and their tools could not be listed,
+        so none of their tools exist for this session:
+          deliberately-broken — MCP deliberately-broken request timed out after 30000ms
+
+  All three DoD bullets hold. The published packages carry the change (verified inside both
+  tarballs, not by version number). The dependency here is `^7.5.0` and the subscription line
+  is at `chat-transport.ts:76`. And the third bullet — exercised for real, not accepted on unit
+  tests — is what the panel above satisfies.
+
+  Two corrections this run produced, both worth keeping:
+  - the real failure is a 30s HANDSHAKE TIMEOUT, not a spawn error. `StdioMcpClient` waits for
+    the handshake rather than dying on ENOENT, which is precisely why the emit belongs in
+    `safeListTools`' catch and not at spawn.
+  - the same run REFUTED B-095, which I had filed against this path with the wrong cause.
+
+
+## B-095 — `/mcp` says servers were "handed to the agent" when no MCP tool exists   [x]
 
 domain: theocode
 repo: TheoCode
@@ -3261,7 +3285,7 @@ why_now: |
   B-088 was a listing that could not report a failure, this is a listing that makes a positive
   claim ("handed to the agent") which is false. A user reads it and concludes their server is
   configured correctly while nothing is wired.
-status: raw
+status: killed
 severity: major
 dod:
   - the panel's claim is measured against what the SDK received, not against configuration —
@@ -3278,3 +3302,31 @@ notes: |
   paraphrase from the thing under test is not evidence about the thing under test.
 
 > Registered 2026-08-10 by hand during B-094 live verification (slug: `mcp-panel-claims-unwired-servers`).
+
+fixed_in: (decision) — killed by measurement; no code change was warranted
+kill_reason: |
+  THE CAUSE I RECORDED WAS WRONG, and the live re-test refuted it rather than confirming it.
+
+  I wrote that configuration never reached the agent. Re-measured 2026-08-10 with Context7
+  (`@upstash/context7-mcp`) in place of the filesystem server, BOTH sessions — resumed and
+  `/new` — answered identically:
+      mcp_context7_resolve-library-id
+      mcp_context7_query-docs
+  So the config does reach the agent, `Agent.getOrCreate` session caching was not the
+  explanation either, and the four hops I traced (loadMcpJson -> buildChatAgent.mcpServers ->
+  compileAgentDefinition -> Agent.create) were all correct exactly as they read.
+
+  What actually happened: `@modelcontextprotocol/server-filesystem` failed on its own — most
+  likely the directory it was told to serve — so BOTH servers in that run were failing and I
+  read "no mcp_ tools" as "the map is empty". One broken fixture, generalised into an
+  architectural claim about delivery.
+
+  The panel's wording is therefore NOT lying: it says the servers were handed to the agent, and
+  they were. What it could not say then — which of them answered — is exactly what B-088 closed
+  and B-094 verified live.
+
+  Kept rather than deleted, per the registry rule: an item that was measured, believed and then
+  refuted carries information a clean absence does not. The lesson is the reusable part — a
+  fixture that fails silently makes every downstream reading wrong, and a SECOND, independent
+  real server is what separated "our delivery is broken" from "that one server did not start".
+
