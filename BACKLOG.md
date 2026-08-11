@@ -3654,7 +3654,35 @@ why_now: |
   The 2026-08-10 SRE costing rated the surfaces 1-2/5 to transfer. That rating is only true because
   TheoCode already paid for this once. A second agent CLI starts from the components and rediscovers
   that a warning mid-frame corrupts the display.
-status: raw
+discover_outcome: |
+  MEASURED 2026-08-11. The intake evidence — "0 of 8 files import `@theokit/*`" — reads as *all of
+  it is transferable*, and per-file measurement says otherwise. Coupling is not uniform:
+
+  | file | LoC | product refs | verdict |
+  |---|---:|---:|---|
+  | `write-queue.ts` | 21 | 0 | generic |
+  | `log-rotation.ts` | 33 | 0 | generic |
+  | `stderr-guard.ts` | 66 | 1 | near-generic |
+  | `input-router.ts` | 115 | 0 | generic MECHANISM, product VOCABULARY |
+  | `apply-key-action.ts` | 47 | 0 | acts on this product's actions |
+  | `use-tui-keyboard.ts` | 100 | 1 | Ink binding for this app |
+
+  `input-router.ts` is the trap: zero references to TheoCode, so it looks portable, while its whole
+  contract is this surface's vocabulary — `KeyboardState` declares `hasOpenQuestion`, `inDemoInput`,
+  `emLogin`, `backtrackArmed`; `KeyAction` returns `prime-backtrack`, `pause-goal`, `close-demo`. A
+  second agent CLI has none of those and needs some of its own.
+
+  So the item is TWO slices. The three generic primitives (~120 LoC) are extractable and verifiable
+  now. The router needs a design pass, and designing a public keypress API against a single consumer
+  is how a framework acquires an interface its second consumer routes around. B-103, decided the
+  same day, is the precedent facing the other way: what looked obvious from file sizes was refuted
+  by comparing capabilities.
+
+  A public API is semver-bound, so a wrong router is worse than no router. That asymmetry is why
+  this stops short of prescribing the API.
+
+  Opportunity: `knowledge-base/discoveries/opportunities/tui-terminal-loop-opportunity.md`.
+status: triaged
 severity: major
 dod:
   - `@theokit/tui` exposes the terminal loop as primitives: a keypress→action router whose state is
