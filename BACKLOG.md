@@ -4762,7 +4762,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-lexical-containment-guards`).
 
-## B-118 — The repo `.npmrc` makes every local publish fail as "404", and says so in a warning nobody reads   [ ]
+## B-118 — The repo `.npmrc` makes every local publish fail as "404", and says so in a warning nobody reads   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4794,7 +4794,32 @@ why_now: |
   the account owner could have "fixed" — so the block looked external when it was local and
   one-line. A warning that prints on every command for months is not a warning; it is background
   noise, and this is what background noise costs when it turns out to be the answer.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11, with TWO corrections to this item's own evidence — both measured, and both
+  worth more than the fix.
+
+  1. "The repo `.npmrc`" — it was NEVER versioned. Zero commits touch it, it is absent from
+     `develop` and `main`, and `.gitignore` has excluded it since 0c8b6382e. It is a
+     developer-machine file, so "remove it from the repository" was never the available fix.
+
+  2. The two package managers are the other way round. Measured with a valid user credential in
+     `~/.npmrc` and `NPM_TOKEN` unset:
+
+       npm   ->  //registry.npmjs.org/:_authToken = (protected) ; overridden by project
+       pnpm  ->  the user's token survives; the unresolvable line is dropped with a warning
+
+     npm substitutes the unset variable with an EMPTY token and project config outranks user
+     config. pnpm refuses to resolve the line and falls through. So the tool that gets clobbered is
+     npm, not pnpm — the opposite of what this block recorded.
+
+  What shipped: a test that fails if ANY `.npmrc` in the repository declares an auth token — the
+  version of this defect that would hit every developer rather than one — shown RED against the
+  local file before it was removed. And `CLAUDE.md`'s first-time-setup note, which carried the same
+  reversed attribution, is corrected where the next person will actually look.
+
+  The local file is gone, so the pnpm warning that printed twice per invocation for a whole session
+  is at zero and npm no longer reports `overridden by project`.
+status: shipped
 severity: major
 dod:
   - a local publish either works with an ordinary user credential or fails with a message naming the
@@ -5038,7 +5063,7 @@ dod:
 > Registered 2026-08-11 by `/backlog-item` (slug: `presenter-has-no-lifecycle-surface`).
 
 
-## B-124 — `create-theokit`'s TUI template loads a project `.env` with no guard, so every scaffolded product starts exposed   [ ]
+## B-124 — `create-theokit`'s TUI template loads a project `.env` with no guard, so every scaffolded product starts exposed   [x]
 
 domain: theokit
 repo: theokit
@@ -5076,7 +5101,26 @@ why_now: |
   It is invisible when missing. Nothing fails, no warning is printed — the credential store simply
   moves, and the first sign is a credential where it should not be. Every day the template stays as
   it is, another scaffolded product inherits it.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11. The TUI template calls `loadProjectEnv` from `@theokit/sdk@4.50.0` instead of
+  `process.loadEnvFile()`, so a scaffolded product no longer lets a cloned repository move its
+  credential store through `.env`.
+
+  Two things done deliberately rather than minimally.
+
+  The guard walks EVERY template file, not the one path the defect was found in. A new surface
+  added to a directory nobody thought to list would otherwise reintroduce it silently, which is how
+  this class of defect comes back.
+
+  The SDK pin moves to `^4.50.0` in the same commit. The template now IMPORTS the guard, and a pin
+  that resolves to an SDK without it produces a generated project that does not build — a worse
+  failure than the one being fixed. The pin is covered by its own case.
+
+  Three mutations detected. One of them found a real weakness in the first version of the test:
+  asserting the string `loadProjectEnv` appears anywhere passed on the IMPORT line alone, so a file
+  that imported the guard and then loaded the env some other way would have looked correct. The case
+  now asserts the call.
+status: shipped
 severity: major
 dod:
   - the TUI template calls the SDK's guarded loader rather than `process.loadEnvFile` directly, and
