@@ -3881,6 +3881,27 @@ outcome_a: |
 
   Bullet (b), config-key reachability, is NOT started. It is a separate mechanism from (a) and the
   item bundles two invariants; only the trust one is addressed here.
+outcome_b: |
+  MEASURED 2026-08-11 and BLOCKED ON B-097, structurally — the same block as B-108, from the same
+  missing piece.
+
+  The mechanism checks that every config key is either reachable by an environment variable or
+  carries a documented opt-out with an exit criterion. It needs a set of config keys to check. The
+  framework has none:
+
+    - No `config` subpath on the published surface.
+    - No `configSchema` / `layeredConfig` / `loadConfig` anywhere in `packages/sdk/src`.
+    - The ONLY enumerable key list in the package is `SOVEREIGN_ENV_KEYS`, added by bullet (a) of
+      this item. The nine files matching "knob" are prose about unrelated options (task store,
+      batch, redactor).
+
+  So the check has nothing to range over. Implementing it would mean inventing the config-key
+  registry first, which IS B-097 — and inventing it inside a reachability checker would fix the
+  shape of the framework's config surface as a side effect of a lint.
+
+  B-097 is now the keystone for three separate items: this bullet, B-108 (wiring observability), and
+  the harder half of B-106. Naming that is more useful than three independent "blocked" notes,
+  because it says which single item unblocks the group.
 status: triaged
 severity: major
 dod:
