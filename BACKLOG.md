@@ -4998,3 +4998,36 @@ dod:
     simplify it back
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `scaffold-template-loads-env-unguarded`).
+
+## B-125 — A rendering test in theokit-tui fails about one run in four   [ ]
+
+domain: theokit
+repo: theokit-tui
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED 2026-08-11 while cutting 0.52.0. `src/tool-call.test.tsx >
+  preview_result_caps_with_language_routing` FAILED once in a full-suite run
+  (1 failed | 1402 passed) and then passed in three consecutive full runs and in isolation
+  (44/44 in that file alone).
+
+  HONEST LIMITS of this evidence: the assertion diff was not captured before the next run
+  overwrote it, so what is recorded is the test name and the rate, not the failure mode. And it is
+  NOT established whether the flake pre-existed — it surfaced on the run right after
+  `src/keys/` was added, and vitest schedules test files concurrently, so an extra file changes
+  the interleaving. The added module is pure, holds no shared state and touches no renderer, so
+  causing it is implausible; surfacing it is not.
+why_now: |
+  `rules/testing.md` is explicit: a flaky test is a bug, to be fixed or deleted. A suite that fails
+  one run in four teaches the team to re-run rather than to read, and the next real regression in
+  that file will be re-run away with it. It also makes the pre-push gate — which runs the full
+  suite and takes ~15 minutes — fail for no reason roughly a quarter of the time.
+status: raw
+severity: minor
+dod:
+  - the failure mode is captured (assertion diff from a failing run), not just the test name
+  - the cause is named — timing, shared module state, or a renderer race — rather than the test
+    being retried until green
+  - the test passes 20 consecutive full-suite runs, or is deleted with the reason recorded
+
+> Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
