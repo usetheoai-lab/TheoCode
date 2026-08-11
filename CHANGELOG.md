@@ -10,6 +10,15 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **A `theokit` routing domain, so a gap that belongs upstream can be filed against the repo that owns it.** Items for the framework previously routed nowhere — correct while this install governed one product, and increasingly untrue once three consumer-measured gaps in one day turned out to be framework bugs. Ships with `agents/theokit.md` so the routing resolves to a named owner rather than to nobody.
 - **Seven backlog items scoping what would make a second agent product nearly free to build (B-096..B-102),** derived from measuring which subsystems this repo had to write itself.
+- **theokit-sdk:** backlog B-103 — context assembly exists in the SDK and no consumer can reach it.
+- **theokit-tui:** backlog B-104 — terminal-surface primitives are rebuilt by every agent CLI.
+- **theokit:** backlog B-105 — `@theokit/presenter` is pinned, imported nowhere, and its job is done by hand.
+- **theokit-sdk:** backlog B-106 — the framework creates session artifacts and leaves the reaping to the consumer.
+- **theokit-sdk:** backlog B-107 — the two invariants that keep a trust posture honest live only in the consumer.
+- **theokit:** backlog B-108 — what an agent actually wired is not observable from the framework.
+
+### Changed
+- **`theokit-tui` joins the `theokit` routing domain.** A measured item (B-104) belongs to that repo and to no other, which is the trigger `cycle-backlog.md § Domain routing` names for extending the table. It routes to the existing `agents/theokit.md` specialist rather than to a new one, so the resolution names an owner.
 
 ## [0.2.0] - 2026-08-10
 

@@ -3540,3 +3540,213 @@ dod:
   - a diagnostic with no installed sink is not the only report of a user-visible failure
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-parity-and-testability`).
+
+## B-103 — Context assembly exists in the SDK and no consumer can reach it   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11, in the framework source rather than inferred from the consumer.
+  `theokit-sdk/packages/sdk/src/internal/runtime/context/` is **1 603 LoC across 13 files** and
+  implements: multi-format discovery (`context-discovery.ts` — git-root-walk, globbed, `walkUpForFile`
+  with a 64-level cap and realpath dedup), `@import` expansion (`context-import-resolver.ts`),
+  per-file truncation with head/tail split and a telemetry counter (`context-loaders.ts`), and an
+  **aggregate cap across sources with priority ordering and partial truncation of the last fitting
+  source** (`context-aggregator.ts`, `DEFAULT_MAX_BYTES_TOTAL = 120_000`).
+
+  Every one of those files is marked `@internal` and lives under `src/internal/`. `grep "runtime/context"
+  src/index.ts` returns nothing: the public surface exposes none of it.
+
+  TheoCode therefore wrote its own — `packages/agent/src/context`, 602 LoC, 2 of 5 files touching
+  `@theokit/*` — whose `composeInstructions` re-derives the same aggregate-budget-with-truncation-order
+  that `applyAggregateCap` already implements.
+
+  The first version of this item claimed the framework did not have this capability. It does. The
+  defect is narrower and worse: it has it, and hides it.
+why_now: |
+  This is the cheapest of the framework items to close, because the code is written and tested — what
+  is missing is an export and a documented entry. Every consumer that reads a project directory pays
+  the full 600 LoC again to get a capability that already ships in the tarball they installed.
+status: raw
+severity: major
+dod:
+  - a public entry composes a system prompt from N declared sources under one aggregate budget with a
+    declared truncation order, without a consumer importing from `src/internal/`
+  - a consumer can register its own source (its own file convention) without reimplementing discovery,
+    truncation or the aggregate cap
+  - TheoCode's `packages/agent/src/context` shrinks to source registration, measured in LoC before/after
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-context-assembly-is-internal`).
+
+## B-104 — Terminal-surface primitives are rebuilt by every agent CLI   [ ]
+
+domain: theokit
+repo: theokit-tui
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11. `TheoCode/packages/tui/src/terminal-io` is 387 LoC across 8 files and **0 of
+  them import `@theokit/*`** — with `tui/src/consent` (426 LoC, 0 of 9), the only two subsystems in
+  the repository with zero framework coupling. That is the strongest single signal in the dataset.
+
+  What is in it: `input-router.ts`, a modal keyboard state machine (open question → demo → consent
+  gate → escape ladder → composer) that maps a keypress to a list of actions; `stderr-guard.ts`, which
+  redirects `process.stderr.write` to a file because a stray warning corrupts the Ink frame, counts
+  what it could not write and reports the loss at teardown; `log-rotation.ts`; and `write-queue.ts`,
+  per-key serialisation of async writes.
+
+  `@theokit/tui` ships ~60 components (`agent-timeline`, `chat-composer`, `approval-prompt`,
+  `tool-card`, …) — verified by listing `theokit-tui/src`. It ships the widgets. It does not ship the
+  loop they run inside.
+why_now: |
+  The 2026-08-10 SRE costing rated the surfaces 1-2/5 to transfer. That rating is only true because
+  TheoCode already paid for this once. A second agent CLI starts from the components and rediscovers
+  that a warning mid-frame corrupts the display.
+status: raw
+severity: major
+dod:
+  - `@theokit/tui` exposes the terminal loop as primitives: a keypress→action router whose state is
+    declared by the consumer, a stderr guard that cannot silently drop diagnostics, and serialised writes
+  - a consumer builds a second agent CLI without owning any of the three
+  - TheoCode's `terminal-io/` shrinks to its own key bindings, measured in LoC
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `tui-owns-the-terminal-loop`).
+
+## B-105 — `@theokit/presenter` is pinned, imported nowhere, and its job is done by hand   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-08-11. `TheoCode/package.json` pins `"@theokit/presenter": "^0.5.1"` in `overrides`;
+  `grep -rn "@theokit/presenter" packages/` returns **zero imports**.
+
+  Meanwhile `packages/cli/src/runtime/events.ts` is 181 LoC producing two renderings of one chunk
+  stream: Codex-shaped JSONL (`thread.started`, `item.completed`, `turn.completed` with a normalised
+  `usage` block) and a human processor.
+
+  The package it does not use ships exactly that split — verified on disk:
+  `theokit/packages/presenter/src/presenters/{json,terminal,ui-message-stream}.ts`, over a canonical
+  `AgentOutputEvent`.
+why_now: |
+  Either the presenter does not fit this product's wire contract, or adoption never happened. Nobody
+  has measured which, and the answer changes the surfaces line of the second-product costing. The
+  measurement is cheap; the pin in `overrides` for an unused package is evidence nobody has looked.
+status: raw
+severity: minor
+dod:
+  - a measurement states whether `presenter` covers the Codex-shaped JSONL contract, naming the gap
+    if it does not
+  - if it covers it, `events.ts` is replaced and the LoC delta recorded; if not, the missing strategy
+    is filed against `theokit`
+  - the `overrides` pin is justified in a comment or removed
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `presenter-adoption-or-gap`).
+
+## B-106 — The framework creates session artifacts and leaves the reaping to the consumer   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11 on both sides. The SDK creates the artifacts — `transcriptRoot`
+  (`internal/persistence/session-transcript.ts:339`), `forkTranscript` (`transcript-ops.ts:81`),
+  `sessionHasWriter` (`session-writer.ts:244`) — plus lock files, lock directories and `.tmp` files.
+  `grep -rlniE "garbage|retention|prune|reap" src/` finds nothing that collects them.
+
+  TheoCode's `packages/agent/src/session/gc/` is ~900 LoC of the subsystem's 1 491: a liveness oracle
+  that decides ALIVE / DEAD / UNDETERMINED, a filesystem search with a budget SHARED across the sweep
+  (measured on a real machine: 13 269 project directories would otherwise cost ~64 million
+  readdir/stat calls and the command never returns), artifact classification, and a TOCTOU backstop
+  that re-checks the writer lease between plan and apply.
+
+  This is the path that DELETES user data. B-020 in this registry is the record of getting it wrong:
+  an entry that could not be stat-ed arrived as `mtimeMs = 0`, aged to ~20 000 days, and cleared
+  every retention window.
+why_now: |
+  B-096 asks the framework to own session list/resume/archive/delete/fork. This is the larger and more
+  dangerous half of the same subsystem and is in neither its evidence nor its DoD — filed separately so
+  neither is worked believing it covers the other.
+status: raw
+severity: major
+dod:
+  - the framework reaps the artifacts it creates: retention window, keep-last, the writer lease
+    honoured, and a dry-run that must be confirmed before anything is unlinked
+  - "could not determine" is representable in that API and is never collapsed into "not there" — the
+    consumer had to add the distinction itself (B-020)
+  - TheoCode's `session/gc/` shrinks to policy, measured in LoC
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-reaps-its-own-artifacts`).
+
+## B-107 — The two invariants that keep a trust posture honest live only in the consumer   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11. `grep -rniE "loadEnvFile|SOVEREIGN|TRUST_ALL"` across
+  `theokit/packages/agents/src` and `theokit-sdk/packages/sdk/src` returns nothing.
+
+  (a) `TheoCode/packages/cli/src/runtime/project-env.ts` — ~30 LoC. `process.loadEnvFile()` reads the
+  PROJECT's `.env` into `process.env`. Without `SOVEREIGN_KEYS`, a cloned repository shipping a `.env`
+  with `THEOCODE_TRUST_ALL_DIRS=1` switches off the defence against a hostile repository, and one with
+  `THEOKIT_AUTH_HOME=...` redirects the credential store. The keys are captured before the load and
+  restored after it.
+
+  (b) `TheoCode/packages/agent/src/config/env-knobs.ts` plus `keysWithoutEnvPath` /
+  `optOutsThatExemptNothing` — a mechanised rule that every config key is either reachable by an
+  environment variable or carries a documented opt-out WITH an exit criterion. B-041 records it firing
+  on `profile`, which was neither reachable nor exempt.
+why_now: |
+  B-097 asks the framework to own the layered config and the trust posture. A trust posture that an
+  untrusted repository's `.env` can switch off is not a trust posture — (a) is what makes B-097 hold,
+  and it is thirty lines. (b) is what stops the surface growing keys nobody can reach.
+status: raw
+severity: major
+dod:
+  - the framework's own project-env loading refuses to let a project-scoped source set the keys that
+    decide trust or locate the credential store, declared as a named set rather than by convention
+  - config-key reachability is checkable in the framework, so a key added with neither an env path nor
+    a documented opt-out fails there rather than in a consumer's own detector
+  - a consumer that adds a key inherits both without writing either
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-owns-sovereign-env-and-key-coverage`).
+
+## B-108 — What an agent actually wired is not observable from the framework   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11. `grep -rniE "onWired|wiredCapabilities|suppressedBy"` across
+  `theokit/packages/agents/src` and `theokit-sdk/packages/sdk/src` returns nothing.
+
+  TheoCode built it: `wired-capabilities.ts` publishes, at the moment the builder decides, which MCP
+  servers / skills / hook events were REQUESTED, which were ACTIVE, and whether trust is what emptied
+  the difference (`WiredEntity.suppressedByTrust`). `/mcp`, `/skills`, `/hooks` and `theocode doctor`
+  all read that record.
+
+  B-071 in this registry was REOPENED for shipping the obvious implementation — re-reading the config
+  — against its own DoD: "the listing comes from what was actually wired, not from re-reading the
+  config file; those two can disagree, and the disagreement is the bug worth catching." A re-read
+  cannot detect that disagreement by construction, because it IS the config.
+why_now: |
+  B-097 moves the trust gate into the framework. The moment the framework decides what to withhold,
+  only the framework can report what it withheld — and a consumer re-deriving the listing reproduces
+  exactly the defect B-071 was reopened for. The reporting has to move with the deciding.
+status: raw
+severity: major
+dod:
+  - the build reports which disk entities were requested, which were wired, and which were withheld,
+    derived from the build itself rather than from a second read of configuration
+  - "withheld because the directory is untrusted" is distinguishable from "none configured" in that
+    report
+  - TheoCode's `wired-capabilities.ts` becomes a projection of the framework's record, measured in LoC
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `framework-reports-what-it-wired`).
