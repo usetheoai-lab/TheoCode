@@ -24,6 +24,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **theokit-sdk:** backlog B-114 — a tag push reported success and transferred nothing.
 - **theokit-sdk:** backlog B-115 — nothing tests what the SDK does with a file the repository controls.
 - **theocode:** backlog B-116 — the most stateful surface subsystems are the least tested.
+- **theokit-sdk:** backlog B-117 — two containment guards judge a path by its name, so a symlink out of the root is judged by where it sits rather than where it points.
 
 ### Fixed
 - **The README no longer tells readers this repository has no test suite (B-110).** It stated "`npm test` does not exist here. Any claim about this code's behaviour is currently unverified in this repository" — false on all three counts: `npm test` runs 67 files and 427 cases. The sentence did not merely age, it instructed: a contributor arriving at a repo whose README says the tests are absent does not run them. Sibling of B-062, which found the same disease in the domain specialist file.

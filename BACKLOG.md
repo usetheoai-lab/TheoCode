@@ -4102,3 +4102,32 @@ dod:
   - each new test is shown to detect: a mutation of the branch it covers turns it red, recorded
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `least-tested-most-stateful-surfaces`).
+
+## B-117 — Two lexical containment guards in theokit-sdk never resolve symlinks   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: review
+source: human
+evidence: none-yet
+why_now: While verifying B-115 against the built artifact I grepped for every remaining prefix-based
+  containment guard in the package and found two: `src/internal/security/path-guard.ts:82`
+  (`isInside`) and `src/internal/memory/tools.ts:175` (`isPathInside`). Both close the half of the
+  defect B-115 was about — each appends a separator, so the sibling-directory escape
+  (`<root>-evil`) is refused. Neither closes the other half: both compare LEXICAL paths, so a
+  symlink whose name sits inside the root and whose target does not is judged by its name. That is
+  the identical shape already fixed twice in this ecosystem (B-042 in TheoCode, B-115 here), which
+  is why finding it a third time is worth an item rather than a mental note.
+status: raw
+dod:
+  - each of the two guards is measured against a symlink escape, and the result is recorded as
+    reachable or unreachable — not asserted from reading
+  - for every guard the measurement shows is reachable, a failing test exists BEFORE the fix, and the
+    fix makes the comparison real-path-based
+  - for every guard the measurement shows is UNREACHABLE, the reason is written next to the code, so
+    the next reader does not re-open this item
+  - no third copy of the rule: whatever is fixed consumes
+    `internal/runtime/context/path-containment.ts`, or that module moves to where all three can
+    reach it
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `sdk-lexical-containment-guards`).
