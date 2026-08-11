@@ -3330,3 +3330,213 @@ kill_reason: |
   fixture that fails silently makes every downstream reading wrong, and a SECOND, independent
   real server is what separated "our delivery is broken" from "that one server did not start".
 
+
+## B-096 — Session lifecycle is rebuilt by every agent product   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10 in the consumer. `packages/agent/src/session` is 1 491 LoC across 10 files,
+  and only 6 of them touch `@theokit/*` — the rest is local logic: listing, resume, archive,
+  delete, fork, and the protection set the GC builds so a live session is not collected
+  (`session-ops.ts`, `agent-list.ts`).
+
+  None of it is specific to a coding agent. `Agent.delete` in the SDK is
+  `removeRegisteredAgent(agentId); await flushRegistrySaves()` — registry only, never the file —
+  so the consumer had to write `deleteSession` and `LiveSessionDeletionError` itself.
+why_now: |
+  The SRE-specialisation costing done 2026-08-10 put the agent core at 2/5 to transfer BECAUSE this
+  code is domain-agnostic. Work that transfers for free to a second product is, by definition, work
+  the framework should have carried once.
+status: raw
+severity: major
+dod:
+  - `@theokit/agents` exposes session list / resume / archive / delete / fork with the
+    live-session guard, so a consumer does not reimplement the guard or discover its absence in
+    production
+  - TheoCode's `packages/agent/src/session` shrinks to composition over that surface, measured in
+    LoC before and after
+  - deleting a live session is refused by the framework, with a typed error naming the session
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-session-lifecycle`).
+
+## B-097 — Layered config with a trust posture is rebuilt by every agent product   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10. `packages/agent/src/config` is 1 273 LoC across 12 files and only 5 touch
+  `@theokit/*`. What is local: the precedence chain (defaults → user → project → env → CLI), the
+  trust posture that gates project config / AGENTS.md / hooks / skills / MCP / memory, and the
+  security floor — a lower-trust layer cannot loosen what a higher one settled
+  (`security-floor.ts`, `trust-posture.ts`, `layers.ts`).
+
+  The framework offers `.settingSources` for disk discovery, which is a different concern: it finds
+  files, it does not decide which layer wins or which are withheld from an untrusted directory.
+why_now: |
+  Every agent that reads a project directory faces the same question, and the dangerous half is
+  the trust gate: MCP servers are SPAWNED as processes before any per-tool approval. A product
+  that gets this wrong grants arbitrary local execution on first build. It should not be
+  re-derived per product.
+status: raw
+severity: major
+dod:
+  - the framework provides layered resolution with declared precedence and a trust posture that
+    gates the disk entities, with the floor rule (a lower-trust layer cannot loosen) enforced there
+  - a consumer can add its own layer without reimplementing precedence
+  - TheoCode's `config/` shrinks to its own keys plus composition, measured in LoC
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-layered-config-and-trust`).
+
+## B-098 — Approval and consent are rebuilt by every agent product   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10. `packages/tui/src/consent` is 426 LoC, plus `packages/agent/src/hooks` at
+  847 LoC of which only 3 of 10 files touch `@theokit/*`. Between them they implement the approval
+  modes (suggest / auto-edit / full-auto), the per-tool gate, and a `PreToolUse` chain whose veto
+  must reach the surface with a readable reason — TheoCode carries `onHookVeto` for exactly that,
+  because a veto arrives on the wire as a `tool_result` the terminal cannot distinguish from a
+  completed call.
+why_now: |
+  The SRE costing rated the domain/safety layer 5/5 — the most expensive — and consent is its
+  foundation. An agent acting on production needs approval semantics that are part of the
+  framework's contract, not re-implemented per product with per-product bugs.
+status: raw
+severity: major
+dod:
+  - approval modes and the per-tool gate are a framework contract, with the veto reaching the
+    consumer as a typed signal rather than as an indistinguishable tool result
+  - a consumer renders consent without owning the policy
+  - TheoCode's `consent/` + `hooks/` shrink to rendering and project-specific rules, measured
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-approval-and-consent`).
+
+## B-099 — Credential resolution and provider routing are rebuilt by every agent product   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10. `packages/agent/src/auth` is 644 LoC across 6 files, 3 of which touch
+  `@theokit/*`. Local: resolving which credential a given model needs, OAuth vs API key, refresh,
+  and the routing that picks a credential FROM a model id (`routeToCredential`,
+  `resolveCredentialForModel`) — called on every turn in `chat-transport.ts`.
+why_now: |
+  Any agent that supports more than one provider writes this, and it is the layer where a mistake
+  leaks a secret. `theocode doctor` already reports credentials as present / absent / unreadable
+  and never by value, precisely because a diagnostic is what people paste into issues — that
+  discipline belongs in the framework, not in each product's diagnostic.
+status: raw
+severity: major
+dod:
+  - the framework resolves model → credential, including OAuth refresh, as a documented contract
+  - a credential is never returned by value from a reporting surface; presence-only is the
+    framework's default rather than each consumer's discipline
+  - TheoCode's `auth/` shrinks to provider registration, measured in LoC
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-credential-routing`).
+
+## B-100 — An SRE agent has no infrastructure tools to compose   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10. TheoCode registers 10 tools and **9 come from `@theokit/agents/tools`**
+  (`read_file`, `list_dir`, `grep`, `repo_status`, `git_diff`, `current_time`, `apply_patch`,
+  `edit_file`, `run_shell`); only `view_image` is local. That is the framework working exactly as
+  intended — for a CODING agent.
+
+  For an SRE agent the same inventory is empty: no cluster query, no metrics query, no log search,
+  no trace lookup. The SRE-specialisation costing rated this layer 4/5 — the second most expensive
+  — for that reason alone.
+why_now: |
+  The 9-of-10 result is the measured proof that a first-class tool family collapses a product's
+  cost. The costing showed the agent core and both surfaces transfer at 1-2/5 to an SRE product;
+  the tools are where the work actually is, and they are absent.
+status: raw
+severity: major
+dod:
+  - a `sdk-tools`-shaped family exists for infrastructure reads: cluster resource query, metrics
+    query, log search, trace lookup — read-only first, because a read tool that is wrong misleads
+    while a write tool that is wrong causes an incident
+  - each tool declares its blast radius in its schema, so the approval layer can gate on it rather
+    than on the tool name
+  - a second product can build an SRE agent whose tool layer is composition, not authorship
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `sdk-infrastructure-tool-family`).
+
+## B-101 — Confinement covers the disk, not the blast radius   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-10. The sandbox this product resolves is `workspace-write` — a DISK boundary.
+  `resolveSandboxPosture` reports `enforced` or falls back to `⚠ tool-gating`, and TheoCode
+  surfaces that warning because without confinement every command is auto-approved.
+
+  A disk boundary says nothing about an action's reach. `run_shell` inside a workspace-write
+  sandbox can still call a production API: the confinement is on files, and the damage is on the
+  other end of a network call.
+why_now: |
+  The SRE costing rated domain/safety 5/5 — the single most expensive layer — and this is why. It
+  is NOT a code-volume problem: an SRE agent acts on production, where the missing concepts are
+  scope (which cluster, which namespace), reversibility (dry-run before apply), and a two-person
+  rule for destructive actions. None exist today, in any layer.
+status: raw
+severity: major
+dod:
+  - a tool can declare the scope it acts on and the reversibility of its action, and the approval
+    layer gates on those rather than on the tool's name
+  - a destructive action outside a declared scope is refused by the framework, not by the
+    consumer's own check — a guard each product re-implements is a guard some product forgets
+  - the distinction between "sandbox enforced" and "reach constrained" is reported to the user
+    rather than conflated, the same way trust-suppression is distinguished from absence today
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `sdk-blast-radius-confinement`).
+
+## B-102 — A framework gap is invisible until a consumer trips on it   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  THREE gaps found and fixed upstream in a single day, 2026-08-10, all of the same shape:
+  - `theokit-sdk#189` — an MCP failure reported only to `diag()`, the SDK's stderr, which an
+    embedding UI never reads.
+  - `theokit#196` — the in-process turn declared no field for `onRunEvent`; the HTTP path had
+    carried it since `#132`.
+  - `theokit#200` — the publish guard read the last stdout line as a filename; in CI that line is
+    `}`, so it accused six packages falsely.
+
+  None failed a test. `#196` could not: a sink nobody can install emits nothing to compare against,
+  so the absence had no observable consequence. `#200` could not: the script ran its body on
+  import, so any test of one helper ran the whole gate and exited the process — untestable by
+  construction.
+why_now: |
+  Each was found by a consumer hitting it in production use, not by the framework's own suite. That
+  is the expensive discovery path, and the costing above assumes a framework that does not depend
+  on it.
+status: raw
+severity: minor
+dod:
+  - the in-process and HTTP entry points are checked against each other for field parity, so a
+    field carried by one and dropped by the other fails in the framework rather than in a consumer
+  - every build script under `scripts/` is importable without executing, so its helpers can be
+    tested — `check-pack-no-workspace.mjs` is done, the rest are not audited
+  - a diagnostic with no installed sink is not the only report of a user-visible failure
+
+> Registered 2026-08-10 by `/backlog-item` (slug: `framework-parity-and-testability`).

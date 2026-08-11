@@ -7,6 +7,10 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **A `theokit` routing domain, so a gap that belongs upstream can be filed against the repo that owns it.** Items for the framework previously routed nowhere — correct while this install governed one product, and increasingly untrue once three consumer-measured gaps in one day turned out to be framework bugs. Ships with `agents/theokit.md` so the routing resolves to a named owner rather than to nobody.
+- **Seven backlog items scoping what would make a second agent product nearly free to build (B-096..B-102),** derived from measuring which subsystems this repo had to write itself.
+
 ## [0.2.0] - 2026-08-10
 
 ### Added
