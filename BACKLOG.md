@@ -3569,6 +3569,29 @@ why_now: |
   This is the cheapest of the framework items to close, because the code is written and tested — what
   is missing is an export and a documented entry. Every consumer that reads a project directory pays
   the full 600 LoC again to get a capability that already ships in the tarball they installed.
+consumer_slice_outcome: |
+  MEASURED 2026-08-11, after `@theokit/sdk@4.43.0` removed the blocker (B-119).
+
+  The consumer migration does NOT happen, and the reason is a measurement rather than a schedule.
+  Compared capability by capability instead of file by file, the SDK covers 2 of 9: the recursive
+  rules walk (only since B-119) and `@import` expansion. It does not carry the traversal budget and
+  its typed RangeError, the inode-keyed cycle guard, the MAX_CHARS truncation and its warning, the
+  injected readFile/warn seams, `AGENTS.local.md`, or the tail-truncation that keeps the nearest
+  instructions.
+
+  The one genuinely equivalent piece would be a DOWNGRADE. TheoCode's `insideRoot` refuses a path it
+  cannot resolve; the SDK's falls back to the lexical path, deliberately, because its context manager
+  checks containment before stat'ing. Swapping a fail-closed guard for a fail-to-lexical one on a
+  security path to save ~60 LoC is a trade in the wrong direction.
+
+  The item's "~430 LoC could be returned" was derived from file sizes. File size is not capability.
+
+  What survives is the item's real content, restated: the gap is no longer "no consumer can reach
+  context assembly" — it can, since 4.42.0 — but "what it reaches is the easy half". Each missing
+  capability is an upstream item, which is what B-119 already was, one at a time.
+
+  Plan: `knowledge-base/plans/theocode-context-migration-plan.md` (gitignored, ADR 0002).
+  Still unproven: `parseRules`/`shouldActivateRule` against TheoCode's frontmatter block format.
 status: triaged
 severity: major
 evidence_measured: |
