@@ -4046,6 +4046,24 @@ dod:
   - a new `DiscoverySpec` with `followImports: true` and no root fails a test rather than shipping
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-untested-repo-controlled-reads`).
+> Triaged 2026-08-11 by `/discover-execute` (opportunity SHIPPABLE 98.5).
+> Planned 2026-08-11 — `.claude/knowledge-base/plans/sdk-path-containment-helper-plan.md` (SHIPPABLE 90.8).
+> Implemented 2026-08-11 — `theokit-sdk` `dc18357e5`. Code-quality PASS (9 detectors, 0 clones —
+> the extraction removed a duplicate rule rather than adding a third). Review READY_TO_MERGE, with
+> the D2 mutation run: reverting the guard to `startsWith` turns both containment tests red and
+> leaves the anti-vacuity case green, so the tests detect the boundary rather than passing by
+> accident.
+>
+> TWO defects shipped, not one. The second was found because fixing the first did not make the test
+> pass: `refresh()` carried every legacy source into the aggregator unfiltered and then stamped
+> `included` on everything the budget kept, so the containment verdict was computed and discarded.
+> Nothing leaked through that path (excluded sources carry empty tokens) — the REPORT was wrong, on
+> a surface whose docstring claims its output is secret-free by design.
+>
+> SCOPE NOTE: the item stays OPEN. Rows 1-2 of the capability map are fixed and pinned; row 3
+> (`subagents-loader`'s symlink skip, safe only because `Dirent.isFile()` is false for a link) and
+> row 4 (`discover-skills`' documented guard, unverified) remain. Bundling them would have hidden a
+> security fix inside a wider change.
 
 ## B-116 — The most stateful surface subsystems are the least tested   [ ]
 
