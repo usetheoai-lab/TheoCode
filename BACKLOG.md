@@ -4527,7 +4527,7 @@ dod:
 > row 4 (`discover-skills`' documented guard, unverified) remain. Bundling them would have hidden a
 > security fix inside a wider change.
 
-## B-116 — The most stateful surface subsystems are the least tested   [ ]
+## B-116 — The most stateful surface subsystems are the least tested   [x]
 
 domain: theocode
 repo: TheoCode
@@ -4554,7 +4554,35 @@ why_now: |
   the backtrack ladder" are told apart, and a wrong answer there is silent: the key appears to do
   nothing, or does the other thing. B-029 is the record of exactly that — the backtrack ladder was
   dead because a flag was raised before the data it announced, and no test saw it.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11. Three bullets, checked one at a time against what the code actually does
+  rather than against the checkbox.
+
+  Bullet 1 — `routeKey`: 26 cases, one per surface state, asserting the ACTIONS returned rather than
+  the effect of applying them. Six mutations, all detected.
+
+  Bullet 2 — the slash-command router: a case per capability group, all seven. The first pass had
+  four of seven and read as done; the three missing were `identity` (the largest, eight actions),
+  `transcriptOut` and `shells`. Removing any one of the three from the chain is now detected.
+
+  Bullet 2, refusals — one is asserted through dispatch and one deliberately is not. A `send` while a
+  goal runs is synchronous, so the router-level case proves the flag is actually carried; mutating
+  `goalActive` to `false` in the wiring is detected. Resuming while a turn streams is NOT asserted
+  through the router: `handleResume` reads the session directory before it can decide, so reaching
+  the guard means mocking the filesystem or awaiting a real read, and a case that awaits disk to
+  prove a routing decision is a flaky test wearing a routing test's name. The guard is proven against
+  the pure planner in `resume-command.test.ts` — the shape bullet 1 asks for. Recorded as a known
+  routing-half gap rather than papered over.
+
+  Bullet 3 — every new test shown to detect. Also recorded, because it is the finding: the router's
+  PRECEDENCE is not observable at all. The 38 actions partition cleanly across the seven switches, so
+  reordering the chain changes nothing, and three mutations proved it. The tests pin the DISJOINTNESS
+  instead, which is the invariant the chain actually rests on and which nothing enforced.
+
+  Three mistakes made on the way, all from assuming instead of reading: `listSessions` is async,
+  `listPtys` sets a toast rather than a panel, and the resume refusal is a returned value. Each
+  showed up as a red test in seconds, which is the argument for writing them.
+status: shipped
 severity: minor
 dod:
   - `routeKey` has a case per surface state, asserting the ACTIONS it returns rather than the effect
