@@ -3791,7 +3791,41 @@ why_now: |
   B-096 asks the framework to own session list/resume/archive/delete/fork. This is the larger and more
   dangerous half of the same subsystem and is in neither its evidence nor its DoD — filed separately so
   neither is worked believing it covers the other.
-status: raw
+discover_outcome: |
+  MEASURED 2026-08-11. Every pointer in the evidence resolves — file, line, and the symbol ON that
+  line — for all three creation sites.
+
+  The item's phrasing is imprecise and its conclusion is right. `grep -rlniE
+  "garbage|retention|prune|reap"` DOES hit five files, and none of them reap session artifacts:
+  `compaction.ts` prunes message history, `session-scope.ts` documents state "a consumer prunes on
+  logout", `task.ts` has `retentionMs` for the TASK registry (a different artifact class), and two
+  are false positives. Checked rather than repeated.
+
+  The definitive measurement: the SDK unlinks only what is in flight in the operation doing the
+  unlinking — a lock it just released (`session-writer.ts:295`) and a `.tmp` from a failed atomic
+  write (`atomic-write.ts:205`). Both are "clean up after myself", not collection. And the public
+  surface has ZERO symbols matching gc / collect / reap / prune / clean / retention / sweep,
+  enumerated from the built barrel rather than from the source.
+
+  NOT IMPLEMENTED IN THIS PASS, and the reason is the item's own severity. This is the path that
+  DELETES USER DATA, the consumer's version is 1 402 LoC, and the DoD asks for four properties at
+  once — a retention window with keep-last, the writer lease honoured, a dry-run that must be
+  confirmed, and a tri-state where "could not determine" can never collapse into "not there".
+  Shipping a half-correct data-deleting API is worse than shipping none, and worse than the
+  duplication it would remove.
+
+  What the implementation slice must start from, so it does not re-pay what the consumer already
+  paid:
+
+    - **B-020's failure mode.** An entry that could not be stat-ed arrived as `mtimeMs = 0`, aged to
+      ~20 000 days, and cleared EVERY retention window. That is the tri-state bullet, stated as the
+      incident that produced it.
+    - **The budget is shared across the sweep, not per directory.** Measured on a real machine:
+      13 269 project directories would otherwise cost ~64 million readdir/stat calls and the command
+      never returns.
+    - **A TOCTOU backstop** re-checking the writer lease between plan and apply, because a session
+      can acquire a writer between the two.
+status: triaged
 severity: major
 dod:
   - the framework reaps the artifacts it creates: retention window, keep-last, the writer lease
