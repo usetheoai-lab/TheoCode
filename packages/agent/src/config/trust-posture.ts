@@ -54,7 +54,7 @@ export const TRUST_CAPABILITIES = [
     key: 'subagents',
     loaders: ['discoverSubagents'],
     effect:
-      'The `project` source leaves subagent discovery: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member.',
+      'The `project` source is dropped entirely: a repository `.theokit/agents/<role>.md` no longer redirects the model, the effort or the `sandbox` of a squad member. The source is shared with `hooks` — enabling it also loads repository-declared hooks through the SDK — so it requires BOTH capabilities (see `config/project-source.ts`).',
   },
 ] as const satisfies readonly TrustCapability[]
 
@@ -72,35 +72,56 @@ export interface TrustPosture {
   readonly allows: TrustAllows
 }
 
-function permitirTudo(value: boolean): TrustAllows {
+function allowEverything(value: boolean): TrustAllows {
   return Object.fromEntries(TRUST_CAPABILITIES.map((c) => [c.key, value])) as TrustAllows
 }
 
-const MILESTONE_DE_REMOCAO = 'M99'
+let aliasAlreadyWarned = false
 
-let aliasJaAvisado = false
-
-function avisarSobreOAlias(): void {
-  if (aliasJaAvisado) return
-  aliasJaAvisado = true
+function warnAboutTheAlias(): void {
+  if (aliasAlreadyWarned) return
+  aliasAlreadyWarned = true
   process.stderr.write(
-    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} está DEPRECADO e será removido no ${MILESTONE_DE_REMOCAO}: ` +
-      `renomeie para ${ENV_TRUST_ALL_DIRS}. Enquanto isso ele continua concedendo confiança a TODO ` +
-      `diretório — a defesa contra repositório hostil segue desligada.\n`,
+    // B-046 — this used to promise removal "in M99". There is no ROADMAP.md in this repository and
+    // no milestone by that name, so the promise named a date that did not exist. A deprecation
+    // warning that cites nothing is more honest than one that cites a fiction.
+    `[trust] ${ENV_TRUST_ALL_DIRS_LEGACY} is DEPRECATED: rename it to ${ENV_TRUST_ALL_DIRS}. ` +
+      `Until you do, it keeps granting trust to EVERY directory — the defence against a hostile ` +
+      `repository stays off.\n`,
   )
 }
 
-function trustOrigin(cwd: string, store: string): TrustSource {
-  if (process.env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
-  if (process.env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
-    avisarSobreOAlias()
+function trustOrigin(
+  cwd: string,
+  store: string,
+  // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
+  // trust decision from that same environment. Reading the ambient one meant the posture could
+  // disagree with the config it was supposed to describe.
+  env: Record<string, string | undefined> = process.env,
+): TrustSource {
+  if (env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
+  if (env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
+    warnAboutTheAlias()
     return 'env'
   }
   return isTrusted(cwd, store) ? 'store' : 'default'
 }
 
-export function resolveTrustPosture(cwd: string, store: string = TRUST_STORE): TrustPosture {
-  const source = trustOrigin(cwd, store)
+/**
+ * B-033 — `env` reaches HERE, which is the only entry any caller can use.
+ *
+ * B-006 added the parameter to the private `trustOrigin` and this function kept calling it with two
+ * arguments, so the seam existed and was unreachable: all nine production call sites read the
+ * ambient environment. `cli/run-composition.ts` then took the posture from the ambient environment
+ * and passed `seams.env` into config resolution on the next line — one run, two sources, for the
+ * decision that governs whether a repository's hooks and AGENTS.md are honoured.
+ */
+export function resolveTrustPosture(
+  cwd: string,
+  store: string = TRUST_STORE,
+  env: Record<string, string | undefined> = process.env,
+): TrustPosture {
+  const source = trustOrigin(cwd, store, env)
   const level: TrustLevel = source === 'default' ? 'untrusted' : 'trusted'
-  return { level, source, allows: permitirTudo(level === 'trusted') }
+  return { level, source, allows: allowEverything(level === 'trusted') }
 }

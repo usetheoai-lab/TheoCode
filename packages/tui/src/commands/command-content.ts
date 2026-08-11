@@ -10,6 +10,9 @@ import type {
   PtysTheInterpreterUses,
   SessionTheInterpreterUses,
 } from './command-capabilities.js'
+import { workingDirectory } from '../working-directory.js'
+import { THEME_RESOLUTION } from '../theme.js'
+import { THEME_BASES } from '../theme-base.js'
 
 export function sendMessage(
   text: string,
@@ -25,7 +28,7 @@ export function sendMessage(
     })
     return
   }
-  const { message, attached } = resolveMentions(text, process.cwd())
+  const { message, attached } = resolveMentions(text, workingDirectory())
   if (attached.length > 0) {
     setToast({ message: `Attached: ${attached.join(', ')}`, variant: 'info' })
   }
@@ -41,7 +44,7 @@ export function switchModel(
   const target = arg.trim()
   if (target.length === 0) {
     setToast({
-      message: `model: ${SESSION.sessionModel() ?? SESSION.cfg().modelLabel} (use /model <name> para trocar)`,
+      message: `model: ${SESSION.sessionModel() ?? SESSION.cfg().modelLabel} (use /model <name> to switch)`,
       variant: 'info',
     })
     return
@@ -50,11 +53,11 @@ export function switchModel(
   setToast({ message: `this session's model: ${target}`, variant: 'success' })
 }
 
-export const PEDIDO_DE_AGENTS_MD =
-  'Leia este repositório (estrutura, manifestos, scripts, testes) e escreva um AGENTS.md ' +
-  'na raiz descrevendo: o que o projeto é, como rodar/testar/buildar, as convenções de ' +
-  'código observadas no próprio código, e as fronteiras que não devem ser cruzadas. ' +
-  'Baseie cada afirmação no que você leu — não invente convenção que o código não mostra.'
+export const AGENTS_MD_REQUEST =
+  'Read this repository (structure, manifests, scripts, tests) and write an AGENTS.md at the ' +
+  'root describing: what the project is, how to run/test/build it, the code conventions observed ' +
+  'in the code itself, and the boundaries that must not be crossed. ' +
+  'Base every statement on what you read — do not invent a convention the code does not show.'
 
 export function statusPanel(
   SESSION: SessionTheInterpreterUses,
@@ -64,26 +67,40 @@ export function statusPanel(
 ): ContentPanel {
   const c = SESSION.cfg()
   return {
-    titulo: 'status da sessão',
-    corpo: [
+    title: 'session status',
+    body: [
       `model:     ${SESSION.sessionModel() ?? c.modelLabel}`,
-      `esforço:    ${SESSION.effort()}`,
-      `aprovação:  ${approvalMode}`,
+      `effort:     ${SESSION.effort()}`,
+      `approval:   ${approvalMode}`,
       `sandbox:    ${c.sandboxLabel}`,
-      `cwd:        ${process.cwd()}`,
-      `sessão:     ${currentSessionId()}`,
-      `shells:     ${String(ptyOwner.backend().activeSessionCount())} em background`,
+      `cwd:        ${workingDirectory()}`,
+      `session:    ${currentSessionId()}`,
+      `shells:     ${String(ptyOwner.backend().activeSessionCount())} in background`,
+      // B-073 — the source answers "why is it this colour?", which is the only question anyone
+      // asks about a theme. It is also where an unusable THEOCODE_THEME value surfaces: the
+      // resolver falls back so a typo cannot end the session, and reporting it here is what keeps
+      // that from being a swallowed error.
+      `theme:      ${THEME_RESOLUTION.base} (${THEME_RESOLUTION.source})${
+        THEME_RESOLUTION.invalid === undefined
+          ? ''
+          : ` — ignored THEOCODE_THEME=${THEME_RESOLUTION.invalid}, expected ${THEME_BASES.join(' | ')}`
+      }`,
     ].join('\n'),
   }
 }
 
 export function diffPanel(): ContentPanel | undefined {
-  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
+  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
   if (r.status !== 0) return undefined
-  const detalhe = spawnSync('git', ['diff', 'HEAD'], { cwd: process.cwd(), encoding: 'utf8' })
-  const corpo = `${r.stdout.trim()}\n\n${detalhe.stdout}`.trim()
+  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
+  const stat = r.stdout.trim()
+  const patch = detail.stdout
+  if (stat.length === 0 && patch.trim().length === 0) {
+    return { title: 'working tree diff', body: 'clean working tree — no uncommitted changes' }
+  }
   return {
-    titulo: 'diff da árvore',
-    corpo: corpo.length === 0 ? 'árvore limpa — nenhuma mudança não-commitada' : corpo,
+    title: 'working tree diff',
+    body: stat,
+    ...(patch.trim().length > 0 ? { patch } : {}),
   }
 }

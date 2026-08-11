@@ -6,70 +6,70 @@ function forkIdForBusySession(original: string): string {
   return `${original}-fork-${randomUUID().slice(0, 8)}`
 }
 
-export async function consumirComForkSeOcupada(
-  sessionIdInicial: string,
-  abrir: (sessionId: string) => AsyncIterable<unknown>,
-  consumir: (chunk: unknown) => void,
+export async function consumeWithForkIfBusy(
+  initialSessionId: string,
+  open: (sessionId: string) => AsyncIterable<unknown>,
+  consume: (chunk: unknown) => void,
   warning: (line: string) => void,
 ): Promise<string> {
-  const first = await consumirDetectandoDisputa(abrir(sessionIdInicial), consumir)
-  if (!first.disputa) return sessionIdInicial
+  const first = await consumeDetectingContention(open(initialSessionId), consume)
+  if (!first.contended) return initialSessionId
 
-  const novoId = forkIdForBusySession(sessionIdInicial)
+  const newId = forkIdForBusySession(initialSessionId)
   warning(
-    `[exec] sessão ${sessionIdInicial} está sendo escrita por outro processo — forkando para ${novoId}\n`,
+    `[exec] session ${initialSessionId} is being written by another process — forking to ${newId}\n`,
   )
-  const segunda = await consumirDetectandoDisputa(abrir(novoId), consumir, { emitir: true })
-  if (segunda.disputa) {
-    throw new Error(`[exec] the forked session ${novoId} is busy too`)
+  const second = await consumeDetectingContention(open(newId), consume, { emit: true })
+  if (second.contended) {
+    throw new Error(`[exec] the forked session ${newId} is busy too`)
   }
-  return novoId
+  return newId
 }
 
-interface ResultadoDaPassagem {
-  disputa: boolean
+interface PassResult {
+  contended: boolean
 }
 
-const ESTRUTURAIS = new Set(['start', 'start-step', 'finish', 'finish-step'])
+const STRUCTURAL = new Set(['start', 'start-step', 'finish', 'finish-step'])
 
-async function consumirDetectandoDisputa(
+async function consumeDetectingContention(
   stream: AsyncIterable<unknown>,
-  consumir: (chunk: unknown) => void,
-  opts: { emitir?: boolean } = {},
-): Promise<ResultadoDaPassagem> {
-  const retidos: unknown[] = []
-  let liberado = false
-  let disputa = false
+  consume: (chunk: unknown) => void,
+  opts: { emit?: boolean } = {},
+): Promise<PassResult> {
+  const held: unknown[] = []
+  let released = false
+  let contended = false
 
   for await (const chunk of stream) {
     if (isSessionContention(chunk)) {
-      disputa = true
+      contended = true
       continue
     }
-    if (liberado) {
-      consumir(chunk)
+    if (released) {
+      consume(chunk)
       continue
     }
-    if (opts.emitir !== true && ehEstrutural(chunk)) {
-      retidos.push(chunk)
+    if (opts.emit !== true && isStructural(chunk)) {
+      held.push(chunk)
       continue
     }
-    liberado = true
-    for (const r of retidos) consumir(r)
-    retidos.length = 0
-    consumir(chunk)
+    released = true
+    for (const r of held) consume(r)
+    held.length = 0
+    consume(chunk)
   }
 
-  if (!disputa) {
-    for (const r of retidos) consumir(r)
+  if (!contended) {
+    for (const r of held) consume(r)
   }
-  return { disputa }
+  return { contended }
 }
 
-function ehEstrutural(chunk: unknown): boolean {
+function isStructural(chunk: unknown): boolean {
   if (typeof chunk !== 'object' || chunk === null) return false
   const kind = (chunk as { type?: unknown }).type
-  return typeof kind === 'string' && ESTRUTURAIS.has(kind)
+  return typeof kind === 'string' && STRUCTURAL.has(kind)
 }
 
 function isSessionContention(chunk: unknown): boolean {
@@ -78,7 +78,7 @@ function isSessionContention(chunk: unknown): boolean {
   return c.type === 'error' && c.errorCode === 'session_busy'
 }
 
-export function idDisponivelOuFork(sessionId: string, cwd: string): string {
+export function availableIdOrFork(sessionId: string, cwd: string): string {
   const target = transcriptPath(transcriptRoot(), cwd, sessionId)
   return sessionHasWriter(target) ? forkIdForBusySession(sessionId) : sessionId
 }

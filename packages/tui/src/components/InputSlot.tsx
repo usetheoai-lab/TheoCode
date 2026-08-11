@@ -1,6 +1,6 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react'
 
-import { PermissionPrompt } from '@theokit/tui'
+import { PermissionPrompt, type PendingApproval } from '@theokit/tui'
 
 import { formatApproval } from '../formatting/index.js'
 import type { ApprovalMode } from '../consent/index.js'
@@ -21,12 +21,13 @@ export interface InputSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly SESSION: {
     cfg: () => { approvalMode: ApprovalMode }
     reloadConfig: () => void
     effort: () => ReasoningEffort
   }
+  readonly customCommands: ReadonlyMap<string, { name: string; description?: string }>
   readonly currentSessionId: () => string
   readonly handleSubmit: (text: string) => void
   readonly settleApproval: (approvalId: string, approved: boolean) => void
@@ -42,11 +43,9 @@ export interface InputSlotProps {
 }
 
 type SlotConsent = ReturnType<typeof import('../consent/index.js').useConsent>
-interface PendingApproval {
-  approvalId: string
-  toolName: string
-  input?: unknown
-}
+// B-011 — the SDK exports this exact shape as `PendingApproval`, and it is the shape
+// `findPendingApproval` returns. This file declared a byte-identical copy, making three independent
+// declarations of one fact; a field added upstream would reach none of them.
 
 function ApprovalCard({
   approval,
@@ -68,8 +67,12 @@ function ApprovalCard({
 export function InputSlot(props: InputSlotProps): ReactElement {
   return (
     <>
-      {props.trusted && !props.consent.hooksRevisados && props.pendingHooks.length > 0 ? (
-        <HooksGate consent={props.consent} pendingHooks={props.pendingHooks} />
+      {props.trusted && !props.consent.hooksReviewed && props.pendingHooks.length > 0 ? (
+        <HooksGate
+          consent={props.consent}
+          pendingHooks={props.pendingHooks}
+          setToast={props.setToast}
+        />
       ) : !props.trusted ? (
         <TrustGate
           consent={props.consent}

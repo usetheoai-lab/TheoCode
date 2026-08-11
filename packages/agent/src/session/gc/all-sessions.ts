@@ -1,5 +1,5 @@
-import { classifyEntry, type FormaDeArtefato } from '../artefatos.js'
-import { assertNeverLiveness, type Liveness } from '../liveness-oracle.js'
+import { classifyEntry, type ArtifactKind } from '../artifacts.js'
+import { type Liveness } from '../liveness-oracle.js'
 
 export const FLOOR_DAYS = 1
 
@@ -9,8 +9,9 @@ export const DEFAULT_WINDOW_DAYS = 30
 
 export interface ProjectEntry {
   name: string
-  ehDiretorio: boolean
-  mtimeMs: number
+  isDirectory: boolean
+  /** B-020 — `undefined` when the entry could not be stat-ed. An entry with no age is never collected. */
+  mtimeMs: number | undefined
 }
 
 interface RegistryEntry {
@@ -19,105 +20,121 @@ interface RegistryEntry {
   lastModified?: number
 }
 
-export type FormaColetavel = FormaDeArtefato | 'registry'
+export type CollectableKind = ArtifactKind | 'registry'
 
-interface CandidatoAll {
+interface AllCandidate {
   project: string
-  forma: FormaColetavel
+  kind: CollectableKind
   target: string
   id?: string
   ageDays: number
   inRegistry?: boolean
 }
 
-export interface PlanoAll {
-  candidatos: CandidatoAll[]
-  mantidos: string[]
+export interface AllPlan {
+  candidates: AllCandidate[]
+  kept: string[]
   touchedProjects: string[]
-  cwdsVivos: string[]
-  totalPorForma: Record<FormaColetavel, number>
+  liveCwds: string[]
+  totalByKind: Record<CollectableKind, number>
   errors: string[]
 }
 
-export interface OpcoesPlanoAll {
+export interface PlanAllOptions {
   projectsRoot: string
   now?: () => number
   keepLast?: number
   maxAgeDays?: number
   listProjects: () => string[]
   listProject: (project: string) => ProjectEntry[]
-  classificar: (project: string) => Liveness
+  classify: (project: string) => Liveness
   listRegistry: (cwd: string) => Promise<RegistryEntry[]>
   hasLiveWriter: (transcriptPath: string) => boolean
   readPointer: (cwd: string) => string | undefined
 }
 
-interface OpcoesApplyAll {
+interface ApplyAllOptions {
   apply?: boolean
   unlink: (path: string) => Promise<void>
   rmdir: (path: string) => Promise<void>
   deleteAgent: (id: string) => Promise<void>
-  readPointer?: (cwd: string) => string | undefined
-  hasLiveWriter?: (transcriptPath: string) => boolean
+  readPointer: (cwd: string) => string | undefined
+  // B-021 — REQUIRED, matching the sibling PlanAllOptions. Optional made the apply-phase TOCTOU
+  // backstop opt-in, and backstopRefusal returned undefined outright when it was absent.
+  hasLiveWriter: (transcriptPath: string) => boolean
   listProject?: (project: string) => ProjectEntry[]
 }
 
-export interface ResultadoAll {
+export interface AllResult {
   dryRun: boolean
-  removidos: string[]
+  removed: string[]
   errors: string[]
 }
 
-function idDoTranscript(name: string): string {
+function transcriptId(name: string): string {
   return name.slice(0, -'.jsonl'.length)
 }
 
-function idDoLock(name: string): string {
-  return name.replace(/\.jsonl(\.writer)?\.lock$/, '')
+/**
+ * The suffix a lock adds to the transcript it guards. One definition, because the plan phase and the
+ * apply phase both strip it and a divergence between them would let the apply phase delete a lock
+ * whose transcript the plan phase believed was still on disk (B-020).
+ */
+const LOCK_SUFFIX = /\.jsonl(\.writer)?\.lock$/
+
+function lockId(name: string): string {
+  return name.replace(LOCK_SUFFIX, '')
 }
 
-function empty(): Record<FormaColetavel, number> {
-  return { transcript: 0, 'lock-arquivo': 0, 'lock-diretorio': 0, tmp: 0, registry: 0 }
+function empty(): Record<CollectableKind, number> {
+  return { transcript: 0, 'lock-file': 0, 'lock-directory': 0, tmp: 0, registry: 0 }
 }
 
-async function resolverGuardas(
-  liveness: ReturnType<OpcoesPlanoAll['classificar']>,
+async function resolveGuards(
+  liveness: ReturnType<PlanAllOptions['classify']>,
   transcripts: readonly ProjectEntry[],
   keepLast: number,
-  opts: OpcoesPlanoAll,
-): Promise<{ protegidos: Set<string>; registry: RegistryEntry[] } | undefined> {
-  const protegidos = new Set<string>()
-  if (liveness.state === 'MORTO') {
-    assertDeadBranch(liveness)
-    return { protegidos, registry: [] }
+  opts: PlanAllOptions,
+): Promise<{ protectedIds: Set<string>; registry: RegistryEntry[] } | undefined> {
+  const protectedIds = new Set<string>()
+  if (liveness.state !== 'ALIVE' && liveness.state !== 'DEAD') {
+    return { protectedIds, registry: [] }
   }
-  if (liveness.state !== 'VIVO') return { protegidos, registry: [] }
-  for (const t of transcripts.slice(0, keepLast)) protegidos.add(idDoTranscript(t.name))
-  if (transcripts[0] !== undefined) protegidos.add(idDoTranscript(transcripts[0].name))
+
+  // B-020 — retention applies to DEAD projects too, and they are the ONLY kind the collector deletes
+  // from. Returning an empty set here made `KEEP_PER_PROJECT` and the `--keep-last` flag apply
+  // exclusively to the projects that were being spared anyway. Neither existing test could see it:
+  // both force ALIVE or pass `keepLast: 0`.
+  for (const t of transcripts.slice(0, keepLast)) protectedIds.add(transcriptId(t.name))
+
+  // The registry and pointer guards need a live cwd to consult, so they stay ALIVE-only.
+  if (liveness.state === 'DEAD') return { protectedIds, registry: [] }
+
+  if (transcripts[0] !== undefined) protectedIds.add(transcriptId(transcripts[0].name))
   const pointer = opts.readPointer(liveness.cwd)
-  if (pointer !== undefined) protegidos.add(pointer)
+  if (pointer !== undefined) protectedIds.add(pointer)
   let registry: RegistryEntry[]
   try {
     registry = await opts.listRegistry(liveness.cwd)
   } catch {
     return undefined
   }
-  for (const e of registry) if (e.archived !== true) protegidos.add(e.agentId)
-  return { protegidos, registry }
+  for (const e of registry) if (e.archived !== true) protectedIds.add(e.agentId)
+  return { protectedIds, registry }
 }
 
 async function planOneProject(
   project: string,
-  janela: CollectionWindow,
+  previewWindow: CollectionWindow,
   keepLast: number,
-  opts: OpcoesPlanoAll,
-  plano: PlanoAll,
+  opts: PlanAllOptions,
+  plan: AllPlan,
 ): Promise<void> {
-  const { candidatos, mantidos, touchedProjects, cwdsVivos, errors, totalPorForma } = plano
-  const { maxAgeDays, now } = janela
-  const liveness = opts.classificar(project)
-  if (liveness.state === 'INDETERMINADO') {
-    mantidos.push(project)
+  const { candidates, kept, touchedProjects, liveCwds, errors, totalByKind } = plan
+  const { maxAgeDays, now } = previewWindow
+  const liveness = opts.classify(project)
+  if (liveness.state === 'UNDETERMINED') {
+    kept.push(project)
     return
   }
 
@@ -125,44 +142,45 @@ async function planOneProject(
   try {
     entries = opts.listProject(project)
   } catch (err) {
-    errors.push(`${project}: não foi possível listar — ${(err as Error).message}`)
+    errors.push(`${project}: could not list — ${(err as Error).message}`)
     return
   }
 
   const dir = `${opts.projectsRoot}/${project}`
   const transcripts = entries
-    .filter((e) => classifyEntry(e.name, e.ehDiretorio) === 'transcript')
-    .sort((a, b) => b.mtimeMs - a.mtimeMs || a.name.localeCompare(b.name))
-  const idsEmDisco = new Set(transcripts.map((t) => idDoTranscript(t.name)))
+    .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
+    .sort((a, b) => (b.mtimeMs ?? Infinity) - (a.mtimeMs ?? Infinity) || a.name.localeCompare(b.name))
+  const idsOnDisk = new Set(transcripts.map((t) => transcriptId(t.name)))
 
-  const guardas = await resolverGuardas(liveness, transcripts, keepLast, opts)
-  if (guardas === undefined) {
-    errors.push(`${project}: registry indisponível — projeto pulado`)
+  const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
+  if (guards === undefined) {
+    errors.push(`${project}: registry unavailable — project skipped`)
     return
   }
-  const { protegidos, registry } = guardas
-  if (liveness.state === 'VIVO') cwdsVivos.push(liveness.cwd)
-  const idsNoRegistry = new Set(registry.map((e) => e.agentId))
+  const { protectedIds, registry } = guards
+  if (liveness.state === 'ALIVE') liveCwds.push(liveness.cwd)
+  const idsInRegistry = new Set(registry.map((e) => e.agentId))
 
-  let planejouAlgo = false
-  const planejar = (c: CandidatoAll): void => {
-    candidatos.push(c)
-    totalPorForma[c.forma] += 1
-    planejouAlgo = true
+  let plannedSomething = false
+  const recordCandidate = (c: AllCandidate): void => {
+    candidates.push(c)
+    totalByKind[c.kind] += 1
+    plannedSomething = true
   }
 
   planOnDiskEntries(
-    { project, dir, entries, protegidos, idsEmDisco, idsNoRegistry },
+    { project, dir, entries, protectedIds, idsOnDisk, idsInRegistry },
     { maxAgeDays, now },
-    planejar,
+    recordCandidate,
+    opts.hasLiveWriter,
   )
 
-  if (liveness.state === 'VIVO') {
-    planRegistryEntries(project, registry, idsEmDisco, { maxAgeDays, now }, planejar)
+  if (liveness.state === 'ALIVE') {
+    planRegistryEntries(project, registry, idsOnDisk, { maxAgeDays, now }, recordCandidate)
   }
 
-  if (planejouAlgo) touchedProjects.push(dir)
-  else mantidos.push(project)
+  if (plannedSomething) touchedProjects.push(dir)
+  else kept.push(project)
 }
 
 interface CollectionWindow {
@@ -174,113 +192,169 @@ interface ProjectState {
   readonly project: string
   readonly dir: string
   readonly entries: readonly ProjectEntry[]
-  readonly protegidos: ReadonlySet<string>
-  readonly idsEmDisco: ReadonlySet<string>
-  readonly idsNoRegistry: ReadonlySet<string>
+  readonly protectedIds: ReadonlySet<string>
+  readonly idsOnDisk: ReadonlySet<string>
+  readonly idsInRegistry: ReadonlySet<string>
+}
+
+/**
+ * The entry's age in days when it is past the window, or `undefined` when it must not be collected.
+ *
+ * B-020 — an entry with no mtime has NO AGE, and the window is the primary guard on this path. It
+ * used to arrive here as `mtimeMs = 0`, which computed to ~20 000 days and cleared every window.
+ */
+function collectableAge(e: ProjectEntry, window: CollectionWindow): number | undefined {
+  if (e.mtimeMs === undefined) return undefined
+  const ageDays = (window.now() - e.mtimeMs) / 86_400_000
+  return ageDays > window.maxAgeDays ? ageDays : undefined
 }
 
 function planOnDiskEntries(
   st: ProjectState,
-  janela: CollectionWindow,
-  planejar: (c: CandidatoAll) => void,
+  previewWindow: CollectionWindow,
+  recordCandidate: (c: AllCandidate) => void,
+  hasLiveWriter: (transcriptPath: string) => boolean,
 ): void {
   for (const e of st.entries) {
-    const forma = classifyEntry(e.name, e.ehDiretorio)
-    if (forma === undefined) continue
-    const ageDays = (janela.now() - e.mtimeMs) / 86_400_000
-    if (ageDays <= janela.maxAgeDays) continue
+    const kind = classifyEntry(e.name, e.isDirectory)
+    if (kind === undefined) continue
+    const ageDays = collectableAge(e, previewWindow)
+    if (ageDays === undefined) continue
     const target = `${st.dir}/${e.name}`
     const project = st.project
 
-    switch (forma) {
+    switch (kind) {
       case 'transcript': {
-        const id = idDoTranscript(e.name)
-        if (st.protegidos.has(id)) continue
-        planejar({ project, forma, target, id, ageDays, inRegistry: st.idsNoRegistry.has(id) })
+        const candidate = planTranscript(e.name, { st, target, ageDays, hasLiveWriter })
+        if (candidate !== undefined) recordCandidate(candidate)
         break
       }
-      case 'lock-arquivo':
-      case 'lock-diretorio': {
-        if (st.idsEmDisco.has(idDoLock(e.name))) continue
-        planejar({ project, forma, target, ageDays })
+      case 'lock-file':
+      case 'lock-directory': {
+        if (st.idsOnDisk.has(lockId(e.name))) continue
+        recordCandidate({ project, kind, target, ageDays })
         break
       }
       case 'tmp':
-        planejar({ project, forma, target, ageDays })
+        recordCandidate({ project, kind, target, ageDays })
         break
       default:
-        assertNuncaForma(forma)
+        assertNeverKind(kind)
     }
+  }
+}
+
+/**
+ * Decide whether a stale transcript may be collected, or `undefined` when it must be kept.
+ *
+ * Two independent guards, and they see different things. `protectedIds` covers the live-session
+ * pointer, `keepLast` and the registry — all id-based. The writer lease covers a session whose
+ * writer is alive but whose id none of those knows, which is precisely the case where the id-based
+ * set is silent.
+ */
+function planTranscript(
+  name: string,
+  ctx: {
+    st: ProjectState
+    target: string
+    ageDays: number
+    hasLiveWriter: (transcriptPath: string) => boolean
+  },
+): AllCandidate | undefined {
+  const id = transcriptId(name)
+  if (ctx.st.protectedIds.has(id)) return undefined
+  // B-003 — ask the SDK's cross-process lease, not just the mtime window. Before this, only mtime
+  // freshness stood between a live transcript and unlink: a heuristic standing in for a lease the
+  // caller had already wired and the plan phase never called.
+  if (ctx.hasLiveWriter(ctx.target)) return undefined
+  return {
+    project: ctx.st.project,
+    kind: 'transcript',
+    target: ctx.target,
+    id,
+    ageDays: ctx.ageDays,
+    inRegistry: ctx.st.idsInRegistry.has(id),
   }
 }
 
 function planRegistryEntries(
   project: string,
   registry: readonly RegistryEntry[],
-  idsEmDisco: ReadonlySet<string>,
-  janela: CollectionWindow,
-  planejar: (c: CandidatoAll) => void,
+  idsOnDisk: ReadonlySet<string>,
+  previewWindow: CollectionWindow,
+  recordCandidate: (c: AllCandidate) => void,
 ): void {
   for (const entry of registry) {
     if (entry.archived === true) continue
-    if (idsEmDisco.has(entry.agentId)) continue
-    const ageDays = (janela.now() - (entry.lastModified ?? 0)) / 86_400_000
-    if (ageDays <= janela.maxAgeDays) continue
-    planejar({ project, forma: 'registry', target: entry.agentId, id: entry.agentId, ageDays })
+    if (idsOnDisk.has(entry.agentId)) continue
+    const ageDays = (previewWindow.now() - (entry.lastModified ?? 0)) / 86_400_000
+    if (ageDays <= previewWindow.maxAgeDays) continue
+    recordCandidate({ project, kind: 'registry', target: entry.agentId, id: entry.agentId, ageDays })
   }
 }
 
-export async function planSessionGCAllProjects(opts: OpcoesPlanoAll): Promise<PlanoAll> {
+export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<AllPlan> {
   const maxAgeDays = opts.maxAgeDays ?? DEFAULT_WINDOW_DAYS
   if (maxAgeDays < FLOOR_DAYS) {
     throw new RangeError(
-      `maxAgeDays=${String(maxAgeDays)} está abaixo do floor de ${String(FLOOR_DAYS)} dia(s) — ` +
-        `recusando: normalizar em silêncio apagaria a sessão de ontem`,
+      `maxAgeDays=${String(maxAgeDays)} is below the floor of ${String(FLOOR_DAYS)} day(s) — ` +
+        `refusing: silently normalising would delete yesterday's session`,
     )
   }
   const now = opts.now ?? Date.now
   const keepLast = opts.keepLast ?? KEEP_PER_PROJECT
 
-  const candidatos: CandidatoAll[] = []
-  const mantidos: string[] = []
+  const candidates: AllCandidate[] = []
+  const kept: string[] = []
   const touchedProjects: string[] = []
-  const cwdsVivos: string[] = []
+  const liveCwds: string[] = []
   const errors: string[] = []
-  const totalPorForma = empty()
+  const totalByKind = empty()
 
   let projects: string[]
   try {
     projects = opts.listProjects()
-  } catch {
-    return { candidatos, mantidos, touchedProjects, cwdsVivos, totalPorForma, errors }
+  } catch (err) {
+    // B-020 — an empty plan AND an empty error list is the shape the renderer prints as "nothing to
+    // collect". "I found nothing" and "I could not look" are different facts, and swallowing this
+    // reported the reassuring one.
+    errors.push(`could not list projects — ${(err as Error).message}`)
+    return { candidates, kept, touchedProjects, liveCwds, totalByKind, errors }
   }
 
-  const plano: PlanoAll = { candidatos, mantidos, touchedProjects, cwdsVivos, totalPorForma, errors }
+  const plan: AllPlan = { candidates, kept, touchedProjects, liveCwds, totalByKind, errors }
   for (const project of projects) {
-    await planOneProject(project, { maxAgeDays, now }, keepLast, opts, plano)
+    await planOneProject(project, { maxAgeDays, now }, keepLast, opts, plan)
   }
 
-  return { candidatos, mantidos, touchedProjects, cwdsVivos, totalPorForma, errors }
+  return { candidates, kept, touchedProjects, liveCwds, totalByKind, errors }
 }
 
 function backstopRefusal(
-  c: CandidatoAll,
-  ponteirosAgora: ReadonlySet<string>,
-  opts: OpcoesApplyAll,
+  c: AllCandidate,
+  livePointers: ReadonlySet<string>,
+  opts: ApplyAllOptions,
 ): string | undefined {
-  if (c.id !== undefined && ponteirosAgora.has(c.id)) {
-    return `${c.target}: refused — o ponteiro de sessão viva mudou entre o plano e o apply`
+  if (c.id !== undefined && livePointers.has(c.id)) {
+    return `${c.target}: refused — the live-session pointer changed between plan and apply`
   }
-  if (c.forma !== 'lock-arquivo' && c.forma !== 'lock-diretorio') return undefined
   if (opts.hasLiveWriter === undefined) return undefined
-  const transcript = c.target.replace(/\.jsonl(\.writer)?\.lock$/, '.jsonl')
+  // B-003 — transcripts are re-checked here too. The early return used to drop everything that was
+  // not a lock, so a transcript that gained a writer between plan and apply was deleted anyway.
+  if (c.kind === 'transcript') {
+    return opts.hasLiveWriter(c.target)
+      ? `${c.target}: refused — the transcript gained a live writer between plan and apply`
+      : undefined
+  }
+  if (c.kind !== 'lock-file' && c.kind !== 'lock-directory') return undefined
+  const transcript = c.target.replace(LOCK_SUFFIX, '.jsonl')
   return opts.hasLiveWriter(transcript)
-    ? `${c.target}: refused — o transcript irmão ganhou um escritor vivo entre o plano e o apply`
+    ? `${c.target}: refused — the sibling transcript gained a live writer between plan and apply`
     : undefined
 }
 
-async function removerCandidato(c: CandidatoAll, opts: OpcoesApplyAll): Promise<void> {
-  switch (c.forma) {
+async function removeCandidate(c: AllCandidate, opts: ApplyAllOptions): Promise<void> {
+  switch (c.kind) {
     case 'transcript':
       if (c.inRegistry === true && c.id !== undefined) await opts.deleteAgent(c.id)
       else await opts.unlink(c.target)
@@ -288,73 +362,73 @@ async function removerCandidato(c: CandidatoAll, opts: OpcoesApplyAll): Promise<
     case 'registry':
       await opts.deleteAgent(c.target)
       return
-    case 'lock-arquivo':
+    case 'lock-file':
     case 'tmp':
       await opts.unlink(c.target)
       return
-    case 'lock-diretorio':
+    case 'lock-directory':
       await opts.rmdir(c.target)
       return
     default:
-      assertNuncaForma(c.forma)
+      assertNeverKind(c.kind)
   }
 }
 
 export async function runSessionGCAllProjects(
-  plano: PlanoAll,
-  opts: OpcoesApplyAll,
-): Promise<ResultadoAll> {
+  plan: AllPlan,
+  opts: ApplyAllOptions,
+): Promise<AllResult> {
   if (opts.apply !== true) {
-    return { dryRun: true, removidos: plano.candidatos.map((c) => c.target), errors: [] }
+    return { dryRun: true, removed: plan.candidates.map((c) => c.target), errors: [] }
   }
-  const removidos: string[] = []
+  const removed: string[] = []
   const errors: string[] = []
 
-  const ponteirosAgora = new Set<string>()
+  const livePointers = new Set<string>()
   if (opts.readPointer !== undefined) {
-    for (const cwd of new Set(plano.cwdsVivos)) {
+    for (const cwd of new Set(plan.liveCwds)) {
       const p = opts.readPointer(cwd)
-      if (p !== undefined) ponteirosAgora.add(p)
+      if (p !== undefined) livePointers.add(p)
     }
   }
 
-  for (const c of plano.candidatos) {
-    const refusal = backstopRefusal(c, ponteirosAgora, opts)
+  for (const c of plan.candidates) {
+    const refusal = backstopRefusal(c, livePointers, opts)
     if (refusal !== undefined) {
       errors.push(refusal)
       continue
     }
     try {
-      await removerCandidato(c, opts)
-      removidos.push(c.target)
+      await removeCandidate(c, opts)
+      removed.push(c.target)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removidos.push(c.target) 
+        removed.push(c.target) 
         continue
       }
       errors.push(`${c.target}: ${(err as Error).message}`)
     }
   }
 
-  await removeEmptyProjects(plano, opts, removidos, errors)
+  await removeEmptyProjects(plan, opts, removed, errors)
 
-  return { dryRun: false, removidos, errors }
+  return { dryRun: false, removed, errors }
 }
 
 async function removeEmptyProjects(
-  plano: PlanoAll,
-  opts: OpcoesApplyAll,
-  removidos: string[],
+  plan: AllPlan,
+  opts: ApplyAllOptions,
+  removed: string[],
   errors: string[],
 ): Promise<void> {
   const list = opts.listProject
   if (list === undefined) return
-  for (const dir of plano.touchedProjects) {
+  for (const dir of plan.touchedProjects) {
     const project = dir.slice(dir.lastIndexOf('/') + 1)
     try {
       if (list(project).length === 0) {
         await opts.rmdir(dir)
-        removidos.push(dir)
+        removed.push(dir)
       }
     } catch (err) {
       errors.push(`${dir}: ${(err as Error).message}`)
@@ -362,10 +436,7 @@ async function removeEmptyProjects(
   }
 }
 
-function assertNuncaForma(forma: never): never {
-  throw new Error(`unhandled artifact shape: ${String(forma)}`)
+function assertNeverKind(kind: never): never {
+  throw new Error(`unhandled artifact shape: ${String(kind)}`)
 }
 
-function assertDeadBranch(v: Extract<Liveness, { state: 'MORTO' }>): void {
-  if (v.state !== 'MORTO') assertNeverLiveness(v.state)
-}

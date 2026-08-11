@@ -12,7 +12,7 @@ const MAX_MENTION_TOKENS = 2000
 
 export const MAX_TOTAL_MENTION_TOKENS = 20_000
 
-export function parseMentions(text: string): string[] {
+function parseMentions(text: string): string[] {
   return Array.from(text.matchAll(MENTION_RE), (m) => m[1])
 }
 
@@ -25,8 +25,8 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
   const seen = new Set<string>()
   const blocks: string[] = []
   const attached: string[] = []
-  let usados = 0
-  let naoCouberam = 0
+  let used = 0
+  let didNotFit = 0
 
   for (const path of parseMentions(text)) {
     if (seen.has(path)) continue
@@ -40,12 +40,12 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
       if (estimateTokens(content) > MAX_MENTION_TOKENS) {
         content = `${content.slice(0, MAX_MENTION_TOKENS * 4)}\n…(truncated)`
       }
-      const custo = estimateTokens(content)
-      if (usados + custo > MAX_TOTAL_MENTION_TOKENS) {
-        naoCouberam++
+      const cost = estimateTokens(content)
+      if (used + cost > MAX_TOTAL_MENTION_TOKENS) {
+        didNotFit++
         continue
       }
-      usados += custo
+      used += cost
       blocks.push(`--- ${path} ---\n${content}`)
       attached.push(path)
     } catch {
@@ -53,11 +53,11 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
     }
   }
 
-  if (naoCouberam > 0) {
+  if (didNotFit > 0) {
     blocks.push(
-      `--- (budget de anexos atingido: ${String(attached.length)} de ` +
-        `${String(attached.length + naoCouberam)} arquivos anexados — ${String(naoCouberam)} não ` +
-        `couberam em ~${String(MAX_TOTAL_MENTION_TOKENS)} tokens; mencione menos arquivos ou use grep) ---`,
+      `--- (attachment budget reached: ${String(attached.length)} of ` +
+        `${String(attached.length + didNotFit)} files attached — ${String(didNotFit)} did ` +
+        `not fit in ~${String(MAX_TOTAL_MENTION_TOKENS)} tokens; mention fewer files or use grep) ---`,
     )
   }
 

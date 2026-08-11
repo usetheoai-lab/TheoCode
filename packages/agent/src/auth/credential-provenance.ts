@@ -26,10 +26,10 @@ export function dotenvNames(path: string): Set<string> {
   while (i < lines.length) {
     const trimmed = lines[i]!.replace(/^[ \t]+|[ \t]+$/g, '')
     i++
-    const par = linePair(trimmed)
-    if (par === undefined) continue
-    i = skipMultilineValue(par.value, lines, i)
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(par.name)) names.add(par.name)
+    const pair = linePair(trimmed)
+    if (pair === undefined) continue
+    i = skipMultilineValue(pair.value, lines, i)
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(pair.name)) names.add(pair.name)
   }
   return names
 }
@@ -48,10 +48,10 @@ function linePair(trimmed: string): { name: string; value: string } | undefined 
 }
 
 function skipMultilineValue(value: string, lines: readonly string[], i: number): number {
-  const semEspaco = value.trimStart()
-  const q = semEspaco[0]
+  const withoutLeadingSpace = value.trimStart()
+  const q = withoutLeadingSpace[0]
   if (q !== '"' && q !== "'" && q !== '`') return i
-  if (closesQuote(semEspaco, q)) return i
+  if (closesQuote(withoutLeadingSpace, q)) return i
   let j = i
   while (j < lines.length && !closesQuote(lines[j]!, q)) j++
   return j + 1 

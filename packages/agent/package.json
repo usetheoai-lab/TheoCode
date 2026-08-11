@@ -12,17 +12,15 @@
     "./auth": "./src/auth/index.ts",
     "./config": "./src/config/index.ts",
     "./context": "./src/context/index.ts",
-    "./delegation": "./src/delegation/index.ts",
     "./goal": "./src/goal/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./pty": "./src/pty/index.ts",
     "./review": "./src/review/index.ts",
-    "./session": "./src/session/index.ts",
-    "./tools": "./src/tools/index.ts"
+    "./session": "./src/session/index.ts"
   },
   "dependencies": {
     "@theocode/shared": "*",
-    "@theokit/agents": "^7.3.1",
+    "@theokit/agents": "^7.5.0",
     "js-yaml": "^4.3.1",
     "smol-toml": "^1.7.0",
     "zod": "^4.0.0"

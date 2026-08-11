@@ -3,7 +3,8 @@ import type { CustomTool, HookHandlers, SDKAgent, SubagentDefinition } from '@th
 import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
-import { hooksParaMembro } from './hooks-para-membro.js'
+import { hooksForMember } from './hooks-for-member.js'
+import { declareAgent, toolsNamed, type SpecContext } from '../composition/agent-spec.js'
 import { EFFORT_LEVELS, parseEffort } from '../config/index.js'
 import type { ReasoningEffort, TrustPosture } from '../config/index.js'
 
@@ -29,60 +30,91 @@ export interface RoleAgentContext {
   parent: ParentDefaults
   cwd?: string
   writeRoot?: string
-  sandbox?: SandboxBackend
+  /**
+   * B-006 — required, like `ToolScope.sandbox`. While it was optional, a delegated squad member
+   * could be handed tools with the sandbox silently omitted: an unconfined shell for a sub-agent,
+   * with no error. Every caller builds it from `resolveToolScope`, which always supplies one.
+   */
+  sandbox: SandboxBackend
   posture: TrustPosture
   hooks?: HookHandlers
+  /**
+   * B-061 — the seam that makes a role's composition assertable without a credential.
+   *
+   * Deliberately the SAME shape as `ReviewFactoryDeps.createInstance` (`review/create-agent.ts:42`)
+   * rather than a second convention: this repository builds agents at three sites, and two of them
+   * now expose the SDK entry the same way. Production callers omit it and get `Agent.create`.
+   *
+   * A role's tool list IS its authority, and nothing else in the suite reads it. Without a seam the
+   * only way to observe what a member was handed is to hold a real key and create a real agent,
+   * which is why it had gone unasserted.
+   */
+  createAgent?: (opts: Parameters<typeof Agent.create>[0]) => Promise<SDKAgent>
 }
 
-export function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
-  return new ToolRegistry(opts).resolve(names)
+/**
+ * B-059 — a role's tools go through the same composition entry the reviewer uses.
+ *
+ * The role names come from its `.theokit/agents/<name>.md`, so this is the one of the three sites
+ * whose list is DATA rather than source — which is exactly why it must share the entry: the fail-
+ * loud resolution and the provenance record apply to a repository-supplied list too.
+ */
+function resolveRoleTools(
+  name: string,
+  names: readonly string[],
+  opts: ToolScope,
+  model: { model: string; reasoning_effort: ReasoningEffort },
+): CustomTool[] {
+  const registry = new ToolRegistry(opts)
+  const ctx: SpecContext = { registry, ...model }
+  return [...declareAgent(name, ctx, [toolsNamed(registry, names)]).tools]
 }
 
-export function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
+function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
   const model = def.model
-  const selecao = typeof model === 'string' ? undefined : model
-  const efforto = selecao === undefined ? undefined : reasoningEffortOf(selecao)
+  const selection = typeof model === 'string' ? undefined : model
+  const selectedEffort = selection === undefined ? undefined : reasoningEffortOf(selection)
   return {
     name,
-    ...(selecao !== undefined ? { model: selecao.id } : {}),
-    ...(efforto === undefined ? {} : { reasoning_effort: wireEffort(efforto, name) }),
+    ...(selection !== undefined ? { model: selection.id } : {}),
+    ...(selectedEffort === undefined ? {} : { reasoning_effort: wireEffort(selectedEffort, name) }),
     ...(def.sandbox === undefined ? {} : { sandbox: def.sandbox }),
     tools: [...(def.tools ?? [])],
   }
 }
 
-function wireEffort(bruto: string, name: string): ReasoningEffort {
-  const nivel = parseEffort(bruto)
-  if (nivel === null) {
+function wireEffort(raw: string, name: string): ReasoningEffort {
+  const level = parseEffort(raw)
+  if (level === null) {
     throw new ConfigurationError(
-      `role "${name}": reasoning_effort "${bruto}" não é um nível aceito. Os níveis são ` +
-        `${EFFORT_LEVELS.join(', ')}. Corrija o \`reasoning_effort:\` em ` +
-        `.theokit/agents/${name}.md — o papel NÃO é materializado com um esforço herdado em ` +
-        'silêncio, porque isso faria o subagente rodar com um esforço diferente do declarado sem ' +
-        'nada avisar.',
+      `role "${name}": reasoning_effort "${raw}" is not an accepted level. The levels are ` +
+        `${EFFORT_LEVELS.join(', ')}. Fix the \`reasoning_effort:\` in ` +
+        `.theokit/agents/${name}.md — the role is NOT materialised with a silently inherited effort, ` +
+        'because that would run the subagent at an effort different from the declared one with ' +
+        'no warning at all.',
       { code: 'role_reasoning_effort_invalid' },
     )
   }
-  return nivel
+  return level
 }
 
 function unresolvedRole(name: string, posture: TrustPosture): ConfigurationError {
   if (!posture.allows.subagents) {
     return new ConfigurationError(
-      `role "${name}" não pôde ser carregado: a fonte \`project\` de subagentes está DESLIGADA ` +
-        `porque este diretório NÃO é trusted. Nesse state um \`.theokit/agents/${name}.md\` do ` +
-        `repositório não é lido — exista ele ou não. Conceda confiança a este diretório (a TUI ` +
-        `question na primeira execução) para habilitar papéis de projeto; o escape para CI está em ` +
-        `docs/CONFIGURATION.md § Escapes.`,
+      `role "${name}" could not be loaded: the \`project\` subagent source is OFF ` +
+        `because this directory is NOT trusted. In that state a repository \`.theokit/agents/${name}.md\` ` +
+        `is not read — whether it exists or not. Trust this directory (the TUI asks on the first ` +
+        `run) to enable project roles. For CI, set the trust-all-directories environment ` +
+        `variable — see \`config/env-knobs.ts\`, which is the registry of every knob.`,
       { code: 'role_source_untrusted' },
     )
   }
-  return new ConfigurationError(`role "${name}" não está em .theokit/agents`, {
+  return new ConfigurationError(`role "${name}" is not in .theokit/agents`, {
     code: 'role_not_found',
   })
 }
 
-function herdarDoPai(
+function inheritFromParent(
   role: ReturnType<typeof roleConfigFrom>,
   ctx: RoleAgentContext,
 ): { cwd: string; writeRoot: string; modelId: string; effort: string } {
@@ -104,18 +136,18 @@ function requireResolvedCredential(apiKey: unknown): string {
   return apiKey
 }
 
-export async function roleAgentOptions(
+async function roleAgentOptions(
   name: string,
   ctx: RoleAgentContext,
 ): Promise<Parameters<typeof Agent.create>[0]> {
-  const encontrados = await discoverSubagents(ctx.cwd ?? process.cwd(), {
+  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), {
     settingSources: ctx.posture.allows.subagents ? ['project'] : [],
   })
-  const def = encontrados[name]
+  const def = found[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
-  const { cwd, writeRoot, modelId, effort } = herdarDoPai(role, ctx)
-  const pluginDeHooks = ctx.hooks !== undefined ? hooksParaMembro(ctx.hooks) : undefined
+  const { cwd, writeRoot, modelId, effort } = inheritFromParent(role, ctx)
+  const hooksPlugin = ctx.hooks !== undefined ? hooksForMember(ctx.hooks) : undefined
   return {
     apiKey: requireResolvedCredential(ctx.apiKey),
     model: buildModelSelection(modelId, effort),
@@ -123,14 +155,20 @@ export async function roleAgentOptions(
       cwd,
       ...(role.sandbox !== undefined ? { sandboxOptions: { enabled: role.sandbox } } : {}),
     },
-    tools: resolveRoleTools(role.tools, { cwd, writeRoot, sandbox: ctx.sandbox }),
-    ...(pluginDeHooks !== undefined
-      ? { plugins: [pluginDeHooks] as unknown as AgentOptions['plugins'] }
+    tools: resolveRoleTools(
+      name,
+      role.tools,
+      { cwd, writeRoot, sandbox: ctx.sandbox },
+      { model: modelId, reasoning_effort: effort as ReasoningEffort },
+    ),
+    ...(hooksPlugin !== undefined
+      ? { plugins: [hooksPlugin] as unknown as AgentOptions['plugins'] }
       : {}),
   }
 }
 
 export async function buildRoleAgent(name: string, ctx: RoleAgentContext): Promise<SDKAgent> {
   const apiKey = typeof ctx.apiKey === 'function' ? await ctx.apiKey() : ctx.apiKey
-  return Agent.create(await roleAgentOptions(name, { ...ctx, apiKey }))
+  const create = ctx.createAgent ?? Agent.create
+  return create(await roleAgentOptions(name, { ...ctx, apiKey }))
 }

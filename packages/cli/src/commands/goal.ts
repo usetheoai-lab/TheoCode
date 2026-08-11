@@ -11,18 +11,21 @@ import type { runGoal } from '@theocode/agent/goal'
 
 type EffectiveConfig = ReturnType<typeof resolveEffectiveConfig>
 type TrustPosture = ReturnType<typeof resolveTrustPosture>
-type ResultadoDoGoal = Awaited<ReturnType<typeof runGoal>>
-type SinalDeUpdateGoal = { status?: 'complete' | 'blocked' }
+type GoalResult = Awaited<ReturnType<typeof runGoal>>
+type GoalUpdateSignal = { status?: 'complete' | 'blocked' }
 
 interface GoalAgentContext {
+  /** B-015 — the directory this goal run resolved; the same one `cfg` and `posture` were built from. */
+  readonly cwd: string
   readonly cfg: EffectiveConfig
   readonly posture: TrustPosture
   readonly routedModel: string
   readonly oracle: EffectiveConfig['goal_oracle']
-  readonly updateGoalSignal: SinalDeUpdateGoal
+  readonly updateGoalSignal: GoalUpdateSignal
 }
 
 async function buildGoalAgent({
+  cwd,
   cfg,
   posture,
   routedModel,
@@ -37,6 +40,7 @@ async function buildGoalAgent({
   const { resolveCredentialForModel } = await import('@theocode/agent/auth')
   return toAgentFactory(
     buildChatAgent({
+      cwd,
       config: cfg,
       posture,
       model: routedModel,
@@ -65,8 +69,8 @@ async function buildGoalAgent({
   )(`exec-${randomUUID()}`)
 }
 
-function relatarDesfechoDoGoal(
-  result: ResultadoDoGoal,
+function reportGoalOutcome(
+  result: GoalResult,
   args: ExecGoal,
   oracle: EffectiveConfig['goal_oracle'],
 ): string {
@@ -84,27 +88,28 @@ function relatarDesfechoDoGoal(
   return finalStatus
 }
 
-async function resolverContextoDoGoal(args: ExecGoal) {
+async function resolveGoalContext(args: ExecGoal) {
   const { resolveCredential, resolveCredentialForModel } =
     await import('@theocode/agent/auth')
   const { TRUST_STORE, resolveEffectiveConfig, resolveTrustPosture } =
     await import('@theocode/agent/config')
   const { routeGoalModel } = await import('@theocode/agent/goal')
   const routingCred = resolveCredential({ env: process.env, home: homedir() })
-  const cwdDoGoal = process.cwd()
-  const posture = resolveTrustPosture(cwdDoGoal, TRUST_STORE)
-  const cfg = resolveEffectiveConfig({ cwd: cwdDoGoal, store: TRUST_STORE, cli: args.overrides })
+  const goalCwd = process.cwd()
+  const posture = resolveTrustPosture(goalCwd, TRUST_STORE)
+  const cfg = resolveEffectiveConfig({ cwd: goalCwd, store: TRUST_STORE, cli: args.overrides })
   const routedModel = args.model ?? routeGoalModel(routingCred, cfg.model)
   const cred = await resolveCredentialForModel(routedModel, { env: process.env, home: homedir() })
-  return { posture, cfg, oracle: cfg.goal_oracle, routedModel, cred }
+  return { cwd: goalCwd, posture, cfg, oracle: cfg.goal_oracle, routedModel, cred }
 }
 
 export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<void> {
   const { GOAL_DEFAULTS, runGoal, makeSignalJudge } = await import('@theocode/agent/goal')
-  const { posture, cfg, oracle, routedModel, cred } = await resolverContextoDoGoal(args)
-  const updateGoalSignal: SinalDeUpdateGoal = {}
+  const { cwd, posture, cfg, oracle, routedModel, cred } = await resolveGoalContext(args)
+  const updateGoalSignal: GoalUpdateSignal = {}
   try {
     const goalAgent = await buildGoalAgent({
+      cwd,
       cfg,
       posture,
       routedModel,
@@ -143,7 +148,7 @@ export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<v
       await goalAgent.dispose().catch((err: unknown) => {
         process.stderr.write(`[exec] disposing the goal agent failed: ${String(err)}\n`)
       })
-      finalStatus = relatarDesfechoDoGoal(result, args, oracle)
+      finalStatus = reportGoalOutcome(result, args, oracle)
     } finally {
       cancellation.shutdown()
     }

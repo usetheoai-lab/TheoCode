@@ -6,20 +6,19 @@ import {
   makeInterruptTurn,
   getTuiRoot,
 } from './agent-session/index.js'
+import { composerDeps } from './composition/composer-deps.js'
+import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
 import { useGoalRun } from './persistence/index.js'
-import { useTimeline, useScreenState } from './rendering/index.js'
+import { useTimeline, useScreenState, useContextWarning } from './rendering/index.js'
 import { useTuiKeyboard } from './terminal-io/index.js'
-import { useApp, useStdout } from 'ink'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { useTurnElapsed } from '@theokit/tui'
-import { useAgent } from '@theokit/agents/client/react'
 
 import { homedir } from 'node:os'
 
-import { currentQuestion, subscribe } from '@theocode/agent/ask'
+import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { credentialHome } from '@theocode/agent/auth'
 
 import { useBacktrack } from './backtrack/index.js'
@@ -27,57 +26,6 @@ import type { ReasoningEffort } from '@theocode/agent/config'
 
 process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
 
-function depsDoComposer(
-  s: ReturnType<typeof useTuiSession>,
-  screen: ReturnType<typeof useScreenState>,
-  extra: {
-    backtrack: ReturnType<typeof useBacktrack>
-    goalAbort: { current: AbortController | null }
-    lastSentMessage: { current: string | null }
-    approvalMode: ApprovalMode
-    goalRun: ReturnType<typeof useGoalRun>['goalRun']
-    goalActive: boolean
-    setGoalRun: ReturnType<typeof useGoalRun>['setGoalRun']
-    credential: Parameters<typeof useComposerCommands>[0]['credential']
-    setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
-  },
-) {
-  const {
-    backtrack,
-    goalAbort,
-    lastSentMessage,
-    approvalMode,
-    goalRun,
-    goalActive,
-    setGoalRun,
-    setApprovalMode,
-    credential,
-  } = extra
-  return {
-    agent: s.agent,
-    agentRef: s.agentRef,
-    SESSION: s.SESSION,
-    ptyOwner: s.ptyOwner,
-    customCommands: s.customCommands,
-    customCommandNames: s.customCommandNames,
-    backtrack,
-    goalAbort,
-    lastSentMessage,
-    stdout: s.stdout,
-    approvalMode,
-    goalRun,
-    goalActive,
-    currentSessionId: s.currentSessionId,
-    forkCurrentSession: s.forkCurrentSession,
-    resetSession: s.resetSession,
-    credential,
-    exit: s.exit,
-    ...screen,
-    setEffort: s.setEffort,
-    setApprovalMode,
-    setGoalRun,
-  }
-}
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -87,7 +35,7 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
 
   const [pendingQuestion, setPendingQuestion] = useState<string | undefined>(undefined)
   useEffect(
-    () => subscribe(() => setPendingQuestion(currentQuestion(currentSessionId()))),
+    () => setListener(() => setPendingQuestion(currentQuestion(currentSessionId()))),
     [currentSessionId],
   )
   const { goalRun, setGoalRun, goalActive, goalBadge } = useGoalRun(s.GOAL_POINTER)
@@ -111,46 +59,6 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
   }
 }
 
-function useTuiSession() {
-  const ROOT = getTuiRoot()
-  const SESSION = ROOT.session
-  const GOAL_POINTER = ROOT.goalPointer
-  const customCommands = ROOT.customCommands
-  const customCommandNames = ROOT.customCommandNames
-  const ptyOwner = ROOT.ptyOwner
-  const resetSession = ROOT.resetSession
-  const forkCurrentSession = ROOT.sessionFork
-  const setSessionAndPersist = ROOT.pointToSession
-  const currentSessionId = useCallback((): string => SESSION.session(), [SESSION])
-  const agent = useAgent<{ message: string }>(ROOT.transport)
-  const agentRef = useRef(agent)
-  agentRef.current = agent
-  const streaming = agent.status === 'streaming'
-  const elapsed = useTurnElapsed(streaming)
-  const { exit } = useApp()
-  const { stdout } = useStdout()
-  const [effort, setEffort] = useState<ReasoningEffort>(SESSION.effort())
-  return {
-    ROOT,
-    SESSION,
-    GOAL_POINTER,
-    customCommands,
-    customCommandNames,
-    ptyOwner,
-    resetSession,
-    forkCurrentSession,
-    setSessionAndPersist,
-    currentSessionId,
-    agent,
-    agentRef,
-    streaming,
-    elapsed,
-    exit,
-    stdout,
-    effort,
-    setEffort,
-  }
-}
 
 function turnInterrupt(d: {
   agent: { abort: () => void }
@@ -178,7 +86,7 @@ function turnInterrupt(d: {
   return interruptTurn
 }
 
-function useInterrupcaoEBacktrack(d: {
+function useInterruptAndBacktrack(d: {
   screen: ReturnType<typeof useScreenState>
   agent: Parameters<typeof useBacktrack>[0]['agent'] & { abort: () => void }
   stdout: Parameters<typeof useBacktrack>[0]['stdout']
@@ -238,18 +146,49 @@ function useInterrupcaoEBacktrack(d: {
   return backtrack
 }
 
+/**
+ * B-055 — show a hook veto.
+ *
+ * It is invisible on the wire: the SDK surfaces a blocked call as a tool_result with
+ * `isError: false` and the message as content, so the model can self-correct. The terminal cannot
+ * tell a blocked call from a completed one by looking at the result — which is what made B-027's
+ * renderer unreachable — so the signal comes from the veto site instead.
+ */
+function useSessionToasts(
+  s: ReturnType<typeof useTuiSession>,
+  setToast: ReturnType<typeof useScreenState>['setToast'],
+  usedTokens: number | undefined,
+): void {
+  useEffect(() => {
+    s.ROOT.onHookVeto((veto) => {
+      setToast({ message: `Blocked ${veto.tool} — ${veto.reason}`, variant: 'error' })
+    })
+  }, [s.ROOT, setToast])
+
+  // B-080 — warn on the way UP, before the limit lands mid-answer. Grouped here rather than called
+  // from the composition root: both are things the SESSION tells the user, and the root is at its
+  // line budget — B-085 is what that costs when it is ignored.
+  useContextWarning(usedTokens, s.SESSION.cfg().contextWindow.window, (message) => {
+    setToast({ message, variant: 'info' })
+  })
+}
+
 export function useTuiComposition() {
   const s = useTuiSession()
   const { agent, currentSessionId, stdout, streaming } = s
   const screen = useScreenState()
+
+
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
   const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
-  const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode)
+  useSessionToasts(s, screen.setToast, lastUsage?.inputTokens)
+  const posture = s.SESSION.cfg().sandboxPosture
+  const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
 
-  const backtrack = useInterrupcaoEBacktrack({
+  const backtrack = useInterruptAndBacktrack({
     screen,
     agent,
     stdout,
@@ -267,7 +206,7 @@ export function useTuiComposition() {
   })
 
   const { handleSubmit } = useComposerCommands(
-    depsDoComposer(s, screen, {
+    composerDeps(s, screen, {
       backtrack,
       goalAbort: conv.goalAbort,
       lastSentMessage: conv.lastSentMessage,
@@ -277,7 +216,7 @@ export function useTuiComposition() {
       setGoalRun: conv.setGoalRun,
       setApprovalMode: conv.setApprovalMode,
       credential,
-    }),
+    }, events),
   )
 
   const c = {
@@ -296,7 +235,7 @@ export function useTuiComposition() {
   }
   return {
     conversationProps: conversationProps(c),
-    propsDoSlot: propsDoSlot(c),
+    slotProps: slotProps(c),
     footerProps: footerProps(c),
   }
 }
@@ -336,8 +275,9 @@ function conversationProps(c: {
   }
 }
 
-function propsDoSlot(c: Composition & SlotExtras) {
+function slotProps(c: Composition & SlotExtras) {
   return {
+    customCommands: c.customCommands,
     trusted: c.trusted,
     consent: c.consent,
     pendingHooks: c.pendingHooks,
@@ -374,6 +314,10 @@ function footerProps(c: Composition & FooterExtras) {
     goalBadge: c.goalBadge,
     credentialSource: c.credentialSource,
     lastUsage: c.lastUsage,
+    // B-046 — the same condition `input-router.ts` gates `?` on. The footer advertised the shortcut
+    // unconditionally, including while another surface was mounted or the composer had text, when
+    // pressing it does nothing.
+    shortcutsAvailable: c.screen.composerText.trim().length === 0,
   }
 }
 

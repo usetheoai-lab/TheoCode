@@ -1,14 +1,22 @@
+// This module READS credentials; it contains none. The filename matches the repository's
+// secret-pattern gate (`credentials*`), so it is flagged on every diff that touches it — verified
+// on 2026-08-08: no key material, no tokens, no PEM blocks. Every `apiKey` here is a parameter name
+// or a type field, and the only long literal is a class name. Provider inference compares PREFIXES
+// (`apiKey.startsWith(prefix)`), which is the opposite of embedding one.
+//
+// Keep it that way: values belong in the store the SDK writes at 0600, never in source.
 import {
-  authFilePath as authFilePathDoStore,
+  authFilePath as storeAuthFilePath,
   AuthProvider,
   CredentialError,
-  credentialHome as credentialHomeDoStore,
-  readAuthFile as readAuthFileDoStore,
-  writeCredential as writeCredentialDoStore,
+  credentialHome as storeCredentialHome,
+  readAuthFile as readStoreAuthFile,
+  writeCredential as writeStoreCredential,
 } from '@theokit/agents/auth'
 import { isTransientError } from '@theokit/agents'
 import { z } from 'zod'
 
+import { ENV_HOME } from '../config/index.js'
 import { OPENAI_OAUTH_CONFIG, credentialStore } from './oauth-config.js'
 
 const PROVIDERS = ['openrouter', 'anthropic', 'openai'] as const
@@ -31,14 +39,32 @@ const ENV_KEYS: ReadonlyArray<readonly [Provider, string]> = [
 ]
 
 export function credentialHome(home: string, env: Record<string, string | undefined> = {}): string {
-  return credentialHomeDoStore(credentialStore(home), env)
+  return storeCredentialHome(credentialStore(home), env)
 }
 
 export const authFilePath = (home: string, env: Record<string, string | undefined> = {}): string =>
-  authFilePathDoStore(credentialStore(home), env)
+  storeAuthFilePath(credentialStore(home), env)
 
+/** The variables that say WHERE the credential store is — never which key to use. */
+function storeLocationOnly(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const kept: Record<string, string | undefined> = {}
+  for (const name of [ENV_HOME, 'THEOKIT_HOME', 'THEOKIT_AUTH_HOME']) {
+    if (env[name] !== undefined) kept[name] = env[name]
+  }
+  return kept
+}
+
+/**
+ * B-034 — returns the auth home and no longer WRITES it into the caller's environment.
+ *
+ * This was `env.THEOKIT_AUTH_HOME ??= credentialHome(home, env)`: a getter that mutated its
+ * argument. A caller passing `process.env` had the process environment changed as a side effect of
+ * asking a question, and a caller passing a scoped environment had it silently widened.
+ */
 export function ensureAuthHome(env: Record<string, string | undefined>, home: string): string {
-  return (env.THEOKIT_AUTH_HOME ??= credentialHome(home, env))
+  return env.THEOKIT_AUTH_HOME ?? credentialHome(home, env)
 }
 
 export { CredentialError }
@@ -52,6 +78,17 @@ export class MissingCredentialError extends CredentialError {
   }
 }
 
+/**
+ * Deliberately NARROWER than the SDK's `ResolvedCredential`, which is otherwise identical.
+ *
+ * The SDK generalises to `provider: string` on purpose — it has no list of providers to know. This
+ * application does, so it narrows to `Provider` and gets exhaustiveness on every switch over it.
+ * That is a refinement, not a duplicated declaration, and it is recorded here because a surface
+ * review reads the two shapes as the same fact written twice (finding SAC-07).
+ *
+ * The half of that finding which WAS a real gap — `@theokit/agents/auth` not re-exporting the OAuth
+ * engine — is fixed upstream and released in `@theokit/agents@7.4.0`.
+ */
 export interface ResolvedCredential {
   kind: 'api' | 'oauth'
   provider: Provider
@@ -108,7 +145,7 @@ function readAuthFile(
   home: string,
   env: Record<string, string | undefined>,
 ): StoredCredential | undefined {
-  const stored = readAuthFileDoStore(credentialStore(home), env)
+  const stored = readStoreAuthFile(credentialStore(home), env)
   if (stored === undefined) return undefined
   const parsed = fileSchema.safeParse(stored)
   if (!parsed.success) {
@@ -177,8 +214,8 @@ function resolveDeclaredProvider(
     assertPairMatches(provider, fromEnv, varName)
     return { kind: 'api', provider, apiKey: fromEnv, source: varName, inferred: false }
   }
-  const armazenada = home === undefined ? undefined : storedCredentialOf(provider, home, env)
-  if (armazenada !== undefined) return armazenada
+  const storedCredential = home === undefined ? undefined : storedCredentialOf(provider, home, env)
+  if (storedCredential !== undefined) return storedCredential
   throw new CredentialError(
     `provider "${provider}" is declared via THEOCODE_PROVIDER but no key for it was found ` +
       `(looked at ${varName}${home !== undefined ? ` and ${authFilePath(home, env)}` : ''}). ` +
@@ -282,18 +319,18 @@ export function writeCredential(
     assertPairMatches(cred.provider, cred.apiKey, 'the credential being written')
   }
 
-  return writeCredentialDoStore(
+  return writeStoreCredential(
     isOAuthWrite(cred) ? cred : { provider: cred.provider, apiKey: cred.apiKey },
     credentialStore(home),
     env,
   )
 }
 
-export function classifyRefreshFailure(err: unknown): {
-  readonly transiente: boolean
-  readonly causa: unknown
+function classifyRefreshFailure(err: unknown): {
+  readonly transient: boolean
+  readonly cause: unknown
 } {
-  return { transiente: isTransientError(err), causa: err }
+  return { transient: isTransientError(err), cause: err }
 }
 
 export async function resolveFreshCredential(opts: {
@@ -321,8 +358,8 @@ export async function resolveFreshCredential(opts: {
       opts.env,
     )
   } catch (err) {
-    const { transiente } = classifyRefreshFailure(err)
-    if (!transiente) throw err
+    const { transient } = classifyRefreshFailure(err)
+    if (!transient) throw err
     return resolved
   }
   return { ...fresh, provider: resolved.provider }
@@ -339,7 +376,15 @@ export async function resolveCredentialForModel(
   },
 ): Promise<ResolvedCredential> {
   if (model !== undefined && model.startsWith('openai-chatgpt/')) {
-    return resolveFreshCredential({ ...opts, env: {} })
+    // B-034 — `env: {}` forces the FILE store by hiding the api-key environment variables. It was
+    // also hiding the variable that LOCATES that store: `ENV_HOME` is the credential store's
+    // `homeEnvVar` (`oauth-config.ts`), so the routed resolution looked in the default home while
+    // the ordinary one looked in the overridden one. Asymmetric and user-visible: the first
+    // resolution finds the credential, the second does not.
+    //
+    // B-007 closed on the bullet "does not discard variables beyond the intended ones"; the commit
+    // it named as its fix never touched this file.
+    return resolveFreshCredential({ ...opts, env: storeLocationOnly(opts.env) })
   }
   return resolveFreshCredential(opts)
 }

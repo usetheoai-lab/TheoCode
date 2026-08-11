@@ -1,21 +1,15 @@
 import { homedir } from 'node:os'
 
-import { Agent, type HookHandlers, type SDKAgent, Squad, Tool } from '@theokit/agents'
+import { type HookHandlers, type SDKAgent, Squad, Tool } from '@theokit/agents'
 import { z } from 'zod'
 
 import { type AgentConfig, type TrustPosture } from '../config/index.js'
 import { resolveFreshCredential } from '../auth/index.js'
 import { resolveToolScope } from '../tools/index.js'
-import { buildRoleAgent, roleAgentOptions, TEAM_ROLES, type RoleAgentContext } from './roles.js'
+import { buildRoleAgent, TEAM_ROLES, type RoleAgentContext } from './roles.js'
 import { withDelegationCap } from './delegation-cap.js'
 
-export async function teamMemberOptions(
-  ctx: RoleAgentContext,
-): Promise<Parameters<typeof Agent.create>[0][]> {
-  return Promise.all(TEAM_ROLES.map((role) => roleAgentOptions(role, ctx)))
-}
-
-export async function buildTeam(
+async function buildTeam(
   ctx: RoleAgentContext,
 ): Promise<{ squad: Squad; members: SDKAgent[] }> {
   const members = await Promise.all(TEAM_ROLES.map((role) => buildRoleAgent(role, ctx)))
@@ -28,10 +22,19 @@ export interface TeamContext {
   reasoning_effort: AgentConfig['reasoning_effort']
   sandbox_mode: AgentConfig['sandbox_mode']
   posture: TrustPosture
+  /**
+   * B-032 — the directory the ROOT resolved, not `process.cwd()`.
+   *
+   * `resolveToolScope` derives BOTH the `writeRoot` and the sandbox `workDir` from this, so a team
+   * built against the process directory confines its worker to a tree the caller did not choose.
+   * B-015 gave `buildChatAgent` a single injected directory and this handler kept re-deriving one,
+   * which made it the only bypass with a CONFINEMENT consequence rather than a configuration one.
+   */
+  cwd: string
   hooks?: HookHandlers
 }
 
-export function createDelegateToTeamTool(contexto: TeamContext) {
+export function createDelegateToTeamTool(context: TeamContext) {
   return Tool.create({
     name: 'delegate_to_team',
     description:
@@ -46,16 +49,16 @@ export function createDelegateToTeamTool(contexto: TeamContext) {
         .describe('The task for the team (the explorer investigates it, the worker executes it).'),
     }),
     handler: async ({ task }: { task: string }) => {
-      const escopo = resolveToolScope({ sandbox_mode: contexto.sandbox_mode }, process.cwd())
+      const scope = resolveToolScope({ sandbox_mode: context.sandbox_mode }, context.cwd)
       const { squad, members } = await buildTeam({
         apiKey: () =>
           resolveFreshCredential({ env: process.env, home: homedir() }).then((c) => c.apiKey),
-        parent: { model: contexto.model, reasoning_effort: contexto.reasoning_effort },
-        posture: contexto.posture,
-        cwd: escopo.cwd,
-        ...(escopo.sandbox ? { sandbox: escopo.sandbox } : {}),
-        writeRoot: escopo.writeRoot,
-        ...(contexto.hooks !== undefined ? { hooks: contexto.hooks } : {}),
+        parent: { model: context.model, reasoning_effort: context.reasoning_effort },
+        posture: context.posture,
+        cwd: scope.cwd,
+        sandbox: scope.sandbox,
+        writeRoot: scope.writeRoot,
+        ...(context.hooks !== undefined ? { hooks: context.hooks } : {}),
       })
       try {
         const run = await withDelegationCap(squad.run(task))
@@ -66,7 +69,18 @@ export function createDelegateToTeamTool(contexto: TeamContext) {
           steps: run.steps.length,
         })
       } finally {
-        await Promise.all(members.map((m) => m[Symbol.asyncDispose]()))
+        // B-043 — `allSettled`, not `all`. In a `finally`, a rejection REPLACES the value the try
+        // block produced, so one member failing to dispose threw away the delegation result the
+        // user was waiting for. A cleanup failure is worth reporting and is not worth losing the
+        // work over.
+        const disposals = await Promise.allSettled(members.map((m) => m[Symbol.asyncDispose]()))
+        for (const d of disposals) {
+          if (d.status === 'rejected') {
+            process.stderr.write(
+              `[delegation] a team member failed to dispose: ${String(d.reason)}\n`,
+            )
+          }
+        }
       }
     },
   })

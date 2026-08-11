@@ -29,7 +29,7 @@ export async function resolveSessionId(
     if (mine[0] !== undefined) return mine[0].agentId
   } catch (err) {
     if (err instanceof CursorNotDrainedError) throw err
-    // lista indisponível — cai no fallback
+    // listing unavailable — fall through to the fallback
   }
   process.stderr.write(
     '[exec] resume --last: no session found for this cwd — starting a NEW session\n',

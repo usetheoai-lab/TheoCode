@@ -1,70 +1,70 @@
 import { ConfigError, ENV_BY_KEY, type SchemaKey } from './config.js'
 
-const SEGMENTOS_RESERVADOS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype'])
+const RESERVED_SEGMENTS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype'])
 
-function coagir(folha: string, bruto: string): unknown {
-  return ENV_BY_KEY[folha as SchemaKey]?.coagir(bruto) ?? bruto
+function coerce(leaf: string, raw: string): unknown {
+  return ENV_BY_KEY[leaf as SchemaKey]?.coerce(raw) ?? raw
 }
 
-function requireUsablePath(par: string, path: readonly string[]): void {
+function requireUsablePath(pair: string, path: readonly string[]): void {
   if (path.some((s) => s.trim().length === 0)) {
-    throw new ConfigError(`-c ${par}: path de key com segmento vazio`)
+    throw new ConfigError(`-c ${pair}: config key path has an empty segment`)
   }
-  const reservado = path.find((s) => SEGMENTOS_RESERVADOS.has(s))
-  if (reservado !== undefined) {
+  const reserved = path.find((s) => RESERVED_SEGMENTS.has(s))
+  if (reserved !== undefined) {
     throw new ConfigError(
-      `-c ${par}: \`${reservado}\` é um segmento reservado do protótipo de objeto e não pode ser ` +
-        `key de configuração — escrevê-lo alteraria \`Object.prototype\` para o processo inteiro, ` +
-        `por baixo da validação estrita do schema`,
+      `-c ${pair}: \`${reserved}\` is a reserved object-prototype segment and cannot be a ` +
+        `config key — writing it would alter \`Object.prototype\` for the whole process, ` +
+        `underneath the schema's strict validation`,
     )
   }
 }
 
-function descerCriando(
+function descendCreating(
   root: Record<string, unknown>,
   path: readonly string[],
-  par: string,
+  pair: string,
 ): Record<string, unknown> {
-  let no = root
-  for (const segmento of path.slice(0, -1)) {
-    const proximo = no[segmento]
-    if (proximo === undefined) {
-      const criado: Record<string, unknown> = {}
-      no[segmento] = criado
-      no = criado
-    } else if (typeof proximo === 'object' && proximo !== null && !Array.isArray(proximo)) {
-      no = proximo as Record<string, unknown>
+  let node = root
+  for (const segment of path.slice(0, -1)) {
+    const next = node[segment]
+    if (next === undefined) {
+      const created: Record<string, unknown> = {}
+      node[segment] = created
+      node = created
+    } else if (typeof next === 'object' && next !== null && !Array.isArray(next)) {
+      node = next as Record<string, unknown>
     } else {
       throw new ConfigError(
-        `-c ${par}: \`${segmento}\` já foi definida como valor nesta mesma line de comando`,
+        `-c ${pair}: \`${segment}\` was already set as a value on this same command line`,
       )
     }
   }
-  return no
+  return node
 }
 
 export function cliOverridesLayer(pares: readonly string[]): Record<string, unknown> {
   const root: Record<string, unknown> = {}
-  for (const par of pares) {
-    const corte = par.indexOf('=')
-    if (corte < 0) {
+  for (const pair of pares) {
+    const splitAt = pair.indexOf('=')
+    if (splitAt < 0) {
       throw new ConfigError(
-        `-c ${par}: esperado \`key=valor\` (ou \`key.aninhada=valor\`), sem o sinal de igual não há valor a aplicar`,
+        `-c ${pair}: expected \`key=value\` (or \`key.nested=value\`); with no equals sign there is no value to apply`,
       )
     }
-    const path = par.slice(0, corte).split('.')
-    const bruto = par.slice(corte + 1)
-    requireUsablePath(par, path)
-    const no = descerCriando(root, path, par)
-    const folha = path[path.length - 1]!
-    const existente = no[folha]
-    if (typeof existente === 'object' && existente !== null) {
+    const path = pair.slice(0, splitAt).split('.')
+    const raw = pair.slice(splitAt + 1)
+    requireUsablePath(pair, path)
+    const node = descendCreating(root, path, pair)
+    const leaf = path[path.length - 1]!
+    const existing = node[leaf]
+    if (typeof existing === 'object' && existing !== null) {
       throw new ConfigError(
-        `-c ${par}: \`${folha}\` já foi montada como ramo nesta mesma line de comando — ` +
-          `sobrescrevê-la devolveria um objeto que não corresponde a nenhum dos dois pares escritos`,
+        `-c ${pair}: \`${leaf}\` was already built as a branch on this same command line — ` +
+          `overwriting it would yield an object matching neither of the two pairs written`,
       )
     }
-    no[folha] = coagir(folha, bruto)
+    node[leaf] = coerce(leaf, raw)
   }
   return root
 }

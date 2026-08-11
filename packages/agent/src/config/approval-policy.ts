@@ -11,11 +11,13 @@ export interface ApprovalDecision {
 
 export function resolveHeadlessApproval(
   policy: ApprovalPolicy,
-  posture?: { enforced: boolean; detail: string },
+  // B-021 — REQUIRED. Omitting it used to return `approved: true` for full-auto, skipping the
+  // enforced-sandbox refusal that is this function's stated purpose.
+  posture: { enforced: boolean; detail: string },
 ): ApprovalDecision {
-  const modo = approvalModeFor(policy)
-  if (modo === 'full-auto') {
-    if (posture !== undefined && !posture.enforced) {
+  const mode = approvalModeFor(policy)
+  if (mode === 'full-auto') {
+    if (!posture.enforced) {
       return {
         approved: false,
         reason:
@@ -43,8 +45,8 @@ export function headlessApprovalPosture(
   policy: ApprovalPolicy,
   sandbox: SandboxPosture,
 ): ApprovalPosture {
-  const decisao = resolveHeadlessApproval(policy, sandbox)
-  return decisao.approved
-    ? { kind: 'auto-approve', reason: decisao.reason }
-    : { kind: 'auto-reject', reason: decisao.reason }
+  const decision = resolveHeadlessApproval(policy, sandbox)
+  return decision.approved
+    ? { kind: 'auto-approve', reason: decision.reason }
+    : { kind: 'auto-reject', reason: decision.reason }
 }

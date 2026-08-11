@@ -1,5 +1,6 @@
-import { countMemoryFacts } from '../formatting/index.js'
-import { readFileSync } from 'node:fs'
+import { memoryFacts, withFactRemoved, memoryEnabledForSession, setMemoryEnabledForSession } from '@theocode/agent'
+import { planResume } from './resume-command.js'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,6 +8,7 @@ import type { Dispatch, SetStateAction } from 'react'
 
 import {
   archiveSession,
+  deleteSession,
   compactSession,
   legacyRootHint,
   listSessions,
@@ -15,44 +17,46 @@ import {
 import { resolveTrustPosture } from '@theocode/agent/config'
 import {
   logout,
-  metodosDe,
+  methodsFor,
   oauthDeviceLogin,
-  provedoresConhecidos,
+  knownProviders,
 } from '@theocode/agent/auth'
 import type { AuthMethod } from '@theokit/agents/auth'
-import type { ToastPayload } from '../screen-types.js'
+import type { ContentPanel, ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
+type SetPanel = (panel: ContentPanel) => void
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
-const PROVIDERS_CONHECIDOS = provedoresConhecidos()
+const KNOWN_PROVIDERS = knownProviders()
 
-function metodosConhecidosDe(name: string): readonly AuthMethod[] | undefined {
-  const p = PROVIDERS_CONHECIDOS.includes(name) ? name : undefined
-  return p === undefined ? undefined : metodosDe(p)
+function knownMethodsFor(name: string): readonly AuthMethod[] | undefined {
+  const p = KNOWN_PROVIDERS.includes(name) ? name : undefined
+  return p === undefined ? undefined : methodsFor(p)
 }
 
-export function anuncioDeLogin(arg: string): {
+function loginAnnouncement(arg: string): {
   provider: string
   message: string
-  podeDevice: boolean
+  canDevice: boolean
 } {
   const provider = arg.trim().length > 0 ? arg.trim() : 'openai'
-  const metodos = metodosConhecidosDe(provider)
-  if (metodos === undefined) {
+  const methods = knownMethodsFor(provider)
+  if (methods === undefined) {
     return {
       provider,
-      message: `unknown provider "${provider}". Known: ${PROVIDERS_CONHECIDOS.join(', ')}.`,
-      podeDevice: false,
+      message: `unknown provider "${provider}". Known: ${KNOWN_PROVIDERS.join(', ')}.`,
+      canDevice: false,
     }
   }
-  const rotulos = metodos.map((m) => m.label).join(' · ')
-  const podeDevice = metodos.some((m) => m.type === 'oauth')
+  const labels = methods.map((m) => m.label).join(' · ')
+  const canDevice = methods.some((m) => m.type === 'oauth')
   return {
     provider,
-    message: podeDevice
-      ? `Login methods for ${provider}: ${rotulos}`
-      : `${provider} offers no device login. Use: ${rotulos}.`,
-    podeDevice,
+    message: canDevice
+      ? `Login methods for ${provider}: ${labels}`
+      : `${provider} offers no device login. Use: ${labels}.`,
+    canDevice,
   }
 }
 
@@ -72,23 +76,23 @@ export function handleLogin(
   askForKey?: (provider: string) => void,
   deps?: { oauth?: typeof oauthDeviceLogin },
 ): void {
-  const partes = arg
+  const parts = arg
     .trim()
     .split(/\s+/)
     .filter((t) => t.length > 0)
-  const askedForKey = partes.at(-1)?.toLowerCase() === 'key'
-  const semSeletor = (askedForKey ? partes.slice(0, -1) : partes).join(' ')
+  const askedForKey = parts.at(-1)?.toLowerCase() === 'key'
+  const withoutSelector = (askedForKey ? parts.slice(0, -1) : parts).join(' ')
 
-  const anuncio = anuncioDeLogin(semSeletor)
-  setToast({ message: anuncio.message, variant: 'info' })
+  const announcement = loginAnnouncement(withoutSelector)
+  setToast({ message: announcement.message, variant: 'info' })
 
-  if (askedForKey || !anuncio.podeDevice) {
-    if (askForKey !== undefined) askForKey(anuncio.provider)
+  if (askedForKey || !announcement.canDevice) {
+    if (askForKey !== undefined) askForKey(announcement.provider)
     return
   }
 
   const start = deps?.oauth ?? oauthDeviceLogin
-  void start(anuncio.provider as Parameters<typeof oauthDeviceLogin>[0], homedir(), {
+  void start(announcement.provider as Parameters<typeof oauthDeviceLogin>[0], homedir(), {
     onPrompt: ({ userCode, verificationUri }) =>
       setToast({
         message: `Open ${verificationUri} and enter code: ${userCode}`,
@@ -111,14 +115,14 @@ export function handleFork(
   forkCurrentSession: () => { newId: string; copied: boolean },
   setToast: SetToast,
 ): void {
-  let resultado: { newId: string; copied: boolean }
+  let result: { newId: string; copied: boolean }
   try {
-    resultado = forkCurrentSession()
+    result = forkCurrentSession()
   } catch (e) {
     setToast({ message: `Fork failed: ${(e as Error).message}`, variant: 'error' })
     return
   }
-  const { newId, copied } = resultado
+  const { newId, copied } = result
   setToast({
     message: copied
       ? `Forked → ${newId} — the context was copied; this session continues from it.`
@@ -169,6 +173,40 @@ export function handleArchive(
     )
 }
 
+/**
+ * B-078 — permanent deletion, deliberately harder to reach than archiving.
+ *
+ * `/delete` REQUIRES the id. Archiving defaults to the current session because it is reversible;
+ * this is not, so there is no gesture that destroys a transcript without naming it. Typing the id
+ * IS the confirmation step — recorded as a choice, not an omission: a two-key armed confirm was not
+ * built, and would be the stronger guard if this ever defaults to the current session.
+ */
+export function handleDelete(arg: string, deps: { setToast: SetToast }): void {
+  const { setToast } = deps
+  const target = arg.trim()
+  if (target.length === 0) {
+    setToast({
+      message:
+        'delete needs the session id: /delete <id> — it is permanent and does not default to the ' +
+        'current session. Use /sessions to see them, or /archive to hide one reversibly.',
+      variant: 'info',
+    })
+    return
+  }
+  void deleteSession(target)
+    .then((r) =>
+      setToast({
+        message: r.transcriptRemoved
+          ? `Deleted ${target} permanently — transcript removed from disk.`
+          : `Deleted ${target} from the session list; its transcript was already gone.`,
+        variant: 'success',
+      }),
+    )
+    .catch((e: unknown) =>
+      setToast({ message: `Delete failed: ${(e as Error).message}`, variant: 'error' }),
+    )
+}
+
 export function handleRename(
   arg: string,
   currentSessionId: () => string,
@@ -188,21 +226,85 @@ export function handleRename(
     )
 }
 
-export function handleMemoryInfo(setToast: SetToast): void {
-  const memPath = join(process.cwd(), '.theokit', 'memory', 'MEMORY.md')
-  const memTrusted = resolveTrustPosture(process.cwd()).allows.memory
-  let factCount = 0
+/**
+ * B-077 — `/memory` reports, `/memory off|on` configures, `/memory forget <n>` removes.
+ *
+ * It used to report only. A user watching the fact count climb had been told a store exists and
+ * where, and given no way to see what was in it or stop it without editing files outside the
+ * product.
+ */
+function memoryStorePath(): string {
+  return join(workingDirectory(), '.theokit', 'memory', 'MEMORY.md')
+}
+
+function readMemoryStore(): string {
   try {
-    factCount = countMemoryFacts(readFileSync(memPath, 'utf8'))
+    return readFileSync(memoryStorePath(), 'utf8')
   } catch {
-    // no store yet — factCount stays 0
+    // No store yet is the normal first-run state, not an error to raise at someone asking.
+    return ''
   }
-  process.stderr.write(`[memory] enabled=${memTrusted} facts=${factCount}\n`)
+}
+
+/** B-077 — `/memory off|on`. Restricts only; trust still decides whether memory is possible. */
+function toggleMemory(on: boolean, setToast: SetToast): void {
+  setMemoryEnabledForSession(on)
   setToast({
-    message: memTrusted
-      ? `Memory ON (trusted dir) — ${factCount} fact(s) at ${memPath}. Say "Remember: <fact>" to store one.`
-      : 'Memory OFF — directory is untrusted (memory writes to the repo; trust the dir to enable).',
-    variant: 'info',
+    // Says WHEN it applies. The agent is rebuilt per turn, so claiming immediate effect would be
+    // wrong for the turn already in flight.
+    message: `Memory generation ${on ? 'on' : 'off'} for this session — applies from the next turn. Not persisted; set it in config to make it durable.`,
+    variant: 'success',
+  })
+}
+
+/** B-077 — `/memory forget <n>`, by the number the listing shows. */
+function forgetFact(rawIndex: string, setToast: SetToast): void {
+  const store = readMemoryStore()
+  const n = Number(rawIndex)
+  const updated = Number.isInteger(n) ? withFactRemoved(store, n) : undefined
+  if (updated === undefined) {
+    // Reported, never a silent no-op: writing the file back unchanged and claiming success is the
+    // failure `rules/error-handling.md` § 2 forbids.
+    setToast({
+      message: `no fact ${rawIndex || '(none given)'} — /memory lists them by number`,
+      variant: 'error',
+    })
+    return
+  }
+  writeFileSync(memoryStorePath(), updated, 'utf8')
+  setToast({
+    message: `forgot fact ${String(n)} — ${String(memoryFacts(updated).length)} left`,
+    variant: 'success',
+  })
+}
+
+function memoryHeader(trusted: boolean): string {
+  if (!trusted) return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
+  if (!memoryEnabledForSession()) {
+    return 'Memory OFF for this session (/memory on to resume) — existing facts are still recalled.'
+  }
+  return `Memory ON — ${memoryStorePath()}`
+}
+
+/**
+ * B-077 — `/memory` lists, `/memory off|on` configures, `/memory forget <n>` removes.
+ *
+ * It used to report only. A user watching the fact count climb had been told a store exists and
+ * where, and given no way to see what was in it or stop it without editing files outside the product.
+ */
+export function handleMemoryInfo(arg: string, setToast: SetToast, setPanel: SetPanel): void {
+  const verb = arg.trim().toLowerCase()
+  if (verb === 'off' || verb === 'on') return toggleMemory(verb === 'on', setToast)
+  if (verb.startsWith('forget')) return forgetFact(verb.slice('forget'.length).trim(), setToast)
+
+  const facts = memoryFacts(readMemoryStore())
+  const header = memoryHeader(resolveTrustPosture(workingDirectory()).allows.memory)
+  setPanel({
+    title: 'memory',
+    body:
+      facts.length === 0
+        ? `${header}\n\nno facts stored yet — say "Remember: <fact>" to store one`
+        : `${header}\n\n${facts.map((f, i) => `  ${String(i + 1)}. ${f}`).join('\n')}\n\n/memory forget <n> removes one`,
   })
 }
 
@@ -221,5 +323,48 @@ export function handleCompact(sessionId: string, setToast: SetToast): void {
         variant: 'error',
       })
     }
+  })()
+}
+
+/**
+ * B-087 — `/resume <id>`.
+ *
+ * Repoints through `setSessionAndPersist`, the SAME seam `backtrack` uses to move after a fork,
+ * rather than a second way to switch sessions. B-074 exists because two halves of session
+ * management grew separately; a second switch path here would be that again.
+ *
+ * The session being left is not lost and needs no saving: its transcript is appended continuously
+ * and stays listed by `/sessions`. What IS discarded is an unsent composer draft, which is why the
+ * message says so instead of leaving the user to notice.
+ */
+export function handleResume(
+  arg: string,
+  deps: {
+    currentSessionId: () => string
+    streaming: boolean
+    setSessionAndPersist: (id: string) => void
+    setClearEpoch: Dispatch<SetStateAction<number>>
+    setToast: SetToast
+  },
+): void {
+  void (async () => {
+    const known = (await listSessions()).map((s) => s.agentId)
+    const plan = planResume({
+      arg,
+      current: deps.currentSessionId(),
+      streaming: deps.streaming,
+      known,
+    })
+    if (plan.kind === 'refused') {
+      deps.setToast({ message: plan.reason, variant: 'info' })
+      return
+    }
+    const leaving = deps.currentSessionId()
+    deps.setSessionAndPersist(plan.id)
+    deps.setClearEpoch((e) => e + 1)
+    deps.setToast({
+      message: `resumed ${plan.id} — ${leaving} is still listed; any unsent draft was discarded`,
+      variant: 'success',
+    })
   })()
 }

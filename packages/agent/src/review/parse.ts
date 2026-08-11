@@ -51,15 +51,37 @@ export function parseReviewOutput(raw: string): ReviewOutput {
       // fall through
     }
   }
-  return { findings: [], overall_correctness: '', overall_explanation: raw.trim() }
+  // B-043 — an unparseable response used to degrade to `{ findings: [], overall_correctness: '' }`,
+  // which is the SAME structured value a clean review produces. A caller branching on
+  // `findings.length` or on `overall_correctness` could not tell "the reviewer found nothing" from
+  // "the reviewer's answer could not be read" — on a tool whose entire purpose is reporting
+  // defects. The rendered string did carry a hint, so the failure was visible to a human reading
+  // prose and invisible to anything reading the object.
+  throw new ReviewOutputUnparseableError(raw)
 }
 
-function prioridade(f: ReviewOutput['findings'][number]): string {
+/** The reviewer answered, and the answer was not a review. */
+export class ReviewOutputUnparseableError extends Error {
+  override readonly name = 'ReviewOutputUnparseableError'
+  readonly code = 'review_output_unparseable' as const
+  readonly raw: string
+
+  constructor(raw: string) {
+    super(
+      'the reviewer\'s response could not be parsed as a review. This is NOT "no findings": the ' +
+        `answer was ${String(raw.trim().length)} characters and did not contain a usable JSON ` +
+        'object.',
+    )
+    this.raw = raw
+  }
+}
+
+function priorityPrefix(f: ReviewOutput['findings'][number]): string {
   if (typeof f.priority !== 'number' || /^\[P\d\]/.test(f.title)) return ''
   return `[P${String(f.priority)}] `
 }
 
-function localizacao(loc: ReviewOutput['findings'][number]['code_location']): string {
+function locationSuffix(loc: ReviewOutput['findings'][number]['code_location']): string {
   if (loc === undefined) return ''
   const lines =
     loc.line_range !== undefined
@@ -74,7 +96,7 @@ export function formatReviewFindings(output: ReviewOutput): string {
   if (output.findings.length > 0) {
     lines.push('Full review comments:', '')
     for (const f of output.findings) {
-      lines.push(`- ${prioridade(f)}${f.title}${localizacao(f.code_location)}`)
+      lines.push(`- ${priorityPrefix(f)}${f.title}${locationSuffix(f.code_location)}`)
       if (f.body.length > 0) lines.push(...f.body.split('\n').map((l) => `  ${l}`))
     }
     lines.push('')

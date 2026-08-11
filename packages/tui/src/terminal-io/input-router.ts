@@ -4,15 +4,15 @@ export interface KeyboardState {
   readonly hasOpenQuestion: boolean
   readonly trusted: boolean
   readonly hasPendingApproval: boolean
-  readonly emDemoInterativa: boolean
+  readonly inDemoInput: boolean
   readonly emLogin: boolean
   readonly rotating: boolean
-  readonly modo: string
-  readonly mostrandoUso: boolean
-  readonly mostrandoDiff: boolean
-  readonly mostrandoAjuda: boolean
-  readonly goalAtivo: boolean
-  readonly transmitindo: boolean
+  readonly mode: string
+  readonly showingUsage: boolean
+  readonly showingDiff: boolean
+  readonly showingHelp: boolean
+  readonly goalActive: boolean
+  readonly streaming: boolean
   readonly backtrackArmed: boolean
   readonly composerText: string
   readonly backtrackNth: number
@@ -36,10 +36,10 @@ export type KeyAction =
   | { readonly kind: 'pause-goal' }
   | { readonly kind: 'prime-backtrack' }
   | { readonly kind: 'reset-backtrack' }
-  | { readonly kind: 'advance-backtrack'; readonly proximo: number; readonly total: number }
+  | { readonly kind: 'advance-backtrack'; readonly next: number; readonly total: number }
   | { readonly kind: 'confirm-backtrack' }
   | { readonly kind: 'arm-exit' }
-  | { readonly kind: 'sair' }
+  | { readonly kind: 'quit' }
   | { readonly kind: 'disarm-exit' }
   | { readonly kind: 'close-demo' }
 
@@ -54,7 +54,7 @@ export function routeKey(
     return ehCtrlC ? [{ kind: 'abandon-question' }, { kind: 'interrupt-turn' }] : []
   }
 
-  if (state.emDemoInterativa) return routeInDemo(key, state, ehCtrlC)
+  if (state.inDemoInput) return routeInDemo(key, state, ehCtrlC)
 
   if (!state.trusted || state.hasPendingApproval || state.emLogin || state.rotating) {
     return []
@@ -70,7 +70,7 @@ function routeInDemo(
   ehCtrlC: boolean,
 ): KeyAction[] {
   if (key.escape) return [{ kind: 'close-demo' }]
-  if (ehCtrlC) return state.exitArmed ? [{ kind: 'sair' }] : [{ kind: 'arm-exit' }]
+  if (ehCtrlC) return state.exitArmed ? [{ kind: 'quit' }] : [{ kind: 'arm-exit' }]
   return []
 }
 
@@ -87,8 +87,8 @@ function routeInComposer(
   }
 
   if (ehCtrlC) {
-    if (state.transmitindo) actions.push({ kind: 'interrupt-turn' })
-    else actions.push(state.exitArmed ? { kind: 'sair' } : { kind: 'arm-exit' })
+    if (state.streaming) actions.push({ kind: 'interrupt-turn' })
+    else actions.push(state.exitArmed ? { kind: 'quit' } : { kind: 'arm-exit' })
     return actions
   }
 
@@ -97,19 +97,19 @@ function routeInComposer(
 }
 
 function routeEscape(state: KeyboardState): KeyAction[] {
-  if (state.modo === 'progress') return [{ kind: 'close-progress' }]
-  if (state.mostrandoDiff) return [{ kind: 'close-diff' }]
-  if (state.mostrandoUso) return [{ kind: 'close-usage' }]
-  if (state.mostrandoAjuda) return [{ kind: 'close-help' }]
-  if (state.goalAtivo) return [{ kind: 'pause-goal' }]
-  if (state.transmitindo) return [{ kind: 'interrupt-turn' }]
+  if (state.mode === 'progress') return [{ kind: 'close-progress' }]
+  if (state.showingDiff) return [{ kind: 'close-diff' }]
+  if (state.showingUsage) return [{ kind: 'close-usage' }]
+  if (state.showingHelp) return [{ kind: 'close-help' }]
+  if (state.goalActive) return [{ kind: 'pause-goal' }]
+  if (state.streaming) return [{ kind: 'interrupt-turn' }]
 
   if (!state.backtrackArmed) {
     if (state.composerText.trim().length > 0) return []
     return [{ kind: 'prime-backtrack' }]
   }
 
-  const proximo = stepBacktrack(state.backtrackNth, state.backtrackTotal)
-  if (proximo === null) return [{ kind: 'reset-backtrack' }]
-  return [{ kind: 'advance-backtrack', proximo, total: state.backtrackTotal }]
+  const next = stepBacktrack(state.backtrackNth, state.backtrackTotal)
+  if (next === null) return [{ kind: 'reset-backtrack' }]
+  return [{ kind: 'advance-backtrack', next, total: state.backtrackTotal }]
 }

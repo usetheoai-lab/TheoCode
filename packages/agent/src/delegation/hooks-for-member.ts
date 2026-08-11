@@ -1,7 +1,7 @@
 import { createToolHooksPlugin } from '@theokit/agents'
 import type { HookHandlers, ToolHooksPlugin } from '@theokit/agents'
 
-export function hooksParaMembro(handlers: HookHandlers): ToolHooksPlugin | undefined {
+export function hooksForMember(handlers: HookHandlers): ToolHooksPlugin | undefined {
   const preToolCall = handlers.pre_tool_call
   if (preToolCall === undefined) return undefined
 

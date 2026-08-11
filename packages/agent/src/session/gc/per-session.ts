@@ -1,19 +1,16 @@
-import { existsSync, readdirSync, readFileSync, statSync, promises as fsp } from 'node:fs'
+import { existsSync, readdirSync, statSync, promises as fsp } from 'node:fs'
 import { join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
 import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from '../agent-list.js'
+import { readPointerId } from './pointer.js'
 
 const defaultBaseDir = transcriptRoot
 
 export function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string {
   return join(baseDir, 'projects', encodeProjectDir(cwd))
-}
-
-function pointerFile(cwd: string): string {
-  return join(cwd, '.theokit', 'tui-session')
 }
 
 interface SessionGCCandidate {
@@ -46,32 +43,20 @@ export interface PlanSessionGCOptions {
   readdir?: (dir: string) => { id: string; mtimeMs: number }[]
 }
 
-function realReaddir(dir: string): { id: string; mtimeMs: number }[] {
+/** Transcripts in a project directory, newest first is the caller's job to sort. Sync by design:
+ *  the fork guard runs on a synchronous write path. */
+export function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
     .filter((f) => f.endsWith('.jsonl'))
     .map((f) => ({ id: f.slice(0, -6), mtimeMs: statSync(join(dir, f)).mtimeMs }))
 }
 
-export function resolvePointerId(readFn: () => string): string | undefined {
-  let raw: string
-  try {
-    raw = readFn()
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    throw new Error(
-      `cannot read the live-session pointer — refusing to GC (would risk the live session): ${(err as Error).message}`,
-    )
-  }
-  const id = raw.trim()
-  return id === '' ? undefined : id
-}
-
 function realReadPointer(cwd: string): string | undefined {
-  return resolvePointerId(() => readFileSync(pointerFile(cwd), 'utf8'))
+  return readPointerId(cwd)
 }
 
-function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
+function resolvePlanOptions(opts: PlanSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   return {
     cwd,
@@ -80,14 +65,14 @@ function resolverOpcoesDePlano(opts: PlanSessionGCOptions) {
     keepLast: opts.keepLast ?? 10,
     maxAgeDays: opts.maxAgeDays ?? 30,
     listFn: opts.list ?? defaultList,
-    readdir: opts.readdir ?? realReaddir,
+    readdir: opts.readdir ?? readTranscriptDir,
     readPointer: opts.readPointer ?? realReadPointer,
   }
 }
 
 export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<SessionGCPlan> {
   const { cwd, baseDir, now, keepLast, maxAgeDays, listFn, readdir, readPointer } =
-    resolverOpcoesDePlano(opts)
+    resolvePlanOptions(opts)
 
   const onDisk = readdir(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
@@ -97,18 +82,18 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
 
   const pointer = readPointer(cwd)
   const mostRecent = onDisk[0]?.id
-  const protegidos = new Set<string>([
+  const protectedIds = new Set<string>([
     ...listed.filter((e) => e.archived !== true).map((e) => e.agentId),
     ...onDisk.slice(0, keepLast).map((x) => x.id),
   ])
-  if (pointer !== undefined) protegidos.add(pointer)
-  if (mostRecent !== undefined) protegidos.add(mostRecent)
+  if (pointer !== undefined) protectedIds.add(pointer)
+  if (mostRecent !== undefined) protectedIds.add(mostRecent)
 
   const candidates: SessionGCCandidate[] = []
   const kept: string[] = []
   for (const { id, mtimeMs } of onDisk) {
     const ageDays = (now() - mtimeMs) / 86_400_000
-    if (!protegidos.has(id) && ageDays > maxAgeDays) {
+    if (!protectedIds.has(id) && ageDays > maxAgeDays) {
       candidates.push({ id, ageDays, inRegistry: registryAll.has(id) })
     } else {
       kept.push(id)
@@ -139,16 +124,16 @@ export interface SessionGCResult {
   errors: string[]
 }
 
-function resolverApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
+function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   const cwd = opts.cwd ?? process.cwd()
   const baseDir = opts.baseDir ?? defaultBaseDir()
-  const maisRecenteAgora = (opts.readdir ?? realReaddir)(transcriptDir(cwd, baseDir)).sort(
+  const newestNow = (opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
-  const intocaveis = new Set(
+  const untouchable = new Set(
     [
       (opts.readPointer ?? realReadPointer)(cwd),
-      maisRecenteAgora,
+      newestNow,
       plan.pointer,
       plan.mostRecent,
     ].filter((id): id is string => id !== undefined),
@@ -156,7 +141,7 @@ function resolverApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
   return {
     del: opts.delete ?? ((id: string) => Agent.delete(id)),
     unlink: opts.unlink ?? ((id: string) => fsp.unlink(transcriptPath(baseDir, cwd, id))),
-    intocaveis,
+    untouchable,
   }
 }
 
@@ -170,10 +155,10 @@ export async function runSessionGC(
   if (dryRun) {
     return { dryRun: true, removed: plan.candidates.map((c) => c.id), errors: [] }
   }
-  const { del, unlink, intocaveis } = resolverApply(plan, opts)
+  const { del, unlink, untouchable } = resolveApply(plan, opts)
 
   for (const c of plan.candidates) {
-    if (intocaveis.has(c.id)) {
+    if (untouchable.has(c.id)) {
       errors.push(
         `${c.id}: refused — the live pointer / most-recent transcript must never be deleted`,
       )

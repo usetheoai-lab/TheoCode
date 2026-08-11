@@ -1,5 +1,4 @@
 import { existsSync, unlinkSync } from 'node:fs'
-import { createInterface } from 'node:readline'
 
 import { CODEX_PROVIDER, loginWithDevice } from '@theokit/agents/auth'
 import type { AuthMethod, DeviceAuthProvider } from '@theokit/agents/auth'
@@ -16,45 +15,6 @@ import { credentialStore } from './oauth-config.js'
 export interface LoginResult {
   provider: Provider
   path: string
-}
-
-export async function readSecret(
-  prompt: string,
-  io: { input: NodeJS.ReadableStream; output: NodeJS.WritableStream; isTTY: boolean },
-): Promise<string> {
-  if (!io.isTTY) {
-    const chunks: Buffer[] = []
-    let size = 0
-    try {
-      for await (const chunk of io.input) {
-        const buf = Buffer.from(chunk)
-        size += buf.length
-        if (size > 64 * 1024)
-          throw new CredentialError('the piped input is too large to be an API key')
-        chunks.push(buf)
-      }
-    } catch (err) {
-      if (err instanceof CredentialError) throw err
-      throw new CredentialError(`could not read the key from stdin: ${(err as Error).message}`)
-    }
-    return Buffer.concat(chunks).toString('utf8').trim()
-  }
-
-  const rl = createInterface({ input: io.input, output: io.output, terminal: true })
-  try {
-    io.output.write(prompt)
-    // Echo disabled: the key must not land in the terminal, and therefore not in scrollback or a
-    // screen recording. `_writeToOutput` is the documented seam for this in node:readline.
-    ;(rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {}
-    const answer = await new Promise<string>((resolve, reject) => {
-      rl.question('', resolve)
-      rl.once('close', () => reject(new CredentialError('no key was entered — input closed')))
-    })
-    io.output.write('\n')
-    return answer.trim()
-  } finally {
-    rl.close()
-  }
 }
 
 export function login(
@@ -111,21 +71,21 @@ export async function oauthDeviceLogin(
     overwrite?: boolean
   },
 ): Promise<OAuthLoginResult> {
-  const target = provedorDe(provider)
-  const metodo = target.methods.find((m) => m.type === 'oauth')
-  if (metodo === undefined) {
+  const target = providerFor(provider)
+  const method = target.methods.find((m) => m.type === 'oauth')
+  if (method === undefined) {
     throw new CredentialError(
       `provider "${provider}" does not offer an OAuth device login. Use an API key (login) instead.`,
     )
   }
-  const r = await loginComMetodo(target, metodo, home, hooks, deps)
+  const r = await loginWithMethod(target, method, home, hooks, deps)
   return { provider, path: r.path, accountId: r.accountId }
 }
 
-const PROVEDORES: Readonly<Record<string, DeviceAuthProvider>> = { openai: CODEX_PROVIDER }
+const PROVIDERS: Readonly<Record<string, DeviceAuthProvider>> = { openai: CODEX_PROVIDER }
 
-function provedorDe(name: string): DeviceAuthProvider {
-  const p = PROVEDORES[name]
+function providerFor(name: string): DeviceAuthProvider {
+  const p = PROVIDERS[name]
   if (p === undefined) {
     throw new CredentialError(
       `provider "${name}" does not offer an OAuth device login. Use an API key (login) instead.`,
@@ -134,17 +94,17 @@ function provedorDe(name: string): DeviceAuthProvider {
   return p
 }
 
-export function metodosDe(provider: DeviceAuthProvider | string): readonly AuthMethod[] {
-  return typeof provider === 'string' ? provedorDe(provider).methods : provider.methods
+export function methodsFor(provider: DeviceAuthProvider | string): readonly AuthMethod[] {
+  return typeof provider === 'string' ? providerFor(provider).methods : provider.methods
 }
 
-export function provedoresConhecidos(): readonly string[] {
-  return Object.keys(PROVEDORES)
+export function knownProviders(): readonly string[] {
+  return Object.keys(PROVIDERS)
 }
 
-export async function loginComMetodo(
+async function loginWithMethod(
   provider: DeviceAuthProvider,
-  metodo: AuthMethod,
+  method: AuthMethod,
   home: string,
   hooks: { onPrompt: (p: { userCode: string; verificationUri: string }) => void },
   deps?: {
@@ -157,7 +117,7 @@ export async function loginComMetodo(
 ): Promise<{ path: string; accountId?: string }> {
   const env = deps?.env ?? {}
   refuseIfExists(home, env, deps?.overwrite)
-  return loginWithDevice(provider, metodo, credentialStore(home), hooks, {
+  return loginWithDevice(provider, method, credentialStore(home), hooks, {
     deps: { fetch: deps?.fetch, sleep: deps?.sleep, now: deps?.now },
     env,
   })

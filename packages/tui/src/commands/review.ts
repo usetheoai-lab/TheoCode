@@ -9,24 +9,25 @@ import type { Shutdown } from '@theocode/shared/shutdown'
 import { createReviewAgent } from '@theocode/agent/review'
 import { runReview } from '@theocode/agent/review'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface ReviewCommandDeps {
   setReviewResult: (r: string | null) => void
   setToast: (t: ToastPayload | null) => void
 }
 
-function instalarSinal(encerramento: Shutdown): () => void {
-  const instalados: Array<[NodeJS.Signals, () => void]> = []
-  encerramento.installSignalHandler((sig, fn) => {
+function installSignal(shutdown: Shutdown): () => void {
+  const installed: Array<[NodeJS.Signals, () => void]> = []
+  shutdown.installSignalHandler((sig, fn) => {
     process.once(sig as NodeJS.Signals, fn)
-    instalados.push([sig as NodeJS.Signals, fn])
+    installed.push([sig as NodeJS.Signals, fn])
   })
   return () => {
-    for (const [sig, fn] of instalados) process.off(sig, fn)
+    for (const [sig, fn] of installed) process.off(sig, fn)
   }
 }
 
-function encerramentoDaReview(setToast: ReviewCommandDeps['setToast']) {
+function reviewShutdown(setToast: ReviewCommandDeps['setToast']) {
   return createShutdown({
     timeoutMs: WATCHDOG_MS,
     exit: (code) => {
@@ -47,8 +48,8 @@ async function hookChain(hooks: ReturnType<typeof resolveEffectiveConfig>['hooks
     await import('@theocode/agent/hooks')
   const { resolveTrustPosture } = await import('@theocode/agent/config')
   return buildHookHandlers(parseHooks(hooks), {
-    trusted: resolveTrustPosture(process.cwd()).allows.hooks,
-    approved: new Set([...loadApprovedHooks(process.cwd()).keys()]),
+    trusted: resolveTrustPosture(workingDirectory()).allows.hooks,
+    approved: new Set([...loadApprovedHooks(workingDirectory()).keys()]),
   })
 }
 
@@ -58,13 +59,13 @@ export async function runReviewCommand(
   deps: ReviewCommandDeps,
 ): Promise<void> {
   const { setToast, setReviewResult } = deps
-  const cfgDoReview = resolveEffectiveConfig({ cwd: process.cwd() })
+  const reviewCfg = resolveEffectiveConfig({ cwd: workingDirectory() })
   setToast({ message: `>> Code review started <<`, variant: 'info' })
-  const encerramento = encerramentoDaReview(setToast)
-  const desanexar = instalarSinal(encerramento)
+  const shutdown = reviewShutdown(setToast)
+  const detach = installSignal(shutdown)
   try {
     const { execFileSync } = await import('node:child_process')
-    const surfaceHooks = await hookChain(cfgDoReview.hooks)
+    const surfaceHooks = await hookChain(reviewCfg.hooks)
     const result = await runReview(arg, {
       git: (args) => {
         try {
@@ -77,13 +78,13 @@ export async function runReviewCommand(
         }
       },
       createAgent: createReviewAgent({
-        config: cfgDoReview,
-        cwd: process.cwd(),
+        config: reviewCfg,
+        cwd: workingDirectory(),
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
-        registrarCleanup: (fn) => {
-          encerramento.registerCleanup(fn)
+        registerCleanup: (fn) => {
+          shutdown.registerCleanup(fn)
         },
       }),
     })
@@ -109,6 +110,6 @@ export async function runReviewCommand(
       variant: 'error',
     })
   } finally {
-    desanexar()
+    detach()
   }
 }

@@ -28,6 +28,10 @@ export function createShutdown(deps: ShutdownDeps): Shutdown {
       return
     }
     isShuttingDown = true
+    // B-045 — the exit code is the only thing a caller has. It used to be 1 on every path, so a
+    // clean Ctrl-C, a cleanup that threw and a watchdog timeout were indistinguishable to a shell,
+    // to CI, and to anything wrapping the process.
+    let cleanupFailed = false
     const timer = deps.setTimer(() => {
       deps.exit(1)
     }, deps.timeoutMs)
@@ -36,13 +40,14 @@ export function createShutdown(deps: ShutdownDeps): Shutdown {
         try {
           await fn()
         } catch (err) {
+          cleanupFailed = true
           deps.onError(err)
         }
       }
     } finally {
       deps.clearTimer(timer)
     }
-    deps.exit(1)
+    deps.exit(cleanupFailed ? 1 : 0)
   }
 
   const installSignalHandler = (on: (sig: string, fn: () => void) => void): void => {
@@ -53,5 +58,10 @@ export function createShutdown(deps: ShutdownDeps): Shutdown {
     }
   }
 
+  // B-045 — `runShutdown` is on the public surface with no production caller: only
+  // `installSignalHandler` invokes it, in response to SIGINT/SIGTERM. It stays exported because
+  // `shutdown.test.ts` is its consumer, and the alternative is testing shutdown by sending a real
+  // signal to the test process. Unlike the citation this codebase had in `coalesced-memo.ts`, that
+  // test exists — see it before trusting this sentence.
   return { registerCleanup, runShutdown, installSignalHandler }
 }

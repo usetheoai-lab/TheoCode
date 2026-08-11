@@ -1,4 +1,6 @@
 import { Box, Text, useInput } from 'ink'
+
+import { appendKeystroke, submittableSecret } from './secret-buffer.js'
 import { type ReactElement, useState } from 'react'
 
 export interface SecretInputProps {
@@ -8,7 +10,7 @@ export interface SecretInputProps {
   readonly isActive?: boolean
 }
 
-function naoEDigitacao(key: {
+function isNotTyping(key: {
   ctrl: boolean
   meta: boolean
   tab: boolean
@@ -33,16 +35,17 @@ export function SecretInput({
         return
       }
       if (key.return) {
-        if (buffer.length === 0) onCancel()
-        else onSubmit(buffer)
+        const secret = submittableSecret(buffer)
+        if (secret === undefined) onCancel()
+        else onSubmit(secret)
         return
       }
       if (key.delete || key.backspace) {
         setBuffer((b) => b.slice(0, -1))
         return
       }
-      if (naoEDigitacao(key)) return
-      if (input.length > 0) setBuffer((b) => b + input)
+      if (isNotTyping(key)) return
+      if (input.length > 0) setBuffer((b) => appendKeystroke(b, input))
     },
     { isActive },
   )
@@ -54,7 +57,7 @@ export function SecretInput({
         {'> '}
         {'•'.repeat(buffer.length)}
       </Text>
-      <Text dimColor>enter confirma · esc cancela · a key não é ecoada</Text>
+      <Text dimColor>enter confirms · esc cancels · the key is not echoed</Text>
     </Box>
   )
 }

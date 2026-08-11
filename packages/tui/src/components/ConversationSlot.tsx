@@ -1,7 +1,7 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react'
 import { homedir } from 'node:os'
 
-import { ChatComposer, FreeTextInput } from '@theokit/tui'
+import { type ChatComposerCommand, ChatComposer, FreeTextInput } from '@theokit/tui'
 
 import { abandonQuestion, answerQuestion } from '@theocode/agent/ask'
 import { login } from '@theocode/agent/auth'
@@ -22,13 +22,13 @@ function CredentialField({
 }): ReactElement {
   return (
     <SecretInput
-      label={`API key for ${provider} — nada é ecoado`}
+      label={`API key for ${provider} — nothing is echoed`}
       onSubmit={(key) => {
         setLoginProvider(undefined)
         try {
           const r = login(key, homedir(), { provider: provider as never })
           setToast({
-            message: `Chave salva para ${r.provider} em ${r.path}`,
+            message: `Key saved for ${r.provider} at ${r.path}`,
             variant: 'success',
           })
         } catch (e) {
@@ -37,7 +37,7 @@ function CredentialField({
       }}
       onCancel={() => {
         setLoginProvider(undefined)
-        setToast({ message: 'Login cancelado — nenhuma key foi salva', variant: 'info' })
+        setToast({ message: 'Login cancelled — no key was saved', variant: 'info' })
       }}
     />
   )
@@ -66,7 +66,27 @@ function AgentQuestion({
   )
 }
 
+/**
+ * B-011 — every command the composer can route, builtins and user-defined alike.
+ *
+ * Custom commands were routable and listed in the `?` panel, but were never handed to the composer,
+ * so the `/` menu did not offer them: discoverable only by reading the help. The SDK filters this
+ * list by prefix — it simply was never given them.
+ */
+function composerCommands(
+  custom: ReadonlyMap<string, { name: string; description?: string }>,
+): readonly ChatComposerCommand[] {
+  return [
+    ...BUILTIN_COMMANDS,
+    ...[...custom.values()].map((c) => ({
+      name: c.name,
+      description: c.description ?? 'custom command',
+    })),
+  ]
+}
+
 export interface ConversationSlotProps {
+  readonly customCommands: ReadonlyMap<string, { name: string; description?: string }>
   readonly loginProvider: string | undefined
   readonly pendingQuestion: string | undefined
   readonly mode: Mode
@@ -74,7 +94,7 @@ export interface ConversationSlotProps {
   readonly exitArmed: boolean
   readonly clearEpoch: number
   readonly lastUsage: { totalTokens?: number } | undefined
-  readonly backtrack: { sementeDoComposer: string }
+  readonly backtrack: { composerSeed: string }
   readonly currentSessionId: () => string
   readonly handleSubmit: (text: string) => void
   readonly backToChat: () => void
@@ -86,6 +106,7 @@ export interface ConversationSlotProps {
 }
 
 export function ConversationSlot({
+  customCommands,
   loginProvider,
   pendingQuestion,
   mode,
@@ -128,12 +149,12 @@ export function ConversationSlot({
       ) : (
         <ChatComposer
           key={clearEpoch}
-          initialValue={backtrack.sementeDoComposer}
+          initialValue={backtrack.composerSeed}
           onChange={setComposerText}
           placeholder={PLACEHOLDER}
           bordered
           hint={exitArmed ? 'Press Ctrl+C again to quit' : undefined}
-          commands={BUILTIN_COMMANDS}
+          commands={composerCommands(customCommands)}
           onHelpToggle={() => setShowHelp((h) => !h)}
           onSubmit={handleSubmit}
         />

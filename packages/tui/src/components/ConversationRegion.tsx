@@ -2,10 +2,12 @@ import type { ReactElement } from 'react'
 
 import { Box, Text } from 'ink'
 
-import { AgentStreaming, AgentTimeline, Notice, Toast } from '@theokit/tui'
+import { AgentStreaming, AgentTimeline, DiffViewer, Notice, Toast } from '@theokit/tui'
 import { UsagePanel } from './UsagePanel.js'
 import { BacktrackOverlay } from '../backtrack/index.js'
-import { KeyboardHelp, DEFAULT_COMPOSER_SHORTCUTS } from '@theokit/tui'
+import { KeyboardHelp } from '@theokit/tui'
+
+import { composerShortcuts } from './composer-shortcuts.js'
 
 import { formatTurnError } from '../formatting/index.js'
 import { THINKING_PHRASES } from '../theme.js'
@@ -40,16 +42,16 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
   return (
     <>
       {props.reviewResult !== null ? <Notice>{props.reviewResult}</Notice> : null}
-      {/* #63 — o feed do goal é renderizado LINHA A LINHA, com key própria por line.
-        Uma string multi-line como filho único faz o React reconciliar o bloco inteiro por
-        índice, e o log da arena mostrava um flood de `Encountered two children with the same
-        key, '0'` durante o run. Quando a reconciliação corrompe, os `props.setGoalFeed` seguintes
-        são engolidos: o loop completa (`[goal] status=completed turns=3`) com a UI MUDA, que é
-        o pior desfecho para um feed de progresso — o usuário não sabe se o loop está vivo.
+      {/* #63 — the goal feed is rendered LINE BY LINE, each with its own key.
+        A multi-line string as the single child makes React reconcile the whole block by index,
+        and the arena log showed a flood of `Encountered two children with the same key, '0'`
+        during the run. Once reconciliation corrupts, the following `props.setGoalFeed` calls are
+        swallowed: the loop completes (`[goal] status=completed turns=3`) with the UI MUTE, which
+        is the worst outcome for a progress feed — the user cannot tell whether the loop is alive.
 
-        A key é `índice + conteúdo`, não só o índice: o feed é append-only, então o índice
-        sozinho já seria estável, mas duas lines idênticas em posições diferentes (dois
-        `● status` iguais) colidiriam num diff por conteúdo. */}
+        The key is `index + content`, not the index alone: the feed is append-only, so the index
+        by itself would already be stable, but two identical lines in different positions (two
+        equal `● status` lines) would collide under a content-based diff. */}
       {props.goalFeed !== null ? (
         <Notice>
           {props.goalFeed.split('\n').map((line, i) => (
@@ -60,8 +62,8 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
           ))}
         </Notice>
       ) : null}
-      {/* M65 — durante o props.backtrack (Esc-ladder), destaca o turno selecionado numa superfície NOVA do
-        live region (não a timeline <Static>, que congela células antigas). Reativo ao rewindNth. */}
+      {/* M65 — during props.backtrack (the Esc ladder), highlight the selected turn on a NEW surface of
+        the live region (not the <Static> timeline, which freezes old cells). Reactive to rewindNth. */}
       {props.backtrack.armed ? (
         <BacktrackOverlay
           previews={[...props.backtrack.previews]}
@@ -72,7 +74,9 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
       {props.showHelp ? (
         <KeyboardHelp
           shortcuts={[
-            ...DEFAULT_COMPOSER_SHORTCUTS,
+            // B-028 — `shell: false` because `ChatComposer` below is not given `onShellCommand`.
+            // See `composer-shortcuts.ts` for why wiring it is a separate, security-relevant call.
+            ...composerShortcuts({ shell: false }),
             ...[...props.customCommands.values()].map((c) => ({
               keys: `/${c.name}${c.hints.length > 0 ? ` ${c.hints.join(' ')}` : ''}`,
               description: c.description ?? 'custom command',
@@ -81,6 +85,25 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
         />
       ) : null}
     </>
+  )
+}
+
+/**
+ * B-011 — the `/diff` and `/status` panel.
+ *
+ * `DiffViewer` takes unified-diff text, which is exactly what `git diff` emits and what its own
+ * docstring names as the shape agent tools produce. The panel used to print that text as one plain
+ * blob: no gutter, no colour, no folding, and cut off by the terminal because nothing scrolled.
+ */
+function ContentPanelView({ panel }: { panel: ContentPanel }): ReactElement {
+  return (
+    <Box borderStyle="round" flexDirection="column" paddingX={1}>
+      <Text bold>{panel.title} (Esc to close)</Text>
+      {panel.body.length > 0 ? <Text>{panel.body}</Text> : null}
+      {panel.patch !== undefined ? (
+        <DiffViewer patch={panel.patch} maxLines={400} contextLines={3} />
+      ) : null}
+    </Box>
   )
 }
 
@@ -106,17 +129,12 @@ export function ConversationRegion(props: ConversationRegionProps): ReactElement
       {props.credentialError() !== undefined ? (
         <Notice variant="error">{props.credentialError()}</Notice>
       ) : null}
-      {/* M85 — bifurca: transitório aponta /retry, fatal não (retentar não ajudaria). */}
+      {/* M85 — branches: a transient error points at /retry, a fatal one does not (retrying would not help). */}
       {props.agentError ? (
         <Notice variant="error">{formatTurnError(props.agentError)}</Notice>
       ) : null}
       {/* `/usage` — the observability panel, from the last turn's real usage. */}
-      {props.panel !== undefined ? (
-        <Box borderStyle="round" flexDirection="column" paddingX={1}>
-          <Text bold>{props.panel.titulo} (Esc fecha)</Text>
-          <Text>{props.panel.corpo}</Text>
-        </Box>
-      ) : null}
+      {props.panel !== undefined ? <ContentPanelView panel={props.panel} /> : null}
       {props.showUsage && props.lastUsage ? (
         <UsagePanel usage={props.lastUsage} contextWindow={props.contextWindow} />
       ) : null}

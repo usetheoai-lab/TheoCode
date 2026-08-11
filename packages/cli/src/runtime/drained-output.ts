@@ -1,14 +1,14 @@
 export interface DrainedOutputDeps {
   exit: (code: number) => void
-  registrarCodigo: (code: number) => void
+  recordExitCode: (code: number) => void
   setTimer: (fn: () => void, ms: number) => unknown
   unref: (timer: unknown) => void
   capMs: number
 }
 
-export function createDrainedOutput(deps: DrainedOutputDeps): (code: number) => void {
+function createDrainedOutput(deps: DrainedOutputDeps): (code: number) => void {
   return (code: number) => {
-    deps.registrarCodigo(code)
+    deps.recordExitCode(code)
     const timer = deps.setTimer(() => {
       deps.exit(code)
     }, deps.capMs)
@@ -21,7 +21,7 @@ export function createDrainedProcessOutput(capMs: number): (code: number) => voi
     exit: (c) => {
       process.exit(c)
     },
-    registrarCodigo: (c) => {
+    recordExitCode: (c) => {
       process.exitCode = c
     },
     setTimer: (fn, ms) => setTimeout(fn, ms),

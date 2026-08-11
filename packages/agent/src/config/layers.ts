@@ -1,6 +1,6 @@
 import { TheokitAgentError } from '@theokit/agents'
 
-export class LayerError extends TheokitAgentError {
+class LayerError extends TheokitAgentError {
   override readonly name = 'LayerError'
 }
 
@@ -8,26 +8,26 @@ export type Layer = 'defaults' | 'user' | 'project' | 'profile' | 'env' | 'cli'
 
 export interface DeclaredLayer {
   readonly layer: Layer
-  readonly precedencia: number
+  readonly precedence: number
 }
 
 export const LAYERS: readonly DeclaredLayer[] = Object.freeze([
-  Object.freeze({ layer: 'defaults' as const, precedencia: 10 }),
-  Object.freeze({ layer: 'user' as const, precedencia: 20 }),
-  Object.freeze({ layer: 'project' as const, precedencia: 30 }),
-  Object.freeze({ layer: 'profile' as const, precedencia: 40 }),
-  Object.freeze({ layer: 'env' as const, precedencia: 50 }),
-  Object.freeze({ layer: 'cli' as const, precedencia: 60 }),
+  Object.freeze({ layer: 'defaults' as const, precedence: 10 }),
+  Object.freeze({ layer: 'user' as const, precedence: 20 }),
+  Object.freeze({ layer: 'project' as const, precedence: 30 }),
+  Object.freeze({ layer: 'profile' as const, precedence: 40 }),
+  Object.freeze({ layer: 'env' as const, precedence: 50 }),
+  Object.freeze({ layer: 'cli' as const, precedence: 60 }),
 ])
 
-export function verifyOrdering(layers: readonly DeclaredLayer[]): void {
+function verifyOrdering(layers: readonly DeclaredLayer[]): void {
   for (let i = 1; i < layers.length; i += 1) {
-    const anterior = layers[i - 1]!
-    const atual = layers[i]!
-    if (atual.precedencia <= anterior.precedencia) {
+    const previous = layers[i - 1]!
+    const current = layers[i]!
+    if (current.precedence <= previous.precedence) {
       throw new LayerError(
-        `camadas fora de ordem: \`${atual.layer}\` (precedência ${atual.precedencia}) vem depois de ` +
-          `\`${anterior.layer}\` (precedência ${anterior.precedencia}), mas não a supera`,
+        `layers out of order: \`${current.layer}\` (precedence ${current.precedence}) comes after ` +
+          `\`${previous.layer}\` (precedence ${previous.precedence}) but does not outrank it`,
       )
     }
   }
@@ -36,12 +36,12 @@ export function verifyOrdering(layers: readonly DeclaredLayer[]): void {
 verifyOrdering(LAYERS)
 
 const PRECEDENCE_PER_LAYER: ReadonlyMap<string, number> = new Map(
-  LAYERS.map((c) => [c.layer, c.precedencia]),
+  LAYERS.map((c) => [c.layer, c.precedence]),
 )
 
-export function precedenciaDe(layer: Layer): number {
+function precedenceOf(layer: Layer): number {
   const p = PRECEDENCE_PER_LAYER.get(layer)
-  if (p === undefined) throw new LayerError(`camada desconhecida: \`${layer}\``)
+  if (p === undefined) throw new LayerError(`unknown layer: \`${layer}\``)
   return p
 }
 
@@ -52,39 +52,39 @@ export interface LayerWithValues {
 
 export function foldLayers(
   entries: readonly LayerWithValues[],
-  acumulam: readonly string[] = [],
+  accumulatingKeys: readonly string[] = [],
 ): Record<string, unknown> {
-  verifyOrdering(entries.map((e) => ({ layer: e.layer, precedencia: precedenciaDe(e.layer) })))
+  verifyOrdering(entries.map((e) => ({ layer: e.layer, precedence: precedenceOf(e.layer) })))
 
-  const acumulado = new Map<string, unknown[]>(acumulam.map((k) => [k, []]))
-  const combinado: Record<string, unknown> = {}
+  const accumulated = new Map<string, unknown[]>(accumulatingKeys.map((k) => [k, []]))
+  const combined: Record<string, unknown> = {}
   for (const { values } of entries) {
     for (const [key, value] of Object.entries(values)) {
       if (value === undefined) continue
-      const pilha = acumulado.get(key)
-      if (pilha !== undefined && Array.isArray(value)) {
-        pilha.push(...(value as unknown[]))
-        combinado[key] = pilha
+      const stack = accumulated.get(key)
+      if (stack !== undefined && Array.isArray(value)) {
+        stack.push(...(value as unknown[]))
+        combined[key] = stack
         continue
       }
-      combinado[key] = value
+      combined[key] = value
     }
   }
-  return combinado
+  return combined
 }
 
-export function measuredPrecedenceChain(vencedoresDescendentes: readonly string[]): {
+export function measuredPrecedenceChain(descendingWinners: readonly string[]): {
   line: string
-  divergencia: string | null
+  divergence: string | null
 } {
   const declaredDescendant = [...LAYERS].reverse().map((c) => c.layer)
-  const medida = vencedoresDescendentes.join(' > ')
+  const measured = descendingWinners.join(' > ')
   const declared = declaredDescendant.join(' > ')
-  if (medida !== declared) {
-    const divergencia =
-      `a ordem medida (${medida || '(vazia)'}) não corresponde à ordem declarada em ` +
+  if (measured !== declared) {
+    const divergence =
+      `the measured order (${measured || '(empty)'}) does not match the order declared in ` +
       `\`agents/config/layers.ts\` (${declared})`
-    return { line: `**DIVERGÊNCIA** — ${divergencia}`, divergencia }
+    return { line: `**DIVERGENCE** — ${divergence}`, divergence }
   }
-  return { line: [...declaredDescendant].reverse().join(' < '), divergencia: null }
+  return { line: [...declaredDescendant].reverse().join(' < '), divergence: null }
 }

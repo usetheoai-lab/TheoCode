@@ -12,7 +12,7 @@ import {
 
 interface AgentWithApproval {
   thread: Parameters<typeof ingest>[1]
-  approve: (approvalId: string, decisao: { approved: boolean }) => unknown
+  approve: (approvalId: string, decision: { approved: boolean }) => unknown
 }
 
 export interface Approvals {
@@ -20,7 +20,11 @@ export interface Approvals {
   readonly settleApproval: (approvalId: string, approved: boolean) => void
 }
 
-export function useApprovals(agent: AgentWithApproval, approvalMode: ApprovalMode): Approvals {
+export function useApprovals(
+  agent: AgentWithApproval,
+  approvalMode: ApprovalMode,
+  sandboxPosture?: { enforced: boolean; detail: string },
+): Approvals {
   const registry = useRef<ApprovalLedger>(createApprovalLedger())
   const [epoch, setEpoch] = useState(0)
 
@@ -30,21 +34,23 @@ export function useApprovals(agent: AgentWithApproval, approvalMode: ApprovalMod
     return findNextApproval(registry.current)
   }, [agent.thread, epoch])
 
-  const aprovar = agent.approve
+  const approve = agent.approve
   const settleApproval = useCallback(
     (approvalId: string, approved: boolean): void => {
       settle(registry.current, approvalId)
       setEpoch((n) => n + 1)
-      void aprovar(approvalId, { approved })
+      void approve(approvalId, { approved })
     },
-    [aprovar],
+    [approve],
   )
 
   useEffect(() => {
-    if (pendingApproval && shouldAutoApprove(approvalMode, pendingApproval.toolName)) {
+    // B-006 — auto-approval now depends on there actually being a sandbox. Without this the surface
+    // approved every command under `full-auto` while rendering `⚠ tool-gating` on the same screen.
+    if (pendingApproval && shouldAutoApprove(approvalMode, pendingApproval.toolName, sandboxPosture)) {
       settleApproval(pendingApproval.approvalId, true)
     }
-  }, [pendingApproval, approvalMode, settleApproval])
+  }, [pendingApproval, approvalMode, settleApproval, sandboxPosture])
 
   return { pendingApproval, settleApproval }
 }

@@ -5,6 +5,7 @@ import { useAgent } from '@theokit/agents/client/react'
 import type { ResolvedCredential } from '@theocode/agent/auth'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface GoalRunState {
   objective: string
@@ -32,11 +33,11 @@ function openingWarnings(
 ): string[] {
   const lines = [`▶ goal: ${objective}`]
   if (cfg.sandbox_mode === 'danger-full-access') {
-    lines.push('⚠ danger-full-access: turnos autônomos SEM confinamento de kernel')
+    lines.push('⚠ danger-full-access: autonomous turns with NO kernel confinement')
   }
   if (cfg.goal_oracle === 'update_goal') {
     lines.push(
-      '⚠ goal_oracle=update_goal só vale no `exec goal`; o TUI usa o judge (veja CHANGELOG M64)',
+      '⚠ goal_oracle=update_goal applies to `exec goal` only; the TUI uses the judge',
     )
   }
   return lines
@@ -64,7 +65,7 @@ type RaceOutcome = {
   tokensUsed: number
 } | null
 
-async function conduzirGoal(
+async function driveGoal(
   objective: string,
   carried: { turns: number; tokens: number; startedAt: number },
   controller: AbortController,
@@ -73,7 +74,7 @@ async function conduzirGoal(
   const { agentRef, setGoalFeed, setToast, credential } = deps
   const { GOAL_DEFAULTS, routeGoalModel, runGoal } = await import('@theocode/agent/goal')
   const { createStoreGoalAgent } = await import('./goal-store-agent.js')
-  const cfg = resolveEffectiveConfig({ cwd: process.cwd() })
+  const cfg = resolveEffectiveConfig({ cwd: workingDirectory() })
   const cred = credential()
   if ('error' in cred) throw cred.error
   const storeAgent = createStoreGoalAgent({
@@ -85,7 +86,7 @@ async function conduzirGoal(
   const remainingBudget = Math.max(0, GOAL_DEFAULTS.tokenBudget - carried.tokens)
   const remainingTurns = Math.max(0, GOAL_DEFAULTS.maxTurns - carried.turns)
   if (remainingBudget === 0 || remainingTurns === 0) {
-    setToast({ message: 'Budget do goal esgotado — /goal clear e defina um novo', variant: 'info' })
+    setToast({ message: 'Goal budget exhausted — /goal clear, then set a new one', variant: 'info' })
     return { status: 'budget_limited', turnsUsed: 0, tokensUsed: 0 }
   }
   const result = await runGoal(
@@ -111,7 +112,7 @@ async function conduzirGoal(
     `[goal] status=${result.status} turns=${String(cumTurns)} tokens=${String(cumTokens)}\n`,
   )
   setToast({
-    message: `<< goal ${result.status}: ${String(cumTurns)} turno(s), ${String(cumTokens)} tokens >>`,
+    message: `<< goal ${result.status}: ${String(cumTurns)} turn(s), ${String(cumTokens)} tokens >>`,
     variant: result.status === 'completed' ? 'success' : 'info',
   })
   return result
@@ -124,7 +125,7 @@ export function runGoalLoop(
 ): void {
   const { agentRef, goalAbort, setGoalRun, setToast } = deps
   if (agentRef.current.status === 'streaming') {
-    setToast({ message: 'Aguarde o turno atual terminar antes de iniciar o goal', variant: 'info' })
+    setToast({ message: 'Wait for the current turn to finish before starting the goal', variant: 'info' })
     return
   }
   const controller = new AbortController()
@@ -141,7 +142,7 @@ export function runGoalLoop(
   void (async () => {
     let final: RaceOutcome = null
     try {
-      final = await conduzirGoal(objective, carried, controller, deps)
+      final = await driveGoal(objective, carried, controller, deps)
     } catch (err) {
       setToast({
         message: `/goal failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -168,12 +169,12 @@ export interface GoalVerbDeps {
   ) => void
 }
 
-interface ContextoDeVerbo {
+interface VerbContext {
   readonly state: { goalRun: GoalRunState | null; goalActive: boolean }
   readonly deps: GoalVerbDeps
 }
 
-function verboStatus({ state, deps }: ContextoDeVerbo): void {
+function verbStatus({ state, deps }: VerbContext): void {
   const { goalRun } = state
   if (goalRun === null) {
     deps.setToast({
@@ -183,7 +184,7 @@ function verboStatus({ state, deps }: ContextoDeVerbo): void {
     return
   }
   const dur = Math.round(((goalRun.endedAt ?? Date.now()) - goalRun.startedAt) / 1000)
-  const turns = goalRun.turns !== undefined ? `, ${String(goalRun.turns)} turno(s)` : ''
+  const turns = goalRun.turns !== undefined ? `, ${String(goalRun.turns)} turn(s)` : ''
   const tokens = goalRun.tokens !== undefined ? `, ${String(goalRun.tokens)} tokens` : ''
   deps.setToast({
     message: `goal ${goalRun.status} (${String(dur)}s${turns}${tokens}): ${goalRun.objective.slice(0, 80)}`,
@@ -191,44 +192,44 @@ function verboStatus({ state, deps }: ContextoDeVerbo): void {
   })
 }
 
-function verboPause({ state, deps }: ContextoDeVerbo): void {
+function verbPause({ state, deps }: VerbContext): void {
   if (!state.goalActive) {
-    deps.setToast({ message: 'Nenhum goal ativo para pausar', variant: 'info' })
+    deps.setToast({ message: 'No active goal to pause', variant: 'info' })
     return
   }
   deps.goalAbort.current?.abort()
   deps.agent.abort() 
-  deps.setToast({ message: 'Goal pausando… (retome com /goal resume)', variant: 'info' })
+  deps.setToast({ message: 'Goal pausing… (resume with /goal resume)', variant: 'info' })
 }
 
-function verboClear({ state, deps }: ContextoDeVerbo): void {
+function verbClear({ state, deps }: VerbContext): void {
   if (state.goalActive) {
     deps.goalAbort.current?.abort()
     deps.agent.abort()
   }
   deps.setGoalRun(null)
   deps.setGoalFeed(null)
-  deps.setToast({ message: 'Goal limpo', variant: 'info' })
+  deps.setToast({ message: 'Goal cleared', variant: 'info' })
 }
 
-function verboEdit({ state, deps }: ContextoDeVerbo): void {
+function verbEdit({ state, deps }: VerbContext): void {
   const { goalRun, goalActive } = state
   if (goalRun === null) {
-    deps.setToast({ message: 'Nenhum goal para editar', variant: 'info' })
+    deps.setToast({ message: 'No goal to edit', variant: 'info' })
     return
   }
   if (goalActive) {
-    deps.setToast({ message: 'Pause o goal antes de editar (/goal pause)', variant: 'info' })
+    deps.setToast({ message: 'Pause the goal before editing (/goal pause)', variant: 'info' })
     return
   }
   deps.setComposerSeed(`/goal ${goalRun.objective}`)
   deps.setClearEpoch((e) => e + 1)
 }
 
-function verboResume({ state, deps }: ContextoDeVerbo): void {
+function verbResume({ state, deps }: VerbContext): void {
   const { goalRun, goalActive } = state
   if (goalRun === null) {
-    deps.setToast({ message: 'Nenhum goal para retomar', variant: 'info' })
+    deps.setToast({ message: 'No goal to resume', variant: 'info' })
     return
   }
   if (goalActive) {
@@ -242,12 +243,12 @@ function verboResume({ state, deps }: ContextoDeVerbo): void {
   })
 }
 
-const VERBOS_DE_GOAL: ReadonlyMap<string, (ctx: ContextoDeVerbo) => void> = new Map([
-  ['', verboStatus],
-  ['pause', verboPause],
-  ['clear', verboClear],
-  ['edit', verboEdit],
-  ['resume', verboResume],
+const GOAL_VERBS: ReadonlyMap<string, (ctx: VerbContext) => void> = new Map([
+  ['', verbStatus],
+  ['pause', verbPause],
+  ['clear', verbClear],
+  ['edit', verbEdit],
+  ['resume', verbResume],
 ])
 
 export function handleGoalVerb(
@@ -256,9 +257,9 @@ export function handleGoalVerb(
   deps: GoalVerbDeps,
 ): void {
   const arg = arg0.trim()
-  const verbo = VERBOS_DE_GOAL.get(arg)
-  if (verbo !== undefined) {
-    verbo({ state, deps })
+  const verb = GOAL_VERBS.get(arg)
+  if (verb !== undefined) {
+    verb({ state, deps })
     return
   }
   if (state.goalActive) {

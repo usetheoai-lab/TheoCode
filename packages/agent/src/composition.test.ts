@@ -1,0 +1,393 @@
+/**
+ * B-061 — what an agent is composed of is asserted, not assumed.
+ *
+ * This repository builds three agents through three routines that do not call one another
+ * (B-059): `buildChatAgent` (`chat.ts:42`), `createReviewAgent` (`review/create-agent.ts:54`)
+ * and `buildRoleAgent` (`delegation/roles.ts:138`). Between them they decide which tools exist,
+ * which of those are approval-gated, which disk entities the trust posture admits, and what the
+ * sandbox confines.
+ *
+ * Before this file, nothing in the suite read any of it. A change that dropped an approval or
+ * widened a tool scope turned nothing red — 268 tests passed either way — which made the green
+ * suite evidence about everything in this package EXCEPT the decisions with the largest blast
+ * radius in it.
+ *
+ * The assertions are on the COMPILED definition, not on the call chain that produced it, so they
+ * survive B-059 rewriting how the composition is expressed. `.build()` is a pure compile boundary
+ * (no API key, no network); the framework's `./testing` stream seam is for driving a RUN and is
+ * deliberately not used here — there is no run to drive.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Every import of a module under test is DYNAMIC and inside the test body. `vi.mock` is hoisted
+// above the import section, so a static import here evaluates `./config/index.js` — and therefore
+// the mock factory — before the `vi.fn()` consts below exist. That is a ReferenceError at collect
+// time, not a test failure, so it takes the whole file down. `chat-cwd.test.ts` avoids it the same
+// way.
+
+const TRUSTED = {
+  level: 'trusted',
+  source: 'store',
+  allows: {
+    projectConfig: true,
+    agentsMd: true,
+    hooks: true,
+    memory: true,
+    mcp: true,
+    skills: true,
+    subagents: true,
+    customCommands: true,
+  },
+}
+
+const UNTRUSTED = {
+  level: 'untrusted',
+  source: 'store',
+  allows: {
+    projectConfig: false,
+    agentsMd: false,
+    hooks: false,
+    memory: false,
+    mcp: false,
+    skills: false,
+    subagents: false,
+    customCommands: false,
+  },
+}
+
+function config(sandbox_mode: string) {
+  return {
+    sandbox_mode,
+    approval_policy: 'on-request',
+    model: 'gpt-5.4',
+    reasoning_effort: 'medium',
+    hooks: [],
+    skills: ['code-review'],
+    declaredWindow: undefined,
+    contextWindow: { window: 1000 },
+    sandboxPosture: { enforced: true, detail: 'test', mode: sandbox_mode },
+  }
+}
+
+const resolveTrustPosture = vi.fn(() => TRUSTED)
+const resolveEffectiveConfig = vi.fn(() => config('workspace-write'))
+
+vi.mock('./config/index.js', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  resolveTrustPosture,
+  resolveEffectiveConfig,
+}))
+
+/**
+ * `loadMcpJson` must return something NON-EMPTY or the MCP assertion below is vacuous.
+ *
+ * Measured: with the real loader pointed at a directory that has no `.mcp.json`, the trust gate
+ * and no trust gate produce the identical empty map — a mutation removing the gate entirely
+ * survived the first version of this file. The gate has to be the reason the map is empty, not
+ * the filesystem.
+ */
+const loadMcpJson = vi.fn(() => ({ 'some-server': { command: 'node', args: ['evil.js'] } }))
+
+/**
+ * The disk boundary path 3 reads. Mocked so the role's declared tool set is the test's input.
+ *
+ * It HONOURS `settingSources`, because that is the mechanism under test: production passes `[]`
+ * for an untrusted directory and the real loader then finds nothing. A mock that returned the
+ * roles regardless would make the untrusted assertion below pass for the wrong reason — it would
+ * be asserting that some later validation happened to throw, not that the gate closed.
+ */
+const discoverSubagents = vi.fn((_cwd: string, opts: { settingSources: string[] }) =>
+  Promise.resolve(
+    opts.settingSources.includes('project')
+      ? {
+          explorer: { tools: ['read_file', 'grep', 'list_dir'] },
+          worker: { tools: ['read_file', 'apply_patch', 'run_shell'] },
+        }
+      : {},
+  ),
+)
+
+vi.mock('@theokit/agents', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  loadMcpJson,
+  discoverSubagents,
+}))
+
+/** The compiled shape `AgentBuilder.build()` returns — only the members this file asserts on. */
+interface CompiledAgent {
+  tools: { name: string }[]
+  approvals: Record<string, { question: string }>
+  mcpServers: Record<string, unknown>
+  skills: string[]
+  settingSources: string[]
+  memory: { enabled: boolean }
+  model: string
+}
+
+async function compile(overrides: Record<string, unknown>): Promise<CompiledAgent> {
+  const { buildChatAgent } = await import('./chat.js')
+  return buildChatAgent(overrides as never) as unknown as CompiledAgent
+}
+
+const namesOf = (a: CompiledAgent): string[] => a.tools.map((t) => t.name)
+
+describe('path 1 — buildChatAgent composes the coding agent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue(config('workspace-write'))
+  })
+
+  it('test_every_approval_key_names_a_tool_the_agent_actually_has', async () => {
+    // The framework fail-fasts when the approval map references an unregistered tool
+    // (`chat.ts:274`), so a drift here is a crash at agent construction rather than a silent
+    // ungated tool — but the crash happens in the user's terminal, not in CI.
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const tools = new Set(namesOf(agent))
+
+    for (const gated of Object.keys(agent.approvals)) {
+      expect(
+        tools.has(gated),
+        `"${gated}" is approval-gated but is not among the agent's tools — the framework refuses ` +
+          'this map at construction, so the agent would fail to start',
+      ).toBe(true)
+    }
+  })
+
+  it('test_read_only_removes_the_write_tools_rather_than_denying_them_later', async () => {
+    // Codex parity, stated at `chat.ts:434-436`: read-only removes the CAPABILITY. A build that
+    // kept the tool and relied on the approval card to stop it would be one veto away from a write.
+    resolveEffectiveConfig.mockReturnValue(config('read-only'))
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const names = namesOf(agent)
+
+    for (const write of ['apply_patch', 'edit_file', 'delegate_to_team']) {
+      expect(names, `read-only still granted "${write}"`).not.toContain(write)
+      expect(
+        Object.keys(agent.approvals),
+        `read-only left an approval entry for "${write}", which the framework rejects because the ` +
+          'tool is not registered',
+      ).not.toContain(write)
+    }
+  })
+
+  it('test_workspace_write_grants_the_write_tools_and_gates_every_one_of_them', async () => {
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const names = namesOf(agent)
+
+    for (const write of ['apply_patch', 'edit_file', 'delegate_to_team']) {
+      expect(names, `workspace-write did not grant "${write}"`).toContain(write)
+      expect(
+        Object.keys(agent.approvals),
+        `"${write}" mutates the user's disk (or delegates the authority to) and reached the model ` +
+          'without an approval gate',
+      ).toContain(write)
+    }
+  })
+
+  it('test_every_command_executing_tool_is_gated', async () => {
+    // The narrowest statement of the product's core promise: nothing runs on the user's machine
+    // without them saying yes.
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const gated = new Set(Object.keys(agent.approvals))
+
+    for (const executes of ['run_shell', 'interactive_shell', 'write_stdin']) {
+      expect(
+        gated.has(executes),
+        `"${executes}" executes commands on the user's machine and is not approval-gated`,
+      ).toBe(true)
+    }
+  })
+
+})
+
+describe('path 1 — buildChatAgent gates what the directory is trusted with', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue(config('workspace-write'))
+  })
+
+  it('test_an_untrusted_directory_loads_no_repository_controlled_entity', async () => {
+    // Anti-prompt-injection. Each of these is a path by which a cloned repository steers the agent
+    // or, for MCP, obtains local process execution at agent init BEFORE any per-tool approval
+    // (`chat.ts:295-298`).
+    resolveTrustPosture.mockReturnValue(UNTRUSTED)
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(
+      Object.keys(agent.mcpServers),
+      'an untrusted repo got its MCP servers spawned — the loader offered one and the gate let it ' +
+        'through, which is arbitrary local process execution at agent init, before any per-tool ' +
+        'approval exists to refuse it',
+    ).toEqual([])
+    expect(agent.skills, 'an untrusted repo got its SKILL.md into the persona').toEqual([])
+    expect(
+      agent.settingSources,
+      'the `project` setting source stayed on for an untrusted repo, which re-enables repository ' +
+        'subagents and repository hooks behind the per-hook fingerprint gate (B-008)',
+    ).toEqual(['user'])
+    expect(agent.memory.enabled, 'memory writes into an untrusted working tree').toBe(false)
+  })
+
+  it('test_a_trusted_directory_does_load_them', async () => {
+    // Anti-vacuity floor for the test above: without this, gating everything off unconditionally
+    // would pass.
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(agent.skills).toEqual(['code-review'])
+    expect(agent.settingSources).toEqual(['project', 'user'])
+    expect(agent.memory.enabled).toBe(true)
+    expect(
+      Object.keys(agent.mcpServers),
+      'the trusted build dropped the MCP server the loader offered — the gate is refusing what it ' +
+        'should admit, and the untrusted assertion above would then pass for the wrong reason',
+    ).toEqual(['some-server'])
+  })
+
+  it('test_the_headless_profile_drops_the_tool_that_needs_a_terminal_to_answer', async () => {
+    // B-001: `request_user_input` resolves through a bridge only the TUI subscribes to. Registered
+    // headless, every call stalls until the built-in's five-minute timeout.
+    const headless = await compile({ surface: 'headless', cwd: '/p' })
+    const interactive = await compile({ surface: 'interactive', cwd: '/p' })
+
+    expect(namesOf(headless)).not.toContain('request_user_input')
+    expect(namesOf(interactive)).toContain('request_user_input')
+  })
+
+  it('test_extraTools_is_the_seam_and_it_reaches_the_compiled_agent', async () => {
+    // The one documented way to extend the chain (`chat.ts:326-328`) — goal mode registers
+    // `update_goal` through it instead of building a second agent.
+    const agent = await compile({
+      surface: 'headless',
+      cwd: '/p',
+      extraTools: [{ name: 'update_goal' }],
+    })
+
+    expect(namesOf(agent)).toContain('update_goal')
+  })
+})
+
+describe('path 2 — createReviewAgent composes the reviewer', () => {
+  it('test_the_reviewer_receives_exactly_its_declared_tool_set', async () => {
+    // The reviewer reads a diff and reports. Any tool beyond its declared four is authority it was
+    // never meant to hold — and the list is a hardcoded literal, so nothing but this test guards it.
+    const { createReviewAgent } = await import('./review/create-agent.js')
+    let captured: { tools: { name: string }[] } | undefined
+
+    const createAgent = createReviewAgent({
+      config: { model: 'gpt-5.4', sandbox_mode: 'read-only' },
+      cwd: '/p',
+      resolveCredential: () => Promise.resolve('k'),
+      registerCleanup: () => undefined,
+      createInstance: (opts) => {
+        captured = opts as unknown as { tools: { name: string }[] }
+        return Promise.resolve({
+          send: () => Promise.resolve({ wait: () => Promise.resolve({}) }),
+          [Symbol.asyncDispose]: () => Promise.resolve(),
+        } as never)
+      },
+      deleteAgent: () => Promise.resolve(),
+    })
+
+    await createAgent({ agentId: 'r1', systemPrompt: 'review it' })
+    const names = captured?.tools.map((t) => t.name).sort() ?? []
+
+    // The expected set is written OUT here rather than compared against `REVIEWER_TOOLS`.
+    // Measured: comparing to the constant made this test tautological — a mutation adding
+    // `apply_patch` to the constant changed both sides at once and survived. A characterization
+    // test has to state the expectation independently of the thing it characterises.
+    expect(names).toEqual(['git_diff', 'grep', 'read_file', 'run_shell'])
+
+    // And the property behind the list, so a future addition is judged rather than merely noticed:
+    // the reviewer reads a diff and reports on it. Anything that mutates the tree or delegates
+    // authority onward is not part of that job.
+    for (const forbidden of ['apply_patch', 'edit_file', 'delegate_to_team', 'interactive_shell']) {
+      expect(
+        names,
+        `the reviewer was handed "${forbidden}" — it reads a diff and reports; a tool that mutates ` +
+          'the tree or delegates authority onward is not part of that job, and the user approved ' +
+          'a review rather than an edit',
+      ).not.toContain(forbidden)
+    }
+  })
+
+  it('test_the_reviewer_tool_set_is_a_subset_of_the_registry', async () => {
+    // `ToolRegistry.resolve` fails loud on an unknown name, so a typo in the literal is a runtime
+    // throw at review time — the moment the user is already waiting.
+    // From `registry.js`, not the `tools/index.js` barrel: the barrel re-exports `ToolRegistry`
+    // and `resolveToolScope` but not the name list, so the registry's own vocabulary is not part
+    // of the module's public face.
+    const { REGISTRY_TOOL_NAMES } = await import('./tools/registry.js')
+    const { REVIEWER_TOOLS } = await import('./review/create-agent.js')
+    for (const name of REVIEWER_TOOLS) {
+      expect(
+        (REGISTRY_TOOL_NAMES as readonly string[]).includes(name),
+        `the reviewer declares "${name}", which the registry does not build`,
+      ).toBe(true)
+    }
+  })
+
+  it('test_the_reviewer_shell_is_capped_below_the_default', async () => {
+    // A reviewer that can run a 5-minute command is a reviewer that can hang the release.
+    const { REVIEWER_SHELL_CAP } = await import('./review/create-agent.js')
+    expect(REVIEWER_SHELL_CAP).toBeLessThan(300_000)
+  })
+})
+
+describe('path 3 — buildRoleAgent composes a delegated team member', () => {
+  /** A sandbox backend double: the seam exists so a member is never handed an unconfined shell. */
+  const sandbox = { enabled: true, workDir: '/p' } as never
+
+  async function buildRole(role: string, allows: { subagents: boolean }) {
+    const { buildRoleAgent } = await import('./delegation/roles.js')
+    let captured: { tools: { name: string }[]; local: { cwd: string } } | undefined
+    await buildRoleAgent(role, {
+      apiKey: 'test-key-not-a-real-credential',
+      parent: { model: 'gpt-5.4', reasoning_effort: 'medium' },
+      cwd: '/p',
+      writeRoot: '/p',
+      sandbox,
+      posture: { level: 'trusted', source: 'store', allows } as never,
+      createAgent: (opts: unknown) => {
+        captured = opts as unknown as { tools: { name: string }[]; local: { cwd: string } }
+        return Promise.resolve({} as never)
+      },
+    } as never)
+    return captured
+  }
+
+  it('test_a_role_receives_only_the_tools_its_definition_declares', async () => {
+    // A role's tool list is its authority. `explorer` reads; if it silently gained `run_shell` or
+    // `apply_patch`, the read-only half of the sequential team would stop being read-only and the
+    // approval the parent showed for `delegate_to_team` would have covered more than it said.
+    const explorer = await buildRole('explorer', { subagents: true })
+
+    expect(explorer?.tools.map((t) => t.name).sort()).toEqual(['grep', 'list_dir', 'read_file'])
+  })
+
+  it('test_a_role_is_confined_to_the_directory_the_parent_resolved', async () => {
+    // B-032: `resolveToolScope` derives the writeRoot AND the sandbox workDir from this value, so a
+    // member built against the process directory writes into a tree the caller did not choose.
+    const worker = await buildRole('worker', { subagents: true })
+
+    expect(worker?.local.cwd).toBe('/p')
+  })
+
+  it('test_an_untrusted_directory_refuses_to_materialise_a_repository_role', async () => {
+    // The refusal is the feature: `.theokit/agents/<name>.md` is repository-controlled, so an
+    // untrusted repo could otherwise choose a member's model, effort and sandbox flag.
+    const { buildRoleAgent } = await import('./delegation/roles.js')
+
+    await expect(
+      buildRoleAgent('explorer', {
+        apiKey: 'test-key-not-a-real-credential',
+        parent: { model: 'gpt-5.4', reasoning_effort: 'medium' },
+        cwd: '/p',
+        sandbox,
+        posture: { level: 'untrusted', source: 'store', allows: { subagents: false } } as never,
+        createAgent: () => Promise.resolve({} as never),
+      } as never),
+    ).rejects.toThrow(/not trusted/i)
+  })
+})

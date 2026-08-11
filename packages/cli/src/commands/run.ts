@@ -5,7 +5,7 @@ import {
   type ExecProcessor,
   silentEmptyTurnDiagnostic,
 } from '../runtime/index.js'
-import { consumirComForkSeOcupada, idDisponivelOuFork } from '../runtime/index.js'
+import { consumeWithForkIfBusy, availableIdOrFork } from '../runtime/index.js'
 import { WATCHDOG_MS } from '@theocode/shared/shutdown'
 import { createDrainedProcessOutput } from '../runtime/index.js'
 import { homedir } from 'node:os'
@@ -14,7 +14,7 @@ import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theocode/shared/shutdown'
 import { resolveSessionId } from '../runtime/index.js'
 
-function lerPrompt(args: ExecRun): string {
+function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
     const lido = readFileSync(0, 'utf8').trim()
     if (lido.length === 0) {
@@ -38,14 +38,14 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
 }
 
 export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<void> {
-  const prompt = lerPrompt(args)
+  const prompt = readPrompt(args)
 
   const { streamAgentTurnInProcess } = await import('@theokit/agents')
   const { composeRun } = await import('../run-composition.js')
-  const { policy: politicaHeadless, mod } = composeRun({ ...args })
+  const { policy: headlessPolicy, mod } = composeRun({ ...args })
   const { resolveCredentialForModel } = await import('@theocode/agent/auth')
   const cred = await resolveCredentialForModel(args.model, { env: process.env, home: homedir() })
-  const sessionId = idDisponivelOuFork(await resolveSessionId(args), process.cwd())
+  const sessionId = availableIdOrFork(await resolveSessionId(args), process.cwd())
   const processor = createProcessor(args.json === true, sessionId)
 
   let status: 'finished' | 'error' = 'finished'
@@ -54,15 +54,15 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
     processor.finish('error', { error: 'interrupted' })
   })
   try {
-    const abrirStream = (sessionId: string): AsyncIterable<unknown> =>
+    const openStream = (sessionId: string): AsyncIterable<unknown> =>
       streamAgentTurnInProcess(mod, cred.apiKey, {
         message: prompt,
         sessionId: sessionId,
-        awaitApproval: async () => politicaHeadless,
+        awaitApproval: async () => headlessPolicy,
       }) as AsyncIterable<unknown>
-    await consumirComForkSeOcupada(
+    await consumeWithForkIfBusy(
       sessionId,
-      abrirStream,
+      openStream,
       (chunk) => {
         processor.process(chunk as never)
       },
@@ -84,6 +84,6 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
       )
     }
   }
-  const sair = createDrainedProcessOutput(WATCHDOG_MS)
-  sair(result.errorSeen || emptyTurn !== undefined ? 1 : 0)
+  const drainedExit = createDrainedProcessOutput(WATCHDOG_MS)
+  drainedExit(result.errorSeen || emptyTurn !== undefined ? 1 : 0)
 }

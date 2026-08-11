@@ -1,4 +1,5 @@
 import { expandTemplate } from './command-template.js'
+import { subagentDir } from './subagent-inventory.js'
 import type { CustomCommand } from './custom-commands.js'
 import { nextApprovalMode, parseApprovalMode, type ApprovalMode } from '../consent/index.js'
 import { execFile } from 'node:child_process'
@@ -15,6 +16,7 @@ import {
   readImageAttachment,
 } from '@theocode/agent/context'
 import type { ToastPayload } from '../screen-types.js'
+import { workingDirectory } from '../working-directory.js'
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>
 
 export interface EffortDeps {
@@ -110,7 +112,7 @@ export interface CustomCommandDeps {
   setToast: SetToast
 }
 
-function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemplate>[2] {
+function expansionDeps(warn: (m: string) => void): Parameters<typeof expandTemplate>[2] {
   return {
     shell: (cmd) =>
       new Promise((resolveShell) => {
@@ -125,7 +127,7 @@ function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemp
     readFile: (fileName) => {
       const path = fileName.startsWith('~/')
         ? join(homedir(), fileName.slice(2))
-        : resolve(process.cwd(), fileName)
+        : resolve(workingDirectory(), fileName)
       try {
         return statSync(path).isFile() ? readFileSync(path, 'utf8') : undefined
       } catch {
@@ -136,15 +138,19 @@ function depsDeExpansao(warn: (m: string) => void): Parameters<typeof expandTemp
   }
 }
 
-function comInstrucaoDeDelegacao(
+function withDelegationInstruction(
   name: string,
   command: CustomCommand,
   expanded: string,
   setToast: CustomCommandDeps['setToast'],
 ): string {
+  // B-072 — the directory comes from `subagentDir`, the same function `/subagents` lists from.
+  // It was an inline `join(...)` here and a second literal in the listing, so the two could drift
+  // into a listing that promises an agent this router then fails to find. One definition, one
+  // possible answer.
   const agentExists =
     command.agent !== undefined &&
-    existsSync(join(process.cwd(), '.theokit', 'agents', `${command.agent}.md`))
+    existsSync(join(subagentDir(workingDirectory()), `${command.agent}.md`))
   if (command.agent !== undefined && !agentExists) {
     setToast({
       message: `/${name}: subagent "${command.agent}" not found in .theokit/agents/ — running in main context`,
@@ -175,11 +181,11 @@ export function handleCustomCommand(
       const expanded = await expandTemplate(
         command.template,
         arg,
-        depsDeExpansao((m) => {
+        expansionDeps((m) => {
           setToast({ message: m, variant: 'info' })
         }),
       )
-      const message = comInstrucaoDeDelegacao(name, command, expanded, setToast)
+      const message = withDelegationInstruction(name, command, expanded, setToast)
       if (command.model !== undefined) setPendingModel(command.model)
       process.stderr.write(`[custom-command] executed ${name}\n`)
       setLastSent(message)

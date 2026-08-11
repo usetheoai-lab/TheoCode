@@ -15,6 +15,11 @@ data/
 *.swp
 *.swo
 *.pem
+code-review-output
+# Claude Code kit — LOCAL, never versioned. A tool for whoever develops this, not product
+# code: someone who clones TheoCode gets the agent, not the maintenance scaffolding of the
+# people who write it. Install it with `bash <squad>/scripts/install.sh .` when wanted.
+.claude/
 
 # Secrets — never commit (.env.example IS committed as a template)
 .env
@@ -28,8 +33,9 @@ data/
 !.theokit/agents/
 .theokit/agents/registry.json*
 
-# Claude Code cycle kit — versioned (skills/rules/hooks/commands/scripts + settings).
-# Only caches and large/generated artifacts underneath are ignored.
+# Rules inherited from the previous kit, back when `.claude/` WAS versioned. They stay as
+# defensive redundancy — all of `.claude/` is already ignored above, and a rule that can no
+# longer match anything is noise, not protection. If someone reverts that decision, these apply again.
 .claude/**/__pycache__/
 .claude/**/*.pyc
 .claude/knowledge-base/references/**
@@ -40,10 +46,10 @@ bench/reports/run.log
 
 # MCP servers config (user/local, like Codex config) — copy .mcp.json.example to enable
 .mcp.json
-# M110 (review) — o padrao dos backups tambem. `.mcp.json` estava coberto e `.mcp.json.bak-*` nao,
-# entao um `git add -A` varreu dois deles para dentro do repo. Nao havia credencial (verificado:
-# zero hits de authorization/bearer/token/secret/key/password), mas o nome `.bak-bearer` mostra que
-# a intencao era snapshotar a variante com header de autorizacao — a proxima copia poderia ter.
+# M110 (review) — the backup pattern too. `.mcp.json` was covered and `.mcp.json.bak-*` was not,
+# so a `git add -A` swept two of them into the repo. There was no credential in them (verified:
+# zero hits for authorization/bearer/token/secret/key/password), but the name `.bak-bearer` shows
+# the intent was to snapshot the variant carrying an authorization header — the next copy could.
 .mcp.json.bak*
 
 # Compaction snapshots (audit trail, local)
@@ -53,16 +59,19 @@ bench/reports/run.log
 .heval/
 
 # M20 — per-user/project runtime config (like .theokit/, not committed)
-.theocode/
-!.theocode/
+# B-017 — `.theocode/` followed by `!.theocode/` cancelled itself: git re-included the directory and
+# everything under it, so runtime state (sessions, pointers, the resolved config) was committable
+# despite the comment above declaring it local. Ignoring the CONTENTS keeps the exception working —
+# a negation cannot re-include a file whose parent directory is excluded, which is why the previous
+# spelling needed the directory itself listed.
+.theocode/*
 !.theocode/config.example.toml
-.theocode/config.toml
 
 # Scratch probes from review agents — working files, never deliverables.
-# M98 (auditoria ADV-7) — o padrão era `.probe/` LITERAL, e a sessão de review do M98 criou
-# `.m98probe/`, que ele não cobria: a árvore ficou suja e `cycle-review.md § Pre-conditions`
-# ("no uncommitted changes") e `cycle-code-quality.md § Anti-patterns` (não auditar árvore suja)
-# passaram a ser violados por um arquivo que a regra já pretendia excluir.
+# M98 (ADV-7 audit) — the pattern was a LITERAL `.probe/`, and the M98 review session created
+# `.m98probe/`, which it did not cover: the tree went dirty and both `cycle-review.md §
+# Pre-conditions` ("no uncommitted changes") and `cycle-code-quality.md § Anti-patterns` (never
+# audit a dirty tree) started being violated by a file the rule already meant to exclude.
 .*probe/
 .*fix/
 cross-validation-output/
@@ -71,38 +80,38 @@ cross-validation-output/
 .eh-gate-*/
 .m67-fixtures-*/
 .m104-fixture-*/
-.m104-sentinela-*/
-# Checkpoint de runtime do halt-loop — `cycle-implement.md:128` o declara gitignored.
+.m104-sentinel-*/
+# Halt-loop runtime checkpoint — `cycle-implement.md:128` declares it gitignored.
 .claude/knowledge-base/**/.progress-*.json
-# State file do plugin loop-system-design — rascunho de sessão, nunca versionado.
+# State file of the loop-system-design plugin — a session draft, never versioned.
 .claude/system-design-loop.local.md
-# Fixture do gate da Fase 7 — o terceiro dos três prefixos; vaza quando o worker morre.
+# Phase 7 gate fixture — the third of the three prefixes; it leaks when the worker dies.
 .m104-f7-*/
 
-# loop-system-design plugin output (relatório durável vive em knowledge-base/audits/)
+# loop-system-design plugin output (the durable report lives in knowledge-base/audits/)
 system-design-output/
 .m71-audit/
 .pr-body.md
 
-# Artefatos das ferramentas de qualidade e do ciclo de review (M1, #322).
-# `.review-runs/` são os findings JSON por pilar de UMA execução do `/review`; o que dura é o
-# relatório consolidado em `.claude/knowledge-base/reviews/`. `.pytest_cache/` e `.ruff_cache/`
-# são cache de ferramenta e nascem sempre que o gate roda.
+# Artifacts of the quality tools and the review cycle (M1, #322).
+# `.review-runs/` holds the per-pillar JSON findings of ONE `/review` run; what lasts is the
+# consolidated report in `.claude/knowledge-base/reviews/`. `.pytest_cache/` and `.ruff_cache/`
+# are tool caches and appear every time the gate runs.
 .review-runs/
 .pytest_cache/
 .ruff_cache/
 
-# Drivers por-invocação do halt-loop (`/implement`, `/plan-improve`). São gerados a partir de
-# `.claude/skills/*/prompts/*.md` com os placeholders substituídos, e reconstruídos a cada
-# invocação — versionar produziria diff de arquivo derivado a cada corrida.
+# Per-invocation halt-loop drivers (`/implement`, `/plan-improve`). They are generated from
+# `.claude/skills/*/prompts/*.md` with the placeholders substituted, and rebuilt on every
+# invocation — versioning them would produce a derived-file diff on every run.
 halt-loop-prompts/
 
-# artefato do instalador do kit — cópias datadas a cada propagação
+# kit installer artifact — dated copies on every propagation
 .claude/.patch-backups/
 
-# Skills PAREADAS geradas por `/review` (uma por revisor, por invocação). São andaime do
-# gate, não conhecimento do projeto: `spawn_reviewers.py` as recria a cada run, e versioná-las
-# encheria `skills/` de diretórios `review-{slug}-{papel}-knowledge/` mortos. O audit trail que
-# IMPORTA — as definições dos agentes e os achados — vive em `.claude/agents/review-*/`, e esse sim
-# é versionado.
+# PAIRED skills generated by `/review` (one per reviewer, per invocation). They are gate
+# scaffolding, not project knowledge: `spawn_reviewers.py` recreates them on every run, and
+# versioning them would fill `skills/` with dead `review-{slug}-{role}-knowledge/` directories.
+# The audit trail that MATTERS — the agent definitions and the findings — lives in
+# `.claude/agents/review-*/`, and that one is versioned.
 .claude/skills/review-*-knowledge/

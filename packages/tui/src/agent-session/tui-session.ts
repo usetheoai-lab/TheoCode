@@ -4,6 +4,7 @@ import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/co
 import type { AttachedImage } from '@theocode/agent/context'
 
 import { loadOrCreateSessionId } from '../persistence/index.js'
+import { workingDirectory } from '../working-directory.js'
 
 export interface TuiSession {
   cfg: () => ReturnType<typeof resolveEffectiveConfig>
@@ -15,8 +16,8 @@ export interface TuiSession {
   session: () => string
   setSession: (id: string) => void
 
-  tomarImagens: () => AttachedImage[] | undefined
-  anexarImagens: (imgs: AttachedImage[] | undefined) => void
+  takeImages: () => AttachedImage[] | undefined
+  attachImages: (imgs: AttachedImage[] | undefined) => void
 
   takeModel: () => string | undefined
   setModel: (m: string | undefined) => void
@@ -28,19 +29,19 @@ export interface TuiSession {
 export interface SessionOptions {
   readonly cwd?: string
   readonly sessionPointer: string
-  readonly loadSession?: (pointer: string, novo: () => string) => string
+  readonly loadSession?: (pointer: string, fresh: () => string) => string
   readonly loadConfig?: typeof resolveEffectiveConfig
 }
 
 export function createTuiSession(opts: SessionOptions): TuiSession {
   const loadConfig = opts.loadConfig ?? resolveEffectiveConfig
   const loadSession = opts.loadSession ?? loadOrCreateSessionId
-  const cwd = opts.cwd ?? process.cwd()
+  const cwd = opts.cwd ?? workingDirectory()
 
   let cfg = loadConfig({ cwd })
   let effort: ReasoningEffort = cfg.reasoning_effort
   let session = loadSession(opts.sessionPointer, () => `tui-${randomUUID()}`)
-  let imagens: AttachedImage[] | undefined
+  let images: AttachedImage[] | undefined
   let model: string | undefined
   let fixedModel: string | undefined
 
@@ -58,18 +59,18 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
     setSession: (id) => {
       session = id
     },
-    tomarImagens: () => {
-      const atual = imagens
-      imagens = undefined
-      return atual
+    takeImages: () => {
+      const current = images
+      images = undefined
+      return current
     },
-    anexarImagens: (imgs) => {
-      imagens = imgs
+    attachImages: (imgs) => {
+      images = imgs
     },
     takeModel: () => {
-      const atual = model
+      const current = model
       model = undefined
-      return atual ?? fixedModel
+      return current ?? fixedModel
     },
     sessionModel: () => fixedModel,
     setSessionModel: (m) => {

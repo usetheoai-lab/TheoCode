@@ -13,8 +13,9 @@ packages/
 
 The direction of dependency is the whole design: `tui` and `cli` consume `agent`, `agent` never
 consumes a surface, and the two surfaces never consume each other. The layout makes that visible;
-the `exports` map in each `package.json` makes it enforceable — a domain is reached through its
-declared entry, not by a path into its internals.
+`npm run depcruise` enforces it — the `exports` map alone does not, because `tsconfig.json` maps
+`@theocode/agent/*` straight onto `packages/agent/src/*` and TypeScript resolves through that
+mapping without ever consulting `exports`.
 
 ## Running it
 
@@ -39,6 +40,26 @@ node dist/theocode.mjs sessions gc
 | `@theocode/shared` | Shutdown, the diagnostic sink, the agent seam. | `@theocode/shared/shutdown`, `/diagnostic-sink`, `/agent` |
 | `@theocode/tui` | Ink + React. Owns nothing about the agent beyond driving it. | `npm run dev` |
 | `@theocode/cli` | Headless. Five modes: `run`, `resume`, `review`, `goal`, `sessions gc`. | `npm run exec` |
+
+## Where configuration lives
+
+Two directories, and they are not interchangeable. This is written down because it is not guessable
+and because getting it wrong fails silently — a `[[hooks]]` block in the wrong one is ignored with
+no error, and a hook is arbitrary command execution on every tool call (B-086).
+
+| Path | Read by | Holds |
+|---|---|---|
+| `<project>/.theocode/config.toml` | this product | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `skills`, `[[hooks]]`, profiles |
+| `~/.theocode/config.toml` | this product | the same keys, as your defaults; the project layer wins |
+| `<project>/.theokit/` | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/` |
+| `<project>/.mcp.json` | the SDK | MCP servers, spawned when the directory is trusted |
+
+The project layer of `.theocode/config.toml` is read **only for a trusted directory** — an untrusted
+one falls back to your user layer, and no repository hook is wired at all. `/hooks` reports which of
+those two you are in; `/status` reports the resolved model, effort, approval and sandbox.
+
+Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. An unknown event name is a
+loud parse failure, not a skipped hook.
 
 ## What is deliberately not here
 

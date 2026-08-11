@@ -13,18 +13,6 @@ import {
 import { SENTINEL } from '../backtrack-select.js'
 import type { ToastPayload } from '../screen-types.js'
 
-export interface ResetBacktrackDeps {
-  setRewindPrimed: Dispatch<SetStateAction<boolean>>
-  setRewindNth: Dispatch<SetStateAction<number>>
-  setRewindCount: Dispatch<SetStateAction<number>>
-}
-
-export function resetBacktrack(deps: ResetBacktrackDeps): void {
-  deps.setRewindPrimed(false)
-  deps.setRewindNth(SENTINEL)
-  deps.setRewindCount(0)
-}
-
 export interface PrimeBacktrackDeps {
   currentSessionId: () => string
   setRewindPrimed: Dispatch<SetStateAction<boolean>>
@@ -47,10 +35,15 @@ export async function primeBacktrack(deps: PrimeBacktrackDeps): Promise<void> {
     deps.setToast({ message: hint ?? 'No previous message to edit', variant: 'info' })
     return
   }
-  deps.setRewindPrimed(true)
+  // B-029 — the data first, the flag LAST. `armed` is what makes the rest observable: the TUI
+  // adapter builds its ladder inside `setRewindPrimed`, so raising the flag first captured a count
+  // of 0 and an empty preview list — the state that existed when the flag went up, not the state it
+  // was announcing. The overlay then drew nothing and the second Esc reset instead of stepping, so
+  // Esc-rewind was dead.
   deps.setRewindCount(previews.length)
   deps.setRewindNth(SENTINEL)
   deps.setRewindPreviews(previews)
+  deps.setRewindPrimed(true)
   deps.setToast({
     message: 'Esc again to edit a previous message · Enter to confirm',
     variant: 'info',
@@ -59,7 +52,7 @@ export async function primeBacktrack(deps: PrimeBacktrackDeps): Promise<void> {
 
 export interface ConfirmBacktrackDeps {
   agent: { reset: () => void }
-  setRotacionando: (v: boolean) => void
+  setRotating: (v: boolean) => void
   stdout: { write: (s: string) => void } | undefined
   setToast: Dispatch<SetStateAction<ToastPayload | null>>
   setComposerSeed: Dispatch<SetStateAction<string>>
@@ -85,7 +78,7 @@ export async function confirmBacktrack(
   } = deps
   if (rewindNth === SENTINEL) return
   const newId = `tui-${randomUUID()}`
-  deps.setRotacionando(true)
+  deps.setRotating(true)
   try {
     let out: ReturnType<typeof forkSessionBeforeUserTurn>
     try {
@@ -102,14 +95,25 @@ export async function confirmBacktrack(
       deps.resetBacktrack()
       return
     }
-    setSessionAndPersist(newId)
-    agent.reset()
-    stdout?.write(CLEAR_SCREEN)
-    setComposerSeed(out.selectedText ?? '')
-    setClearEpoch((e) => e + 1)
+    try {
+      setSessionAndPersist(newId)
+      agent.reset()
+      stdout?.write(CLEAR_SCREEN)
+      setComposerSeed(out.selectedText ?? '')
+      setClearEpoch((e) => e + 1)
+    } catch (e) {
+      // B-029 — these statements used to sit in a `try` with only a `finally`, and the caller
+      // `void`s this promise, so a throw here became an unhandled rejection: under `node >=22` the
+      // default is --unhandled-rejections=throw. The fork ALREADY happened at this point, so the
+      // user must be told the session moved even though the surface did not fully follow.
+      setToast({
+        message: `Backtrack forked to ${newId} but the view did not update: ${(e as Error).message}`,
+        variant: 'info',
+      })
+    }
     deps.resetBacktrack()
   } finally {
-    deps.setRotacionando(false)
+    deps.setRotating(false)
   }
   process.stderr.write(`[backtrack] forked ${newId} before user#${rewindNth}\n`)
 }
