@@ -3748,7 +3748,7 @@ dod:
 > CONSUMER-side and was explicitly out of the plan's Coverage Matrix; the item stays open until that
 > lands. `applyAggregateCap`'s reshaping is deferred by ADR D2 and needs its own item.
 
-## B-104 — Terminal-surface primitives are rebuilt by every agent CLI   [ ]
+## B-104 — Terminal-surface primitives are rebuilt by every agent CLI   [x]
 
 domain: theokit
 repo: theokit-tui
@@ -3836,7 +3836,34 @@ slice_3_shipped: |
 
   Slice 2 (the keypress router) is unchanged: its mechanism generalises, its vocabulary is this
   surface's, and a public API designed against one consumer is one the second routes around.
-status: triaged
+slice_2_shipped: |
+  SECOND SLICE 2026-08-11 — `@theokit/tui/keys` in `@theokit/tui@0.52.0`, verified against the
+  registry in a clean project. All three DoD bullets now hold.
+
+  The deferral had a real objection and it is ANSWERED rather than waived. `discover_outcome` said
+  designing a public keypress API against a single consumer is how a framework acquires an interface
+  its second consumer routes around. What ships is the ORDERING RULE alone — layers tried in declared
+  order, first claim exclusive, and the result names the claimant — with states, keys and actions as
+  type parameters. Nothing in the published module names an overlay, a mode or a keystroke.
+
+  The claimant name is the part that earns the extraction. Precedence that cannot be observed cannot
+  be tested, which is not hypothetical: B-116 measured a sibling router in this same repo where three
+  mutations reordering the chain left every case green.
+
+  Consumer side: `routeKey` keeps its signature, the 28 existing cases pass unchanged, and the file
+  grew by FOUR lines of code. That is the honest number — the third bullet asks for a shrink measured
+  in LoC and this slice did not deliver one. What it delivered is that moving `gated` ahead of
+  `open-question` now turns tests red, and the swallow layer is explicit rather than an early
+  `return []` inside a helper. Slice 1's shrink was real (387 -> 349 across the directory); this one's
+  value is the declaration, and saying otherwise would be dressing a wash as a win.
+
+  One design constraint the migration surfaced, recorded because it is exactly what a second consumer
+  would have found: `when` sees only the STATE, so a layer cannot be selected by which key arrived.
+  Escape and the composer are therefore one layer — splitting them would give an escape layer that
+  claims every key and swallows the non-Escape ones. Inside a layer, the key decides.
+
+  6 mutations on the consumer's declaration, all detected, including a real reorder.
+status: shipped
 severity: major
 dod:
   - `@theokit/tui` exposes the terminal loop as primitives: a keypress→action router whose state is
