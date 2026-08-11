@@ -4320,6 +4320,26 @@ outcome: |
      tag NAME as well as a revision, because `@` carries meaning in git's revision syntax and
      `@theokit/sdk@4.44.0` is otherwise a malformed object name. The spelling a release prints has to
      be the spelling that works.
+post_release_correction: |
+  2026-08-11, after closing. The verifier caught a failure on its FIRST CI release — and the failure
+  was the wiring, not the release.
+
+  `changeset publish` CREATES the tags; the changesets action PUSHES them, in a step of its own once
+  publish returns. Running the check inside `pnpm release` therefore asked before the pusher ran:
+  4.45.0 published successfully, the check reported `@theokit/sdk@4.45.0` never reached origin, and
+  `git ls-remote` showed it there moments later.
+
+  A gate that fails every release is worse than no gate — it is the mechanism by which a red check
+  stops being read, which is exactly what B-122 measured happening on the sibling repo for eight
+  consecutive runs.
+
+  Moved to its own workflow step after the action, guarded by
+  `steps.changesets.outputs.published == 'true'`. Removed from the `release` script that CI calls,
+  and exposed as `pnpm verify:refs` for the local path — where it CAN legitimately fail, because
+  `changeset publish` leaves the tags for the operator to push and the refusal prints the command.
+
+  The finding stands: an exit code is not evidence a ref transferred. What was wrong was where the
+  question was asked.
 status: shipped
 severity: minor
 dod:
