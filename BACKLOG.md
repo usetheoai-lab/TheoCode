@@ -4160,7 +4160,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `pre-push-gate-ignores-ref-content`).
 
-## B-114 — A tag push reported success and transferred nothing   [ ]
+## B-114 — A tag push reported success and transferred nothing   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4228,7 +4228,31 @@ why_now: |
   does nothing. It was caught because the tag was checked against the remote afterwards; nothing in
   the flow requires that check, and a missing release tag is discovered weeks later by someone
   bisecting.
-status: raw
+outcome: |
+  CLOSED 2026-08-11. All three DoD bullets met.
+
+  1. **Cause established by reproduction.** Both hypotheses from intake are refuted. It reproduces on
+     a PLAIN BRANCH NAME, so the `@` in the refname was never involved; and the process is killed
+     before any transfer begins, so it is not "still transferring when the command returned". The
+     cause is a connection timeout: git contacts the remote BEFORE `pre-push` runs, `pre-push` takes
+     ~11 minutes, and the idle connection is dropped before the transfer — git then takes SIGPIPE
+     (141) with no message. Controlled experiment, one tree, one variable removed: 11 minutes and
+     exit 141 having transferred nothing, versus 2.27 s with the gate already green.
+
+     A second, compounding defect: `git push … | tail -N` reports the PIPELINE's last exit status,
+     so the 141 was hidden behind `tail`'s 0.
+
+  2. **The release path verifies rather than trusts.** `scripts/verify-release-refs.mjs` compares the
+     tags at a revision against `git ls-remote`, wired into `pnpm release` after `changeset publish`.
+     Not a wrapper: a wrapper helps only whoever remembers to call it, which is the failure mode of
+     the written rule it accompanies (CLAUDE.md rule 5). Three exit codes — 0 verified, 1 a tag never
+     arrived, 2 could not check — because collapsing "could not check" into "clean" is the defect.
+
+  3. **The refname form.** Resolved as a non-cause, and handled anyway: the verifier accepts a bare
+     tag NAME as well as a revision, because `@` carries meaning in git's revision syntax and
+     `@theokit/sdk@4.44.0` is otherwise a malformed object name. The spelling a release prints has to
+     be the spelling that works.
+status: shipped
 severity: minor
 dod:
   - the cause is established by reproduction, or the item is killed with the measurement that refuted it
