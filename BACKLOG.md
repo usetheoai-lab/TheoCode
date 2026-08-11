@@ -3778,7 +3778,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `framework-reports-what-it-wired`).
 
-## B-109 — Every release leaves `develop` behind `main`, and the next release PR would re-publish shipped work   [ ]
+## B-109 — Every release leaves `develop` behind `main`, and the next release PR would re-publish shipped work   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3810,7 +3810,7 @@ why_now: |
   the cost of the mistake is a wrong version published to npm, which cannot be fixed — only
   deprecated. This blocked a SECURITY release for the time it took to diagnose, which is when a
   process defect is most expensive.
-status: raw
+status: shipped
 severity: major
 dod:
   - after a release completes, `develop` carries the version bump and the changeset deletions without
@@ -3854,7 +3854,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `readme-denies-its-own-test-suite`).
 
-## B-111 — The tarball guard covers one publishing repo, and today's release came from the other   [ ]
+## B-111 — The tarball guard covers one publishing repo, and today's release came from the other   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3881,7 +3881,7 @@ why_now: |
   `theokit-sdk` publishes 16 packages. A `workspace:` range in a published tarball cannot be fixed,
   only deprecated — B-092 measured `npm install` failing outright on a clean checkout because of it.
   The repo that ships the most packages is the one without the guard.
-status: raw
+status: shipped
 severity: major
 dod:
   - `theokit-sdk` runs the same tarball check in CI over every publishable package, and it fails the
@@ -3924,7 +3924,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-provenance-precondition-already-met`).
 
-## B-113 — The pre-push gate re-runs the full validate for a push that introduces no commits   [ ]
+## B-113 — The pre-push gate re-runs the full validate for a push that introduces no commits   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3945,7 +3945,7 @@ why_now: |
   reasoning that a context running its own gates should not re-run them. A tag push carrying zero new
   commits is the same argument, and it is the push that happens during a release — when the cost of
   a ten-minute gate is paid at the worst moment.
-status: raw
+status: shipped
 severity: minor
 dod:
   - a push whose ref introduces no new commits (a tag at an already-pushed commit) does not re-run
@@ -4033,7 +4033,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `tag-push-succeeded-without-transferring`).
 
-## B-115 — Nothing tests what the SDK does with a file the repository controls   [ ]
+## B-115 — Nothing tests what the SDK does with a file the repository controls   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4057,7 +4057,7 @@ why_now: |
   difference that makes it worse: this one COULD have failed a test, and no test asked. Every file
   the SDK reads because a repository named it is untrusted input, and the framework's whole value to
   a consumer is that it decided this once, correctly, for everyone.
-status: triaged
+status: shipped
 severity: major
 evidence_measured: |
   MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
