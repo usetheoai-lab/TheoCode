@@ -1,3 +1,4 @@
+import { auditEnvReachability } from '@theokit/sdk'
 import { TheokitAgentError } from '@theokit/agents'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -113,13 +114,23 @@ export const ENV_OPT_OUTS: readonly EnvOptOut[] = [
   },
 ]
 
+/**
+ * B-107 — the two detectors are `@theokit/sdk`'s `auditEnvReachability`; the KEYS, the variable names
+ * and the reasons stay here, because they are this product's vocabulary. The framework cannot
+ * enumerate them and deliberately does not try (same reason the security floor takes its
+ * permissiveness order as data), so what it owns is the rule and this ranges over its own keys.
+ *
+ * The signatures are unchanged: they are called from `env-knobs.test.ts`, which is what turns the
+ * two invariants from documentation into a gate.
+ */
 export function keysWithoutEnvPath(
   keys: readonly string[],
   withEnvPath: ReadonlySet<string>,
   optOut: readonly EnvOptOut[],
 ): string[] {
-  const exempt = new Set(optOut.map((o) => o.key))
-  return keys.filter((k) => !withEnvPath.has(k) && !exempt.has(k))
+  return [
+    ...auditEnvReachability({ keys, reachable: [...withEnvPath], optOuts: optOut }).unreachable,
+  ]
 }
 
 export function optOutsThatExemptNothing(
@@ -127,10 +138,9 @@ export function optOutsThatExemptNothing(
   withEnvPath: ReadonlySet<string>,
   optOut: readonly EnvOptOut[],
 ): string[] {
-  const schemaKeys = new Set(keys)
-  return optOut
-    .filter((o) => !schemaKeys.has(o.key) || withEnvPath.has(o.key))
-    .map((o) => o.key)
+  return [
+    ...auditEnvReachability({ keys, reachable: [...withEnvPath], optOuts: optOut }).staleOptOuts,
+  ]
 }
 
 export const DEFAULTS: AgentConfig = {
