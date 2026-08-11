@@ -3822,7 +3822,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `release-leaves-develop-behind`).
 
-## B-110 — The README tells every reader this repository has no test suite   [ ]
+## B-110 — The README tells every reader this repository has no test suite   [x]
 
 domain: theocode
 repo: TheoCode
@@ -3845,7 +3845,7 @@ why_now: |
   the repository is unverified, which is the opposite of true, and `rules/public-copy.md` § 3 forbids
   exactly this class of unearned statement in the other direction. A contributor arriving at a repo
   whose README says the tests are absent does not run them.
-status: raw
+status: shipped
 severity: minor
 dod:
   - the paragraph states what is measurably true, with the date of the measurement, or is deleted
@@ -3914,6 +3914,18 @@ why_now: |
   token from the workflow entirely, which removes that failure class rather than renewing it on a
   schedule. The comment's own migration path is the fix, and its precondition already holds.
 status: raw
+blocked_by: |
+  Two of three DoD bullets are met and verified on `main`: `NPM_CONFIG_PROVENANCE` is back in
+  `release.yml`, and the header no longer carries the obsolete "PROVENANCE IS DISABLED" text.
+
+  The third is NOT met and cannot be closed by editing anything. `npm view @theokit/sdk@4.42.1
+  dist.attestations` is empty, because 4.42.1 was published BY HAND after the CI publish failed —
+  and a manual `npm publish` from a laptop cannot produce a provenance attestation, which is
+  precisely the point of provenance. The bullet asks for an attestation verified on the registry
+  rather than a green job, and that requires the next release to go out THROUGH the workflow.
+
+  Blocked on B-118: the local `.npmrc` masked an auth failure as a 404 and is why the manual
+  publish happened at all.
 severity: major
 dod:
   - the workflow publishes through an npm trusted publisher with no `NODE_AUTH_TOKEN` in its env, or
