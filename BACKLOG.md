@@ -3891,7 +3891,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-has-no-tarball-guard`).
 
-## B-112 — The release workflow disables provenance citing a repository privacy that no longer holds   [ ]
+## B-112 — The release workflow disables provenance citing a repository privacy that no longer holds   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3913,8 +3913,8 @@ why_now: |
   blocked a SECURITY release and forced a manual publish). Trusted-publisher binding removes the
   token from the workflow entirely, which removes that failure class rather than renewing it on a
   schedule. The comment's own migration path is the fix, and its precondition already holds.
-status: raw
-blocked_by: |
+status: shipped
+closed_note: |
   Two of three DoD bullets are met and verified on `main`: `NPM_CONFIG_PROVENANCE` is back in
   `release.yml`, and the header no longer carries the obsolete "PROVENANCE IS DISABLED" text.
 
@@ -3924,8 +3924,18 @@ blocked_by: |
   precisely the point of provenance. The bullet asks for an attestation verified on the registry
   rather than a green job, and that requires the next release to go out THROUGH the workflow.
 
-  Blocked on B-118: the local `.npmrc` masked an auth failure as a 404 and is why the manual
-  publish happened at all.
+  CLOSED 2026-08-11. `@theokit/sdk@4.43.0` was cut through the workflow and the registry answers:
+
+  ```
+  $ npm view @theokit/sdk@4.43.0 dist.attestations
+  { url: ".../attestations/@theokit%2fsdk@4.43.0",
+    provenance: { predicateType: "https://slsa.dev/provenance/v1" } }
+  ```
+
+  Verified on the registry rather than asserted from a green job — which is what the bullet asked
+  for, and which matters here because the run it came from reported FAILURE: a different package
+  (`@theokit/memory-supermemory`) was refused with E422 for an empty `repository.url`. That is
+  B-121, filed separately.
 severity: major
 dod:
   - the workflow publishes through an npm trusted publisher with no `NODE_AUTH_TOKEN` in its env, or
@@ -4288,3 +4298,87 @@ dod:
   - a pattern that resolves to no directory still returns empty rather than throwing
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `globbed-discovery-is-not-recursive`).
+
+
+## B-120 — The re-release guard answers "all clear" for a ref it cannot read   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  OBSERVED 2026-08-11, running the guard by hand against a PR head that had not been fetched:
+
+  ```
+  $ node scripts/check-no-reconsumed-changesets.mjs origin/main 977555a41...
+  fatal: not a tree object
+  ✓ no changeset on 977555a41... has already been consumed by origin/main     # exit 0
+  ```
+
+  `changesetsAt` wraps its `git ls-tree` in a try/catch that returns `[]`, and for this guard an
+  empty list means "no changesets to worry about" — so an unreadable ref produces the SAME output as
+  a genuinely clean one. git printed `fatal:` to stderr and the guard printed a tick.
+
+  This is the third appearance of one shape in the same file. The first was the cwd-relative
+  pathspec, which reported clean from any subdirectory; the second was argument injection, closed by
+  `assertPlainRef`. Both were fixed. This one survived because a well-formed sha that git does not
+  have is neither malformed nor a bad pathspec.
+
+  Not currently reachable in CI: the job checks out with `fetch-depth: 0` and passes the PR head,
+  which is present. It is reachable by every human running the script locally, which is exactly when
+  someone is deciding whether a release is safe.
+why_now: |
+  The guard exists because a wrong version on npm cannot be fixed, only deprecated. A guard whose
+  failure mode is a green tick is worse than no guard, because it is trusted.
+status: raw
+severity: major
+dod:
+  - a ref the repository cannot resolve produces a REFUSAL (exit 2, "could not check"), never exit 0
+  - the distinction is tested: an unknown-but-well-formed sha behaves differently from a ref whose
+    changeset directory is genuinely empty
+  - a ref that resolves and legitimately has no `.changeset/` still passes, so the fix does not turn
+    every clean release into a refusal
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `guard-clean-on-unreadable-ref`).
+
+
+## B-121 — Six publishable packages cannot publish with provenance: `repository.url` is empty   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  SURFACED 2026-08-11 by the first release cut after provenance was re-enabled (B-112). The Release
+  run reported failure while `@theokit/sdk@4.43.0` published successfully — the failure was a
+  DIFFERENT package:
+
+  ```
+  npm error code E422
+  Error verifying sigstore provenance bundle: Failed to validate repository information:
+  package.json: "repository.url" is "", expected to match
+  "https://github.com/usetheodev/theokit-sdk" from provenance
+  ```
+
+  npm cross-checks the manifest's `repository.url` against the repository recorded in the signed
+  provenance statement. An empty value cannot match, so the PUT is refused AFTER the statement is
+  signed and logged to the transparency log.
+
+  Measured across `main`: 6 of the 12 publishable packages carry an empty `repository.url` —
+  `@theokit/acp`, `@theokit/cli`, `@theokit/memory-honcho`, `@theokit/memory-mem0`,
+  `@theokit/memory-supermemory`, `@theokit/sdk-pty`. The other 6 publish fine, which is why
+  `@theokit/sdk` reached the registry with its attestation while the run went red.
+why_now: |
+  Six packages are unreleasable as of the change that landed today. It is not a regression of
+  provenance so much as a latent defect provenance exposed — the field was empty before and nothing
+  needed it. Left alone, the next release of any of those six fails the same way, after signing.
+status: raw
+severity: major
+dod:
+  - every publishable package declares a `repository.url` matching this repository, with `directory`
+    set so npm links to the package rather than the root
+  - a test refuses a publishable package whose `repository.url` is absent or does not match, so the
+    seventh package added does not repeat this
+  - proven by a release that publishes all twelve, not by reading the manifests
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `empty-repository-url-blocks-provenance`).
