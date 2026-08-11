@@ -4433,3 +4433,54 @@ dod:
   - proven by a release that publishes all twelve, not by reading the manifests
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `empty-repository-url-blocks-provenance`).
+
+
+## B-122 — `theokit-tui` CI has been red on `develop` for at least 8 runs, and the cause is step order   [ ]
+
+domain: theokit
+repo: theokit-tui
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED 2026-08-11 while trying to promote an unrelated change and finding the gate already red.
+
+  ```
+  gh run list --workflow=ci.yml --limit 8
+    failure  develop  Merge pull request #69 ...
+    failure  develop  docs(release): v0.48.0 RELEASED ...
+    failure  develop  release: 0.48.0
+    ... 8 of 8 failure
+  ```
+
+  The failing test is `publint_reports_zero_errors` in `tests/package-contract.test.ts`. It shells
+  out to `publint --strict`, which resolves every `exports` entry against the built artifact.
+
+  `ci.yml` runs `install → format → lint → typecheck → test → coverage → build`. `dist/` is
+  gitignored, so during `test` it does not exist and publint reports every entry as missing —
+  including `.` and `./renderer`, which predate any recent change. Reproduced on a worktree of the
+  commit before the current work: the same test fails there, so it is not caused by the change that
+  surfaced it. Reproduced in reverse too: with `dist/` present the file passes 8/8.
+
+  SEPARATE and NOT fixed here: `SonarCloud Code Analysis` is also red, and was red on PR #69 —
+  which was merged anyway. Its API returns no issues and no quality-gate status for this project
+  (`/api/issues/search` and `/api/qualitygates/project_status` both answer empty), which points at a
+  misconfigured project rather than at findings. Recorded rather than fixed because "the analysis is
+  not running" and "the analysis found something" need different work, and guessing which would be
+  the kind of assertion this file exists to refuse.
+
+  Verified as NOT a flake: this is deterministic on step order. Separately, the suite does carry real
+  flakiness (`parity-corpus`, `degrade-matrix`) measured at 1 failure per full run on the base — that
+  is a different problem and gets its own item if it is worth one.
+why_now: |
+  A gate nobody can pass is a gate nobody reads. Eight consecutive red runs on the integration branch
+  means every promotion since has been merged past a failing check, so the check is no longer
+  protecting anything — and the next real regression arrives looking exactly like the current noise.
+status: raw
+severity: major
+dod:
+  - `pnpm build` runs before `pnpm test` in `ci.yml`, so publint resolves against a real artifact
+  - a run on `develop` goes green, verified on the run list rather than asserted from the diff
+  - if the suite's genuine flakiness still reddens the run, it is separated into its own item rather
+    than left to hide inside this one
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `tui-ci-red-on-step-order`).

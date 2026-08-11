@@ -32,6 +32,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **theokit-sdk:** backlog B-119 — `globbed` discovery cannot see a nested rule, and a pattern written to say so matches nothing at all.
 - **theokit-sdk:** backlog B-120 — the re-release guard answers "all clear" for a ref it cannot read.
 - **theokit-sdk:** backlog B-121 — six publishable packages cannot publish with provenance because `repository.url` is empty.
+- **theokit-tui:** backlog B-122 — CI has been red on `develop` for at least 8 runs, and the cause is step order.
 
 ### Changed
 - **B-104 is measured and split in two, and the split is the finding (B-104).** The intake evidence — "0 of 8 files import `@theokit/*`" — reads as *all of it is transferable*; per-file measurement says coupling is not uniform. `write-queue.ts` (21 LoC), `log-rotation.ts` (33) and `stderr-guard.ts` (66) are generic and extractable now. `input-router.ts` (115) is the trap: zero references to this product, so it looks portable, while its entire contract is this surface's vocabulary — `KeyboardState` declares `hasOpenQuestion`, `inDemoInput`, `emLogin`, `backtrackArmed` and `KeyAction` returns `prime-backtrack`, `pause-goal`, `close-demo`. A second agent CLI has none of those. A public API is semver-bound, so a keypress router with the wrong state vocabulary is worse than none — the second consumer routes around it instead of around nothing. Item moved to `triaged` with the design pass named as its own slice.
