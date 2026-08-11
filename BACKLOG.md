@@ -5031,3 +5031,35 @@ dod:
   - the test passes 20 consecutive full-suite runs, or is deleted with the reason recorded
 
 > Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
+
+## B-126 — SonarCloud analysis has failed on every theokit-tui PR, not the quality gate   [ ]
+
+domain: theokit
+repo: theokit-tui
+suggested_mode: bug
+source: human
+evidence: |
+  MEASURED 2026-08-11. The bot comment on PRs #70, #71 and #72 is identical: "❌ The last analysis
+  has failed." That is the ANALYSIS erroring, not a quality gate rejecting code — SonarCloud reports
+  those differently, and this repo has never shown the second. The check completes in ~19-31s, far
+  short of a real scan.
+
+  `origin/develop`'s Sonar check is `cancelled`; `origin/main` has no Sonar check at all.
+
+  For contrast, the sibling repo `theokit-sdk` returns `SonarCloud Code Analysis | pass` in ~40s on
+  every PR, and once returned a REAL finding (argument injection, PR #205) that was worth acting on.
+  So the tooling works; this project's configuration does not.
+why_now: |
+  A gate that is red on every PR is a gate nobody reads, and this repo already paid for that lesson:
+  B-122 closed a CI job that had been red on `develop` for at least eight runs. The cost is not the
+  red mark — it is that the day Sonar finds something real here, it will look exactly like the
+  previous three PRs and get merged past.
+status: raw
+severity: minor
+dod:
+  - the analysis failure's cause is named from the workflow log, not guessed
+  - SonarCloud returns pass or a real finding on a PR in this repo
+  - if the scan is not worth configuring, the check is REMOVED rather than left failing — a deleted
+    gate is honest, a permanently red one is not
+
+> Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
