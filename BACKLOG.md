@@ -3915,7 +3915,41 @@ why_now: |
   B-097 moves the trust gate into the framework. The moment the framework decides what to withhold,
   only the framework can report what it withheld — and a consumer re-deriving the listing reproduces
   exactly the defect B-071 was reopened for. The reporting has to move with the deciding.
-status: raw
+discover_outcome: |
+  MEASURED 2026-08-11. The evidence holds exactly: `grep -rniE "onWired|wiredCapabilities|
+  suppressedBy"` returns 0 across both framework trees, and the consumer's implementation is 72 LoC
+  of production plus 108 of tests.
+
+  BLOCKED ON B-097, and the block is structural rather than a matter of sequencing effort.
+
+  The second DoD bullet — "withheld because the directory is untrusted is distinguishable from none
+  configured" — requires the framework to KNOW about directory trust. It does not. B-097, which
+  moves the trust gate upstream, is still `status: raw`. The SDK's 23 hits for "posture" are all
+  SANDBOX posture (`linux-sandbox.ts`, `types/agent.ts`) — a different concept that happens to share
+  a word.
+
+  So the framework cannot report a decision it does not make. The item said as much at intake — "the
+  reporting has to move with the deciding" — and the measurement confirms the deciding has not moved.
+
+  Implementing bullet 1 ALONE is worse than waiting. A report that lists requested-versus-wired
+  without the trust dimension cannot distinguish suppression from absence, which is precisely the
+  defect B-071 was REOPENED for: "the listing comes from what was actually wired, not from
+  re-reading the config file; those two can disagree, and the disagreement is the bug worth
+  catching." Shipping half of this ships that bug into the framework, where every consumer inherits
+  it.
+
+  What the implementation slice will need, recorded so it is not re-derived:
+
+    - **The consumer's version is PURE and parameterized** — it performs no I/O, which is what makes
+      "no second read" checkable rather than promised. Any framework version should keep that
+      property, whatever else changes.
+    - **`suppressedByTrust` is only true when something was actually removed.** A trusted directory
+      with no skills and an untrusted one with no skills are the same emptiness; flagging the first
+      teaches the user to ignore the flag.
+    - **The wiring point is `agent-builder.ts` (149 LoC)**, where `.skills()` and its siblings
+      receive their values — the moment at which a record would be an observation rather than a
+      re-derivation.
+status: triaged
 severity: major
 dod:
   - the build reports which disk entities were requested, which were wired, and which were withheld,
