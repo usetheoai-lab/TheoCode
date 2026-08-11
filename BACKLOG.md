@@ -3362,7 +3362,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-session-lifecycle`).
 
-## B-097 — Layered config with a trust posture is rebuilt by every agent product   [ ]
+## B-097 — Layered config with a trust posture is rebuilt by every agent product   [x]
 
 domain: theokit
 repo: theokit
@@ -3451,7 +3451,32 @@ slice_3_shipped: |
   REMAINING in B-097: the consumer migration (TheoCode's `config/` shrinking to its own keys plus
   composition, the third DoD bullet) and the layer-to-disk-entity wiring that turns a posture into
   actual withheld loaders.
-status: triaged
+consumer_migrated: |
+  CONSUMER MIGRATED 2026-08-11 — the third DoD bullet. `packages/agent/src/config/` now consumes
+  `@theokit/sdk@4.47.0` for the three rules and keeps only its own vocabulary. 212 -> 172 lines of
+  code (comments excluded; the docblocks grew on purpose, recording which half went where).
+
+  The line count is the smaller half of the result. The larger one is that the rules now live where
+  they are TESTED for. Mutation-measured before touching anything: of 12 mutations against the local
+  `security-floor`, `layers` and `trust-posture`, only 5 were caught. The one that matters most
+  survived — making the trust gate hand out EVERY capability regardless of trust left the whole
+  suite green, because no case read `allows`. Also unwatched: a project file DISPLACING the user's
+  global hooks rather than adding to them, a ceiling that stops descending, a misspelled sandbox
+  mode becoming the effective setting, and `defaults` ignored as a baseline.
+
+  So the net was closed first (14/14 detected), then the migration ran under it, then the WIRING was
+  mutated on the migrated code — the half the framework cannot know: which layers may only tighten,
+  which layer is the operator's override, the permissiveness ordering, the capability list, both
+  directions of the environment and store lookups. 14/14 detected there too, after one more gap was
+  found and closed: trust granted BY THE STORE, the normal path, had no test at all.
+
+  Method note worth keeping: two earlier mutation runs reported 0/12 and then 12/12, both wrong. zsh
+  does not word-split an unquoted `$SUITE`, so vitest received one long string, matched no file and
+  exited 1 — the harness reported confidently while measuring nothing. Every mutation run since
+  starts with a sanity check on a clean tree.
+
+  REMAINING in B-097: nothing. All three DoD bullets hold.
+status: shipped
 severity: major
 dod:
   - the framework provides layered resolution with declared precedence and a trust posture that
