@@ -3705,7 +3705,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `tui-owns-the-terminal-loop`).
 
-## B-105 — `@theokit/presenter` is pinned, imported nowhere, and its job is done by hand   [ ]
+## B-105 — `@theokit/presenter` is pinned, imported nowhere, and its job is done by hand   [x]
 
 domain: theokit
 repo: theokit
@@ -3726,7 +3726,36 @@ why_now: |
   Either the presenter does not fit this product's wire contract, or adoption never happened. Nobody
   has measured which, and the answer changes the surfaces line of the second-product costing. The
   measurement is cheap; the pin in `overrides` for an unused package is evidence nobody has looked.
-status: raw
+outcome: |
+  MEASURED 2026-08-11. All three bullets answered.
+
+  1. **Does presenter cover the Codex-shaped JSONL contract? NO**, and the gap is structural.
+     `events.ts` emits a LIFECYCLE vocabulary (`thread.started`, `turn.started`, `item.started`,
+     `item.completed`, `turn.completed`, `turn.failed`, plus a normalised `usage` block).
+     `AgentOutputEvent` is a CONTENT vocabulary (`text`, `reasoning`, `tool-call`,
+     `partial-tool-call`, `tool-result`, `error`, `finish`, `status`), and `JsonPresenter` is 40 LoC
+     that namespaces the discriminant and passes the payload through. No configuration of the JSON
+     surface produces `turn.completed` with aggregated usage. Different axes, not different spellings.
+
+  2. **`events.ts` is NOT replaced.** The missing strategy is filed upstream as B-123.
+
+  3. **The `overrides` pin is justified — and is currently a no-op.** It is not an orphan: it forces
+     a TRANSITIVE dependency, `@theokit/agents` → `@theokit/presenter`. It entered as
+     `fix(deps): @theokit/presenter 0.5.1 — the token readout works` (2c9c529), closing B-090 and
+     B-080: `readMessageStream` dropped the whole `finish` chunk and with it the `messageMetadata`
+     carrying real token counts.
+
+     Measured now: `@theokit/agents@7.5.0` declares `@theokit/presenter` as exactly `0.5.1`, and
+     removing the override resolves to 0.5.1 anyway — verified with
+     `npm install --package-lock-only` and reading the lock. So it changes nothing TODAY.
+
+     KEPT rather than deleted, because agents pins EXACTLY rather than by range: a future agents
+     that declared 0.4.0 would silently reintroduce the dropped-token bug, and the override is the
+     floor that prevents it. Its justification lives here and in the CHANGELOG, since package.json
+     admits no comments.
+
+     Not a case of "nobody has looked" after all — the item's premise on this point is refuted.
+status: shipped
 severity: minor
 dod:
   - a measurement states whether `presenter` covers the Codex-shaped JSONL contract, naming the gap
@@ -4497,3 +4526,44 @@ dod:
     than left to hide inside this one
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `tui-ci-red-on-step-order`).
+
+
+## B-123 — `@theokit/presenter` has no lifecycle surface, so a Codex-shaped consumer cannot use it   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11 while answering B-105's first DoD bullet — does the presenter cover TheoCode's
+  wire contract? It does not, and the gap is structural rather than cosmetic.
+
+  The two vocabularies are on different axes:
+
+  | | events |
+  |---|---|
+  | `TheoCode/packages/cli/src/runtime/events.ts` (181 LoC) | `thread.started`, `turn.started`, `item.started`, `item.completed`, `turn.completed`, `turn.failed`, with a normalised `usage` block |
+  | `presenter`'s `AgentOutputEvent` | `text`, `reasoning`, `tool-call`, `partial-tool-call`, `tool-result`, `error`, `finish`, `status` |
+
+  The canonical event is CONTENT-shaped: this chunk is text, this one is a tool call. The Codex wire
+  contract is LIFECYCLE-shaped: a thread has turns, a turn has items, a turn completes with usage
+  aggregated across it. `JsonPresenter` is 40 LoC that namespaces the discriminant and passes the
+  payload through verbatim — by design, and correct for what it models.
+
+  So the presenter's three surfaces (json / terminal / ui-message-stream) prove "one canonical event,
+  N surfaces" for content. Nothing in it models a conversation's lifecycle, and no amount of
+  configuring the JSON surface produces `turn.completed` with a usage block.
+why_now: |
+  Every agent CLI that speaks the Codex JSONL dialect — the dialect consumers are already written
+  against — has to build this itself, which is what the 181 LoC in the one measured consumer are.
+  The framework ships the harder half (a canonical event, three surfaces) and stops one abstraction
+  short of the half a product actually ships.
+status: raw
+severity: minor
+dod:
+  - the gap is decided rather than assumed: either presenter gains a lifecycle event set alongside
+    `AgentOutputEvent`, or an ADR records that lifecycle belongs to the product and says why
+  - if it gains one, a consumer replaces its hand-rolled emitter and the LoC delta is recorded
+  - the canonical content event is NOT reshaped to carry lifecycle — two axes, two vocabularies
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `presenter-has-no-lifecycle-surface`).
