@@ -3382,7 +3382,31 @@ why_now: |
   the trust gate: MCP servers are SPAWNED as processes before any per-tool approval. A product
   that gets this wrong grants arbitrary local execution on first build. It should not be
   re-derived per product.
-status: raw
+slice_1_shipped: |
+  FIRST SLICE IMPLEMENTED 2026-08-11 — `applySecurityFloor`, in `@theokit/sdk`.
+
+  Chosen by measurement, not by file size. Across the consumer's 12 config files, coupling count
+  does NOT predict genericity: `env-knobs.ts` has zero framework references and is entirely this
+  product's key names — the same trap as B-104's keypress router.
+
+  What made the floor rule extractable is that its vocabulary is DATA: the permissiveness ordering,
+  the restricted layer names, and the override layer name. Two lists and a name, so a second product
+  supplies its own. The router's vocabulary was an open-ended state interface, which is why that one
+  still waits.
+
+  The rule: a restricted layer may only move the value in the confining direction; the operator's
+  explicit flag wins in both. Without it, a project layer outranks the user's own file and a cloned
+  repository can hand itself the most permissive sandbox — silently, at the moment the directory is
+  opened.
+
+  16 cases; four mutations detected, one of which found a real coverage gap first
+  (`ceiling = level` vs `Math.max(ceiling, level)` differs only when a restricted layer HARDENS and
+  a later one offers a value between the old and new ceiling).
+
+  NOT DONE, and not scheduled by this: the precedence chain, the trust posture that gates disk
+  entities, and the consumer migration. This slice is the security floor only. B-097 remains the
+  keystone for B-107(b), B-108 and the harder half of B-106 — none of them is unblocked by this.
+status: triaged
 severity: major
 dod:
   - the framework provides layered resolution with declared precedence and a trust posture that
