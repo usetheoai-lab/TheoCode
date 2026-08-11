@@ -17,7 +17,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { resolveTrustPosture } from './trust-posture.js'
+import { TRUST_CAPABILITIES, resolveTrustPosture } from './trust-posture.js'
 
 let dir: string
 let store: string
@@ -63,5 +63,50 @@ describe('B-033 — the trust posture comes from the environment it was given', 
 
     expect(off.level).toBe('untrusted')
     expect(on.level).toBe('trusted')
+  })
+})
+
+/**
+ * What the posture is FOR. Every case above reads `level` and `source`; none reads `allows`, so
+ * making the gate hand out every capability regardless of trust left the whole suite green. That is
+ * the mutation that matters here — it is the difference between a hostile repository's hooks running
+ * and not running, and nothing was watching it.
+ */
+describe('the posture actually gates the capabilities', () => {
+  it('test_an_untrusted_directory_allows_no_capability', () => {
+    const { allows } = resolveTrustPosture(dir, store, {})
+
+    expect(
+      Object.entries(allows).filter(([, granted]) => granted),
+      'an untrusted directory granted capabilities — hooks, MCP servers or project instructions ' +
+        'would be honoured in a repository the operator never trusted',
+    ).toEqual([])
+  })
+
+  it('test_a_trusted_directory_allows_every_capability', () => {
+    // Anti-vacuity: a gate that denied everything unconditionally would pass the case above.
+    const { allows } = resolveTrustPosture(dir, store, { THEOCODE_TRUST_ALL_DIRS: '1' })
+
+    expect(Object.entries(allows).filter(([, granted]) => !granted)).toEqual([])
+  })
+
+  it('test_every_declared_capability_is_gated', () => {
+    // The invariant that makes forgetting impossible. `TRUST_CAPABILITIES` is the list the doctor
+    // and the consent surface enumerate; a capability added there but missing from `allows` reads as
+    // `undefined` at the call site and is treated as denied by accident rather than by decision —
+    // and the reverse, a key in `allows` nobody declared, is a gate nobody documents.
+    const { allows } = resolveTrustPosture(dir, store, {})
+
+    expect(Object.keys(allows).sort()).toEqual([...TRUST_CAPABILITIES.map((c) => c.key)].sort())
+  })
+
+  it('test_the_deprecated_alias_still_grants_trust', () => {
+    // It is deprecated, not removed. If it silently stopped working, an operator who set it would
+    // believe every directory was trusted while none was — a surprise in the safe direction, but a
+    // surprise, and the deprecation warning promises the opposite.
+    const posture = resolveTrustPosture(dir, store, { THEOKIT_TRUST_ALL_DIRS: '1' })
+
+    expect(posture.level).toBe('trusted')
+    expect(posture.source).toBe('env')
   })
 })
