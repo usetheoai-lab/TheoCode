@@ -151,6 +151,70 @@ describe('interpretCommand — later groups claim their own', () => {
   })
 })
 
+describe('interpretCommand — the remaining groups claim their own', () => {
+  it('test_fork_reaches_the_identity_group', () => {
+    // `identity` sits second in the chain and is the largest group (eight actions). Nothing above
+    // covered it, so a first group that started claiming one of these would have gone unseen.
+    //
+    // `fork` rather than `listSessions` because most of this group reads the session directory
+    // asynchronously; a case that awaited that would be testing the filesystem, not the dispatch.
+    const h = run({ kind: 'fork' } as CommandAction)
+    expect(h.forkCurrentSession).toHaveBeenCalled()
+  })
+
+  it('test_listSkills_reaches_the_transcript_group', () => {
+    const h = run({ kind: 'listSkills' } as CommandAction)
+    expect(h.setPanel).toHaveBeenCalled()
+  })
+
+  it('test_listPtys_reaches_the_shells_group', () => {
+    // The smallest group, and the one most likely to be dropped from the chain unnoticed: two
+    // actions, both about background shells nobody looks at until one is stuck.
+    const h = run({ kind: 'listPtys' } as CommandAction)
+    expect(h.ptyOwner.backend).toHaveBeenCalled()
+    expect(h.setToast).toHaveBeenCalled()
+  })
+})
+
+/**
+ * The refusal that IS reachable synchronously, asserted through dispatch.
+ *
+ * It is already tested where it is implemented (`send-message.test.ts`), and that is the right place
+ * for the message and the branch. What that file cannot show is that the refusal is REACHABLE: a
+ * router that stopped passing `goalActive`, or claimed `send` in an earlier group, would leave it
+ * green while the guard never ran.
+ *
+ * The sibling refusal — resuming a session while a turn streams — is NOT asserted here, deliberately.
+ * `handleResume` reads the session directory before it can decide, so reaching the guard through the
+ * router means either mocking the filesystem or awaiting a real read, and a case that awaits disk to
+ * prove a routing decision is a flaky test wearing a routing test's name. The guard itself is proven
+ * against the pure planner in `resume-command.test.ts`, which is the shape this subsystem's own
+ * acceptance criteria ask for. Recorded rather than papered over: the routing half of that one is a
+ * known gap.
+ */
+describe('interpretCommand — the refusal survives the trip through the router', () => {
+  it('test_a_send_while_a_goal_runs_is_refused_rather_than_sent', () => {
+    const h = harness()
+    interpretCommand({ kind: 'send', text: 'hello' } as unknown as CommandAction, 'hello', {
+      ...h.cap,
+      goalActive: true,
+    } as CommandCapabilities)
+
+    expect(
+      h.agent.send,
+      'the message went to the agent while a goal was running — the router did not carry the flag',
+    ).not.toHaveBeenCalled()
+    expect(h.setToast).toHaveBeenCalled()
+  })
+
+  it('test_a_send_with_no_goal_running_does_reach_the_agent', () => {
+    // Anti-vacuity for the refusal above: a router that never sent anything would pass it.
+    expect(
+      run({ kind: 'send', text: 'hello' } as unknown as CommandAction, 'hello').agent.send,
+    ).toHaveBeenCalled()
+  })
+})
+
 describe('interpretCommand — an unclaimed action falls through without effect', () => {
   it('test_an_unknown_action_touches_nothing', () => {
     // The chain returning nothing must be inert, not a crash and not a silent partial effect. A
