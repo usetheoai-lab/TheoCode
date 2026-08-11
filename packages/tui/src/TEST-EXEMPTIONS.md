@@ -27,7 +27,7 @@ covered by the directory rule as tests landed for their neighbours during B-019.
 
 | File | What is worth pinning |
 |---|---|
-| `agent/delegation/roles.ts` | Effort inheritance and the untrusted-source refusal, both of which raise typed configuration errors with user-facing text. |
+| `agent/delegation/roles.ts` | **Half covered.** B-061's `composition.test.ts` pins the untrusted-source refusal, the declared tool set, and the injected working directory. Still owed: **effort inheritance** — `wireEffort` raises a typed error naming the accepted levels and the file to fix, and nothing reads it. |
 | `agent/delegation/squad.ts` | That a member's authority never widens beyond the parent's posture. B-032 pinned the cwd half; the sandbox half is not covered. |
 | `agent/delegation/delegation-cap.ts` | That the cap fires and that the work already written to disk is NOT reverted, which its own message promises. |
 | `agent/goal/{goal,update-goal-tool}.ts` | The goal loop's stop conditions and budget accounting. |

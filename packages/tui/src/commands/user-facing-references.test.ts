@@ -73,3 +73,77 @@ describe('B-046 — user-facing strings cite only what exists', () => {
     expect(offenders, 'the product sent the user to a document that does not exist').toEqual([])
   })
 })
+
+/**
+ * B-083 — the English-only guard cannot see this one, so a test must.
+ *
+ * `(use /model <name> para trocar)` reached users while `check-english-only.mjs` printed `clean`.
+ * Not a bug in the guard: every word in that sentence is in `/usr/share/hunspell/en_US.dic` —
+ * `para` (paragraph/parachute) and `trocar` (a surgical instrument) included — so the rule
+ * "Portuguese iff a PT lexicon has it and an EN one does not" declines each word correctly.
+ *
+ * Word-membership cannot see a sentence built entirely from homographs. This test does not fix
+ * that limit; it pins the one line that proved it, so the string cannot come back while the
+ * general detector question is still open.
+ */
+describe('B-083 — the toast the guard could not read', () => {
+  it('test_no_user_facing_string_says_para_trocar', () => {
+    const offenders = sources().flatMap(({ path, text }) =>
+      codeLines(text)
+        .filter(({ line }) => /\bpara trocar\b/.test(line))
+        .map(({ n }) => `${path.replace(ROOT, '')}:${String(n)}`),
+    )
+
+    expect(
+      offenders,
+      'a Portuguese instruction is rendered to the user; the english-only guard cannot detect it (B-083)',
+    ).toEqual([])
+  })
+})
+
+/**
+ * B-078 — `/delete` is routed and never defaults to the current session.
+ *
+ * A command that parses and reaches no handler is the B-028 defect in another costume, so the route
+ * is asserted rather than assumed. The bare form is asserted too: archiving defaults to the current
+ * session because it is reversible, and deletion must not inherit that gesture.
+ */
+describe('B-078 — /delete routing', () => {
+  it('test_delete_routes_with_its_argument', async () => {
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/delete tui-abc')).toEqual({ kind: 'delete', arg: 'tui-abc' })
+  })
+
+  it('test_bare_delete_carries_no_target', async () => {
+    // Routed, but with an empty arg the handler refuses — the guard lives there, and this pins that
+    // the router does NOT helpfully substitute the current session on the way.
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/delete')).toEqual({ kind: 'delete', arg: '' })
+  })
+
+  it('test_delete_is_advertised_in_the_command_list', async () => {
+    const { BUILTIN_COMMAND_NAMES } = await import('./registry.js')
+    expect(BUILTIN_COMMAND_NAMES.has('delete')).toBe(true)
+  })
+})
+
+/**
+ * B-075 — `/copy` and `/export` are routed and advertised.
+ *
+ * A command that parses and reaches no handler is the B-028 defect in another costume, so the route
+ * is asserted rather than assumed.
+ */
+describe('B-075 — transcript command routing', () => {
+  it('test_copy_and_export_route', async () => {
+    const { routeCommand } = await import('./registry.js')
+    expect(routeCommand('/copy')).toEqual({ kind: 'copy' })
+    expect(routeCommand('/export notes.md')).toEqual({ kind: 'export', arg: 'notes.md' })
+    expect(routeCommand('/export')).toEqual({ kind: 'export', arg: '' })
+  })
+
+  it('test_both_are_advertised_in_the_command_list', async () => {
+    const { BUILTIN_COMMAND_NAMES } = await import('./registry.js')
+    expect(BUILTIN_COMMAND_NAMES.has('copy')).toBe(true)
+    expect(BUILTIN_COMMAND_NAMES.has('export')).toBe(true)
+  })
+})

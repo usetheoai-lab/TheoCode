@@ -6,12 +6,12 @@
 //
 // Keep it that way: values belong in the store the SDK writes at 0600, never in source.
 import {
-  authFilePath as authFilePathDoStore,
+  authFilePath as storeAuthFilePath,
   AuthProvider,
   CredentialError,
-  credentialHome as credentialHomeDoStore,
-  readAuthFile as readAuthFileDoStore,
-  writeCredential as writeCredentialDoStore,
+  credentialHome as storeCredentialHome,
+  readAuthFile as readStoreAuthFile,
+  writeCredential as writeStoreCredential,
 } from '@theokit/agents/auth'
 import { isTransientError } from '@theokit/agents'
 import { z } from 'zod'
@@ -39,11 +39,11 @@ const ENV_KEYS: ReadonlyArray<readonly [Provider, string]> = [
 ]
 
 export function credentialHome(home: string, env: Record<string, string | undefined> = {}): string {
-  return credentialHomeDoStore(credentialStore(home), env)
+  return storeCredentialHome(credentialStore(home), env)
 }
 
 export const authFilePath = (home: string, env: Record<string, string | undefined> = {}): string =>
-  authFilePathDoStore(credentialStore(home), env)
+  storeAuthFilePath(credentialStore(home), env)
 
 /** The variables that say WHERE the credential store is — never which key to use. */
 function storeLocationOnly(
@@ -145,7 +145,7 @@ function readAuthFile(
   home: string,
   env: Record<string, string | undefined>,
 ): StoredCredential | undefined {
-  const stored = readAuthFileDoStore(credentialStore(home), env)
+  const stored = readStoreAuthFile(credentialStore(home), env)
   if (stored === undefined) return undefined
   const parsed = fileSchema.safeParse(stored)
   if (!parsed.success) {
@@ -214,8 +214,8 @@ function resolveDeclaredProvider(
     assertPairMatches(provider, fromEnv, varName)
     return { kind: 'api', provider, apiKey: fromEnv, source: varName, inferred: false }
   }
-  const armazenada = home === undefined ? undefined : storedCredentialOf(provider, home, env)
-  if (armazenada !== undefined) return armazenada
+  const storedCredential = home === undefined ? undefined : storedCredentialOf(provider, home, env)
+  if (storedCredential !== undefined) return storedCredential
   throw new CredentialError(
     `provider "${provider}" is declared via THEOCODE_PROVIDER but no key for it was found ` +
       `(looked at ${varName}${home !== undefined ? ` and ${authFilePath(home, env)}` : ''}). ` +
@@ -319,7 +319,7 @@ export function writeCredential(
     assertPairMatches(cred.provider, cred.apiKey, 'the credential being written')
   }
 
-  return writeCredentialDoStore(
+  return writeStoreCredential(
     isOAuthWrite(cred) ? cred : { provider: cred.provider, apiKey: cred.apiKey },
     credentialStore(home),
     env,

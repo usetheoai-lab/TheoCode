@@ -48,10 +48,10 @@ function linePair(trimmed: string): { name: string; value: string } | undefined 
 }
 
 function skipMultilineValue(value: string, lines: readonly string[], i: number): number {
-  const semEspaco = value.trimStart()
-  const q = semEspaco[0]
+  const withoutLeadingSpace = value.trimStart()
+  const q = withoutLeadingSpace[0]
   if (q !== '"' && q !== "'" && q !== '`') return i
-  if (closesQuote(semEspaco, q)) return i
+  if (closesQuote(withoutLeadingSpace, q)) return i
   let j = i
   while (j < lines.length && !closesQuote(lines[j]!, q)) j++
   return j + 1 

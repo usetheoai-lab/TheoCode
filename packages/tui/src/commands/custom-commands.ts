@@ -1,7 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 
-import { varrerMarkdownComGuardas } from '@theocode/agent/context'
+import { scanMarkdownWithGuards } from '@theocode/agent/context'
 import { join, relative } from 'node:path'
 import yaml from 'js-yaml'
 import { hints } from './command-template.js'
@@ -27,10 +27,10 @@ export interface LoadOptions {
 const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
 function mdFilesUnder(dir: string, warn?: (m: string) => void): string[] {
-  return varrerMarkdownComGuardas(dir, undefined, warn)
+  return scanMarkdownWithGuards(dir, undefined, warn)
 }
 
-function separarFrontmatter(
+function splitFrontmatter(
   path: string,
   warn: LoadOptions['warn'],
 ): { readonly data: Record<string, unknown>; readonly body: string } | undefined {
@@ -55,9 +55,9 @@ function parseCommandFile(
   name: string,
   warn: LoadOptions['warn'],
 ): CustomCommand | undefined {
-  const separado = separarFrontmatter(path, warn)
-  if (separado === undefined) return undefined
-  const { data, body } = separado
+  const split = splitFrontmatter(path, warn)
+  if (split === undefined) return undefined
+  const { data, body } = split
   const template = body.trim()
   return {
     name,

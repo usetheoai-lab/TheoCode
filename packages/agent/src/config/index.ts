@@ -3,13 +3,15 @@ export {
   CONFIG_SCHEMA_KEYS,
   ConfigError,
   ENV_BY_KEY,
-  OPT_OUT_DE_ENV,
+  ENV_OPT_OUTS,
   keysWithoutEnvPath,
   optOutsThatExemptNothing,
   EFFORT_LEVELS,
   parseEffort,
+  SANDBOX_MODES,
   type AgentConfig,
   type ReasoningEffort,
+  type SandboxMode,
 } from './config.js'
 
 export {

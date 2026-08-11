@@ -26,14 +26,14 @@ export function formatToolHeader(
 ): { name?: string; summary?: string } | undefined {
   const active = event.status === 'running' || event.status === 'pending'
   const input = (event.input ?? {}) as Record<string, unknown>
-  return CABECALHOS_POR_TOOL.get(String(event.name))?.(input, active)
+  return HEADERS_BY_TOOL.get(String(event.name))?.(input, active)
 }
 
-type Cabecalho = { name?: string; summary?: string }
+type Header = { name?: string; summary?: string }
 
-const CABECALHOS_POR_TOOL: ReadonlyMap<
+const HEADERS_BY_TOOL: ReadonlyMap<
   string,
-  (input: Record<string, unknown>, active: boolean) => Cabecalho
+  (input: Record<string, unknown>, active: boolean) => Header
 > = new Map([
   [
     'run_shell',
@@ -178,8 +178,8 @@ export function formatApproval(pending: { toolName: string; input?: unknown }): 
   command: string
   description?: string
 } {
-  const rotulo = APPROVAL_LABELS.get(pending.toolName)
-  if (rotulo !== undefined) return rotulo((pending.input ?? {}) as Record<string, unknown>)
+  const label = APPROVAL_LABELS.get(pending.toolName)
+  if (label !== undefined) return label((pending.input ?? {}) as Record<string, unknown>)
   return {
     toolType: 'Tool call',
     command: pending.toolName,

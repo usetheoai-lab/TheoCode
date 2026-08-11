@@ -33,7 +33,7 @@ export function hints(template: string): string[] {
   return result
 }
 
-async function injetarShell(text: string, deps: TemplateDeps): Promise<string> {
+async function injectShell(text: string, deps: TemplateDeps): Promise<string> {
   const shellMatches = Array.from(text.matchAll(SHELL_REGEX))
   if (shellMatches.length === 0) return text
   const results = await Promise.all(
@@ -105,7 +105,7 @@ export async function expandTemplate(
     expanded = `${expanded}\n\n${rawArgs}`
   }
 
-  expanded = await injetarShell(expanded, deps)
+  expanded = await injectShell(expanded, deps)
   expanded = inlineFiles(expanded, deps)
 
   return expanded.trim()

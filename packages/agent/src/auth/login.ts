@@ -82,10 +82,10 @@ export async function oauthDeviceLogin(
   return { provider, path: r.path, accountId: r.accountId }
 }
 
-const PROVEDORES: Readonly<Record<string, DeviceAuthProvider>> = { openai: CODEX_PROVIDER }
+const PROVIDERS: Readonly<Record<string, DeviceAuthProvider>> = { openai: CODEX_PROVIDER }
 
 function providerFor(name: string): DeviceAuthProvider {
-  const p = PROVEDORES[name]
+  const p = PROVIDERS[name]
   if (p === undefined) {
     throw new CredentialError(
       `provider "${name}" does not offer an OAuth device login. Use an API key (login) instead.`,
@@ -99,7 +99,7 @@ export function methodsFor(provider: DeviceAuthProvider | string): readonly Auth
 }
 
 export function knownProviders(): readonly string[] {
-  return Object.keys(PROVEDORES)
+  return Object.keys(PROVIDERS)
 }
 
 async function loginWithMethod(

@@ -16,8 +16,8 @@ export interface TuiSession {
   session: () => string
   setSession: (id: string) => void
 
-  tomarImagens: () => AttachedImage[] | undefined
-  anexarImagens: (imgs: AttachedImage[] | undefined) => void
+  takeImages: () => AttachedImage[] | undefined
+  attachImages: (imgs: AttachedImage[] | undefined) => void
 
   takeModel: () => string | undefined
   setModel: (m: string | undefined) => void
@@ -29,7 +29,7 @@ export interface TuiSession {
 export interface SessionOptions {
   readonly cwd?: string
   readonly sessionPointer: string
-  readonly loadSession?: (pointer: string, novo: () => string) => string
+  readonly loadSession?: (pointer: string, fresh: () => string) => string
   readonly loadConfig?: typeof resolveEffectiveConfig
 }
 
@@ -41,7 +41,7 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
   let cfg = loadConfig({ cwd })
   let effort: ReasoningEffort = cfg.reasoning_effort
   let session = loadSession(opts.sessionPointer, () => `tui-${randomUUID()}`)
-  let imagens: AttachedImage[] | undefined
+  let images: AttachedImage[] | undefined
   let model: string | undefined
   let fixedModel: string | undefined
 
@@ -59,13 +59,13 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
     setSession: (id) => {
       session = id
     },
-    tomarImagens: () => {
-      const current = imagens
-      imagens = undefined
+    takeImages: () => {
+      const current = images
+      images = undefined
       return current
     },
-    anexarImagens: (imgs) => {
-      imagens = imgs
+    attachImages: (imgs) => {
+      images = imgs
     },
     takeModel: () => {
       const current = model

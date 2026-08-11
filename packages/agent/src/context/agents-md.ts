@@ -153,27 +153,27 @@ interface AggregateBudget {
   warn: (m: string) => void
 }
 
-export const MAX_AGREGADO = 96_000
+export const MAX_AGGREGATE = 96_000
 
-const SEPARADOR_DE_REGRA = '\n\n---\n\n'
+const RULE_SEPARATOR = '\n\n---\n\n'
 
 function trimBlocksFromStart(text: string, budget: number): string {
   if (text.length <= budget) return text
-  const blocos = text.split(SEPARADOR_DE_REGRA)
-  while (blocos.length > 0 && blocos.join(SEPARADOR_DE_REGRA).length > budget) blocos.shift()
-  return blocos.join(SEPARADOR_DE_REGRA)
+  const blocks = text.split(RULE_SEPARATOR)
+  while (blocks.length > 0 && blocks.join(RULE_SEPARATOR).length > budget) blocks.shift()
+  return blocks.join(RULE_SEPARATOR)
 }
 
-function separarProjectDoc(doc: string): { rules: string; agentsMd: string } {
-  const i = doc.indexOf(SEPARADOR_DE_REGRA)
+function splitProjectDoc(doc: string): { rules: string; agentsMd: string } {
+  const i = doc.indexOf(RULE_SEPARATOR)
   if (i < 0) return { rules: '', agentsMd: doc }
-  const quebra = doc.lastIndexOf('\n\n', i)
-  return quebra < 0
+  const breakAt = doc.lastIndexOf('\n\n', i)
+  return breakAt < 0
     ? { rules: doc, agentsMd: '' }
-    : { agentsMd: doc.slice(0, quebra), rules: doc.slice(quebra + 2) }
+    : { agentsMd: doc.slice(0, breakAt), rules: doc.slice(breakAt + 2) }
 }
 
-function juntarProjectDoc(rules: string, agentsMd: string): string {
+function joinProjectDoc(rules: string, agentsMd: string): string {
   return [agentsMd, rules].filter((s) => s.length > 0).join('\n\n')
 }
 
@@ -201,7 +201,7 @@ function withinBudget(
   const total = (): number => build(base, doc, surface).length
 
   if (total() > opts.maxChars) {
-    const { rules, agentsMd } = separarProjectDoc(doc)
+    const { rules, agentsMd } = splitProjectDoc(doc)
     const truncatedRules = trimBlocksFromStart(
       rules,
       Math.max(0, rules.length - (total() - opts.maxChars)),
@@ -212,10 +212,10 @@ function withinBudget(
           `${String(truncatedRules.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(truncatedRules, agentsMd)
+    doc = joinProjectDoc(truncatedRules, agentsMd)
   }
   if (total() > opts.maxChars) {
-    const { rules, agentsMd } = separarProjectDoc(doc)
+    const { rules, agentsMd } = splitProjectDoc(doc)
     const truncatedMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
     if (truncatedMd.length !== agentsMd.length) {
       opts.warn(
@@ -223,7 +223,7 @@ function withinBudget(
           `${String(truncatedMd.length)} chars (aggregate budget ${String(opts.maxChars)})`,
       )
     }
-    doc = juntarProjectDoc(rules, truncatedMd)
+    doc = joinProjectDoc(rules, truncatedMd)
   }
   if (total() > opts.maxChars && surface.length > 0) {
     const before = surface.length

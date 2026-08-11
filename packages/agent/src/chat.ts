@@ -1,4 +1,8 @@
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
+import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
+import { memoryEnabledForSession } from './memory-switch.js'
+import { sandboxModeForSession } from './sandbox-switch.js'
+import { withSandboxMode } from './config/effective-config.js'
 import {
   createGenericHttpSearchAdapter,
   createQuestionTool,
@@ -15,7 +19,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents/pty'
 import { z } from 'zod'
 
-import { MAX_AGREGADO, composeInstructions, loadAgentsMd } from './context/index.js'
+import { MAX_AGGREGATE, composeInstructions, loadAgentsMd } from './context/index.js'
 import { loadRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
@@ -34,13 +38,23 @@ import { createInteractiveShellTool } from './ask/index.js'
 import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
+import { declareAgent, toolsNamed } from './composition/agent-spec.js'
 import { projectSourceAllowed } from './config/project-source.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
 
-export function buildChatAgent(overrides?: {
+export function buildChatAgent(overrides: {
   onHookVeto?: HookVetoListener
+  /**
+   * B-069/B-070/B-071 — told what this build actually wired, once, at the point it was decided.
+   *
+   * Same shape as `onHookVeto`: a surface that wants to SHOW the wiring passes a listener, and the
+   * return type stays an agent. The alternative — a surface re-reading config to describe the
+   * agent — is what B-071 was reopened for, because config and reality can disagree and the
+   * disagreement is the bug worth catching.
+   */
+  onWired?: (wired: WiredCapabilities) => void
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -51,8 +65,17 @@ export function buildChatAgent(overrides?: {
    * manifest), while the CLI composition root resolved a directory and injected `config`/`posture`
    * built from it — so a supplied directory governed two reads and was ignored by four. Nothing made
    * the six agree; they agreed because the current callers happen not to change cwd mid-build.
+   *
+   * B-059 — now REQUIRED. B-015 and B-032 closed the read sites but left the parameter optional,
+   * which kept the ambient default reachable: a caller that simply forgot got a silently different
+   * agent, and the defect could reappear without anyone editing this file. Requiring it moves the
+   * guarantee from "every caller remembers" to "the compiler refuses" — the same move B-006 made
+   * for `ToolScope.sandbox`. Every surface already resolves a directory (the CLI at its composition
+   * root, the TUI through `workingDirectory()`), so nothing had to invent one; the single entry
+   * with none to offer, the ACP one, now names the process directory out loud at the point where
+   * that IS the choice rather than a default buried six frames deep.
    */
-  cwd?: string
+  cwd: string
   reasoning_effort?: ReasoningEffort
   posture?: TrustPosture
   config?: EffectiveConfig
@@ -60,14 +83,14 @@ export function buildChatAgent(overrides?: {
   interactiveBackend?: InteractiveBackend
   sessionPty?: SessionPtyOwner
 }) {
-  const { posture, cfg, writePolicy, registry, modelId, cwd } = contextoDoChat(overrides)
+  const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
   // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
   // site because on the wire a blocked call is indistinguishable from a successful one, by the
   // SDK's design (see `buildHookHandlers`).
   const lifecycleHooks = chatHookChain(cfg, posture, cwd, overrides?.onHookVeto)
-  const providerPlugins = pluginsDoProvider(overrides?.model, modelId)
+  const providerPlugins = resolveProviderPlugins(overrides?.model, modelId)
   const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
 
   const withWrites = withWriteTools(base, {
@@ -81,6 +104,12 @@ export function buildChatAgent(overrides?: {
     reasoning_effort: overrides?.reasoning_effort,
   })
 
+  // B-069/B-070/B-071 — loaded ONCE, here, and handed to both the builder and the record. It used
+  // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
+  // which is why every listing that wanted it had to re-read the file and could disagree with what
+  // actually ran.
+  const mcpServers = posture.allows.mcp ? loadMcpJson(cwd) : {}
+
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
     interactiveBackend,
@@ -90,22 +119,61 @@ export function buildChatAgent(overrides?: {
     modelId,
     writePolicy,
     cwd,
+    mcpServers,
   })
 
-  const doPerfil = profileTools(overrides?.surface, ask, abandonQuestion)
-  const porPerfil = [...doPerfil, ...(overrides?.extraTools ?? [])]
-  return porPerfil.reduce((acc, tool) => acc.tool(tool), chain).build()
+  // Derived from the SAME values the builder just received, at the point it received them. That is
+  // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
+  // decision.
+  const wired = wiredCapabilities({
+    posture,
+    projectSourcesAllowed: projectSourceAllowed(posture.allows),
+    mcpServers,
+    configuredSkills: cfg.skills,
+    hookEvents: configuredHookEvents(cfg),
+    // Already carries the session override — `chatContext` applied it once, above.
+    sandboxMode: cfg.sandbox_mode,
+  })
+
+  overrides?.onWired?.(wired)
+
+  const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
+  const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
+  return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
 }
 
-function contextoDoChat(overrides?: {
+/**
+ * B-071 — the hook EVENTS this config declares, for the wired record.
+ *
+ * Reads the already-resolved `cfg` object, not the file: `chatHookChain` parses the same value to
+ * build the handlers, so the two cannot describe different hooks. A malformed block yields an empty
+ * list here and is surfaced by the consent gate, which already reports it (B-039) — this record is
+ * not the place to raise it a second time.
+ */
+function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
+  try {
+    // B-071 — event AND command: a listing that showed only the event would tell a user something
+    // is allowed to block them without saying what runs, which is the half that matters when the
+    // directory came from a clone.
+    return parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`)
+  } catch {
+    return []
+  }
+}
+
+function chatContext(overrides: {
   posture?: TrustPosture
   config?: EffectiveConfig
   model?: string
-  cwd?: string
+  cwd: string
 }) {
-  const cwd = overrides?.cwd ?? process.cwd()
+  const cwd = overrides.cwd
   const posture = overrides?.posture ?? resolveTrustPosture(cwd)
-  const cfg = overrides?.config ?? resolveEffectiveConfig({ cwd })
+  const resolved = overrides?.config ?? resolveEffectiveConfig({ cwd })
+  // B-076 — the session may have overridden the sandbox mode. Applied HERE, once, so every consumer
+  // in this build (write policy, PTY backend, tool scope, the reported label) sees one value —
+  // previously the mode was read from `cfg` at four points, which is how B-014 happened.
+  const cfg = withSandboxMode(resolved, sandboxModeForSession(resolved.sandbox_mode))
   return {
     posture,
     cfg,
@@ -136,7 +204,7 @@ function projectDocument(posture: TrustPosture, cwd: string): string {
   return [loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
 
-function pluginsDoProvider(
+function resolveProviderPlugins(
   requestedModel: string | undefined,
   modelId: string,
 ): ReturnType<typeof Provider.builtins> {
@@ -193,8 +261,9 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
         // orchestration — Rule 9). Write-gated with the other write tools: the worker member needs write
         // authority, so gating here keeps a team from widening a member's authority beyond the parent's
         // current sandbox posture (read-only ⇒ no team; the read-only `analyst` delegation remains).
-        // M70 — o time recebe o que o ROOT resolveu (inclui o `--model` e o `/effort` de runtime), em vez
-        // de o handler reler config do disco e delegar com o que estava gravado.
+        // M70 — the team receives what the ROOT resolved (including the runtime `--model` and
+        // `/effort`), instead of the handler re-reading config from disk and delegating with whatever
+        // was written there.
         .tool(
           createDelegateToTeamTool({
             model: modelId,
@@ -220,6 +289,8 @@ function withShellAndProjectEntities(
     modelId: string
     writePolicy: ReturnType<typeof sandboxWritePolicy>
     cwd: string
+    /** B-069 — loaded by the caller so the record and the builder cannot disagree. */
+    mcpServers: ReturnType<typeof loadMcpJson>
   },
 ) {
   const { registry, interactiveBackend, posture, cfg, lifecycleHooks, modelId, writePolicy } = ctx
@@ -295,7 +366,7 @@ function withShellAndProjectEntities(
       // servers as external processes at agent init, BEFORE any per-tool approval. An untrusted repo could
       // therefore get arbitrary local command execution on first build. MCP was the one disk entity left
       // ungated while skills/AGENTS.md/subagents are gated; untrusted ⇒ no MCP servers, same posture.
-      .mcp(posture.allows.mcp ? loadMcpJson(ctx.cwd) : {})
+      .mcp(ctx.mcpServers)
       // M24 — skills are DISK-loaded: `.skills([...names])` resolves each name from
       // `.theokit/skills/<name>/SKILL.md` (theokit's filebase, enabled by `.settingSources` in M20). The
       // enabled list comes from config (`skills`, Codex parity). TRUST-GATED like AGENTS.md: an untrusted
@@ -319,7 +390,7 @@ function withShellAndProjectEntities(
   // M70 — the two registrations that depend on the surface PROFILE, applied here because the builder
   // is a fluent chain with no `.tools([...])`: there is no way to skip a link in the middle of it.
   //
-  // `request_user_input` is dropped for the headless profile (m70-convergencia-goal#ADR-4): with no TUI
+  // `request_user_input` is dropped for the headless profile (m70-goal-convergence#ADR-4): with no TUI
   // subscribed, `ask()` never resolves and the tool falls into the built-in's 5-minute timeout.
   // `extraTools` is the seam that was missing — it is how goal mode registers `update_goal` instead of
   // building a second agent from scratch.
@@ -327,6 +398,34 @@ function withShellAndProjectEntities(
   // two casts, because `createQuestionTool` returned its own interface and took no name. T1.1 aligned the
   // type, T1.2 made name and description options, and the adapter stopped existing — it did not shrink,
   // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
+}
+
+/**
+ * B-059 — the coding agent's registry-backed tool set, declared through the shared entry.
+ *
+ * Memoised per registry because the chain asks for one tool at a time and the shape is one
+ * decision; rebuilding it per `.tool()` call would make the provenance record say the set was
+ * declared six times.
+ */
+const READ_TOOLS = ['current_time', 'read_file', 'list_dir', 'grep', 'repo_status', 'git_diff'] as const
+const shapeCache = new WeakMap<ToolRegistry, Map<string, CustomTool>>()
+
+function readTool(registry: ToolRegistry, name: (typeof READ_TOOLS)[number]): CustomTool {
+  let byName = shapeCache.get(registry)
+  if (byName === undefined) {
+    const shape = declareAgent('coding-agent-reads', { registry, model: 'unused', reasoning_effort: 'medium' }, [
+      toolsNamed(registry, READ_TOOLS),
+    ])
+    byName = new Map(shape.tools.map((tool) => [tool.name, tool]))
+    shapeCache.set(registry, byName)
+  }
+  const tool = byName.get(name)
+  if (tool === undefined) {
+    throw new ConfigurationError(`"${name}" is not in the declared coding-agent read set`, {
+      code: 'tool_not_declared',
+    })
+  }
+  return tool
 }
 
 function baseAgent(ctx: {
@@ -381,7 +480,7 @@ function baseAgent(ctx: {
           overrides?.baseInstructions ?? BASE_INSTRUCTIONS,
           projectDocument(ctx.posture, ctx.cwd),
           overrides?.appendInstructions ?? '',
-          { maxChars: MAX_AGREGADO, warn: (m: string) => process.stderr.write(`${m}\n`) },
+          { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),
       )
       // M49 — durable memory (`.theokit/memory/` in the cwd: `Remember:` capture with secret redaction,
@@ -389,19 +488,28 @@ function baseAgent(ctx: {
       // enabled only for a TRUSTED directory — same gate as AGENTS.md/skills. `{enabled:false}` and an
       // omitted field are equivalent to the SDK gate (`enabled !== true`); the explicit false makes the
       // decision observable in the compiled definition.
-      .memory({ enabled: posture.allows.memory })
+      // B-077 — trust decides whether memory is POSSIBLE; the session switch can only restrict it
+      // further. ANDed rather than overridden, so `/memory off` cannot be read as permission and a
+      // session cannot re-enable what an untrusted directory forbids.
+      .memory({ enabled: posture.allows.memory && memoryEnabledForSession() })
+      // B-059 — WHICH registry tools this agent holds is decided by the shared composition entry
+      // (`composition/agent-spec.ts`), the same one the reviewer and the delegated roles go
+      // through. The fluent chain is untouched: the entry returns a SHAPE and the tools are fed in
+      // here, so this is a declaration change and not a behaviour change. The per-tool comments
+      // below record why each is in the set and stay with the declaration.
+      //
       // M16 — current_time is now a surface-agnostic built-in consumed from `@theokit/agents/tools`
       // (Codex-faithful UTC + optional IANA timezone); the bespoke local tool was retired.
-      .tool(registry.get('current_time'))
+      .tool(readTool(registry, 'current_time'))
       // M1 — read-only filesystem access (path-safe; see tools/*.ts + lib/*-core.ts).
       // M17: read_file is now the Codex-grade `createReadFileTool` built-in — lineNumbers (cat -n view the
       // model cites/edits by), offset/limit paging, and allowAbsolute (Codex reads-anywhere; the secret guard
       // blocks .env/.git/… at any depth). Retired the bespoke read-file.ts + read-file-core.ts.
-      .tool(registry.get('read_file'))
-      .tool(registry.get('list_dir'))
+      .tool(readTool(registry, 'read_file'))
+      .tool(readTool(registry, 'list_dir'))
       // M17: grep is now the `createSearchTextTool` built-in in regex mode (grep semantics) + allowAbsolute
       // (Codex reads-anywhere), aliased to the `grep` name. Retired the bespoke grep.ts + grep-core.ts.
-      .tool(registry.get('grep'))
+      .tool(readTool(registry, 'grep'))
       // M6 — repo-aware context (read-only, ungated).
       // M76 — the framework's tool. The local one parsed `git status --porcelain=v1 -b` in 62 LoC;
       // `createGitStatusTool` produces the SAME output, branch line included (parity verified BEFORE
@@ -410,12 +518,12 @@ function baseAgent(ctx: {
       // single source: one of the two sites the manual survey at `ROADMAP.md:2412` did not enumerate, in
       // the very file M68 refactored. The name (`repo_status`) is preserved — it is a contract with the
       // model, with the approval map, and with the TUI's rendering.
-      .tool(registry.get('repo_status'))
+      .tool(readTool(registry, 'repo_status'))
       // M38 — the working-tree diff, so the model can review pending changes. `createGitDiffTool` is a
       // `@theokit/agents/tools` built-in (`git diff --no-color`, detached, 30s/5MB caps) — read-only, so ungated
       // (same posture as `repo_status`, which also shells out to git). LLM name: `git_diff`.
-      // M99 — idem: do registry, name `git_diff` preservado.
-      .tool(registry.get('git_diff'))
+      // M99 — same as above: from the registry, keeping the name `git_diff`.
+      .tool(readTool(registry, 'git_diff'))
       // M38 — `request_user_input`: the agent pauses mid-turn to ask the user a question, resolved through the
       // TUI's EXISTING inline input slot via the ask-bridge (no second prompt channel). `createQuestionTool`
       // returns a literal object named `question` with an `unknown` inputSchema, so we spread-adapt it to the
@@ -461,7 +569,7 @@ function profileTools(
     default: {
       const unhandled: never = surface
       throw new ConfigurationError(`unhandled surface: ${String(unhandled)}`, {
-        code: 'surface_nao_tratada',
+        code: 'surface_unhandled',
       })
     }
   }

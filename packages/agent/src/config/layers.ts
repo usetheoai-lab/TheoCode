@@ -41,7 +41,7 @@ const PRECEDENCE_PER_LAYER: ReadonlyMap<string, number> = new Map(
 
 function precedenceOf(layer: Layer): number {
   const p = PRECEDENCE_PER_LAYER.get(layer)
-  if (p === undefined) throw new LayerError(`camada desconhecida: \`${layer}\``)
+  if (p === undefined) throw new LayerError(`unknown layer: \`${layer}\``)
   return p
 }
 
@@ -52,33 +52,33 @@ export interface LayerWithValues {
 
 export function foldLayers(
   entries: readonly LayerWithValues[],
-  acumulam: readonly string[] = [],
+  accumulatingKeys: readonly string[] = [],
 ): Record<string, unknown> {
   verifyOrdering(entries.map((e) => ({ layer: e.layer, precedence: precedenceOf(e.layer) })))
 
-  const acumulado = new Map<string, unknown[]>(acumulam.map((k) => [k, []]))
-  const combinado: Record<string, unknown> = {}
+  const accumulated = new Map<string, unknown[]>(accumulatingKeys.map((k) => [k, []]))
+  const combined: Record<string, unknown> = {}
   for (const { values } of entries) {
     for (const [key, value] of Object.entries(values)) {
       if (value === undefined) continue
-      const stack = acumulado.get(key)
+      const stack = accumulated.get(key)
       if (stack !== undefined && Array.isArray(value)) {
         stack.push(...(value as unknown[]))
-        combinado[key] = stack
+        combined[key] = stack
         continue
       }
-      combinado[key] = value
+      combined[key] = value
     }
   }
-  return combinado
+  return combined
 }
 
-export function measuredPrecedenceChain(vencedoresDescendentes: readonly string[]): {
+export function measuredPrecedenceChain(descendingWinners: readonly string[]): {
   line: string
   divergence: string | null
 } {
   const declaredDescendant = [...LAYERS].reverse().map((c) => c.layer)
-  const measured = vencedoresDescendentes.join(' > ')
+  const measured = descendingWinners.join(' > ')
   const declared = declaredDescendant.join(' > ')
   if (measured !== declared) {
     const divergence =

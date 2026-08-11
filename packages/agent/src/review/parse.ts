@@ -76,12 +76,12 @@ export class ReviewOutputUnparseableError extends Error {
   }
 }
 
-function prioridade(f: ReviewOutput['findings'][number]): string {
+function priorityPrefix(f: ReviewOutput['findings'][number]): string {
   if (typeof f.priority !== 'number' || /^\[P\d\]/.test(f.title)) return ''
   return `[P${String(f.priority)}] `
 }
 
-function localizacao(loc: ReviewOutput['findings'][number]['code_location']): string {
+function locationSuffix(loc: ReviewOutput['findings'][number]['code_location']): string {
   if (loc === undefined) return ''
   const lines =
     loc.line_range !== undefined
@@ -96,7 +96,7 @@ export function formatReviewFindings(output: ReviewOutput): string {
   if (output.findings.length > 0) {
     lines.push('Full review comments:', '')
     for (const f of output.findings) {
-      lines.push(`- ${prioridade(f)}${f.title}${localizacao(f.code_location)}`)
+      lines.push(`- ${priorityPrefix(f)}${f.title}${locationSuffix(f.code_location)}`)
       if (f.body.length > 0) lines.push(...f.body.split('\n').map((l) => `  ${l}`))
     }
     lines.push('')

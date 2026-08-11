@@ -67,7 +67,7 @@ function ApprovalCard({
 export function InputSlot(props: InputSlotProps): ReactElement {
   return (
     <>
-      {props.trusted && !props.consent.hooksRevisados && props.pendingHooks.length > 0 ? (
+      {props.trusted && !props.consent.hooksReviewed && props.pendingHooks.length > 0 ? (
         <HooksGate
           consent={props.consent}
           pendingHooks={props.pendingHooks}

@@ -1,6 +1,6 @@
 import type { ResolvedCredential } from './credentials.js'
 
-const PREFIXO_CHATGPT = 'openai-chatgpt/'
+const CHATGPT_PREFIX = 'openai-chatgpt/'
 
 function ehRotaChatGPT(
   cred: Pick<ResolvedCredential, 'kind' | 'provider'> | { error: Error },
@@ -16,5 +16,5 @@ export function routeToCredential(
   const nu = configModel.includes('/')
     ? configModel.slice(configModel.lastIndexOf('/') + 1)
     : configModel
-  return `${PREFIXO_CHATGPT}${nu}`
+  return `${CHATGPT_PREFIX}${nu}`
 }

@@ -16,17 +16,17 @@ class DelegationExpiredError extends TheokitAgentError {
 }
 
 export async function withDelegationCap<T>(
-  trabalho: Promise<T>,
+  work: Promise<T>,
   capMs: number = DELEGATION_CAP_MS,
-  dormir: (ms: number) => Promise<void> = (ms) =>
+  sleep: (ms: number) => Promise<void> = (ms) =>
     new Promise((r) => {
       const t = setTimeout(r, ms)
       if (typeof t === 'object' && 'unref' in t) t.unref()
     }),
 ): Promise<T> {
   return Promise.race([
-    trabalho,
-    dormir(capMs).then((): never => {
+    work,
+    sleep(capMs).then((): never => {
       throw new DelegationExpiredError(capMs)
     }),
   ])

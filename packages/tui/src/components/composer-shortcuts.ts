@@ -19,7 +19,15 @@ import { DEFAULT_COMPOSER_SHORTCUTS, type KeyboardShortcut } from '@theokit/tui'
  * approval ledger as an agent-issued `run_shell`.
  *
  * The filter is keyed on capability rather than on the literal `!`, so the next unwired shortcut
- * cannot be advertised either.
+ * cannot be advertised THROUGH THE SHORTCUT LIST either.
+ *
+ * B-067 — that last clause originally read "the next unwired shortcut cannot be advertised
+ * either", which claimed a scope this filter never had. It reads `DEFAULT_COMPOSER_SHORTCUTS`, and
+ * that is the only source it can see. The toolkit advertises affordances through a SECOND channel —
+ * `StatusFooter`'s `hint` default — and `← for agents` reached the user through it while this
+ * filter was green. `footerHint()` below closes that channel; the correction is recorded here
+ * rather than in a commit message because the over-broad sentence is what made the second channel
+ * look already covered.
  */
 export interface ComposerCapabilities {
   /** Whether `onShellCommand` is passed to `ChatComposer`. */
@@ -33,4 +41,32 @@ export function composerShortcuts(caps: ComposerCapabilities): readonly Keyboard
     const needs = KEYS_REQUIRING.get(s.keys)
     return needs === undefined || caps[needs]
   })
+}
+
+/** B-067 — what the status footer is allowed to advertise in THIS build. */
+export interface FooterCapabilities {
+  /** Whether pressing `?` does anything right now (B-046). */
+  readonly shortcuts: boolean
+  /** Whether `←` opens an agents panel. Not built — B-072 carries the capability. */
+  readonly agents: boolean
+}
+
+/** Affordance text in the order the footer reads it, each gated on the capability it names. */
+const FOOTER_AFFORDANCES: readonly (readonly [keyof FooterCapabilities, string])[] = [
+  ['shortcuts', '? for shortcuts'],
+  ['agents', '← for agents'],
+]
+
+/**
+ * The footer hint for this build, filtered by capability.
+ *
+ * ALWAYS returns a string, never `undefined`. That is the whole point: `StatusFooter` declares
+ * `hint = DEFAULT_HINT` as a default parameter, so `undefined` does not mean "say nothing" — it
+ * means "say everything the toolkit can do", which is how `← for agents` was advertised by an app
+ * that has no agents panel. An empty string is the honest empty hint.
+ */
+export function footerHint(caps: FooterCapabilities): string {
+  return FOOTER_AFFORDANCES.filter(([cap]) => caps[cap])
+    .map(([, text]) => text)
+    .join(' · ')
 }

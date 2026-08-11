@@ -22,9 +22,9 @@ export type BudgetDecision =
   | { readonly kind: 'run'; readonly effectiveTimeout: number }
   | { readonly kind: 'exceeded'; readonly remaining: number }
 
-function decideBudget(remaining: number, timeoutDoHook: number): BudgetDecision {
+function decideBudget(remaining: number, hookTimeout: number): BudgetDecision {
   if (remaining < SPAWN_FLOOR_MS) return { kind: 'exceeded', remaining }
-  return { kind: 'run', effectiveTimeout: Math.min(timeoutDoHook, remaining) }
+  return { kind: 'run', effectiveTimeout: Math.min(hookTimeout, remaining) }
 }
 
 const hookSchema = z
@@ -46,14 +46,14 @@ function validateShape(entry: unknown, i: number): z.infer<typeof hookSchema> {
   }
 }
 
-function exigirEventoConhecido(event: string, i: number): void {
+function requireKnownEvent(event: string, i: number): void {
   if ((EVENTS as readonly string[]).includes(event)) return
   throw new HookError(
     `hooks[${String(i)}]: unknown event "${event}" — expected one of ${EVENTS.join(', ')}`,
   )
 }
 
-function exigirMatcherCompilavel(matcher: string | undefined, i: number): void {
+function requireCompilableMatcher(matcher: string | undefined, i: number): void {
   if (matcher === undefined) return
   try {
     new RegExp(matcher)
@@ -64,8 +64,8 @@ function exigirMatcherCompilavel(matcher: string | undefined, i: number): void {
 
 function umHook(entry: unknown, i: number): HookSpec {
   const parsed = validateShape(entry, i)
-  exigirEventoConhecido(parsed.event, i)
-  exigirMatcherCompilavel(parsed.matcher, i)
+  requireKnownEvent(parsed.event, i)
+  requireCompilableMatcher(parsed.matcher, i)
   return {
     event: parsed.event as HookEvent,
     command: parsed.command,
@@ -173,14 +173,14 @@ interface ToolResultTurnContext {
 }
 
 interface Target {
-  indice: number
+  index: number
   name: string
   /** B-044 — the tool call's own arguments, so a PostToolUse hook receives what actually ran. */
   args: Record<string, unknown>
 }
 
-class Lote {
-  #anexado = 0
+class Batch {
+  #appended = 0
 
   private constructor(
     private readonly parts: Array<{ toolUseId?: string; content?: unknown }> | undefined,
@@ -193,15 +193,15 @@ class Lote {
     results: unknown,
     nameById: ReadonlyMap<string, string>,
     argsById: ReadonlyMap<string, Record<string, unknown>> = new Map(),
-  ): Lote {
+  ): Batch {
     return Array.isArray(results)
-      ? new Lote(
+      ? new Batch(
           [...(results as Array<{ toolUseId?: string; content?: unknown }>)],
           nameById,
           argsById,
           undefined,
         )
-      : new Lote(
+      : new Batch(
           undefined,
           nameById,
           argsById,
@@ -212,42 +212,42 @@ class Lote {
   targetOf(spec: HookSpec): Target | undefined {
     if (this.parts === undefined) {
       return this.text !== undefined && appliesTo(spec, '')
-        ? { indice: -1, name: '', args: {} }
+        ? { index: -1, name: '', args: {} }
         : undefined
     }
-    let escolhido: Target | undefined
-    for (const [i, parte] of this.parts.entries()) {
-      const id = parte.toolUseId ?? ''
+    let chosen: Target | undefined
+    for (const [i, part] of this.parts.entries()) {
+      const id = part.toolUseId ?? ''
       const name = this.nameById.get(id) ?? ''
       if (!appliesTo(spec, name)) continue
-      if (typeof parte.content === 'string') {
-        escolhido = { indice: i, name, args: this.argsById.get(id) ?? {} }
+      if (typeof part.content === 'string') {
+        chosen = { index: i, name, args: this.argsById.get(id) ?? {} }
       }
     }
-    return escolhido
+    return chosen
   }
 
   exceedsBudget(snippet: string): boolean {
-    return this.#anexado + snippet.length > MAX_FEEDBACK_TOTAL_CHARS
+    return this.#appended + snippet.length > MAX_FEEDBACK_TOTAL_CHARS
   }
 
   truncate(snippet: string): string {
-    const resta = Math.max(0, MAX_FEEDBACK_TOTAL_CHARS - this.#anexado)
-    return `${snippet.slice(0, resta)}\n[hook feedback truncated at ${MAX_FEEDBACK_TOTAL_CHARS} characters in aggregate]`
+    const charsLeft = Math.max(0, MAX_FEEDBACK_TOTAL_CHARS - this.#appended)
+    return `${snippet.slice(0, charsLeft)}\n[hook feedback truncated at ${MAX_FEEDBACK_TOTAL_CHARS} characters in aggregate]`
   }
 
   append(target: Target, snippet: string): void {
-    this.#anexado += snippet.length
+    this.#appended += snippet.length
     if (this.parts === undefined) {
       this.text = `${this.text ?? ''}${snippet}`
       return
     }
-    const parte = this.parts[target.indice]
-    if (parte === undefined || typeof parte.content !== 'string') {
+    const part = this.parts[target.index]
+    if (part === undefined || typeof part.content !== 'string') {
       note('hook feedback dropped: no tool result carried string content to attach it to')
       return
     }
-    this.parts[target.indice] = { ...parte, content: `${parte.content}${snippet}` }
+    this.parts[target.index] = { ...part, content: `${part.content}${snippet}` }
   }
 
   result(): unknown {
@@ -294,7 +294,7 @@ function policyBlock(
   }
 }
 
-async function vetoDePreToolUse(
+async function preToolUseVeto(
   pre: readonly HookSpec[],
   ctx: { name?: string; args?: Record<string, unknown> },
   onVeto?: (veto: { tool: string; reason: string }) => void,
@@ -327,9 +327,9 @@ async function vetoDePreToolUse(
 
 async function appendOneHookFeedback(
   spec: HookSpec,
-  target: NonNullable<ReturnType<Lote['targetOf']>>,
+  target: NonNullable<ReturnType<Batch['targetOf']>>,
   results: unknown,
-  batch: Lote,
+  batch: Batch,
   budget: ContinuationBudget,
 ): Promise<boolean> {
   const run = await runHookCommand(spec, {
@@ -408,7 +408,7 @@ async function transformResult<T>(
   const turn = (ctx ?? {}) as ToolResultTurnContext
   const nameById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.name]))
   const argsById = new Map((turn.toolCalls ?? []).map((c) => [c.id, c.args ?? {}]))
-  const batch = Lote.de(results, nameById, argsById)
+  const batch = Batch.de(results, nameById, argsById)
 
   for (const spec of allPost) {
     const target = batch.targetOf(spec)
@@ -460,7 +460,7 @@ export function buildHookHandlers(
 
   const pre = by('PreToolUse')
   if (pre.length > 0) {
-    handlers.pre_tool_call = (ctx) => vetoDePreToolUse(pre, ctx, opts.onVeto)
+    handlers.pre_tool_call = (ctx) => preToolUseVeto(pre, ctx, opts.onVeto)
   }
 
   const allPost = by('PostToolUse')

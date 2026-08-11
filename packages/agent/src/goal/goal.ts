@@ -25,6 +25,14 @@ function formatGoalEvent(event: GoalEvent): string {
     case 'agent_response':
     case 'continuation':
       return ''
+    default:
+      // Events arrive at RUNTIME from `@theokit/agents`. The cases above are exhaustive over the
+      // union this repository compiled against, so `tsc` is satisfied without this branch — but the
+      // moment the SDK adds a variant, the switch returned `undefined` and the caller's
+      // `line.length` threw a raw TypeError, killing the goal run mid-flight on a message that says
+      // nothing about goals. An unrecognised event is forward compatibility, not an exceptional
+      // condition (`rules/error-handling.md` § 2): render nothing, keep driving.
+      return ''
   }
 }
 

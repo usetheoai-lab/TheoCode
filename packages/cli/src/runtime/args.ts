@@ -43,13 +43,36 @@ export interface ExecUsageError {
   message: string
 }
 
+/**
+ * B-074 — the session actions this surface offers.
+ *
+ * The audit that filed this found a 5+1 asymmetry: the TUI could list, fork, archive, rename and
+ * delete, and the CLI could only `gc` and `resume`. Every operation already existed in
+ * `@theocode/agent/session`, so these actions are dispatch over tested code rather than a second
+ * implementation — which is the DoD bullet that mattered, since a second copy is how the two
+ * surfaces would drift again.
+ */
+export const SESSION_ACTIONS = ['gc', 'list', 'archive', 'rename', 'delete', 'fork'] as const
+
+export type SessionAction = (typeof SESSION_ACTIONS)[number]
+
 export interface ExecSessions {
   mode: 'sessions'
-  action: 'gc'
+  action: SessionAction
+  /** The session id an action operates on. Required by archive/rename/delete/fork. */
+  target?: string
+  /** The new name for `rename`. */
+  name?: string
   apply: boolean
   allProjects: boolean
   keepLast?: number
   maxAgeDays?: number
+  json: boolean
+  cd?: string
+}
+
+export interface ExecDoctor {
+  mode: 'doctor'
   json: boolean
   cd?: string
 }
@@ -59,7 +82,14 @@ export interface ExecHelp {
   usage: string
 }
 
-export type ExecArgs = ExecRun | ExecReview | ExecGoal | ExecSessions | ExecHelp | ExecUsageError
+export type ExecArgs =
+  | ExecRun
+  | ExecReview
+  | ExecGoal
+  | ExecSessions
+  | ExecDoctor
+  | ExecHelp
+  | ExecUsageError
 
 // B-022 — no `exec` here. It is the npm SCRIPT name (`npm run exec`), not a subcommand of the
 // built binary, and the parser has no branch for it: the token fell through to the PROMPT, so
@@ -70,6 +100,8 @@ export const USAGE = `Usage: theocode [OPTIONS] [PROMPT]
        theocode review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
        theocode goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
        theocode sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
+       theocode sessions (list | archive <ID> | rename <ID> <NAME> | delete <ID> | fork <ID>)
+       theocode doctor   (reports the resolved install; exits non-zero when something is broken)
 
 Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
          -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>
@@ -111,7 +143,7 @@ const SUGAR: readonly {
   { flag: '--effort', option: 'effort', key: 'reasoning_effort' },
 ]
 
-const MODO_PARA_POLITICA: Readonly<Record<string, string>> = {
+const MODE_TO_POLICY: Readonly<Record<string, string>> = {
   suggest: 'on-request',
   'full-auto': 'never',
 }
@@ -151,26 +183,83 @@ function parseReview(values: OptionValues, positionals: string[], overrides: str
   }
 }
 
+/**
+ * B-074 — the actions that are not `gc`.
+ *
+ * `list` takes nothing; archive/rename/delete/fork NAME a session. Defaulting to "the current one"
+ * has no meaning headless — there is no current session — and guessing would make `delete` destroy
+ * whichever transcript happened to be newest.
+ */
+function parseSessionAction(
+  action: SessionAction,
+  values: OptionValues,
+  positionals: string[],
+): ExecArgs {
+  const common = {
+    mode: 'sessions' as const,
+    allProjects: false,
+    json: values.json === true,
+    ...(values.cd !== undefined ? { cd: values.cd } : {}),
+  }
+  if (action === 'list') return { ...common, action, apply: false }
+
+  const target = positionals[2]
+  if (target === undefined || target.length === 0) {
+    return { mode: 'error', message: `sessions ${action} requires a session id` }
+  }
+  if (action === 'rename' && (positionals[3] === undefined || positionals[3].length === 0)) {
+    return { mode: 'error', message: 'sessions rename requires a new name' }
+  }
+  return {
+    ...common,
+    action,
+    target,
+    ...(action === 'rename' ? { name: positionals[3] } : {}),
+    apply: values.apply === true,
+  }
+}
+
+
+/**
+ * B-081 — reports the RESOLVED install, so config overrides are honoured rather than refused:
+ * diagnosing "why does `-c sandbox_mode=read-only` not take effect" is the point of the command.
+ */
+function parseDoctor(values: OptionValues): ExecArgs {
+  return {
+    mode: 'doctor',
+    json: values.json === true,
+    ...(values.cd !== undefined ? { cd: values.cd } : {}),
+  }
+}
+
 function parseSessions(
   values: OptionValues,
   positionals: string[],
   _overrides: string[],
-  overridesPresentes: string[],
+  presentOverrides: string[],
 ): ExecArgs {
-  if (overridesPresentes.length > 0) {
+  if (presentOverrides.length > 0) {
     return {
       mode: 'error',
       message:
-        `sessions does not accept ${overridesPresentes.join(', ')}: it resolves no config, so the ` +
+        `sessions does not accept ${presentOverrides.join(', ')}: it resolves no config, so the ` +
         `value would be silently discarded — drop the option, or use the mode that reads config`,
     }
   }
-  if (positionals[1] !== 'gc') {
+  const action = positionals[1]
+  if (!(SESSION_ACTIONS as readonly string[]).includes(action ?? '')) {
     return {
       mode: 'error',
-      message: `unknown sessions action "${positionals[1] ?? ''}" — expected: gc`,
+      message: `unknown sessions action "${action ?? ''}" — expected: ${SESSION_ACTIONS.join(' | ')}`,
     }
   }
+  return action === 'gc'
+    ? parseSessionGc(values)
+    : parseSessionAction(action as SessionAction, values, positionals)
+}
+
+/** `gc` and its numeric bounds, split out so `parseSessions` stays a router (B-074). */
+function parseSessionGc(values: OptionValues): ExecArgs {
   const parsePos = (
     flag: string,
     v: string | undefined,
@@ -297,8 +386,8 @@ function parseResumeOrPrompt(
 
 function translateApproval(values: OptionValues): string | undefined {
   if (values.approval === 'auto-edit') return AUTO_EDIT_HAS_NO_POLICY
-  if (values.approval !== undefined && values.approval in MODO_PARA_POLITICA) {
-    values.approval = MODO_PARA_POLITICA[values.approval]
+  if (values.approval !== undefined && values.approval in MODE_TO_POLICY) {
+    values.approval = MODE_TO_POLICY[values.approval]
   }
   return undefined
 }
@@ -371,6 +460,8 @@ export function parseExecArgs(argv: string[], stdinIsTTY: boolean): ExecArgs {
       return parseReview(values, positionals, overrides)
     case 'sessions':
       return parseSessions(values, positionals, overrides, overridesPresent)
+    case 'doctor':
+      return parseDoctor(values)
     case 'goal':
       return parseGoal(values, positionals, overrides)
     default:

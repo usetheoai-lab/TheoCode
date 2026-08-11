@@ -7,7 +7,7 @@ interface PendingQuestion {
   reject: (reason: Error) => void
 }
 
-const THREAD_PADRAO = '__default__'
+const DEFAULT_THREAD = '__default__'
 
 import { ConcurrentListenerError } from './concurrent-listener-error.js'
 import { ConcurrentQuestionError } from './concurrent-question-error.js'
@@ -18,13 +18,13 @@ export class AskBridge {
   private readonly pending = new Map<string, PendingQuestion>()
   private notify: (() => void) | undefined
 
-  readonly #aoDivergir: (msg: string) => void
+  readonly #onDivergence: (msg: string) => void
 
-  constructor(aoDivergir: (msg: string) => void = (msg) => process.stderr.write(`${msg}\n`)) {
-    this.#aoDivergir = aoDivergir
+  constructor(onDivergence: (msg: string) => void = (msg) => process.stderr.write(`${msg}\n`)) {
+    this.#onDivergence = onDivergence
   }
 
-  ask(question: string, threadId = THREAD_PADRAO): Promise<string> {
+  ask(question: string, threadId = DEFAULT_THREAD): Promise<string> {
     if (this.pending.has(threadId)) {
       return Promise.reject(new ConcurrentQuestionError(threadId))
     }
@@ -34,7 +34,7 @@ export class AskBridge {
     })
   }
 
-  abandon(threadId = THREAD_PADRAO): void {
+  abandon(threadId = DEFAULT_THREAD): void {
     const p = this.pending.get(threadId)
     this.pending.delete(threadId)
     // B-004 — settle before notifying. Dropping the entry without rejecting left the caller's
@@ -44,20 +44,20 @@ export class AskBridge {
     this.notify?.()
   }
 
-  currentQuestion(threadId = THREAD_PADRAO): string | undefined {
+  currentQuestion(threadId = DEFAULT_THREAD): string | undefined {
     return this.pending.get(threadId)?.question
   }
 
-  answer(answer: string, threadId = THREAD_PADRAO): boolean {
+  answer(answer: string, threadId = DEFAULT_THREAD): boolean {
     const p = this.pending.get(threadId)
     if (p === undefined) {
-      const abertas = [...this.pending.keys()]
-      this.#aoDivergir(
+      const openThreads = [...this.pending.keys()]
+      this.#onDivergence(
         `[ask-bridge] answer for "${threadId}" with no pending question` +
-          (abertas.length > 0
-            ? ` — pending em: ${abertas.join(', ')}`
+          (openThreads.length > 0
+            ? ` — pending on: ${openThreads.join(', ')}`
             : ' — no open question') +
-          ' (sob a TUI este aviso vai para .theokit/tui-stderr.log)',
+          ' (under the TUI this warning goes to .theokit/tui-stderr.log)',
       )
       return false
     }

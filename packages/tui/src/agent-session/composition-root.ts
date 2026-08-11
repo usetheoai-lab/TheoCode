@@ -71,7 +71,7 @@ function build(): TuiRoot {
   const initialPosture = resolveTrustPosture(cwd)
 
   const ptyOwner = createSessionPtyOwner({
-    modoInicial: session.cfg().sandbox_mode,
+    initialMode: session.cfg().sandbox_mode,
     maxSessions: MAX_PTY_SESSIONS,
   })
 
@@ -89,7 +89,7 @@ function build(): TuiRoot {
     getEffort: () => session.effort(),
     getSessionId: () => session.session(),
     getSessionPty: () => ptyOwner,
-    takePendingImages: () => session.tomarImagens(),
+    takePendingImages: () => session.takeImages(),
     takePendingModel: () => session.takeModel(),
     credential,
   })

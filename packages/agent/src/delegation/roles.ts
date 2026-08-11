@@ -3,7 +3,8 @@ import type { CustomTool, HookHandlers, SDKAgent, SubagentDefinition } from '@th
 import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
-import { hooksParaMembro } from './hooks-para-membro.js'
+import { hooksForMember } from './hooks-for-member.js'
+import { declareAgent, toolsNamed, type SpecContext } from '../composition/agent-spec.js'
 import { EFFORT_LEVELS, parseEffort } from '../config/index.js'
 import type { ReasoningEffort, TrustPosture } from '../config/index.js'
 
@@ -37,20 +38,46 @@ export interface RoleAgentContext {
   sandbox: SandboxBackend
   posture: TrustPosture
   hooks?: HookHandlers
+  /**
+   * B-061 — the seam that makes a role's composition assertable without a credential.
+   *
+   * Deliberately the SAME shape as `ReviewFactoryDeps.createInstance` (`review/create-agent.ts:42`)
+   * rather than a second convention: this repository builds agents at three sites, and two of them
+   * now expose the SDK entry the same way. Production callers omit it and get `Agent.create`.
+   *
+   * A role's tool list IS its authority, and nothing else in the suite reads it. Without a seam the
+   * only way to observe what a member was handed is to hold a real key and create a real agent,
+   * which is why it had gone unasserted.
+   */
+  createAgent?: (opts: Parameters<typeof Agent.create>[0]) => Promise<SDKAgent>
 }
 
-function resolveRoleTools(names: readonly string[], opts: ToolScope): CustomTool[] {
-  return new ToolRegistry(opts).resolve(names)
+/**
+ * B-059 — a role's tools go through the same composition entry the reviewer uses.
+ *
+ * The role names come from its `.theokit/agents/<name>.md`, so this is the one of the three sites
+ * whose list is DATA rather than source — which is exactly why it must share the entry: the fail-
+ * loud resolution and the provenance record apply to a repository-supplied list too.
+ */
+function resolveRoleTools(
+  name: string,
+  names: readonly string[],
+  opts: ToolScope,
+  model: { model: string; reasoning_effort: ReasoningEffort },
+): CustomTool[] {
+  const registry = new ToolRegistry(opts)
+  const ctx: SpecContext = { registry, ...model }
+  return [...declareAgent(name, ctx, [toolsNamed(registry, names)]).tools]
 }
 
 function roleConfigFrom(def: SubagentDefinition, name = ''): RoleConfig {
   const model = def.model
-  const selecao = typeof model === 'string' ? undefined : model
-  const efforto = selecao === undefined ? undefined : reasoningEffortOf(selecao)
+  const selection = typeof model === 'string' ? undefined : model
+  const selectedEffort = selection === undefined ? undefined : reasoningEffortOf(selection)
   return {
     name,
-    ...(selecao !== undefined ? { model: selecao.id } : {}),
-    ...(efforto === undefined ? {} : { reasoning_effort: wireEffort(efforto, name) }),
+    ...(selection !== undefined ? { model: selection.id } : {}),
+    ...(selectedEffort === undefined ? {} : { reasoning_effort: wireEffort(selectedEffort, name) }),
     ...(def.sandbox === undefined ? {} : { sandbox: def.sandbox }),
     tools: [...(def.tools ?? [])],
   }
@@ -113,14 +140,14 @@ async function roleAgentOptions(
   name: string,
   ctx: RoleAgentContext,
 ): Promise<Parameters<typeof Agent.create>[0]> {
-  const encontrados = await discoverSubagents(ctx.cwd ?? process.cwd(), {
+  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), {
     settingSources: ctx.posture.allows.subagents ? ['project'] : [],
   })
-  const def = encontrados[name]
+  const def = found[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
   const { cwd, writeRoot, modelId, effort } = inheritFromParent(role, ctx)
-  const pluginDeHooks = ctx.hooks !== undefined ? hooksParaMembro(ctx.hooks) : undefined
+  const hooksPlugin = ctx.hooks !== undefined ? hooksForMember(ctx.hooks) : undefined
   return {
     apiKey: requireResolvedCredential(ctx.apiKey),
     model: buildModelSelection(modelId, effort),
@@ -128,14 +155,20 @@ async function roleAgentOptions(
       cwd,
       ...(role.sandbox !== undefined ? { sandboxOptions: { enabled: role.sandbox } } : {}),
     },
-    tools: resolveRoleTools(role.tools, { cwd, writeRoot, sandbox: ctx.sandbox }),
-    ...(pluginDeHooks !== undefined
-      ? { plugins: [pluginDeHooks] as unknown as AgentOptions['plugins'] }
+    tools: resolveRoleTools(
+      name,
+      role.tools,
+      { cwd, writeRoot, sandbox: ctx.sandbox },
+      { model: modelId, reasoning_effort: effort as ReasoningEffort },
+    ),
+    ...(hooksPlugin !== undefined
+      ? { plugins: [hooksPlugin] as unknown as AgentOptions['plugins'] }
       : {}),
   }
 }
 
 export async function buildRoleAgent(name: string, ctx: RoleAgentContext): Promise<SDKAgent> {
   const apiKey = typeof ctx.apiKey === 'function' ? await ctx.apiKey() : ctx.apiKey
-  return Agent.create(await roleAgentOptions(name, { ...ctx, apiKey }))
+  const create = ctx.createAgent ?? Agent.create
+  return create(await roleAgentOptions(name, { ...ctx, apiKey }))
 }

@@ -18,7 +18,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
-  OPT_OUT_DE_ENV,
+  ENV_OPT_OUTS,
   keysWithoutEnvPath,
   optOutsThatExemptNothing,
 } from './config.js'
@@ -48,21 +48,21 @@ const WITH_ENV_PATH = new Set(
 describe('B-041 — the config invariants are enforced, not merely written', () => {
   it('test_every_config_key_is_reachable_from_the_environment_or_exempt', () => {
     expect(
-      keysWithoutEnvPath(SCHEMA_KEYS, WITH_ENV_PATH, OPT_OUT_DE_ENV),
+      keysWithoutEnvPath(SCHEMA_KEYS, WITH_ENV_PATH, ENV_OPT_OUTS),
       'a config key can be set in a file and not in the environment, with no recorded reason',
     ).toEqual([])
   })
 
   it('test_every_opt_out_exempts_something_real', () => {
     expect(
-      optOutsThatExemptNothing(SCHEMA_KEYS, WITH_ENV_PATH, OPT_OUT_DE_ENV),
+      optOutsThatExemptNothing(SCHEMA_KEYS, WITH_ENV_PATH, ENV_OPT_OUTS),
       'an exemption names a key the schema does not have, or one that IS reachable — so it exempts nothing',
     ).toEqual([])
   })
 
   it('test_the_detectors_can_actually_fail', () => {
     // Anti-vacuity floor: both assertions above pass trivially if the detectors always return [].
-    expect(keysWithoutEnvPath(['invented_key'], WITH_ENV_PATH, OPT_OUT_DE_ENV)).toEqual([
+    expect(keysWithoutEnvPath(['invented_key'], WITH_ENV_PATH, ENV_OPT_OUTS)).toEqual([
       'invented_key',
     ])
     expect(

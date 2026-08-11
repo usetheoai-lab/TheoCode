@@ -1,12 +1,12 @@
 export interface ConsentState {
   readonly trusted: boolean
-  readonly hooksRevisados: boolean
-  readonly recusados: ReadonlySet<string>
+  readonly hooksReviewed: boolean
+  readonly declined: ReadonlySet<string>
   readonly epoch: number
 }
 
 export function initialState(trusted: boolean): ConsentState {
-  return { trusted, hooksRevisados: false, recusados: new Set(), epoch: 0 }
+  return { trusted, hooksReviewed: false, declined: new Set(), epoch: 0 }
 }
 
 export function trust(e: ConsentState): ConsentState {
@@ -18,7 +18,7 @@ export function distrust(e: ConsentState): ConsentState {
 }
 
 export function refuseHook(e: ConsentState, fingerprint: string): ConsentState {
-  return { ...e, recusados: new Set([...e.recusados, fingerprint]) }
+  return { ...e, declined: new Set([...e.declined, fingerprint]) }
 }
 
 export function persistedApproval(e: ConsentState): ConsentState {
@@ -26,5 +26,5 @@ export function persistedApproval(e: ConsentState): ConsentState {
 }
 
 export function markReviewed(e: ConsentState): ConsentState {
-  return { ...e, hooksRevisados: true }
+  return { ...e, hooksReviewed: true }
 }

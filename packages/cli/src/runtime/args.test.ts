@@ -25,6 +25,8 @@ const DOCUMENTED = [
   ['review', '--uncommitted'],
   ['goal', 'ship the release'],
   ['resume', '--last'],
+  ['doctor'],
+  ['sessions', 'list'],
 ]
 
 describe('B-022 — every documented invocation routes to its command', () => {
@@ -49,7 +51,7 @@ describe('B-022 — every documented invocation routes to its command', () => {
     // The drift itself. `exec` is the npm SCRIPT name (`npm run exec`), not a subcommand of the
     // built binary — the usage text baked one into the other.
     const taught = [...USAGE.matchAll(/^\s*(?:Usage:)?\s*theocode\s+(\S+)/gm)].map((m) => m[1])
-    const routed = new Set(['resume', 'review', 'goal', 'sessions', '[OPTIONS]'])
+    const routed = new Set(['resume', 'review', 'goal', 'sessions', 'doctor', '[OPTIONS]'])
 
     for (const token of taught) {
       expect(routed.has(token ?? ''), `usage teaches \`theocode ${token ?? ''}\`, which is not routed`).toBe(
@@ -157,5 +159,87 @@ describe('B-025 — every declared flag is exercised, and every subcommand route
       routed.filter((c) => !exercised.has(c)),
       'the parser routes a subcommand that no test in this file exercises',
     ).toEqual([])
+  })
+})
+
+/**
+ * B-074 — the CLI reaches the session operations the TUI already had.
+ *
+ * The audit measured a 5+1 asymmetry: the TUI could list, fork, archive, rename and delete; the CLI
+ * could only `gc` and `resume`. Every operation already existed in `@theocode/agent/session`, so
+ * these parse into dispatch over tested code — a second implementation is what would let the two
+ * surfaces drift again.
+ */
+describe('B-074 — sessions actions', () => {
+  it('test_list_parses_without_a_target', () => {
+    const parsed = parseExecArgs(['sessions', 'list'], false)
+    expect(parsed.mode).toBe('sessions')
+    expect(parsed).toMatchObject({ action: 'list' })
+  })
+
+  it('test_archive_delete_and_fork_carry_the_id', () => {
+    for (const action of ['archive', 'delete', 'fork']) {
+      expect(parseExecArgs(['sessions', action, 'tui-abc'], false)).toMatchObject({
+        mode: 'sessions',
+        action,
+        target: 'tui-abc',
+      })
+    }
+  })
+
+  it('test_rename_carries_the_id_and_the_new_name', () => {
+    expect(parseExecArgs(['sessions', 'rename', 'tui-abc', 'triage'], false)).toMatchObject({
+      mode: 'sessions',
+      action: 'rename',
+      target: 'tui-abc',
+      name: 'triage',
+    })
+  })
+
+  it('test_an_action_that_names_a_session_refuses_without_one', () => {
+    // Defaulting to "the current session" has no meaning headless, and guessing would make
+    // `delete` destroy whichever transcript happened to be newest.
+    for (const action of ['archive', 'delete', 'fork', 'rename']) {
+      expect(parseExecArgs(['sessions', action], false)).toMatchObject({ mode: 'error' })
+    }
+  })
+
+  it('test_rename_refuses_without_the_new_name', () => {
+    expect(parseExecArgs(['sessions', 'rename', 'tui-abc'], false)).toMatchObject({ mode: 'error' })
+  })
+
+  it('test_gc_still_parses_as_before', () => {
+    // The floor: adding actions must not disturb the one that existed.
+    expect(parseExecArgs(['sessions', 'gc', '--apply'], false)).toMatchObject({
+      mode: 'sessions',
+      action: 'gc',
+      apply: true,
+    })
+  })
+
+  it('test_an_unknown_action_lists_the_valid_ones', () => {
+    const parsed = parseExecArgs(['sessions', 'nope'], false)
+    expect(parsed.mode).toBe('error')
+    expect((parsed as { message: string }).message).toContain('delete')
+  })
+})
+
+/**
+ * B-081 — `doctor` routes, and its coverage here is required by B-025's own guard: a subcommand
+ * that routes without a test in this file is how `--uncommitted` shipped validated-and-unread.
+ */
+describe('B-081 — doctor', () => {
+  it('test_doctor_routes', () => {
+    expect(parseExecArgs(['doctor'], false)).toMatchObject({ mode: 'doctor', json: false })
+  })
+
+  it('test_doctor_honours_json_and_cd', () => {
+    // It reports the RESOLVED install, so the directory flag must reach it — diagnosing another
+    // checkout is a normal thing to ask of a diagnostic.
+    expect(parseExecArgs(['doctor', '--json', '--cd', '/elsewhere'], false)).toMatchObject({
+      mode: 'doctor',
+      json: true,
+      cd: '/elsewhere',
+    })
   })
 })

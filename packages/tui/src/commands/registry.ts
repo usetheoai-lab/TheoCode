@@ -17,13 +17,30 @@ export type CommandAction =
   | { kind: 'fork' }
   | { kind: 'listSessions' }
   | { kind: 'archive'; arg: string }
+  // B-078 — permanent, and unlike /archive it never defaults to the current session.
+  | { kind: 'delete'; arg: string }
+  // B-075 — getting a reply out of the terminal without mouse-selecting a wrapped box.
+  | { kind: 'copy' }
+  | { kind: 'export'; arg: string }
+  // B-072 — which subagents exist, answerable before naming one.
+  | { kind: 'listSubagents' }
+  // B-071 — what is allowed to block me here, before the first turn.
+  | { kind: 'listHooks' }
+  // B-070 — which skills the agent actually loaded, and which trust removed.
+  | { kind: 'listSkills' }
+  // B-069 — which MCP servers the agent started, and which trust refused to spawn.
+  | { kind: 'listMcp' }
+  // B-076 — the other half of the disk decision `/approval` already owned.
+  | { kind: 'sandbox'; arg: string }
+  // B-087 — open a session `/sessions` already lists.
+  | { kind: 'resume'; arg: string }
   | { kind: 'rename'; arg: string }
   | { kind: 'mode'; mode: DemoMode }
   | { kind: 'approvalMode'; arg: string }
   // M48 — user-defined command (loaded from .theokit/commands/); arg = raw argument string.
   | { kind: 'custom'; name: string; arg: string }
   // M49 — durable-memory status (enabled/trusted, store path, fact count).
-  | { kind: 'memoryInfo' }
+  | { kind: 'memoryInfo'; arg: string }
   // M50 — manual context compaction (Codex /compact parity).
   | { kind: 'compact' }
   // Codex parity (`/ps`, `/stop`): inventory and stop for background PTYs. We were creating
@@ -53,6 +70,7 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'retry', description: 're-send the last message' },
   { name: 'fork', description: 'branch the current session into a new one' },
   { name: 'sessions', description: 'list your sessions' },
+  { name: 'resume', description: 'open a session: /resume <id>' },
   { name: 'logout', description: 'remove the stored credential' },
   { name: 'plan', description: 'demo: plan approval card' },
   { name: 'ask', description: 'demo: question prompt' },
@@ -63,8 +81,16 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'login', description: 'authenticate a provider: /login <provider>' },
   { name: 'image', description: 'attach an image to the NEXT turn: /image <path>' },
   { name: 'archive', description: 'archive a session [id]' },
+  { name: 'delete', description: 'permanently delete a session: /delete <id>' },
+  { name: 'copy', description: 'copy the last reply to the clipboard as markdown' },
+  { name: 'export', description: 'write the conversation to a file: /export [path]' },
+  { name: 'subagents', description: 'list the subagents this project defines' },
+  { name: 'hooks', description: 'list the lifecycle hooks registered for this directory' },
+  { name: 'skills', description: 'list the skills this agent actually loaded' },
+  { name: 'mcp', description: 'list the MCP servers this agent started' },
+  { name: 'sandbox', description: 'show or change the sandbox mode for this session' },
   { name: 'rename', description: 'rename the current session' },
-  { name: 'memory', description: 'durable-memory status' },
+  { name: 'memory', description: 'memory: list facts, /memory off|on, /memory forget <n>' },
   { name: 'compact', description: 'summarize the conversation to free context' },
   { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
   { name: 'quit', description: 'exit the TUI' },
@@ -92,7 +118,7 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/new', { kind: 'new' }],
   ['/help', { kind: 'toggleHelp' }],
   ['/usage', { kind: 'toggleUsage' }],
-  ['/memory', { kind: 'memoryInfo' }],
+
   ['/status', { kind: 'showStatus' }],
   ['/init', { kind: 'initAgents' }],
   ['/quit', { kind: 'quit' }],
@@ -100,6 +126,11 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/ps', { kind: 'listPtys' }],
   ['/stop', { kind: 'stopPtys' }],
   ['/compact', { kind: 'compact' }],
+  ['/copy', { kind: 'copy' }],
+  ['/subagents', { kind: 'listSubagents' }],
+  ['/hooks', { kind: 'listHooks' }],
+  ['/skills', { kind: 'listSkills' }],
+  ['/mcp', { kind: 'listMcp' }],
   ['/retry', { kind: 'retry' }],
   ['/fork', { kind: 'fork' }],
   ['/sessions', { kind: 'listSessions' }],
@@ -117,11 +148,16 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/approval', (arg) => ({ kind: 'approvalMode', arg })],
   ['/image', (arg) => ({ kind: 'image', arg })],
   ['/model', (arg) => ({ kind: 'model', arg })],
+  ['/sandbox', (arg) => ({ kind: 'sandbox', arg })],
+  ['/resume', (arg) => ({ kind: 'resume', arg })],
+  ['/memory', (arg) => ({ kind: 'memoryInfo', arg })],
   ['/effort', (arg) => ({ kind: 'effort', arg })],
   ['/review', (arg) => ({ kind: 'review', arg })],
   ['/goal', (arg) => ({ kind: 'goal', arg })],
   ['/login', (arg) => ({ kind: 'login', arg })],
   ['/archive', (arg) => ({ kind: 'archive', arg })],
+  ['/delete', (arg) => ({ kind: 'delete', arg })],
+  ['/export', (arg) => ({ kind: 'export', arg })],
   ['/rename', (arg) => ({ kind: 'rename', arg })],
 ]
 
@@ -145,7 +181,7 @@ export function routeCommand(input: string, customNames?: ReadonlySet<string>): 
       }
     }
   }
-  const comArgumento = routeWithArgument(trimmed)
-  if (comArgumento !== undefined) return comArgumento
+  const withArgument = routeWithArgument(trimmed)
+  if (withArgument !== undefined) return withArgument
   return EXACT_COMMANDS.get(trimmed) ?? { kind: 'send', text: trimmed }
 }

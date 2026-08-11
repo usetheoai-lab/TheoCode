@@ -37,15 +37,15 @@ function keyboardState(deps: KeyboardDeps): KeyboardState {
     hasOpenQuestion: pendingQuestion !== undefined,
     trusted: trusted,
     hasPendingApproval: Boolean(pendingApproval),
-    emDemoInterativa: inDemoInput,
+    inDemoInput: inDemoInput,
     emLogin: screen.loginProvider !== undefined,
     rotating: backtrack.rotating,
-    modo: screen.mode,
-    mostrandoUso: screen.showUsage,
-    mostrandoDiff: screen.panel !== undefined,
-    mostrandoAjuda: screen.showHelp,
-    goalAtivo: goalActive,
-    transmitindo: streaming,
+    mode: screen.mode,
+    showingUsage: screen.showUsage,
+    showingDiff: screen.panel !== undefined,
+    showingHelp: screen.showHelp,
+    goalActive: goalActive,
+    streaming: streaming,
     backtrackArmed: backtrack.armed,
     composerText: screen.composerText,
     backtrackNth: backtrack.nth,
@@ -76,25 +76,25 @@ export function useTuiKeyboard(deps: KeyboardDeps): void {
       },
       interruptTurn: interruptTurn,
       irParaChat: () => screen.setMode('chat'),
-      cancelarDemo: () => {
+      cancelDemo: () => {
         screen.setMode('chat')
-        screen.setToast({ message: 'Demo cancelada', variant: 'info' })
+        screen.setToast({ message: 'Demo cancelled', variant: 'info' })
       },
-      fecharDiff: () => screen.setPanel(undefined),
-      fecharUso: () => screen.setShowUsage(false),
-      fecharAjuda: () => screen.setShowHelp(false),
-      pausarGoal: () => {
+      closeDiff: () => screen.setPanel(undefined),
+      closeUsage: () => screen.setShowUsage(false),
+      closeHelp: () => screen.setShowHelp(false),
+      pauseGoal: () => {
         goalAbort.current?.abort()
         agent.abort()
-        screen.setToast({ message: 'Goal pausando… (/goal resume retoma)', variant: 'info' })
+        screen.setToast({ message: 'Goal pausing… (/goal resume continues)', variant: 'info' })
       },
       primeBacktrack: backtrack.prime,
-      resetarBacktrack: backtrack.reset,
+      resetBacktrack: backtrack.reset,
       advanceBacktrack: backtrack.advance,
       confirmBacktrack: backtrack.confirm,
       armExit: () => screen.setExitArmed(true),
       disarmExit: () => screen.setExitArmed(false),
-      sair: exit,
+      quit: exit,
     })
   })
 }

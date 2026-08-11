@@ -25,11 +25,11 @@ export function useGoalRun(pointer: string): GoalRun {
   }, [pointer, goalRun])
 
   const goalElapsed = useTurnElapsed(goalActive)
-  const goalBadge = rotuloDoGoal(goalRun, goalActive, goalElapsed)
+  const goalBadge = goalLabel(goalRun, goalActive, goalElapsed)
   return { goalRun, setGoalRun, goalActive, goalBadge }
 }
 
-function rotuloDoGoal(
+function goalLabel(
   goalRun: GoalRunState | null,
   goalActive: boolean,
   goalElapsed: number,

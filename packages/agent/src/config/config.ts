@@ -24,6 +24,9 @@ const POLICIES = ['untrusted', 'on-request', 'never'] as const
 
 export type ReasoningEffort = (typeof EFFORTS)[number]
 export type SandboxMode = (typeof SANDBOXES)[number]
+
+/** B-076 — exported so a surface offering the choice lists the same values the parser accepts. */
+export const SANDBOX_MODES: readonly SandboxMode[] = SANDBOXES
 export type ApprovalPolicy = (typeof POLICIES)[number]
 
 export type GoalOracle = 'judge' | 'update_goal'
@@ -56,30 +59,30 @@ export type SchemaKey = (typeof CONFIG_SCHEMA_KEYS)[number]
 
 interface EnvPath {
   readonly knob: string
-  readonly coagir: (raw: string) => unknown
+  readonly coerce: (raw: string) => unknown
 }
 
-function numeroDeEnv(raw: string): unknown {
+function numberFromEnv(raw: string): unknown {
   const n = Number(raw)
   return raw.trim().length > 0 && Number.isFinite(n) ? n : raw
 }
 
 export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
-  model: { knob: ENV_MODEL, coagir: (s) => s },
-  reasoning_effort: { knob: ENV_REASONING_EFFORT, coagir: (s) => s },
-  sandbox_mode: { knob: ENV_SANDBOX_MODE, coagir: (s) => s },
-  approval_policy: { knob: ENV_APPROVAL_POLICY, coagir: (s) => s },
-  goal_oracle: { knob: ENV_GOAL_ORACLE, coagir: (s) => s },
-  context_window: { knob: ENV_CONTEXT_WINDOW, coagir: numeroDeEnv },
+  model: { knob: ENV_MODEL, coerce: (s) => s },
+  reasoning_effort: { knob: ENV_REASONING_EFFORT, coerce: (s) => s },
+  sandbox_mode: { knob: ENV_SANDBOX_MODE, coerce: (s) => s },
+  approval_policy: { knob: ENV_APPROVAL_POLICY, coerce: (s) => s },
+  goal_oracle: { knob: ENV_GOAL_ORACLE, coerce: (s) => s },
+  context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
 }
 
-interface OptOutDeEnv {
+interface EnvOptOut {
   readonly key: string
   readonly reason: string
   readonly exitCriterion: string
 }
 
-export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
+export const ENV_OPT_OUTS: readonly EnvOptOut[] = [
   {
     key: 'skills',
     reason:
@@ -113,20 +116,20 @@ export const OPT_OUT_DE_ENV: readonly OptOutDeEnv[] = [
 export function keysWithoutEnvPath(
   keys: readonly string[],
   withEnvPath: ReadonlySet<string>,
-  optOut: readonly OptOutDeEnv[],
+  optOut: readonly EnvOptOut[],
 ): string[] {
-  const isentas = new Set(optOut.map((o) => o.key))
-  return keys.filter((k) => !withEnvPath.has(k) && !isentas.has(k))
+  const exempt = new Set(optOut.map((o) => o.key))
+  return keys.filter((k) => !withEnvPath.has(k) && !exempt.has(k))
 }
 
 export function optOutsThatExemptNothing(
   keys: readonly string[],
   withEnvPath: ReadonlySet<string>,
-  optOut: readonly OptOutDeEnv[],
+  optOut: readonly EnvOptOut[],
 ): string[] {
-  const doSchema = new Set(keys)
+  const schemaKeys = new Set(keys)
   return optOut
-    .filter((o) => !doSchema.has(o.key) || withEnvPath.has(o.key))
+    .filter((o) => !schemaKeys.has(o.key) || withEnvPath.has(o.key))
     .map((o) => o.key)
 }
 
@@ -263,7 +266,7 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
     const path = ENV_BY_KEY[key]
     if (path === undefined) continue 
     const raw = env[path.knob]
-    if (raw !== undefined) envScalars[key] = path.coagir(raw)
+    if (raw !== undefined) envScalars[key] = path.coerce(raw)
   }
   let envParsed: RawScalars
   try {
@@ -332,6 +335,13 @@ export function loadConfig(opts: {
   const projectDir = opts.projectDir ?? process.cwd()
   const userDir = opts.userDir ?? homedir()
   const env = opts.env ?? process.env
+  // B-086 — these two paths are DOCUMENTED in README § "Where configuration lives". They are not
+  // guessable: the SDK filebase next door is `.theokit/` (subagents, skills, rules), and a setting
+  // written into the wrong one is ignored with no error at all. That was measured, not imagined —
+  // a valid `[[hooks]]` block in `.theokit/config.toml` produced `hooks: []` from a trusted
+  // directory and read exactly like a product defect. Changing either path here means changing the
+  // README in the same commit; a hook is arbitrary command execution on every tool call, and its
+  // location must not become folklore.
   const user = readTomlIfPresent(join(userDir, '.theocode', 'config.toml'))
   const project = opts.posture.allows.projectConfig
     ? readTomlIfPresent(join(projectDir, '.theocode', 'config.toml'))

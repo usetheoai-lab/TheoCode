@@ -1,4 +1,13 @@
 import { existsSync } from 'node:fs'
+import {
+  handleCopy,
+  handleExport,
+  handleListHooks,
+  handleListMcp,
+  handleListSkills,
+  handleSandbox,
+  handleListSubagents,
+} from './transcript-commands.js'
 import { join } from 'node:path'
 
 import { CLEAR_SCREEN } from '../terminal-io/index.js'
@@ -11,12 +20,14 @@ import {
 } from './config-commands.js'
 import {
   handleArchive,
+  handleDelete,
   handleCompact,
   handleFork,
   handleListSessions,
   handleLogin,
   handleLogout,
   handleMemoryInfo,
+  handleResume,
   handleRename,
 } from './session-commands.js'
 import type {
@@ -45,16 +56,16 @@ export function interpretCommand(
   text: string,
   cap: CommandCapabilities,
 ): void {
-  for (const group of GRUPOS) {
+  for (const group of GROUPS) {
     if (group(action, text, cap)) return
   }
 }
 
-const GRUPOS: readonly ((
+const GROUPS: readonly ((
   action: CommandAction,
   text: string,
   cap: CommandCapabilities,
-) => boolean)[] = [sessionAndScreen, identidade, turn, inspecao, shells, conducao]
+) => boolean)[] = [sessionAndScreen, identity, turn, inspection, transcriptOut, shells, conduct]
 
 function sessionAndScreen(
   action: CommandAction,
@@ -83,7 +94,7 @@ function sessionAndScreen(
     case 'clear':
       resetSession()
       agent.reset()
-      SESSION.anexarImagens(undefined)
+      SESSION.attachImages(undefined)
       backtrack.setSeed('')
       goalAbort.current?.abort()
       goalAbort.current = null
@@ -113,7 +124,7 @@ function sessionAndScreen(
   }
 }
 
-function identidade(action: CommandAction, _text: string, cap: IdentityCapabilities): boolean {
+function identity(action: CommandAction, _text: string, cap: IdentityCapabilities): boolean {
   const { currentSessionId, forkCurrentSession, resetSession, setToast, setLoginProvider } = cap
   switch (action.kind) {
     case 'logout':
@@ -130,8 +141,20 @@ function identidade(action: CommandAction, _text: string, cap: IdentityCapabilit
     case 'listSessions':
       handleListSessions(currentSessionId, setToast)
       return true
+    case 'resume':
+      handleResume(action.arg, {
+        currentSessionId,
+        streaming: cap.streaming,
+        setSessionAndPersist: cap.setSessionAndPersist,
+        setClearEpoch: cap.setClearEpoch,
+        setToast,
+      })
+      return true
     case 'archive':
       handleArchive(action.arg, { currentSessionId, resetSession, setToast })
+      return true
+    case 'delete':
+      handleDelete(action.arg, { setToast })
       return true
     case 'rename':
       handleRename(action.arg, currentSessionId, setToast)
@@ -147,7 +170,7 @@ function turn(action: CommandAction, text: string, cap: TurnCapabilities): boole
     case 'image':
       handleImage(action.arg, {
         setPendingImages: (images) => {
-          SESSION.anexarImagens(images)
+          SESSION.attachImages(images)
         },
         setToast,
       })
@@ -177,15 +200,12 @@ function turn(action: CommandAction, text: string, cap: TurnCapabilities): boole
         setToast,
       })
       return true
-    case 'memoryInfo':
-      handleMemoryInfo(setToast)
-      return true
     default:
       return false
   }
 }
 
-function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
+function inspection(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
   const {
     agent,
     SESSION,
@@ -200,6 +220,10 @@ function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilit
   switch (action.kind) {
     case 'quit':
       exit()
+      return true
+    case 'memoryInfo':
+      // B-077 — inspection, not turn: it renders a panel and starts no turn.
+      handleMemoryInfo(action.arg, setToast, setPanel)
       return true
     case 'showStatus': {
       setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner))
@@ -238,6 +262,39 @@ function inspecao(action: CommandAction, _text: string, cap: InspectionCapabilit
   }
 }
 
+/**
+ * B-075 — getting the conversation OUT of the terminal. Its own group rather than another arm of
+ * `inspection`: those commands render a panel back into the TUI, these two hand text to something
+ * outside it, and folding them in pushed `inspection` past its complexity budget.
+ */
+function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
+  switch (action.kind) {
+    case 'copy':
+      handleCopy(cap.events, cap.setToast)
+      return true
+    case 'export':
+      handleExport(action.arg, cap.events, cap.currentSessionId, cap.setToast)
+      return true
+    case 'listSubagents':
+      handleListSubagents(cap.setPanel)
+      return true
+    case 'listHooks':
+      handleListHooks(cap.setPanel)
+      return true
+    case 'listSkills':
+      handleListSkills(cap.setPanel)
+      return true
+    case 'listMcp':
+      handleListMcp(cap.setPanel)
+      return true
+    case 'sandbox':
+      handleSandbox(action.arg, () => cap.SESSION.cfg().sandboxLabel, cap.setToast)
+      return true
+    default:
+      return false
+  }
+}
+
 function shells(action: CommandAction, _text: string, cap: ShellCapabilities): boolean {
   const { ptyOwner, setToast } = cap
   switch (action.kind) {
@@ -269,7 +326,7 @@ function shells(action: CommandAction, _text: string, cap: ShellCapabilities): b
   }
 }
 
-function conducao(action: CommandAction, _text: string, cap: SteeringCapabilities): boolean {
+function conduct(action: CommandAction, _text: string, cap: SteeringCapabilities): boolean {
   const {
     agent,
     backtrack,

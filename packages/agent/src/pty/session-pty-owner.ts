@@ -21,7 +21,7 @@ export interface SessionPtyOwner {
 export const MAX_PTY_SESSIONS = 16
 
 export interface SessionPtyOwnerOptions {
-  modoInicial: SandboxMode
+  initialMode: SandboxMode
   maxSessions: number
   createWrap?: (opts: InteractiveWrapOptions) => (command: string, cwd: string) => string | null
   createBackend?: (opts: PtyInteractiveBackendOptions) => BackendComPosse
@@ -33,11 +33,11 @@ function permissiveness(mode: SandboxMode): number {
 }
 
 export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyOwner {
-  const { modoInicial, maxSessions } = opts
+  const { initialMode, maxSessions } = opts
   if (!Number.isInteger(maxSessions) || maxSessions < 1) {
     throw new ConfigurationError(
-      `maxSessions deve ser inteiro >= 1 (recebido: ${String(maxSessions)})`,
-      { code: 'max_sessions_invalido' },
+      `maxSessions must be an integer >= 1 (received: ${String(maxSessions)})`,
+      { code: 'max_sessions_invalid' },
     )
   }
 
@@ -45,11 +45,11 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
   const createBackend =
     opts.createBackend ?? ((o: PtyInteractiveBackendOptions) => new PtyInteractiveBackend(o))
 
-  let modoAtual: SandboxMode = modoInicial
+  let currentMode: SandboxMode = initialMode
 
   const newBackend = (): BackendComPosse =>
     createBackend({
-      wrapCommand: (command, cwd) => createWrap({ mode: modoAtual })(command, cwd),
+      wrapCommand: (command, cwd) => createWrap({ mode: currentMode })(command, cwd),
       maxSessions,
     })
 
@@ -66,9 +66,9 @@ export function createSessionPtyOwner(opts: SessionPtyOwnerOptions): SessionPtyO
       // Tightening therefore ends live sessions; loosening does not. A session confined MORE than
       // the current mode is not a hazard, and killing the user's REPL to grant it more access would
       // be gratuitous. Reuses the permissiveness order the config security floor already defines.
-      const endurecendo = permissiveness(mode) < permissiveness(modoAtual)
-      modoAtual = mode
-      if (endurecendo) {
+      const tightening = permissiveness(mode) < permissiveness(currentMode)
+      currentMode = mode
+      if (tightening) {
         current.killAll()
         current = newBackend()
       }

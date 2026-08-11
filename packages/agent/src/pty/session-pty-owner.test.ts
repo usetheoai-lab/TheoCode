@@ -19,10 +19,10 @@ function fakeBackend() {
   return { killAll, dispose: vi.fn(), start: vi.fn(), write: vi.fn() } as never
 }
 
-function owner(modoInicial: 'read-only' | 'workspace-write' | 'danger-full-access') {
+function owner(initialMode: 'read-only' | 'workspace-write' | 'danger-full-access') {
   const created: { killAll: ReturnType<typeof vi.fn> }[] = []
   const o = createSessionPtyOwner({
-    modoInicial,
+    initialMode,
     maxSessions: 4,
     createWrap: () => () => null,
     createBackend: () => {

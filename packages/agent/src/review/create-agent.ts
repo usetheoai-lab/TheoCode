@@ -1,7 +1,14 @@
 import { Agent, buildModelSelection } from '@theokit/agents'
 import type { CustomTool, HookHandlers } from '@theokit/agents'
 
-import { hooksParaMembro } from '../delegation/index.js'
+import { hooksForMember } from '../delegation/index.js'
+// B-084 — re-exported, not aliased. This file used to export `TOOLS_DO_REVIEWER` as a
+// back-compat name pinned to the real one, and its own docstring set the sunset: "delete once
+// nothing outside this file reads it". Removing the Portuguese name IS that moment, and the one
+// consumer (`composition.test.ts`) reads it from here, so the re-export keeps that path alive
+// without a second identifier to drift.
+export { REVIEWER_TOOLS } from '../composition/agent-spec.js'
+import { reviewerShape } from '../composition/agent-spec.js'
 
 import type { AgentConfig } from '../config/index.js'
 import { ToolRegistry, resolveToolScope, type ToolScope } from '../tools/index.js'
@@ -9,12 +16,11 @@ import type { ReviewAgentLike, ReviewDeps } from './run-review.js'
 
 export const REVIEWER_SHELL_CAP = 30_000
 
-export const TOOLS_DO_REVIEWER = ['git_diff', 'read_file', 'grep', 'run_shell'] as const
 
-export type ConfigDoReviewer = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
+export type ReviewerConfig = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
 
-function reviewerScope(cfg: ConfigDoReviewer, cwd: string): ToolScope {
+function reviewerScope(cfg: ReviewerConfig, cwd: string): ToolScope {
   return { ...resolveToolScope(cfg, cwd), defaultTimeoutMs: REVIEWER_SHELL_CAP }
 }
 
@@ -34,7 +40,7 @@ interface CreationOptions {
 }
 
 export interface ReviewFactoryDeps {
-  config: ConfigDoReviewer
+  config: ReviewerConfig
   cwd: string
   resolveCredential: (model: string) => Promise<string>
   hooks?: HookHandlers
@@ -55,7 +61,15 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
   const createInstance = deps.createInstance ?? defaultCreateInstance
   const deleteAgent = deps.deleteAgent ?? defaultDeleteAgent
   const registry = new ToolRegistry(reviewerScope(deps.config, deps.cwd))
-  const pluginDeHooks = deps.hooks !== undefined ? hooksParaMembro(deps.hooks) : undefined
+  // B-059 — the ONE composition entry. It returns the reviewer's SHAPE (a value); this factory
+  // still creates the agent through the same `Agent.create` it always used, which is what keeps
+  // this a declaration change and not a behaviour change.
+  const shape = reviewerShape({
+    registry,
+    model: deps.config.model,
+    reasoning_effort: deps.config.reasoning_effort ?? 'medium',
+  })
+  const hooksPlugin = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
     const apiKey = await deps.resolveCredential(deps.config.model)
@@ -65,9 +79,9 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
       model: buildModelSelection(deps.config.model, deps.config.reasoning_effort),
       local: { cwd: deps.cwd },
       systemPrompt,
-      tools: registry.resolve([...TOOLS_DO_REVIEWER]),
-      ...(pluginDeHooks !== undefined
-        ? { plugins: [pluginDeHooks] as unknown as Parameters<typeof Agent.create>[0]['plugins'] }
+      tools: [...shape.tools],
+      ...(hooksPlugin !== undefined
+        ? { plugins: [hooksPlugin] as unknown as Parameters<typeof Agent.create>[0]['plugins'] }
         : {}),
     })
 
