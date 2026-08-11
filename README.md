@@ -64,7 +64,7 @@ loud parse failure, not a skipped hook.
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
-**69 files, 456 cases** (measured 2026-08-11). The following were left out by an explicit decision —
+**70 files, 478 cases** (measured 2026-08-11). The following were left out by an explicit decision —
 stated here so nobody assumes they were forgotten:
 
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
