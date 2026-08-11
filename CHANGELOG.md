@@ -32,6 +32,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **The README no longer tells readers this repository has no test suite (B-110).** It stated "`npm test` does not exist here. Any claim about this code's behaviour is currently unverified in this repository" — false on all three counts: `npm test` runs 67 files and 427 cases. The sentence did not merely age, it instructed: a contributor arriving at a repo whose README says the tests are absent does not run them. Sibling of B-062, which found the same disease in the domain specialist file.
 
 ### Changed
+- **The README's test count was re-measured (B-110, B-116).** B-110 replaced a false claim ("this repository holds no test suite") with a measured one; the same day's work made the measured one stale, as 67 files / 427 cases became 69 / 456 once `routeKey` and the `sendMessage` refusal got their tests. A number that ages silently is B-110's defect one step removed — a reader cannot tell a stale measurement from a current one, and both read as authoritative. Re-measured with `npm test`, not incremented by arithmetic.
 - **`@theokit/sdk/context` exists upstream (B-103).** Discovery, rule activation and `@path` import resolution are now a semver-covered public surface of the SDK instead of code every consumer re-derives. TheoCode has not migrated yet — its `packages/agent/src/context/` still carries all 602 LoC, and the ~430 that could be returned is consumer-side work the upstream plan deliberately left out of scope.
 
 ### Security
