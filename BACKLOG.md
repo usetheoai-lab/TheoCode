@@ -4002,8 +4002,23 @@ evidence: |
   `| tail -N` masks the 141 behind tail's own 0. Either alone would have been visible; together they
   produce a step that reports success and does nothing.
 
-  Redirecting to a file (`git push ... > log 2>&1 < /dev/null`) gives the stream a consumer that
-  always reads, and the push completes.
+  CORRECTED, same day, after the redirect remedy failed on the very next push (also 141). The
+  stream's consumer was never the variable — one success had been over-read as a fix.
+
+  The actual cause is a TIMEOUT, not a reader. Git contacts the remote BEFORE running `pre-push`,
+  and `pre-push` runs the full `pnpm validate` — around eleven minutes. By the time the hook passes
+  and the transfer starts, the server has dropped the idle connection, and git takes SIGPIPE
+  writing to it. That is why the output always ends exactly at `pre-push gates passed`.
+
+  Controlled experiment, same tree (186af027a), same refs, same network, one variable removed:
+
+  ```
+  git push origin workspace              # gate inside the push: ~11 min -> exit 141, 0 transferred
+  git push --no-verify origin workspace  # gate already green on this tree: 2.27s -> transferred
+  ```
+
+  This also explains why the 4.42.1 TAG push worked: B-113 makes `pre-push` skip itself when the
+  push adds no commit, so the eleven-minute gap never opens.
 why_now: |
   Whatever the cause, the failure mode is the dangerous one: a release step that reports success and
   does nothing. It was caught because the tag was checked against the remote afterwards; nothing in
