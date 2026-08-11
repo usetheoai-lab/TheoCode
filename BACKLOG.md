@@ -3961,7 +3961,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `presenter-adoption-or-gap`).
 
-## B-106 — The framework creates session artifacts and leaves the reaping to the consumer   [ ]
+## B-106 — The framework creates session artifacts and leaves the reaping to the consumer   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4020,7 +4020,42 @@ discover_outcome: |
       never returns.
     - **A TOCTOU backstop** re-checking the writer lease between plan and apply, because a session
       can acquire a writer between the two.
-status: triaged
+shipped: |
+  SHIPPED 2026-08-11 as `planReaping` in `@theokit/sdk@4.50.0`, verified against the registry.
+
+  `discover_outcome` deferred this on severity — the path that DELETES USER DATA, the consumer's
+  version at 1 402 LoC, and a DoD asking four properties at once. The severity was the right reason
+  to be careful and the wrong reason to stop, so the design answers it instead: the framework
+  DECIDES and never deletes. A pure planner returns three buckets; executing the plan is a separate,
+  explicit act on a value someone can read first. The dry-run guarantee is structural rather than a
+  flag that has to be remembered, and the decision stays testable without a filesystem — which is
+  what let the dangerous case be asserted rather than simulated.
+
+  All four DoD properties hold, verified in a clean project against the registry:
+    - retention window with keep-last (the floor preserves the N newest when nothing else does)
+    - the writer lease honoured (a live session survives any age)
+    - dry-run that must be confirmed (the plan is a value; nothing is removed by producing it)
+    - tri-state (an artifact whose liveness could not be established is never reaped AND never
+      counted as kept — reporting it as kept would tell an operator the collector decided when it
+      did not)
+
+  Two decisions the tests FORCED rather than confirmed, recorded because the conflict was invisible
+  until the implementation had to choose. `keepLast` is a floor on total survivors, not a bonus on
+  top of the window — two of the first cases encoded different readings. And undetermined artifacts
+  do not count toward that floor, so a transient mount failure cannot satisfy "keep 2" with
+  artifacts nobody confirmed while the confirmed ones are deleted.
+
+  Worth keeping: the acceptance script REPEATED the bonus reading and reported a false failure. The
+  implementation was right and the check was wrong — the second time the same confusion surfaced,
+  which is why the semantics are now written down in the type's own docblock.
+
+  17 cases, ten mutations all detected, re-measured after the complexity gate forced a split into
+  assertPolicy / classifyByOwnReason / applyFloor.
+
+  NOT DONE, and named rather than implied: TheoCode's own 1 402-LoC reaper is not migrated onto this.
+  That is a consumer slice with its own risk, and B-103 is the standing precedent for not assuming a
+  migration is warranted before comparing capabilities.
+status: shipped
 severity: major
 dod:
   - the framework reaps the artifacts it creates: retention window, keep-last, the writer lease
