@@ -3569,16 +3569,43 @@ why_now: |
   This is the cheapest of the framework items to close, because the code is written and tested — what
   is missing is an export and a documented entry. Every consumer that reads a project directory pays
   the full 600 LoC again to get a capability that already ships in the tarball they installed.
-status: raw
+status: triaged
 severity: major
+evidence_measured: |
+  MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
+  `.claude/knowledge-base/discoveries/opportunities/sdk-context-assembly-is-internal-opportunity.md`
+  (SHIPPABLE 98.0). Capability map, 7 rows: 1 already PUBLIC, 3 internal, 1 different-semantics,
+  2 with no counterpart. Reachability answered by execution — `@theokit/sdk/context` and every deep
+  import answer `ERR_PACKAGE_PATH_NOT_EXPORTED`; 30 subpaths declared, no `./*` wildcard, and three
+  `internal/` subtrees are ALREADY published (`./internal/persistence`, `./internal/security`,
+  `./internal/memory-adapters`), so the pattern exists.
+dod_corrected_2026-08-11: |
+  The third bullet below REPLACES "TheoCode's context/ shrinks to source registration". The
+  measurement proved that unachievable: `readImageAttachment` and the inode cycle guard have no SDK
+  counterpart, and `scanMarkdownWithGuards` serves `.theokit/commands/`, which is not context
+  assembly. ~170 of the 602 LoC stay in the consumer whatever the framework does. A DoD that cannot
+  close is worse than none — it makes the item unfinishable and the failure looks like neglect.
 dod:
-  - a public entry composes a system prompt from N declared sources under one aggregate budget with a
-    declared truncation order, without a consumer importing from `src/internal/`
-  - a consumer can register its own source (its own file convention) without reimplementing discovery,
-    truncation or the aggregate cap
-  - TheoCode's `packages/agent/src/context` shrinks to source registration, measured in LoC before/after
+  - `@theokit/sdk/context` resolves as a subpath export, verified by an actual import rather than by
+    reading the barrel, following the `./internal/persistence` precedent
+  - a consumer registers its own source without reimplementing discovery, truncation or the
+    aggregate cap — `applyAggregateCap`'s `priority` field is reshaped first, because as it stands it
+    means "position among the SDK's own seven specs" and is not a public contract
+  - `packages/agent/src/context/` drops from 602 LoC toward ~170, and the delta is accounted for row
+    by row against the capability map — with `test_a_relative_escape_is_refused` and
+    `test_a_symlink_out_of_the_project_is_refused` still green, so the migration cannot re-open B-042
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `sdk-context-assembly-is-internal`).
+> Triaged 2026-08-11 by `/discover-execute`; DoD corrected by the measurement, see above.
+> Planned 2026-08-11 — `.claude/knowledge-base/plans/sdk-context-public-barrel-plan.md` (SHIPPABLE 96.8).
+> Implemented 2026-08-11 — `theokit-sdk` `09d5dbc54` + `3d4be5fdf`; code-quality PASS; review
+> READY_TO_MERGE with one HIGH fixed inside the phase. PRs #197 (workspace→develop), #198 (release).
+>
+> SCOPE NOTE: this cycle delivered DoD bullets 1 and 2 — `@theokit/sdk/context` resolves, verified by
+> a real import, and a consumer registers its own source without reimplementing discovery, rule
+> activation or import resolution. Bullet 3 (TheoCode's `context/` dropping 602 → ~170 LoC) is
+> CONSUMER-side and was explicitly out of the plan's Coverage Matrix; the item stays open until that
+> lands. `applyAggregateCap`'s reshaping is deferred by ADR D2 and needs its own item.
 
 ## B-104 — Terminal-surface primitives are rebuilt by every agent CLI   [ ]
 

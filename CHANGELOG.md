@@ -25,6 +25,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **theokit-sdk:** backlog B-115 — nothing tests what the SDK does with a file the repository controls.
 - **theocode:** backlog B-116 — the most stateful surface subsystems are the least tested.
 
+### Changed
+- **`@theokit/sdk/context` exists upstream (B-103).** Discovery, rule activation and `@path` import resolution are now a semver-covered public surface of the SDK instead of code every consumer re-derives. TheoCode has not migrated yet — its `packages/agent/src/context/` still carries all 602 LoC, and the ~430 that could be returned is consumer-side work the upstream plan deliberately left out of scope.
+
 ### Security
 - **Upgraded to `@theokit/sdk@4.41.1`,** which confines `@path` context imports to the repository that declares them. Before it, a repository this agent was pointed at could inline any file readable by the process — an SSH key, a `.env` — into the system prompt via a `CLAUDE.md` line that was exactly `@~/.ssh/id_rsa`. Found and fixed upstream from here; TheoCode's own `AGENTS.md` loader was already contained (B-042), but the SDK's discovery path runs whenever the `project` setting source is enabled for a trusted directory.
 
