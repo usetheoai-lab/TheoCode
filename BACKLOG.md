@@ -3750,3 +3750,47 @@ dod:
   - TheoCode's `wired-capabilities.ts` becomes a projection of the framework's record, measured in LoC
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `framework-reports-what-it-wired`).
+
+## B-109 — Every release leaves `develop` behind `main`, and the next release PR would re-publish shipped work   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: bug
+source: human
+evidence: |
+  HIT, not predicted, while cutting `@theokit/sdk@4.41.1` on 2026-08-11.
+
+  `.github/workflows/release.yml` runs `changesets/action@v1` on `push: [main]`. The action opens
+  `changeset-release/main` → a "Version Packages" PR → `main`, and that PR is what CONSUMES the
+  changeset files and bumps `package.json`. Nothing carries either back to `develop`.
+
+  Measured immediately before opening the release PR:
+
+  ```
+  git rev-list --count origin/develop..origin/main   # 10
+  git show origin/develop:packages/sdk/package.json  # 4.40.0
+  git show origin/main:packages/sdk/package.json     # 4.41.0
+  git ls-tree origin/develop .changeset/             # 3 changesets already consumed by 4.41.0
+  ```
+
+  Opening `develop → main` in that state re-adds `answerable-without-reimplementing`,
+  `mcp-server-failed-event` and `sdk-recognises-its-own-artifacts` — all released in 4.41.0 — so the
+  next `changeset version` would re-release three shipped features as new minors with duplicated
+  CHANGELOG entries. It was avoided by back-merging first (PR #193), by hand, because the drift was
+  noticed. Nothing detects it.
+why_now: |
+  The drift is unbounded and grows by one release each time. It was 10 commits after one release;
+  the cost of the mistake is a wrong version published to npm, which cannot be fixed — only
+  deprecated. This blocked a SECURITY release for the time it took to diagnose, which is when a
+  process defect is most expensive.
+status: raw
+severity: major
+dod:
+  - after a release completes, `develop` carries the version bump and the changeset deletions without
+    a human noticing that it does not — either the workflow opens the sync PR, or the version job
+    runs on `develop` and `main` fast-forwards
+  - a `develop → main` PR whose diff would RE-ADD a changeset file already consumed on `main` fails a
+    check rather than merging
+  - `git rev-list --count origin/develop..origin/main` is 0 immediately after a release
+
+> Registered 2026-08-11 by `/backlog-item` (slug: `release-leaves-develop-behind`).
