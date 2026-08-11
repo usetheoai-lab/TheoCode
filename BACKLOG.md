@@ -3635,7 +3635,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-parity-and-testability`).
 
-## B-103 — Context assembly exists in the SDK and no consumer can reach it   [ ]
+## B-103 — Context assembly exists in the SDK and no consumer can reach it   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3710,7 +3710,34 @@ correction: |
   The item stays `triaged` because that is what it is: measured, decided against for the migration,
   and with no verified successor. It is not `killed` — the underlying gap ("what a consumer reaches
   is the easy half") was not refuted, only the proposed action.
-status: triaged
+killed: |
+  KILLED 2026-08-11. The hypothesis in the title — "no consumer can reach it" — is REFUTED, measured
+  against `@theokit/sdk@4.49.0` in a clean project rather than by reading the barrel.
+
+  Bullet 1 holds: `@theokit/sdk/context` resolves as a subpath, verified by an actual import.
+
+  Bullet 2's substance holds too, and this is the part that was never measured before. A consumer
+  DOES register its own discovery source without reimplementing discovery:
+  `runDiscovery({ specs: [...DEFAULT_DISCOVERY_SPECS, mine] })` finds it, and the seven defaults keep
+  working alongside. The first attempt failed only because the spec shape was guessed rather than
+  read — `id` and `pattern` are required, not `path`.
+
+  Bullet 3 is refuted on evidence and stays refuted: see `consumer_slice_outcome` and `correction`.
+  The migration would trade a fail-closed containment guard for a fail-to-lexical one to save ~60
+  LoC, and two of the capability gaps recorded there did not survive re-measurement.
+
+  What SURVIVES is one verified residual, now its own item B-127: `priority` is a raw number that
+  only means "position among the SDK's own seven specs". Registering a source above CLAUDE.md and
+  below GEMINI.md meant choosing `25` by reading the defaults — which is the exact complaint bullet 2
+  raised, and it is a public-API shape question rather than a migration.
+
+  Killed rather than left `triaged` because the registry should not read as pending work when the
+  measurement says the premise was wrong. The number stays; the audit trail survives.
+kill_reason: |
+  A consumer CAN reach context assembly (since 4.42.0) and CAN register its own source (measured
+  2026-08-11). The proposed consumer migration is refuted on capability, not deferred. The one
+  verified residual is registered as B-127.
+status: killed
 severity: major
 evidence_measured: |
   MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
@@ -5090,3 +5117,36 @@ dod:
     gate is honest, a permanently red one is not
 
 > Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
+
+## B-127 — A discovery spec's `priority` only means "position among the SDK's own seven"   [ ]
+
+domain: theokit
+repo: theokit-sdk
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-08-11 against `@theokit/sdk@4.49.0`, in a clean project. Registering a consumer's own
+  context source works — `runDiscovery({ specs: [...DEFAULT_DISCOVERY_SPECS, mine] })` discovers it
+  and the seven defaults keep working. To place it BETWEEN two of them, `priority: 25` had to be
+  chosen by reading the defaults: AGENTS.md is 10, GEMINI.md 20, CLAUDE.md 30.
+
+  So the number is a position in a list the consumer does not own. It is exported (the constant is
+  public precisely so `specs` can extend rather than replace), which makes it a de facto contract:
+  the day the SDK inserts an eighth default at 25, every consumer that picked 25 silently changes
+  where its own instructions land in the merge.
+why_now: |
+  Inherited from B-103, which was killed on 2026-08-11 after measurement refuted its premise. This is
+  the one part of it that survived re-measurement, and it is the part B-103's own DoD flagged in
+  advance: "`priority` as it stands means position among the SDK's own seven specs and is not a
+  public contract".
+status: raw
+severity: minor
+dod:
+  - a consumer can place its source relative to a NAMED default (before/after `AGENTS.md`) rather
+    than by picking a number that happens to fall between two of them
+  - inserting a new default spec does not silently move an existing consumer's source
+  - the shape is decided with at least one real second consumer in view, or the decision to keep raw
+    numbers is recorded with its reason — B-104's deferral is the precedent for refusing to design a
+    public API against a single example
+
+> Registered 2026-08-11, inherited from B-103's kill.
