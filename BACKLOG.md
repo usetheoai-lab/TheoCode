@@ -2357,7 +2357,7 @@ kill_reason: the cost was real when filed and is now largely gone. What remains 
   this is re-filed with a new id and `supersedes: B-079`. What would change is EVIDENCE, which is
   the only thing that should reopen it.
 why_now_original: `/fork` is the only way to ask something without disturbing the current thread, and it creates a session that persists and is listed by `/sessions` forever. Combined with B-078 — no delete — every aside is permanent. The registry of sessions therefore fills with branches nobody meant to keep, which makes `/sessions` less useful the more the product is used. HONEST LIMIT: this is the weakest of the thirteen. The cost is real and observable, but nobody has yet reported it as friction; if B-078 lands, the pressure here drops substantially and this item may be worth killing rather than planning.
-status: raw
+status: killed
 severity: LOW
 dod:
   - an aside can be asked without producing a session that outlives it
