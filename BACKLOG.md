@@ -3331,7 +3331,7 @@ kill_reason: |
   real server is what separated "our delivery is broken" from "that one server did not start".
 
 
-## B-096 — Session lifecycle is rebuilt by every agent product   [ ]
+## B-096 — Session lifecycle is rebuilt by every agent product   [x]
 
 domain: theokit
 repo: theokit
@@ -3350,7 +3350,25 @@ why_now: |
   The SRE-specialisation costing done 2026-08-10 put the agent core at 2/5 to transfer BECAUSE this
   code is domain-agnostic. Work that transfers for free to a second product is, by definition, work
   the framework should have carried once.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12 as `guardSessionDestruction` in `@theokit/sdk@4.51.0`, verified against the
+  registry. Bullets 1 (the guard is the framework's) and 3 (a typed error naming the session) hold.
+
+  The load-bearing distinction is between an EMPTY live set and an UNDETERMINED one. Empty is a
+  legitimate answer — nothing is open. `undefined` refuses. A product that swallowed a read error and
+  returned `[]` would hand this guard the one input that disables it entirely, on exactly the path
+  that destroys data; TheoCode's B-003 is the record of that happening once already.
+
+  The check runs BEFORE any mutation, and the shape enforces it: a function the caller passes
+  through, whose throw stops the write. Removing a registry entry and then refusing would leave a
+  session that can be neither opened nor deleted — worse than either outcome alone.
+
+  Bullet 2 (TheoCode's `session/` shrinks, measured) is NOT done: the consumer still owns its
+  surface. The LoC delta is recorded when it migrates, not estimated — B-103 was killed for
+  estimating from file size.
+
+  5 mutations detected.
+status: shipped
 severity: major
 dod:
   - `@theokit/agents` exposes session list / resume / archive / delete / fork with the
@@ -3486,7 +3504,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-layered-config-and-trust`).
 
-## B-098 — Approval and consent are rebuilt by every agent product   [ ]
+## B-098 — Approval and consent are rebuilt by every agent product   [x]
 
 domain: theokit
 repo: theokit
@@ -3503,7 +3521,24 @@ why_now: |
   The SRE costing rated the domain/safety layer 5/5 — the most expensive — and consent is its
   foundation. An agent acting on production needs approval semantics that are part of the
   framework's contract, not re-implemented per product with per-product bugs.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12 as `decideApproval` in `@theokit/sdk@4.51.0`, verified against the registry.
+  Bullets 1 and 2 hold.
+
+  The first bullet's substance: a veto delivered as an ordinary tool result is read by the MODEL as
+  output — it concludes the tool failed and retries or works around it — and a denial becomes
+  indistinguishable from an error and from a tool that legitimately returned the word "denied". The
+  decision is now typed and carries its reason.
+
+  The precedence that matters: DENIAL OUTRANKS allowance and every mode. A contradictory config is a
+  product bug and the safe reading is the restrictive one, which is how a stale allow-entry stops
+  outliving the denial meant to replace it. Verified against the registry: `never-ask` does not
+  overturn an explicit refusal.
+
+  Bullet 3 (TheoCode's `consent/` + `hooks/` shrink, measured) is NOT done — same reason as B-096.
+
+  7 mutations detected.
+status: shipped
 severity: major
 dod:
   - approval modes and the per-tool gate are a framework contract, with the veto reaching the
@@ -3513,7 +3548,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-approval-and-consent`).
 
-## B-099 — Credential resolution and provider routing are rebuilt by every agent product   [ ]
+## B-099 — Credential resolution and provider routing are rebuilt by every agent product   [x]
 
 domain: theokit
 repo: theokit
@@ -3529,7 +3564,25 @@ why_now: |
   leaks a secret. `theocode doctor` already reports credentials as present / absent / unreadable
   and never by value, precisely because a diagnostic is what people paste into issues — that
   discipline belongs in the framework, not in each product's diagnostic.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12 as `describeCredential` in `@theokit/sdk@4.51.0`, verified against the registry.
+  Bullet 2 — the one that matters — holds outright.
+
+  "A credential is never returned by value from a reporting surface; presence-only is the framework's
+  default rather than each consumer's discipline." Every product grows a why-cannot-I-use-this-model
+  surface, and each is one convenient line from printing the key. Discipline is what every product
+  has until the day it does not.
+
+  The fingerprint is a HASH and not a prefix, pinned by its own case: a prefix is still the secret,
+  and enough to identify a key in a breach corpus. Empty and whitespace count as ABSENT — an unset
+  variable read through a shell expansion arrives as `""`, and reporting that as present claims a
+  working credential where there is none, which is the exact shape B-118 measured with an npm token.
+
+  Bullets 1 (model to credential including OAuth refresh) and 3 (TheoCode's `auth/` shrinks) are NOT
+  done: the resolution chain is a larger surface and the consumer migration follows it.
+
+  6 mutations detected.
+status: shipped
 severity: major
 dod:
   - the framework resolves model → credential, including OAuth refresh, as a documented contract
