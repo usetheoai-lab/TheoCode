@@ -5342,7 +5342,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `scaffold-template-loads-env-unguarded`).
 
-## B-125 — A rendering test in theokit-tui fails about one run in four   [ ]
+## B-125 — A rendering test in theokit-tui fails about one run in four   [x]
 
 domain: theokit
 repo: theokit-tui
@@ -5405,7 +5405,33 @@ progress_2026_08_12: |
   to the most timing-delicate part of the suite is how a flake becomes a hang. The remaining work is
   a single shared helper the seven consume, which is the same DRY-about-the-rule move B-117 made for
   containment.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12 in `@theokit/tui@0.52.1`. All three DoD bullets, and the third one measured
+  rather than asserted: TWENTY consecutive full-suite runs, 20 green, 0 red.
+
+  Two timing assumptions, found one at a time because fixing the first moved the failure to the
+  second — which is what "it is a class, not a test" meant.
+
+  1. `chat-composer` slept a FIXED 50ms after every simulated keystroke. Its own comment two lines
+     above already said a fixed sleep is flaky under load and that polling was the answer; the
+     polling helper sat twenty lines below and `type()` never called it. Now waits for two identical
+     consecutive frames — Ink has flushed and stopped — bounded so a stuck render fails rather than
+     hangs. Unloaded it returns faster than the sleep it replaced.
+
+  2. `chat-composer.onchange` assumed TWO TICKS were enough for `useInput` to subscribe before
+     writing. That is a guess about scheduling, not a fact about the component: `useInput` attaches
+     after the mount frame, so under load the keystroke was silently dropped and the symptom
+     surfaced two seconds later in a `waitFor` timeout, far from the cause. It now writes until the
+     key lands — a resend of a lost event, not a retry of a failed assertion.
+
+  The item's ORIGINAL evidence named a third test entirely (`preview_result_caps_with_language_routing`)
+  and that was corrected earlier: six runs captured a 5000ms timeout in a different file, fixed by
+  sizing the budget from the measured 1.5-3.2s barrel import. Three distinct cases, one class.
+
+  The seven files carrying a fixed 40ms sleep were measured and left alone: they wait past Ink's
+  ~20ms meta-prefix window after a lone ESC, which is a real timer rather than a render, and none
+  of them failed across the twenty runs. Changing them would have been motion without evidence.
+status: shipped
 severity: minor
 dod:
   - the failure mode is captured (assertion diff from a failing run), not just the test name

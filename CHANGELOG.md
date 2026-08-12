@@ -65,6 +65,7 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - **`theokit-tui` joins the `theokit` routing domain.** A measured item (B-104) belongs to that repo and to no other, which is the trigger `cycle-backlog.md § Domain routing` names for extending the table. It routes to the existing `agents/theokit.md` specialist rather than to a new one, so the resolution names an owner.
 
 ### Fixed
+- **theokit-tui 0.52.1: the suite stops failing about one run in twenty (B-125).** Two timing assumptions replaced by waits on the actual signal — a fixed 50ms sleep per keystroke, and "two ticks are enough for useInput to subscribe". Twenty consecutive full-suite runs: 20 green.
 - **theokit-sdk 4.51.1: a user-visible failure is never the message nobody receives (B-102).** `diagFailure` falls back to stderr when no sink is installed, while ordinary chatter stays silent. A corrupted frame is visible and recoverable; a dropped failure is neither.
 - **The README no longer tells readers this repository has no test suite (B-110).** It stated "`npm test` does not exist here. Any claim about this code's behaviour is currently unverified in this repository" — false on all three counts: `npm test` runs 67 files and 427 cases. The sentence did not merely age, it instructed: a contributor arriving at a repo whose README says the tests are absent does not run them. Sibling of B-062, which found the same disease in the domain specialist file.
 
