@@ -4733,7 +4733,7 @@ dod:
 
 > Registered 2026-08-11 by `/backlog-item` (slug: `least-tested-most-stateful-surfaces`).
 
-## B-117 — Two lexical containment guards in theokit-sdk never resolve symlinks   [ ]
+## B-117 — Two lexical containment guards in theokit-sdk never resolve symlinks   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4748,7 +4748,25 @@ why_now: While verifying B-115 against the built artifact I grepped for every re
   symlink whose name sits inside the root and whose target does not is judged by its name. That is
   the identical shape already fixed twice in this ecosystem (B-042 in TheoCode, B-115 here), which
   is why finding it a third time is worth an item rather than a mental note.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11. Both guards measured reachable and both let the escape through, before
+  anything was changed — which is what the first DoD bullet demanded instead of reading the code.
+
+  A link at `<root>/escape` pointing at a sibling makes `resolve(root, "escape/secret.txt")` a path
+  both guards accept, while `realpathSync` of it lands outside. `safePathJoin` is reached from the
+  plugin manager and the MCP client; `isPathInside` from `memory_get`.
+
+  Both now consume `internal/runtime/context/path-containment.ts` — the fourth DoD bullet, and the
+  reason this defect appeared three times: three copies at three strengths drift.
+
+  One behaviour preserved on purpose and pinned by its own case: the ROOT ITSELF stays allowed. The
+  shared `insideRoot` answers false for it, which is correct for its own caller and would be a
+  silent change here, where `safePathJoin(base)` with no parts must return `base`. Kept as an
+  explicit clause rather than by weakening a shared security rule for every caller.
+
+  Six cases, three mutations detected, 4 300 tests green. The suite also caught an English-only
+  violation I introduced in CLAUDE.md — the gate doing its job on its author.
+status: shipped
 dod:
   - each of the two guards is measured against a symlink escape, and the result is recorded as
     reachable or unreachable — not asserted from reading
@@ -4887,7 +4905,7 @@ dod:
 > Registered 2026-08-11 by `/backlog-item` (slug: `globbed-discovery-is-not-recursive`).
 
 
-## B-120 — The re-release guard answers "all clear" for a ref it cannot read   [ ]
+## B-120 — The re-release guard answers "all clear" for a ref it cannot read   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -4917,7 +4935,20 @@ evidence: |
 why_now: |
   The guard exists because a wrong version on npm cannot be fixed, only deprecated. A guard whose
   failure mode is a green tick is worse than no guard, because it is trusted.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11. `changesetsAt` caught its `git ls-tree` and returned `[]`, and for this guard
+  an empty list means "nothing to worry about" — so a sha the repository does not have produced the
+  same tick as a genuinely clean release, with git's `fatal: not a tree object` on stderr above it.
+
+  `main` already distinguished exit 2 ("could not check") from exit 1 ("checked, and unsafe"). What
+  was missing was anything reaching it.
+
+  Both halves of the second DoD bullet are pinned: an absent-but-well-formed sha now throws, and the
+  repository's own first commit — which predates `.changeset/` — still lists nothing and reports
+  clean. Throwing for every ref would have satisfied the first while making the guard useless.
+
+  Verified at the exit-code level because that is what CI reads: unreadable -> 2, legitimate -> 0.
+status: shipped
 severity: major
 dod:
   - a ref the repository cannot resolve produces a REFUSAL (exit 2, "could not check"), never exit 0
@@ -5197,7 +5228,7 @@ dod:
 
 > Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
 
-## B-127 — A discovery spec's `priority` only means "position among the SDK's own seven"   [ ]
+## B-127 — A discovery spec's `priority` only means "position among the SDK's own seven"   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -5218,7 +5249,23 @@ why_now: |
   the one part of it that survived re-measurement, and it is the part B-103's own DoD flagged in
   advance: "`priority` as it stands means position among the SDK's own seven specs and is not a
   public contract".
-status: raw
+shipped: |
+  SHIPPED 2026-08-11, as a recorded DECISION plus a contract, which is what the third DoD bullet
+  explicitly allows.
+
+  The raw number stays. A relative API (`before("AGENTS.md")`) would be a public surface designed
+  against a single consumer — the mistake B-104's deferral is the precedent for — and it is
+  unnecessary: `DEFAULT_DISCOVERY_SPECS` is already exported, so relative placement is one line at
+  the call site over data the consumer already has. Parsimony rung 1: it does not need to exist.
+
+  What the raw number needed is that it cannot MOVE, which is the second bullet. The seven ids and
+  priorities are now written out rather than derived, so adding an eighth default is a deliberate
+  act that must reckon with the numbers consumers already picked. Also pinned: no two defaults share
+  a number, and every adjacent pair leaves room for a consumer source between them — without that
+  gap the only remedy would be renumbering, which is the silent move this exists to prevent.
+
+  Four mutations detected.
+status: shipped
 severity: minor
 dod:
   - a consumer can place its source relative to a NAMED default (before/after `AGENTS.md`) rather
