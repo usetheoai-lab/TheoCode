@@ -3558,6 +3558,21 @@ why_now: |
   The 9-of-10 result is the measured proof that a first-class tool family collapses a product's
   cost. The costing showed the agent core and both surfaces transfer at 1-2/5 to an SRE product;
   the tools are where the work actually is, and they are absent.
+progress_2026_08_11: |
+  BULLET 2 SHIPPED — the load-bearing one. `withBlastRadius` / `describeAction` let any tool declare
+  the scope it reaches and the reversibility of its action, and `evaluateBlastRadius` (B-101) gates
+  on that instead of on the tool's name. Proven by a case where two tools with the SAME NAME and
+  different scopes gate differently, which is the distinction a name-keyed policy cannot make.
+
+  The declaration rides ALONGSIDE the tool under a symbol, not in `inputSchema`: that schema is what
+  the MODEL sees, and a policy field there would leak the gate into the prompt and let a
+  model-authored argument influence its own approval.
+
+  BULLETS 1 and 3 NOT DONE, and the reason is a decision rather than a shortage of time. Concrete
+  cluster / metrics / log / trace tools each need a real client, and every one would be designed
+  against ZERO measured consumers — the mistake B-104 recorded and its resolution avoided. Building
+  four of them now would produce an interface the first real SRE consumer routes around. What ships
+  is the seam they declare through; the tools themselves want a consumer with a cluster.
 status: raw
 severity: major
 dod:
@@ -3570,7 +3585,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `sdk-infrastructure-tool-family`).
 
-## B-101 — Confinement covers the disk, not the blast radius   [ ]
+## B-101 — Confinement covers the disk, not the blast radius   [x]
 
 domain: theokit
 repo: theokit-sdk
@@ -3589,7 +3604,25 @@ why_now: |
   is NOT a code-volume problem: an SRE agent acts on production, where the missing concepts are
   scope (which cluster, which namespace), reversibility (dry-run before apply), and a two-person
   rule for destructive actions. None exist today, in any layer.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11 as `evaluateBlastRadius` in `@theokit/sdk`. All three DoD bullets hold.
+
+  A tool declares the scope it reaches and whether its action is reversible; the policy decides from
+  those two facts plus what the operator granted. Nothing in the module names a scope — "cluster:prod"
+  is the product's word, arriving as data, the same shape as the security floor and the trust posture.
+
+  Three decisions, each pinned by its own case. REFUSAL OUTRANKS APPROVAL: asking a human to approve
+  something the operator never granted reach for teaches them to approve by reflex. An EMPTY GRANT
+  refuses rather than allowing everything. An action with NO DECLARED SCOPE is refused rather than
+  defaulted — a tool that forgot to declare is not a tool that reaches nothing, and defaulting to
+  allow would make the mechanism opt-in for exactly the tools written in a hurry.
+
+  Third bullet: every decision carries WHY (`scope-not-granted` / `irreversible` / `scope-undeclared`
+  / `within-granted-scope`), so "the sandbox stopped this" is never conflated with "you never granted
+  that scope" — different fixes, and an operator told the wrong one widens the wrong thing.
+
+  12 mutations detected across the two modules.
+status: shipped
 severity: major
 dod:
   - a tool can declare the scope it acts on and the reversibility of its action, and the approval
