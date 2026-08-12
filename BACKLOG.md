@@ -5138,6 +5138,30 @@ why_now: |
   against — has to build this itself, which is what the 181 LoC in the one measured consumer are.
   The framework ships the harder half (a canonical event, three surfaces) and stops one abstraction
   short of the half a product actually ships.
+progress_2026_08_11: |
+  DECIDED AND BUILT — bullets 1 and 3 closed, bullet 2 waiting on the consumer.
+
+  BULLET 1 (done) — ADR 0007 `wiki/decisions/`. The measurement is that the two vocabularies sit on
+  different AXES, not that one is a spelling of the other: `AgentOutputEvent` is content-shaped, the
+  Codex contract is lifecycle-shaped, and `JsonPresenter` is 40 lines that namespace a discriminant,
+  structurally unable to model the second. The decision: the NAMES belong to the product — one wire
+  contract among several, and a framework shipping one picks a side — and the FOLD does not.
+
+  BULLET 3 (done) — `AgentOutputEvent` is untouched. Widening the content event to carry turn state
+  would make every consumer of the content axis pay for the other one.
+
+  BULLET 2 (built, not adopted) — `foldTurnLifecycle` ships in `@theokit/presenter`, carrying the
+  invariant a hand-rolled emitter gets wrong: a turn opens exactly once and closes exactly once,
+  never both completed and failed, never left open. In the measured emitter the error path and the
+  finish path each close the turn, and only a flag threaded through both keeps them apart.
+
+  Mutation found a defect the first version of my own test was too weak to see: ids advanced on every
+  LOOKUP, so a tool call and its own result got different ids — breaking exactly the pairing item
+  events exist for. The covering case compared two RESULTS, which differ under any implementation.
+  Both fixed; 6/6 detected after.
+
+  REMAINING: the consumer replaces its 181-line emitter and the LoC delta is RECORDED, not estimated.
+  B-103 was killed for estimating from file size.
 status: raw
 severity: minor
 dod:
