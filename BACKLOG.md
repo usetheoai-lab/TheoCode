@@ -5161,7 +5161,7 @@ dod:
 > Registered 2026-08-11 by `/backlog-item` (slug: `tui-ci-red-on-step-order`).
 
 
-## B-123 — `@theokit/presenter` has no lifecycle surface, so a Codex-shaped consumer cannot use it   [ ]
+## B-123 — `@theokit/presenter` has no lifecycle surface, so a Codex-shaped consumer cannot use it   [x]
 
 domain: theokit
 repo: theokit
@@ -5215,7 +5215,35 @@ progress_2026_08_11: |
 
   REMAINING: the consumer replaces its 181-line emitter and the LoC delta is RECORDED, not estimated.
   B-103 was killed for estimating from file size.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12. All three bullets, and the second one's number is not the one anybody hoped
+  for — which is the point of recording it rather than estimating it.
+
+  BULLET 1 — ADR 0007. The two vocabularies sit on different AXES: `AgentOutputEvent` is
+  content-shaped, the Codex contract is lifecycle-shaped. The NAMES belong to the product, the FOLD
+  does not.
+
+  BULLET 3 — `AgentOutputEvent` untouched.
+
+  BULLET 2 — `foldTurnLifecycle` ships in `@theokit/presenter@0.6.0` and TheoCode's
+  `createJsonlProcessor` composes it. THE DELTA IS +13 LINES OF CODE (170 -> 183), measured, not a
+  shrink. Reporting it as a reduction would be the estimate-from-file-size error B-103 was killed
+  for, with a real number attached. The file grew because translating between three vocabularies —
+  SDK chunks, the fold, Codex events — is now explicit where one switch used to do all three at
+  once.
+
+  What the migration actually bought: the invariant lives in one tested place instead of in an
+  `errorSeen` flag threaded through two paths that each close the turn.
+
+  THE REAL FINDING is what the migration exposed. Three mutations survived the ENTIRE CLI suite
+  while I was moving it — closing a failed turn as completed, dropping the error, never accumulating
+  text. Nothing covered the emitter, and it is the contract every consumer of `--json` reads. Nine
+  cases now do; five mutations detected.
+
+  The last one to fall is the one worth keeping: the fold already closes the turn as failed, so
+  dropping `errorSeen` left the WIRE correct while `ProcessorResult.errorSeen` — which the caller
+  reads to set its exit code — went false. A failed run would have exited 0.
+status: shipped
 severity: minor
 dod:
   - the gap is decided rather than assumed: either presenter gains a lifecycle event set alongside
