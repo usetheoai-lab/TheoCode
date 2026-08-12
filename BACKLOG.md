@@ -5387,6 +5387,24 @@ progress_2026_08_11: |
   `renderFrame` helper captures the frame after ONE `setTimeout(0)` tick, which is a
   scheduling-dependent capture, and its own docblock records that raising the delay past ~80 ms
   flakes every spinner snapshot. That coupling is why the fix is not obvious and why this stays open.
+progress_2026_08_12: |
+  THE CLASS IS NAMED, one case fixed, and the DoD's third bullet is measured NOT met: 19 green, 1
+  red over twenty consecutive full-suite runs — again.
+
+  What the second measurement showed. `chat-composer.test.tsx` defined `settle` as a FIXED 50ms
+  sleep after every simulated keystroke, and its own comment two lines above already said a fixed
+  sleep is flaky under load and that polling is the answer — the polling helper sits twenty lines
+  below and `type()` never called it. Replaced with a wait for two identical consecutive frames
+  (Ink has flushed and stopped), bounded so a stuck render fails rather than hangs.
+
+  Then the failure MOVED, to `chat-composer.onchange.test.tsx`. Measured: SEVEN test files carry
+  their own fixed sleep, 40ms each. That is the class — one shared idiom copied seven times — and
+  fixing it case by case will keep finding the next one.
+
+  NOT DONE, and deliberately not rushed: each of the seven has its own structure, and a hasty edit
+  to the most timing-delicate part of the suite is how a flake becomes a hang. The remaining work is
+  a single shared helper the seven consume, which is the same DRY-about-the-rule move B-117 made for
+  containment.
 status: raw
 severity: minor
 dod:
