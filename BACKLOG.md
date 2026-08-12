@@ -3687,7 +3687,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `sdk-blast-radius-confinement`).
 
-## B-102 — A framework gap is invisible until a consumer trips on it   [ ]
+## B-102 — A framework gap is invisible until a consumer trips on it   [x]
 
 domain: theokit
 repo: theokit
@@ -3732,7 +3732,26 @@ progress_2026_08_11: |
   Found in passing and worth its own item: `check-sandbox-parity` exits 1 on a REAL pre-existing
   finding — `writableRootsFor` is exported by the SDK's sandbox and crosses `@theokit/agents/sandbox`
   with no entry in DECISIONS.
-status: raw
+shipped: |
+  SHIPPED 2026-08-12. All three bullets.
+
+  BULLET 3 closed with `diagFailure` in `@theokit/sdk@4.51.1`. `diag()` is silent with no sink
+  installed, and that default is right for chatter — a library must not assume the host's stderr is
+  a free-form log, because in a TUI it is the render surface. A FAILURE is a different message, and
+  `theokit-sdk#189` is the record: an MCP server failed to start, the only report went to `diag()`,
+  the embedding UI never read it, and the user saw an agent with missing tools and no reason given.
+
+  The asymmetry is the decision: a corrupted frame is visible and recoverable, a silently dropped
+  failure is neither. A sink still takes precedence — the host installed it to keep these off the
+  terminal — EXCEPT when the sink throws, which is the same defect one layer further in and is
+  covered.
+
+  Method note worth keeping: the no-sink cases could not pass at first, and the reason was mine.
+  `vitest.setup.ts` installs a stderr-forwarding sink for EVERY test (theokit#147 — 36 files assert
+  warnings by spying on stderr), so clearing it in `afterEach` was too late.
+
+  3 mutations detected, including the central one: making the failure silent again.
+status: shipped
 severity: minor
 dod:
   - the in-process and HTTP entry points are checked against each other for field parity, so a
