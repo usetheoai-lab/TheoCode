@@ -1,3 +1,7 @@
+import { foldTurnLifecycle, type TurnLifecycle } from '@theokit/presenter'
+
+type TurnFold = TurnLifecycle<unknown>
+
 
 export interface ExecIo {
   out: (line: string) => void
@@ -105,12 +109,76 @@ function commandEvent(
   }
 }
 
+/**
+ * The Codex JSONL dialect, as a projection of the framework's lifecycle fold.
+ *
+ * B-123 — `foldTurnLifecycle` carries the invariant this used to hold by hand: a turn opens exactly
+ * once and closes exactly once, never both completed and failed, never left open. Here the error
+ * path and the finish path each closed the turn, and only an `errorSeen` flag threaded through both
+ * kept them from doing it twice — right until someone edited one path.
+ *
+ * What stays is this product's VOCABULARY, which is the whole reason the framework does not ship it:
+ * `thread.started`, the item shapes, the Codex usage block. ADR 0007 records why.
+ */
+/**
+ * Translate one SDK chunk into the fold's vocabulary, or `null` when it carries no lifecycle.
+ *
+ * Its own function because it answers a different question from the processor: this is where the
+ * SDK's words become the fold's, and the processor is where the fold's become Codex's. Keeping the
+ * two apart is also what kept `process` under the complexity gate once the fold arrived.
+ */
+function toContentChunk(chunk: ChunkLike): Parameters<TurnFold['observe']>[0] | null {
+  // `id` spread conditionally in one place rather than at each call: the optional-property spread
+  // counts as a branch, and repeating it three times is what put this over the complexity gate.
+  const withId = (name: string) => ({
+    ...(chunk.id !== undefined ? { id: chunk.id } : {}),
+    name,
+  })
+
+  switch (chunk.type) {
+    case 'text-delta':
+      return { kind: 'text', delta: chunk.delta ?? '' }
+    case 'tool-input-available':
+      return { kind: 'tool-call', ...withId(chunk.toolName ?? 'tool') }
+    case 'tool-output-available':
+      return { kind: 'tool-result', ...withId(chunk.toolName ?? 'tool') }
+    case 'error':
+      return { kind: 'error', message: chunk.errorText ?? 'unknown' }
+    default:
+      return null
+  }
+}
+
+/** The Codex dialect, as constructors the fold calls. This product's words, and only its words. */
+function codexDialect(): Parameters<typeof foldTurnLifecycle<unknown>>[0] {
+  return {
+    threadStarted: (id) => ({ type: 'thread.started', thread_id: id }),
+    turnStarted: () => ({ type: 'turn.started' }),
+    itemStarted: (item) => commandEvent('item.started', item.id, item.kind, 'in_progress'),
+    itemCompleted: (item) =>
+      item.id === 'message'
+        ? { type: 'item.completed', item: { id: 'item_msg', type: 'agent_message', text: item.kind } }
+        : commandEvent('item.completed', item.id, item.kind, 'completed'),
+    turnCompleted: (u) => ({
+      type: 'turn.completed',
+      usage: toCodexUsage(u as Record<string, number> | undefined),
+    }),
+    turnFailed: (error) => ({ type: 'turn.failed', error }),
+  }
+}
+
+/**
+ * The Codex JSONL dialect, as a projection of the framework's lifecycle fold.
+ *
+ * B-123 — `foldTurnLifecycle` carries the invariant this used to hold by hand: a turn opens exactly
+ * once and closes exactly once, never both completed and failed, never left open. Here the error
+ * path and the finish path each closed the turn, and only an `errorSeen` flag threaded through both
+ * kept them from doing it twice — right until someone edited one path.
+ *
+ * What stays is this product's VOCABULARY, which is why the framework does not ship it: the event
+ * names, the item shapes, the Codex usage block. ADR 0007 records the reasoning.
+ */
 export function createJsonlProcessor(io: ExecIo, threadId: string): ExecProcessor {
-  let text = ''
-  let errorSeen = false
-  let itemN = 0
-  let usage: Record<string, number> | undefined
-  const itemIdFor = (chunk: ChunkLike): string => chunk.id ?? `item_${itemN}`
   const emit = (obj: unknown): void => {
     try {
       io.out(JSON.stringify(obj))
@@ -118,49 +186,36 @@ export function createJsonlProcessor(io: ExecIo, threadId: string): ExecProcesso
       io.out(JSON.stringify({ type: 'error', message: 'serialization failure' }))
     }
   }
-  emit({ type: 'thread.started', thread_id: threadId })
-  emit({ type: 'turn.started' })
+
+  let usage: Record<string, number> | undefined
+  let finalText = ''
+  let errorSeen = false
+
+  const turn = foldTurnLifecycle<unknown>(codexDialect(), threadId)
+  for (const event of turn.opened) emit(event)
+
   return {
     process(chunk) {
-      switch (chunk.type) {
-        case 'finish':
-          usage = chunk.messageMetadata?.usage
-          break
-        case 'text-delta':
-          text += chunk.delta ?? ''
-          break
-        case 'tool-input-available':
-          emit(commandEvent('item.started', itemIdFor(chunk), chunk.toolName, 'in_progress'))
-          break
-        case 'tool-output-available':
-          emit(commandEvent('item.completed', itemIdFor(chunk), chunk.toolName, 'completed'))
-          break
-        case 'error':
-          errorSeen = true
-          emit({
-            type: 'item.completed',
-            item: { id: `item_${itemN++}`, type: 'error', message: chunk.errorText ?? 'unknown' },
-          })
-          break
-        default:
-          break
+      if (chunk.type === 'finish') {
+        usage = chunk.messageMetadata?.usage
+        return
       }
+      if (chunk.type === 'text-delta') finalText += chunk.delta ?? ''
+      if (chunk.type === 'error') errorSeen = true
+
+      const mapped = toContentChunk(chunk)
+      if (mapped === null) return
+      for (const event of turn.observe(mapped)) emit(event)
     },
     finish(status, extra) {
-      const finalText = text.trim()
-      if (finalText.length > 0) {
-        emit({
-          type: 'item.completed',
-          item: { id: `item_${itemN++}`, type: 'agent_message', text: finalText },
-        })
-      }
-      if (status === 'error' || errorSeen) {
-        errorSeen = true
-        emit({ type: 'turn.failed', error: { message: extra?.error ?? 'turn failed' } })
-      } else {
-        emit({ type: 'turn.completed', usage: toCodexUsage(extra?.usage ?? usage) })
-      }
-      return { finalText, errorSeen, usage: toCodexUsage(extra?.usage ?? usage) }
+      const raw = extra?.usage ?? usage
+      const failed = status === 'error' || errorSeen
+      const outcome = failed
+        ? { status: 'error' as const, error: extra?.error ?? 'turn failed', usage: raw }
+        : { status: 'ok' as const, usage: raw }
+
+      for (const event of turn.finish(outcome)) emit(event)
+      return { finalText: finalText.trim(), errorSeen: failed, usage: toCodexUsage(raw) }
     },
   }
 }
