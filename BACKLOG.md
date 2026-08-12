@@ -3624,6 +3624,28 @@ why_now: |
   Each was found by a consumer hitting it in production use, not by the framework's own suite. That
   is the expensive discovery path, and the costing above assumes a framework that does not depend
   on it.
+progress_2026_08_11: |
+  TWO of three bullets done; the item stays open for the third.
+
+  BULLET 1 (done) — the in-process and HTTP entry points are compared, and a field carried by one
+  and dropped by the other now fails in the framework naming itself. Four mutations detected,
+  including the `theokit#196` regression itself and a new field added to one side only. The
+  exception list for legitimately one-sided fields is checked for rot in the other direction too.
+
+  BULLET 2 (done, and larger than recorded) — FOUR scripts ran their body on import, not the two a
+  grep found. `check-sandbox-parity` and `verify-published-no-workspace` use `import.meta.url` for
+  PATH RESOLUTION, so they read as guarded while importing them ran the whole gate; the second made
+  registry calls for six packages. The test IMPORTS each script and observes what happens rather
+  than matching a pattern, because the property is behaviour and a guard that merely looks right
+  passes a grep.
+
+  BULLET 3 (NOT done) — "a diagnostic with no installed sink is not the only report of a
+  user-visible failure". Untouched. This is the `theokit-sdk#189` half and it needs a decision about
+  what the framework does when it has something to say and no sink to say it to.
+
+  Found in passing and worth its own item: `check-sandbox-parity` exits 1 on a REAL pre-existing
+  finding — `writableRootsFor` is exported by the SDK's sandbox and crosses `@theokit/agents/sandbox`
+  with no entry in DECISIONS.
 status: raw
 severity: minor
 dod:
@@ -5186,6 +5208,28 @@ why_now: |
   one run in four teaches the team to re-run rather than to read, and the next real regression in
   that file will be re-run away with it. It also makes the pre-push gate — which runs the full
   suite and takes ~15 minutes — fail for no reason roughly a quarter of the time.
+progress_2026_08_11: |
+  PARTIALLY FIXED, and NOT closed — the DoD's third bullet (20 consecutive green full-suite runs) is
+  measured NOT met: 19 green, 1 red.
+
+  Two corrections to this block's own evidence, both from measurement.
+
+  1. The test named here is the WRONG one. Six full-suite runs reproduced a failure, and it was
+     `tests/package-contract.test.ts > readme_quickstart_symbols_resolve` — `Test timed out in
+     5000ms`, not the rendering assertion recorded above. That case spends its whole budget on
+     `await import("../src/index.js")`: the entire barrel, measured at 1 553 ms under the full suite
+     and 3 233 ms in isolation against a 5 000 ms default. Fixed by sizing the timeout from the
+     measurement (30 s), which weakens no assertion — a symbol that fails to resolve still fails on
+     the first tick.
+
+  2. It is not ONE flaky test, it is a CLASS. The 20-run verification then failed once on a THIRD
+     case: `src/chat-composer.test.tsx > multichar_input_burst_inserts_atomically`. So the suite has
+     several timing-sensitive tests and fixing them one at a time will keep finding the next.
+
+  What that suggests, unmeasured and stated as a hypothesis rather than a finding: the shared
+  `renderFrame` helper captures the frame after ONE `setTimeout(0)` tick, which is a
+  scheduling-dependent capture, and its own docblock records that raising the delay past ~80 ms
+  flakes every spinner snapshot. That coupling is why the fix is not obvious and why this stays open.
 status: raw
 severity: minor
 dod:
@@ -5196,7 +5240,7 @@ dod:
 
 > Registered 2026-08-11 while cutting `@theokit/tui@0.52.0`.
 
-## B-126 — SonarCloud analysis has failed on every theokit-tui PR, not the quality gate   [ ]
+## B-126 — SonarCloud analysis has failed on every theokit-tui PR, not the quality gate   [x]
 
 domain: theokit
 repo: theokit-tui
@@ -5218,7 +5262,24 @@ why_now: |
   B-122 closed a CI job that had been red on `develop` for at least eight runs. The cost is not the
   red mark — it is that the day Sonar finds something real here, it will look exactly like the
   previous three PRs and get merged past.
-status: raw
+shipped: |
+  SHIPPED 2026-08-11. Cause named from the repository, as the first DoD bullet required: there is NO
+  Sonar configuration here at all — the failing check is SonarCloud's Automatic Analysis, which is
+  why it completes in ~20-30s where a real scan takes minutes. The sibling `theokit-sdk` passes on
+  the same mechanism, so the difference is that project's server-side settings, not readable from a
+  repository.
+
+  `sonar-project.properties` + a CI step now report from CI, which is how SonarCloud disables
+  Automatic Analysis for a project — the fix rather than a second opinion beside a broken one. The
+  properties state the tree explicitly because, left to discovery, the scanner reads `dist/`
+  (gitignored build output) and the wiki, and then reports duplication between a source file and
+  its own bundle.
+
+  OWNER ACTION REQUIRED, and named rather than implied: `SONAR_TOKEN` is created in SonarCloud and
+  added to this repository's Actions secrets. Until it exists the step SKIPS LOUDLY with a notice
+  saying so — the third DoD bullet's spirit, since a step that fails for a missing credential is
+  the same unreadable red mark this item is about.
+status: shipped
 severity: minor
 dod:
   - the analysis failure's cause is named from the workflow log, not guessed
