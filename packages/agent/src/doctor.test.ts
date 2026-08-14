@@ -24,14 +24,17 @@ const base = {
 
 describe('B-081 — collectChecks', () => {
   it('test_a_healthy_install_has_no_failure', () => {
-    expect(diagnose(collectChecks(base)).failed).toBe(false)
+    // `failed` is a COUNT since the quartet moved to `@theokit/agents/doctor` — `toBe(false)`
+    // would now pass on `+0` for the wrong reason, and fail on any real count.
+    expect(diagnose(collectChecks(base)).failed).toBe(0)
   })
 
   it('test_a_missing_credential_is_a_failure_with_the_remedy', () => {
     // FAIL, not warn: without it nothing works, and the exit code is what makes this usable in a
     // support script.
     const d = diagnose(collectChecks({ ...base, credential: 'absent' }))
-    expect(d.failed).toBe(true)
+    expect(d.failed).toBeGreaterThan(0)
+    expect(d.exitCode, 'the exit code is what makes this usable in a support script').not.toBe(0)
     expect(d.checks.find((c) => c.name === 'credential')?.detail).toContain('/login')
   })
 
@@ -58,7 +61,8 @@ describe('B-081 — collectChecks', () => {
         },
       }),
     )
-    expect(d.failed).toBe(false)
+    expect(d.failed).toBe(0)
+    expect(d.exitCode, 'warnings must not make a green install exit non-zero').toBe(0)
     expect(d.checks.filter((c) => c.status === 'warn').length).toBeGreaterThanOrEqual(3)
   })
 
@@ -76,8 +80,13 @@ describe('B-081 — collectChecks', () => {
 
 describe('B-081 — renderDiagnosis', () => {
   it('test_a_failure_is_findable_by_eye', () => {
-    const out = renderDiagnosis(diagnose(collectChecks({ ...base, credential: 'absent' })))
-    expect(out).toContain('FAIL')
+    // The renderer is the framework's now, so the assertion is on the PROPERTY the test is named
+    // for — a failure is visible and counted — not on the glyph the local version happened to use.
+    const diagnosis = diagnose(collectChecks({ ...base, credential: 'absent' }))
+    const out = renderDiagnosis(diagnosis)
+    expect(out).toContain('credential')
+    expect(out, 'the summary must state how many failed, or a long paste hides the one that did')
+      .toContain(`${String(diagnosis.failed)} failed of`)
   })
 
   it('test_it_never_prints_a_secret', () => {

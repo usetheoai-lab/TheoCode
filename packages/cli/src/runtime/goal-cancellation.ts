@@ -1,6 +1,14 @@
 
+/**
+ * The narrow slice of a shutdown this module needs — deliberately not the whole `Shutdown`.
+ *
+ * Kept local when `shared/shutdown.ts` was deleted for `@theokit/agents/commands`: depending on the
+ * framework's full interface here would couple goal cancellation to `run()`, `exit` and the
+ * watchdog, none of which it uses. Only the shape of the task changed, because the framework's
+ * cleanups are named.
+ */
 export interface CleanupRegistrar {
-  registerCleanup: (fn: () => void | Promise<void>) => void
+  register: (task: { readonly name: string; readonly run: () => void | Promise<void> }) => void
 }
 
 function maxWaitFrom(watchdogMs: number): number {
@@ -38,15 +46,18 @@ export function createGoalCancellation(
     resolver()
   }
 
-  reg.registerCleanup(async () => {
-    controller.abort()
-    let timer: NodeJS.Timeout | undefined
-    const giveUp = new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, waitCap)
-      timer.unref()
-    })
-    await Promise.race([shutdownSignalled, giveUp])
-    if (timer !== undefined) clearTimeout(timer)
+  reg.register({
+    name: 'goal-cancellation',
+    run: async () => {
+      controller.abort()
+      let timer: NodeJS.Timeout | undefined
+      const giveUp = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, waitCap)
+        timer.unref()
+      })
+      await Promise.race([shutdownSignalled, giveUp])
+      if (timer !== undefined) clearTimeout(timer)
+    },
   })
 
   return { signal: controller.signal, shutdown }

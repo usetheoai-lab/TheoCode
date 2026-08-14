@@ -1,21 +1,24 @@
+import { createWriteQueue } from '@theokit/tui/terminal'
 
-const tails = new Map<string, Promise<unknown>>()
+/**
+ * THE write queue for this application (B-104).
+ *
+ * The implementation moved to `@theokit/tui/terminal`, where it is a factory rather than
+ * module-level state — correct for a library, since two consumers in one process must not serialise
+ * against each other. An application has one of everything, so the instance belongs here, at the
+ * only place that can guarantee there is exactly one.
+ *
+ * That guarantee is the whole reason this file still exists instead of every caller creating its
+ * own. Two queues over the same file would interleave writes to it, and nothing would fail loudly:
+ * the file would simply be wrong, occasionally, under concurrency.
+ */
+const queue = createWriteQueue()
 
-export function enqueue<T>(key: string, op: () => Promise<T>): Promise<T> {
-  const previous = tails.get(key) ?? Promise.resolve()
-  const result = previous.then(op)
-  tails.set(
-    key,
-    // eslint-disable-next-line no-restricted-syntax -- see the rationale above
-    result.catch(() => undefined),
-  )
-  return result
-}
+/** Run `op` after everything already queued under `key`. */
+export const enqueue = <T>(key: string, op: () => Promise<T>): Promise<T> => queue.enqueue(key, op)
 
-export async function drain(key: string): Promise<void> {
-  await (tails.get(key) ?? Promise.resolve())
-}
+/** Resolve once everything queued under `key` has settled. */
+export const drain = (key: string): Promise<void> => queue.drain(key)
 
-export async function drainAll(): Promise<void> {
-  await Promise.all([...tails.keys()].map((key) => drain(key)))
-}
+/** Resolve once every key has settled. Used at shutdown. */
+export const drainAll = (): Promise<void> => queue.drainAll()

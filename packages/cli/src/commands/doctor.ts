@@ -62,5 +62,8 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
 
   if (opts.json) process.stdout.write(`${JSON.stringify({ type: 'doctor', ...result })}\n`)
   else process.stderr.write(`${agent.renderDiagnosis(result)}\n`)
-  process.exit(result.failed ? 1 : 0)
+  // `result.exitCode`, not `result.failed ? 1 : 0`. The framework's diagnosis computes it, and it
+  // carries a case the local version could not express: an EMPTY check list exits non-zero, because
+  // "no checks ran" is a different fact from "everything passed" — and the boolean collapsed them.
+  process.exit(result.exitCode)
 }

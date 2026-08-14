@@ -119,7 +119,7 @@ interface CompiledAgent {
   approvals: Record<string, { question: string }>
   mcpServers: Record<string, unknown>
   skills: string[]
-  settingSources: string[]
+  settingSources: { user?: boolean; project?: { trustedBy: unknown } }
   memory: { enabled: boolean }
   model: string
 }
@@ -222,11 +222,16 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
         'approval exists to refuse it',
     ).toEqual([])
     expect(agent.skills, 'an untrusted repo got its SKILL.md into the persona').toEqual([])
+    // M86 — `@theokit/agents@8.0.0` replaced the string list with a selection: `user` is a boolean,
+    // and `project` is present only when a `TrustPosture` authorizes it. What this assertion proves
+    // is unchanged, and it is now expressed as the ABSENCE of the key — an untrusted repo must not
+    // even request the root, because a requested-but-ungranted `project` is a hard refusal, and a
+    // present-but-denying grant would be a claim the gate is on when it is not.
     expect(
       agent.settingSources,
       'the `project` setting source stayed on for an untrusted repo, which re-enables repository ' +
         'subagents and repository hooks behind the per-hook fingerprint gate (B-008)',
-    ).toEqual(['user'])
+    ).toEqual({ user: true })
     expect(agent.memory.enabled, 'memory writes into an untrusted working tree').toBe(false)
   })
 
@@ -236,7 +241,13 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     const agent = await compile({ surface: 'headless', cwd: '/p' })
 
     expect(agent.skills).toEqual(['code-review'])
-    expect(agent.settingSources).toEqual(['project', 'user'])
+    // The counter-proof to the untrusted case, in the M86 shape: `project` is present, and the grant
+    // carries the posture that authorized it — including `source`, so a refusal further down can say
+    // where the decision came from rather than only that it was refused.
+    expect(agent.settingSources).toEqual({
+      user: true,
+      project: { trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } } },
+    })
     expect(agent.memory.enabled).toBe(true)
     expect(
       Object.keys(agent.mcpServers),

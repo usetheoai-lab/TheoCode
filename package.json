@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@theokit/sdk": "^4.40.0",
+    "@theokit/sdk": "^4.49.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
@@ -46,6 +46,7 @@
     "theocode": "./dist/theocode.mjs"
   },
   "overrides": {
-    "@theokit/presenter": "^0.5.1"
-  }
+    "@theokit/presenter": "^0.6.0"
+  },
+  "dependencies": {}
 }

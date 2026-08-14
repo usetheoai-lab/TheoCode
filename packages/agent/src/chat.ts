@@ -39,7 +39,7 @@ import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
-import { projectSourceAllowed } from './config/project-source.js'
+import { projectSettingsPosture, projectSourceAllowed } from './config/project-source.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
@@ -383,7 +383,21 @@ function withShellAndProjectEntities(
       // how `.skills()` and AGENTS.md are already gated (subagents were the one disk entity that was not).
       // B-008 — the `project` source enables repository hooks too, not just subagent discovery, and
       // those bypass TheoCode's per-hook fingerprint gate. It now requires both capabilities.
-      .settingSources(projectSourceAllowed(posture.allows) ? ['project', 'user'] : ['user'])
+      // M86 — `@theokit/agents@8.0.0` asks for the evidence instead of a string list. `user` stays a
+      // boolean (`~/.theokit/` is the operator's own machine); `project` now carries the posture that
+      // authorized it, so a refusal inside the framework can say WHERE the decision came from. The
+      // gate itself is unchanged — `projectSettingsPosture` projects the same B-008 conjunction.
+      //
+      // `project` is OMITTED rather than passed with a denying posture. The framework REFUSES a
+      // requested-but-ungranted `project` by throwing — right for a caller that asked for it, and
+      // TheoCode is not asking. An untrusted directory here has always degraded to user-only and
+      // kept working; passing the grant unconditionally would turn that into a hard failure on every
+      // untrusted repo. Omitting a root is not enabling it.
+      .settingSources(
+        projectSourceAllowed(posture.allows)
+          ? { user: true, project: { trustedBy: projectSettingsPosture(posture) } }
+          : { user: true },
+      )
       .hooks(lifecycleHooks)
   )
 

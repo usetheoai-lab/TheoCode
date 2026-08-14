@@ -79,6 +79,55 @@ describe('B-006 — the operator keeps control', () => {
   })
 })
 
+/**
+ * Three properties the suite above did not pin. Found by mutation, not by reading: each mutation
+ * below left every existing case green, so the behaviour was working by accident rather than by
+ * test.
+ */
+describe('B-006 — the ceiling descends and only ever descends', () => {
+  it('test_a_hardened_ceiling_binds_the_next_restricted_layer', () => {
+    // Replacing `ceiling = level` with `Math.max(ceiling, level)` survived the whole suite. It only
+    // differs once a restricted layer HARDENS and a later one offers something between the old and
+    // the new ceiling: here `project` tightens to read-only, and `env` must then be measured against
+    // read-only rather than against the user's danger-full-access.
+    expect(
+      applySecurityFloor('sandbox_mode', {
+        user: 'danger-full-access',
+        project: 'read-only',
+        env: 'workspace-write',
+      }),
+    ).toBe('read-only')
+  })
+
+  it('test_an_unknown_value_in_a_restricted_layer_is_ignored', () => {
+    // A typo in a repository's config must neither become the effective setting nor be read as
+    // maximally permissive. Accepting out-of-vocabulary values survived the suite too.
+    expect(
+      applySecurityFloor('sandbox_mode', { user: 'read-only', project: 'danger_full_access' }),
+      'a misspelled mode in a repository config became the effective sandbox',
+    ).toBe('read-only')
+  })
+
+  it('test_defaults_establish_the_ceiling_when_the_user_said_nothing', () => {
+    // Most users never write a config file, so this is the common case rather than an edge one: with
+    // `defaults` ignored as a baseline, a repository would widen the sandbox for every such user.
+    expect(
+      applySecurityFloor('sandbox_mode', {
+        defaults: 'read-only',
+        project: 'danger-full-access',
+      }),
+    ).toBe('read-only')
+  })
+
+  it('test_the_user_may_still_loosen_their_own_defaults', () => {
+    // Anti-vacuity: if `defaults` capped everything, the case above would pass while the rule was
+    // "nothing may ever exceed the defaults" — which would forbid the user from configuring at all.
+    expect(
+      applySecurityFloor('sandbox_mode', { defaults: 'read-only', user: 'workspace-write' }),
+    ).toBe('workspace-write')
+  })
+})
+
 describe('B-006 — the permissiveness order is explicit', () => {
   it('test_the_orders_run_from_most_to_least_confined', () => {
     expect(MORE_PERMISSIVE.sandbox_mode).toEqual([
