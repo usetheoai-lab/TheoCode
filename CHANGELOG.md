@@ -7,6 +7,23 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tsc` fica limpo: 6 erros -> 0.** Os seis nao eram ruido herdado — eram seis chamadas de
+  `processor.finish('ok')` num teste, contra uma assinatura que aceita `'finished' | 'error'`. `'ok'`
+  e o vocabulario INTERNO (`outcome.status`), nao o da API.
+
+  Passavam porque a implementacao so pergunta `status === 'error'`, entao `'ok'` caia no mesmo ramo
+  de `'finished'`: comportamento acidentalmente correto sobre uma chamada invalida.
+
+- **Oito `as never` removidos do mesmo arquivo.** Nao eram necessarios: `ChunkLike` e estrutural e
+  frouxa, e cada literal ja a satisfazia.
+
+  A relacao entre os dois defeitos e o que vale registrar. Os casts **anestesiavam o arquivo**: com
+  `as never` espalhado, ninguem olha os erros que sobram. Foi por isso que esses seis atravessaram
+  uma sessao inteira sendo chamados de "linha de base pre-existente" sem que ninguem lesse o que
+  diziam.
+
 ### Changed
 
 - O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de

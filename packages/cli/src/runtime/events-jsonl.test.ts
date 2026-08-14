@@ -21,11 +21,27 @@ function capture() {
 
 const types = (events: Record<string, unknown>[]) => events.map((e) => e['type'])
 
+/**
+ * Dois defeitos que conviviam neste arquivo, e um escondia o outro.
+ *
+ * **`finish('ok')`** — a assinatura de `ExecProcessor.finish` aceita `'finished' | 'error'`. Seis
+ * chamadas aqui passavam `'ok'`, que e o vocabulario INTERNO (`outcome.status`), nao o da API. Os
+ * testes passavam porque a implementacao so pergunta `status === 'error'`, entao `'ok'` caia no mesmo
+ * ramo de `'finished'` — comportamento acidentalmente correto sobre uma chamada invalida.
+ *
+ * **Os oito `as never`** — nao eram necessarios. `ChunkLike` e estrutural e frouxa (`type: string`),
+ * e cada literal aqui ja a satisfazia. Removidos, o `tsc` fica limpo.
+ *
+ * E a relacao entre os dois e o que vale registrar: os casts anestesiavam o arquivo inteiro. Com
+ * `as never` espalhado, ninguem olha os erros que sobram — eu mesmo chamei esses seis de "linha de
+ * base pre-existente" durante uma sessao inteira, sem nunca ler o que diziam.
+ */
+
 describe('createJsonlProcessor — the turn opens and closes exactly once', () => {
   it('test_a_clean_turn_emits_thread_then_turn_then_completion', () => {
     const c = capture()
     const p = createJsonlProcessor(c.io, 'thread-1')
-    p.finish('ok')
+    p.finish('finished')
 
     expect(types(c.events())).toEqual(['thread.started', 'turn.started', 'turn.completed'])
     expect(c.events()[0]?.['thread_id']).toBe('thread-1')
@@ -36,8 +52,8 @@ describe('createJsonlProcessor — the turn opens and closes exactly once', () =
     // reading the JSONL would record a successful run.
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'error', errorText: 'boom' } as never)
-    p.finish('ok')
+    p.process({ type: 'error', errorText: 'boom' })
+    p.finish('finished')
 
     expect(types(c.events())).toContain('turn.failed')
     expect(types(c.events())).not.toContain('turn.completed')
@@ -49,9 +65,9 @@ describe('createJsonlProcessor — the turn opens and closes exactly once', () =
     // the caller reads to set its exit code — went false. A run that failed would have exited 0.
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'error', errorText: 'boom' } as never)
+    p.process({ type: 'error', errorText: 'boom' })
 
-    expect(p.finish('ok').errorSeen).toBe(true)
+    expect(p.finish('finished').errorSeen).toBe(true)
   })
 
   it('test_a_declared_error_status_closes_as_failed_too', () => {
@@ -66,7 +82,7 @@ describe('createJsonlProcessor — the turn opens and closes exactly once', () =
     // an error chunk AND an error status must still produce exactly one closing event.
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'error', errorText: 'boom' } as never)
+    p.process({ type: 'error', errorText: 'boom' })
     p.finish('error', { error: 'also' })
 
     expect(types(c.events()).filter((t) => t === 'turn.failed' || t === 'turn.completed')).toHaveLength(1)
@@ -79,9 +95,9 @@ describe('createJsonlProcessor — text becomes one message item', () => {
     // like the agent had said nothing.
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'text-delta', delta: 'hel' } as never)
-    p.process({ type: 'text-delta', delta: 'lo' } as never)
-    const result = p.finish('ok')
+    p.process({ type: 'text-delta', delta: 'hel' })
+    p.process({ type: 'text-delta', delta: 'lo' })
+    const result = p.finish('finished')
 
     const message = c.events().find((e) => e['type'] === 'item.completed')
     expect((message?.['item'] as Record<string, unknown> | undefined)?.['text']).toBe('hello')
@@ -91,7 +107,7 @@ describe('createJsonlProcessor — text becomes one message item', () => {
   it('test_a_turn_with_no_text_emits_no_message_item', () => {
     // A blank agent_message renders as an empty bubble in every consumer of this wire.
     const c = capture()
-    createJsonlProcessor(c.io, 't').finish('ok')
+    createJsonlProcessor(c.io, 't').finish('finished')
 
     expect(types(c.events())).not.toContain('item.completed')
   })
@@ -101,9 +117,9 @@ describe('createJsonlProcessor — tool calls open and close items', () => {
   it('test_a_tool_call_and_its_result_bracket_one_item', () => {
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'tool-input-available', id: 'c1', toolName: 'read' } as never)
-    p.process({ type: 'tool-output-available', id: 'c1', toolName: 'read' } as never)
-    p.finish('ok')
+    p.process({ type: 'tool-input-available', id: 'c1', toolName: 'read' })
+    p.process({ type: 'tool-output-available', id: 'c1', toolName: 'read' })
+    p.finish('finished')
 
     expect(types(c.events())).toEqual([
       'thread.started',
@@ -119,7 +135,7 @@ describe('createJsonlProcessor — tool calls open and close items', () => {
     // produce a stray event, which no consumer of the wire could interpret.
     const c = capture()
     const p = createJsonlProcessor(c.io, 't')
-    p.process({ type: 'reasoning-delta', delta: 'thinking' } as never)
+    p.process({ type: 'reasoning-delta', delta: 'thinking' })
 
     expect(types(c.events())).toEqual(['thread.started', 'turn.started'])
   })
