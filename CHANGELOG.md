@@ -9,6 +9,37 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
+  `@theokit/agents/tool-scope`, em vez de repetir `projectRoot: scope.cwd` em sete entradas e
+  `sandbox` em uma.
+
+  Cada repeticao era um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
+  produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou aqui.
+
+  As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente, com override. Nao e
+  detalhe: para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd`
+  ESTREITARIA o escopo de escrita em silencio quando os dois divergem — o caso de
+  `danger-full-access`. Ha teste sobre exatamente essa divergencia.
+
+### Removed
+
+- **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,
+  `fireObservational`, `appendOneHookFeedback`, `policyBlock`, `chainBudgetBlock`, `decideBudget` e o
+  resto do motor antigo. Estavam inalcancaveis desde que o `buildHookHandlers` local foi deletado: o
+  unico chamador delas era ele.
+
+  O arquivo caiu de **423 para 78 linhas** e agora e o que o nome sempre deveria ter dito: o PARSER
+  de `.theokit/hooks.json`, e so ele. O motor e do framework.
+
+  Deletar so o ponto de entrada e deixar o corpo para tras e como duplicacao sobrevive a uma
+  migracao: nada quebra, nada aponta para la, e o proximo leitor encontra dois motores. Foi
+  exatamente o que eu tinha feito.
+
+- `hooks/continuation-budget.ts` — ficou orfao quando o motor saiu. O framework tem o orcamento de
+  continuacao desde o `@theokit/agents@8.5.x`, e ele e o que de fato roda.
+
+### Changed
+
 - O motor de hooks passa a ser o do framework. `buildHookHandlers` local (486 LOC) deletado; ficou um
   adaptador que faz as duas coisas que o framework nao pode saber: traduz os NOMES DE EVENTO deste
   produto (`PreToolUse`/`PostToolUse`/`Stop`/`SessionStart`, que os usuarios escrevem em
