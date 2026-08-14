@@ -7,6 +7,23 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,
+  `fireObservational`, `appendOneHookFeedback`, `policyBlock`, `chainBudgetBlock`, `decideBudget` e o
+  resto do motor antigo. Estavam inalcancaveis desde que o `buildHookHandlers` local foi deletado: o
+  unico chamador delas era ele.
+
+  O arquivo caiu de **423 para 78 linhas** e agora e o que o nome sempre deveria ter dito: o PARSER
+  de `.theokit/hooks.json`, e so ele. O motor e do framework.
+
+  Deletar so o ponto de entrada e deixar o corpo para tras e como duplicacao sobrevive a uma
+  migracao: nada quebra, nada aponta para la, e o proximo leitor encontra dois motores. Foi
+  exatamente o que eu tinha feito.
+
+- `hooks/continuation-budget.ts` — ficou orfao quando o motor saiu. O framework tem o orcamento de
+  continuacao desde o `@theokit/agents@8.5.x`, e ele e o que de fato roda.
+
 ### Changed
 
 - O motor de hooks passa a ser o do framework. `buildHookHandlers` local (486 LOC) deletado; ficou um
