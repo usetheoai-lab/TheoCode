@@ -1,11 +1,11 @@
 import process from 'node:process'
-import { WATCHDOG_MS } from '@theocode/shared/shutdown'
+import { DEFAULT_WATCHDOG_MS } from '@theokit/agents/commands'
 import { createGoalCancellation } from '../runtime/index.js'
 import { createDrainedProcessOutput } from '../runtime/index.js'
 import { homedir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import type { ExecGoal } from '../runtime/index.js'
-import type { Shutdown } from '@theocode/shared/shutdown'
+import type { Shutdown } from '@theokit/agents/commands'
 import type { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
 import type { runGoal } from '@theocode/agent/goal'
 
@@ -116,8 +116,8 @@ export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<v
       oracle,
       updateGoalSignal,
     })
-    const cancellation = createGoalCancellation(shutdown, { watchdogMs: WATCHDOG_MS })
-    shutdown.registerCleanup(() => goalAgent.dispose())
+    const cancellation = createGoalCancellation(shutdown, { watchdogMs: DEFAULT_WATCHDOG_MS })
+    shutdown.register({ name: 'dispose-goal-agent', run: () => goalAgent.dispose() })
     const goalOpts = {
       maxTurns: args.maxTurns ?? GOAL_DEFAULTS.maxTurns,
       tokenBudget: args.tokenBudget ?? GOAL_DEFAULTS.tokenBudget,
@@ -152,11 +152,11 @@ export async function goalCommand(args: ExecGoal, shutdown: Shutdown): Promise<v
     } finally {
       cancellation.shutdown()
     }
-    createDrainedProcessOutput(WATCHDOG_MS)(finalStatus === 'completed' ? 0 : 1)
+    createDrainedProcessOutput(DEFAULT_WATCHDOG_MS)(finalStatus === 'completed' ? 0 : 1)
     return
   } catch (err) {
     process.stderr.write(`ERROR: ${err instanceof Error ? err.message : String(err)}\n`)
-    createDrainedProcessOutput(WATCHDOG_MS)(1)
+    createDrainedProcessOutput(DEFAULT_WATCHDOG_MS)(1)
     return
   }
 }

@@ -1,33 +1,29 @@
-import { appendFileSync } from 'node:fs'
+import { installDiagnosticSink as installFrameworkSink } from '@theokit/agents/doctor'
 
+/**
+ * The diagnostics sink, reduced to the one thing that is genuinely ours: the variable name.
+ *
+ * The mechanism — read a destination, route to stderr or to a file, never take the run down when
+ * that file cannot be written — moved to `@theokit/agents/doctor` and was deleted here. What could
+ * not move is the KEY: the framework reads `THEOKIT_DIAGNOSTICS`, and this product's operators have
+ * `THEOCODE_DIAGNOSTICS` in their shells and their scripts. Adopting the framework's name would be a
+ * breaking change disguised as a refactor, and it would fail silently — diagnostics would simply
+ * stop appearing, which is the worst way for a debugging aid to break.
+ *
+ * So this is the adapter the deletion ledger anticipated: the file survives, ~28 lines lighter, and
+ * now states exactly which part of the old module was worth keeping.
+ */
 export function installDiagnosticSink(
   install: (sink: ((m: string) => void) | undefined) => void,
   env: NodeJS.ProcessEnv = process.env,
-  writeToFile: (path: string, line: string) => void = (c, l) => {
-    appendFileSync(c, l)
-  },
-  writeToStderr: (line: string) => void = (l) => {
-    process.stderr.write(l)
-  },
 ): boolean {
-  const destination = env.THEOCODE_DIAGNOSTICS
-  if (destination === undefined || destination.trim().length === 0) return false
-
-  if (destination === '1') {
-    install((m) => {
-      writeToStderr(`${m}\n`)
-    })
-    return true
-  }
-
-  install((m) => {
-    try {
-      writeToFile(destination, `${m}\n`)
-    } catch (error) {
-      writeToStderr(
-        `diagnostics: failed to write to ${destination}: ${error instanceof Error ? error.message : String(error)}\n`,
-      )
-    }
+  const result = installFrameworkSink({
+    // Translated, not forwarded. The framework's contract is stated in terms of its own key; handing
+    // it this process's whole environment would have it read a variable nobody here sets.
+    env: { THEOKIT_DIAGNOSTICS: env.THEOCODE_DIAGNOSTICS },
+    install,
+    onWarn: (message) => process.stderr.write(`diagnostics: ${message}\n`),
   })
-  return true
+
+  return result.kind !== 'off'
 }

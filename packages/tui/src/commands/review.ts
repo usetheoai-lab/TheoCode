@@ -4,8 +4,8 @@ import { Agent } from '@theokit/agents'
 
 import { resolveCredentialForModel } from '@theocode/agent/auth'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
-import { createShutdown, WATCHDOG_MS } from '@theocode/shared/shutdown'
-import type { Shutdown } from '@theocode/shared/shutdown'
+import { createShutdown, DEFAULT_WATCHDOG_MS } from '@theokit/agents/commands'
+import type { Shutdown } from '@theokit/agents/commands'
 import { createReviewAgent } from '@theocode/agent/review'
 import { runReview } from '@theocode/agent/review'
 import type { ToastPayload } from '../screen-types.js'
@@ -16,31 +16,45 @@ export interface ReviewCommandDeps {
   setToast: (t: ToastPayload | null) => void
 }
 
-function installSignal(shutdown: Shutdown): () => void {
+/**
+ * Build the review's shutdown, and hand back the way to UNINSTALL its signal handlers.
+ *
+ * The local `shared/shutdown.ts` was deleted for the framework's, whose signal handling is a
+ * constructor dependency (`onSignal`) rather than a separate `installSignalHandler` call. The two
+ * steps therefore became one — and the disposer, which the previous shape returned, is captured
+ * here instead.
+ *
+ * The disposer is not incidental. This shutdown belongs to a TRANSIENT command: leaving its
+ * handlers on `process` after the review closes means the next Ctrl-C runs a teardown for a review
+ * that is no longer open. Registering with `process.once` and removing on exit is what keeps a
+ * short-lived command from mutating the process for the rest of the session.
+ */
+function reviewShutdown(setToast: ReviewCommandDeps['setToast']): {
+  shutdown: Shutdown
+  uninstallSignals: () => void
+} {
   const installed: Array<[NodeJS.Signals, () => void]> = []
-  shutdown.installSignalHandler((sig, fn) => {
-    process.once(sig as NodeJS.Signals, fn)
-    installed.push([sig as NodeJS.Signals, fn])
-  })
-  return () => {
-    for (const [sig, fn] of installed) process.off(sig, fn)
-  }
-}
 
-function reviewShutdown(setToast: ReviewCommandDeps['setToast']) {
-  return createShutdown({
-    timeoutMs: WATCHDOG_MS,
+  const shutdown = createShutdown({
+    watchdogMs: DEFAULT_WATCHDOG_MS,
+    onSignal: (sig, fn) => {
+      process.once(sig, fn)
+      installed.push([sig, fn])
+    },
     exit: (code) => {
       process.exit(code)
     },
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (t) => {
-      clearTimeout(t)
-    },
-    onError: (err) => {
-      setToast({ message: `discarding the review failed: ${String(err)}`, variant: 'error' })
+    onWarn: (message) => {
+      setToast({ message: `discarding the review failed: ${message}`, variant: 'error' })
     },
   })
+
+  return {
+    shutdown,
+    uninstallSignals: () => {
+      for (const [sig, fn] of installed) process.off(sig, fn)
+    },
+  }
 }
 
 async function hookChain(hooks: ReturnType<typeof resolveEffectiveConfig>['hooks']) {
@@ -61,8 +75,7 @@ export async function runReviewCommand(
   const { setToast, setReviewResult } = deps
   const reviewCfg = resolveEffectiveConfig({ cwd: workingDirectory() })
   setToast({ message: `>> Code review started <<`, variant: 'info' })
-  const shutdown = reviewShutdown(setToast)
-  const detach = installSignal(shutdown)
+  const { shutdown, uninstallSignals: detach } = reviewShutdown(setToast)
   try {
     const { execFileSync } = await import('node:child_process')
     const surfaceHooks = await hookChain(reviewCfg.hooks)
@@ -84,7 +97,8 @@ export async function runReviewCommand(
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
         registerCleanup: (fn) => {
-          shutdown.registerCleanup(fn)
+          // Named for the framework's watchdog, which reports WHICH cleanup hung.
+          shutdown.register({ name: 'discard-review', run: fn })
         },
       }),
     })

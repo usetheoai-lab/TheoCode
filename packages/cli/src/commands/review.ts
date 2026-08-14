@@ -1,7 +1,7 @@
 import process from 'node:process'
 import { execFileSync } from 'node:child_process'
 import type { ExecReview } from '../runtime/index.js'
-import type { Shutdown } from '@theocode/shared/shutdown'
+import type { Shutdown } from '@theokit/agents/commands'
 
 export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promise<void> {
   const approvalRequested = args.overrides.some((o) => o.startsWith('approval_policy'))
@@ -46,7 +46,11 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
         resolveCredential: async (model) =>
           (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
         hooks: surfaceHooks,
-        registerCleanup: shutdown.registerCleanup,
+        // Named for the framework's watchdog, which reports WHICH cleanup hung. Wrapped rather than
+        // passed by reference: `register` is a method, and handing it over bare unbinds `this`.
+        registerCleanup: (fn) => {
+          shutdown.register({ name: 'discard-review', run: fn })
+        },
       }),
     })
     if (args.json) {

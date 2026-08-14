@@ -6,12 +6,12 @@ import {
   silentEmptyTurnDiagnostic,
 } from '../runtime/index.js'
 import { consumeWithForkIfBusy, availableIdOrFork } from '../runtime/index.js'
-import { WATCHDOG_MS } from '@theocode/shared/shutdown'
+import { DEFAULT_WATCHDOG_MS } from '@theokit/agents/commands'
 import { createDrainedProcessOutput } from '../runtime/index.js'
 import { homedir } from 'node:os'
 import { readFileSync, writeFileSync } from 'node:fs'
 import type { ExecRun } from '../runtime/index.js'
-import type { Shutdown } from '@theocode/shared/shutdown'
+import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSessionId } from '../runtime/index.js'
 
 function readPrompt(args: ExecRun): string {
@@ -50,8 +50,12 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
 
   let status: 'finished' | 'error' = 'finished'
   let errorMsg: string | undefined
-  shutdown.registerCleanup(() => {
-    processor.finish('error', { error: 'interrupted' })
+  // Named, because the framework's watchdog reports WHICH cleanup hung, not merely that one did.
+  shutdown.register({
+    name: 'finish-processor',
+    run: () => {
+      processor.finish('error', { error: 'interrupted' })
+    },
   })
   try {
     const openStream = (sessionId: string): AsyncIterable<unknown> =>
@@ -84,6 +88,6 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
       )
     }
   }
-  const drainedExit = createDrainedProcessOutput(WATCHDOG_MS)
+  const drainedExit = createDrainedProcessOutput(DEFAULT_WATCHDOG_MS)
   drainedExit(result.errorSeen || emptyTurn !== undefined ? 1 : 0)
 }
