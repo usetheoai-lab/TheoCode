@@ -156,14 +156,16 @@ describe('B-088 — mcpPanelBody reports servers that did not answer', () => {
 
   it('test_a_failed_server_is_named_with_its_reason', () => {
     const body = mcpPanelBody(LISTED, [
-      { serverName: 'fixtures', message: 'spawn fixtures ENOENT' },
+      // `source` chegou junto com o sink do framework (M82): distingue "falhou no turno" de
+      // "a config ignorou", que sobrevivem a fronteiras de turno diferentes.
+      { serverName: 'fixtures', message: 'spawn fixtures ENOENT', source: 'run' as const },
     ])
     expect(body).toContain('fixtures')
     expect(body).toContain('spawn fixtures ENOENT')
   })
 
   it('test_a_failed_server_is_distinct_from_trust_suppression', () => {
-    const failed = mcpPanelBody(LISTED, [{ serverName: 'fixtures', message: 'boom' }])
+    const failed = mcpPanelBody(LISTED, [{ serverName: 'fixtures', message: 'boom', source: 'run' as const }])
     // Trust suppression means NOT STARTED by policy; a failure means started and did not answer.
     // Reporting one as the other sends a user to fix the wrong thing.
     expect(failed).not.toContain('DIRECTORY UNTRUSTED')

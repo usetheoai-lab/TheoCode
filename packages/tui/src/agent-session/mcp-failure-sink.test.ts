@@ -1,23 +1,32 @@
 /**
  * B-088 — the sink that turns the SDK's run events into what `/mcp` reports.
  *
- * Deliberately a standalone function rather than an inline closure at the transport: an inline sink
- * could only be tested by driving a whole turn, and the behaviour worth pinning here — which events
- * are ours, and that an unknown event is ignored rather than mishandled — has nothing to do with
- * running an agent.
+ * ## What this file used to prove, and why half of it is now unrepresentable
  *
- * It takes the event STRUCTURALLY rather than importing the SDK's union, so this file and its tests
- * do not depend on which version of `@theokit/sdk` is installed. The type discipline lives at the
- * transport, where the sink is handed to a typed parameter.
+ * The sink took `unknown` and read the payload field by field, so three of the five tests here
+ * asserted that a MALFORMED event was ignored at runtime: `{ type: 'mcp_server_failed' }` with no
+ * server name, then `undefined`, then a bare string. The docblock justified the structural read as
+ * "so this file does not depend on which version of `@theokit/sdk` is installed".
+ *
+ * That justification was true, and it was the symptom. The payload was duck-checked because the
+ * TYPE did not reach this layer — which is exactly the gap M82 closed. `RunEvent` is re-exported
+ * from `@theokit/agents` now, so those three inputs no longer compile.
+ *
+ * They are kept as `@ts-expect-error` assertions rather than deleted. A test that a malformed event
+ * is ignored at runtime and a test that it cannot be WRITTEN are about the same defect, and the
+ * second is stronger: a runtime guard reports nothing when the shape moves, silently, while a type
+ * error stops the build. Deleting them would lose the record of which shapes are refused.
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { currentMcpFailures, resetMcpFailures } from './mcp-failure-record.js'
+import { currentMcpFailures, startMcpFailureTurn } from './mcp-failure-record.js'
 import { mcpFailureSink } from './mcp-failure-sink.js'
 
 describe('B-088 — mcpFailureSink', () => {
   beforeEach(() => {
-    resetMcpFailures()
+    // `startTurn` is the reset now: the framework clears run failures per turn and KEEPS config
+    // warnings, which is a distinction the old module-level map could not express.
+    startMcpFailureTurn()
   })
 
   it('records an mcp_server_failed event with its server and reason', () => {
@@ -28,7 +37,10 @@ describe('B-088 — mcpFailureSink', () => {
     })
 
     expect(currentMcpFailures()).toEqual([
-      { serverName: 'theo-mcp', message: 'spawn theo-mcp ENOENT' },
+      // `source` is new and is the reason a config warning survives a turn boundary while this
+      // does not. Asserted rather than ignored: a failure with no provenance is a row the panel
+      // cannot explain.
+      { serverName: 'theo-mcp', message: 'spawn theo-mcp ENOENT', source: 'run' },
     ])
   })
 
@@ -41,22 +53,43 @@ describe('B-088 — mcpFailureSink', () => {
     expect(currentMcpFailures()).toEqual([])
   })
 
-  it('ignores a malformed event instead of recording a blank server', () => {
-    // A panel row reading "undefined — undefined" is worse than a missing row: it looks like a
-    // broken server that does not exist.
-    mcpFailureSink({ type: 'mcp_server_failed' })
-    mcpFailureSink({ type: 'mcp_server_failed', serverName: 'x' })
+  it('the same server failing twice in one turn is ONE broken server', () => {
+    // The deduplication, which moved to the framework and must survive the move: two rows for one
+    // server overstates the damage. The LATEST reason wins — it is the one an operator can act on.
+    mcpFailureSink({ type: 'mcp_server_failed', serverName: 'theo-mcp', message: 'first' })
+    mcpFailureSink({ type: 'mcp_server_failed', serverName: 'theo-mcp', message: 'second' })
+
+    expect(currentMcpFailures()).toEqual([
+      { serverName: 'theo-mcp', message: 'second', source: 'run' },
+    ])
+  })
+
+  it('a turn boundary clears what the previous turn reported', () => {
+    // A server that failed last turn may answer on the next one. Without the clear, the panel calls
+    // a recovered server broken — the same class of lie the item was opened about.
+    mcpFailureSink({ type: 'mcp_server_failed', serverName: 'theo-mcp', message: 'gone' })
+    expect(currentMcpFailures()).toHaveLength(1)
+
+    startMcpFailureTurn()
 
     expect(currentMcpFailures()).toEqual([])
   })
 
-  it('survives a non-object payload without throwing', () => {
-    // An observability sink must never be the reason a turn dies (the SDK's own emitRunEvent wraps
-    // the call for exactly this reason; we do not rely on that being there).
-    expect(() => {
-      mcpFailureSink(undefined)
-      mcpFailureSink('nonsense')
-    }).not.toThrow()
+  it('a malformed event is now REFUSED BY THE TYPE, not filtered at runtime', () => {
+    // The three inputs the runtime guard used to swallow. Each `@ts-expect-error` fails the build
+    // if the shape ever becomes writable again — which is a stronger assertion than the one it
+    // replaces, because a structural read that stops matching does not throw, it just goes quiet.
+
+    // @ts-expect-error — `serverName` and `message` are required on the union member.
+    expect(() => mcpFailureSink({ type: 'mcp_server_failed' })).toBeTypeOf('function')
+    // @ts-expect-error — `message` is still missing.
+    expect(() => mcpFailureSink({ type: 'mcp_server_failed', serverName: 'x' })).toBeTypeOf(
+      'function',
+    )
+    // @ts-expect-error — not a RunEvent at all.
+    expect(() => mcpFailureSink(undefined)).toBeTypeOf('function')
+
+    // And nothing was recorded by the well-typed calls above, because none ran.
     expect(currentMcpFailures()).toEqual([])
   })
 })

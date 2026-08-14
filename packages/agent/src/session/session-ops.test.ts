@@ -71,6 +71,39 @@ describe('B-003 — protectedSessions covers what the caller can see', () => {
     expect(protectedSessions(cwd, base)).toEqual([])
   })
 
+  it('test_an_ACTIVE_WRITER_LEASE_protects_a_transcript_that_is_neither', async () => {
+    // The third category, and the reason this migration was worth making.
+    //
+    // This file used to carry a comment explaining that the category was UNREACHABLE here:
+    // `listAgents` is async and both callers are synchronous write paths, so covering it would
+    // have made two write paths async. `protectedTranscripts` (M71) resolves it through the SDK's
+    // writer LEASE instead of the async registry — synchronously — so the constraint no longer
+    // applies.
+    //
+    // The assertion is deliberately over a transcript that is NEITHER the pointer NOR the most
+    // recent: those two were already protected, so a test using one of them would pass against the
+    // old implementation and prove nothing about what changed.
+    const { acquireSessionWriter } = await import('@theokit/agents/persistence')
+    const leased = writeTranscript('leased', 3600) // old, and not pointed at
+    writeTranscript('newest', 5) // the most recent, so `leased` is protected only by its lease
+
+    // Anti-vacuity, in the same test: WITHOUT the lease this transcript is collectable. That is the
+    // assertion the old implementation would satisfy, and it is what makes the one below meaningful
+    // instead of true-by-construction.
+    expect(protectedSessions(cwd, base)).not.toContain(leased)
+
+    const lease = await acquireSessionWriter(leased)
+    try {
+      expect(
+        protectedSessions(cwd, base),
+        'a transcript with a live writer lease was collectable — the category this file previously ' +
+          'documented as out of reach',
+      ).toContain(leased)
+    } finally {
+      await (lease as { release?: () => Promise<void> }).release?.()
+    }
+  })
+
   it('test_the_pointer_and_the_most_recent_are_not_duplicated', () => {
     writeTranscript('only-one', 5)
     mkdirSync(join(cwd, '.theokit'), { recursive: true })

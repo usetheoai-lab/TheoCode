@@ -1,43 +1,60 @@
+import { createMcpHealthSink, type McpFailure } from '@theokit/agents/mcp-health'
+
 /**
  * B-088 — where the TUI keeps the MCP servers that did not answer during the current turn.
  *
- * A sibling of `wiring-record`, deliberately NOT merged into it: the two answer different questions
- * and have different lifetimes. Wiring is what the last BUILD decided, replaced wholesale per build.
- * A failure is what happened during one RUN, and a server that failed last turn may answer on the
- * next one — so this record is cleared when a turn starts. Without that, the panel would report a
- * recovered server as broken, which is the same class of lie the item was opened about.
+ * The mechanism — the map keyed by server name, the per-turn clear, the deduplication — moved to
+ * `@theokit/agents/mcp-health` (M82). What remains here is the PROCESS HOLDER: there is exactly one
+ * agent in this process, the value changes outside render, and threading it through React state
+ * would make it pretend to change during one. That decision belongs to the surface, and the
+ * framework says so explicitly — whoever owns the process decides where the shared instance lives.
  *
- * A module-level holder for the same reason `wiring-record` uses one: there is exactly one agent in
- * this process, the value changes outside render, and threading it through React state would make it
- * pretend to change during one.
+ * What came back is more than what left. The framework's sink is typed against the SDK's `RunEvent`
+ * — which was the point of the milestone: this module read the payload STRUCTURALLY
+ * (`e.type !== 'mcp_server_failed'`, `typeof e.serverName !== 'string'`) precisely because the type
+ * did not reach it. And every failure now carries `source: 'run' | 'config'`, which lets
+ * `startTurn()` clear what belonged to the turn while KEEPING a configuration warning — a
+ * distinction the local map could not make, and one that matters: a server ignored by config is
+ * still ignored on the next turn.
  */
+let health = createMcpHealthSink()
 
-/** One server that was configured and could not be listed, as the SDK reported it. */
-export interface McpFailure {
-  readonly serverName: string
-  readonly message: string
-}
+export type { McpFailure }
 
 /**
- * Keyed by server name so the same server failing twice in one turn is ONE broken server. A plain
- * array would list it twice, and a panel showing two entries for one server overstates the damage.
+ * Tests only — the holder outlives a single test otherwise.
+ *
+ * Kept from the module this replaced, and the migration is what proved it was not ceremony:
+ * `startTurn()` deliberately KEEPS config warnings, so it is not a reset, and a warning recorded by
+ * one test leaked into the next until this existed again. The framework being a FACTORY is what
+ * makes the fix one line — a fresh instance rather than a `clear()` the interface does not offer.
  */
-const failures = new Map<string, string>()
-
-export function recordMcpFailure(failure: McpFailure): void {
-  failures.set(failure.serverName, failure.message)
+export function resetMcpFailures(): void {
+  health = createMcpHealthSink()
 }
 
 /** Called when a turn begins — see the note on lifetime above. */
 export function startMcpFailureTurn(): void {
-  failures.clear()
+  health.startTurn()
 }
 
 export function currentMcpFailures(): readonly McpFailure[] {
-  return [...failures].map(([serverName, message]) => ({ serverName, message }))
+  return health.current()
 }
 
-/** Tests only — the holder outlives a single test otherwise. */
-export function resetMcpFailures(): void {
-  failures.clear()
+/** `loadMcpJson`'s warning channel drains here: it is the same question, in one place. */
+export function recordMcpWarning(message: string): void {
+  health.onWarn(message)
+}
+
+/**
+ * Feed a run event into the current holder.
+ *
+ * A FUNCTION, not `export const mcpHealth = health`. That binding would capture the instance live at
+ * module evaluation, and `resetMcpFailures` reassigns — so after a reset the sink would keep writing
+ * into an instance nobody reads while the panel reported an empty list. Reading `health` at call
+ * time is what keeps the two halves looking at the same map.
+ */
+export function sinkRunEvent(event: Parameters<typeof health.sink>[0]): void {
+  health.sink(event)
 }
