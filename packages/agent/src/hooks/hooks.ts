@@ -4,19 +4,18 @@ import { HOOK_EVENTS, type HookEvent, type HookSpec } from './hooks-spec.js'
 import { HookError } from './hook-error.js'
 
 /**
- * O PARSER de `.theokit/hooks.json` — e so ele.
+ * The PARSER for `.theokit/hooks.json` — and nothing else.
  *
- * O motor saiu daqui para `@theokit/agents/hooks` (`build-handlers.ts` faz a ponte). O que ficou e a
- * unica coisa que o framework nao pode saber: o VOCABULARIO que os usuarios escrevem no arquivo
- * deles — `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, os nomes do Claude Code. O schema do
- * framework e `.strict()` sobre oito nomes em snake_case; entregar um arquivo de usuario a ele
- * estouraria no boot de quem ja tem um.
+ * The engine moved to `@theokit/agents/hooks` (`build-handlers.ts` bridges to it). What stays is the
+ * one thing the framework cannot know: the VOCABULARY users write in their file — `PreToolUse`,
+ * `PostToolUse`, `Stop`, `SessionStart`, Claude Code's names. The framework's schema is `.strict()`
+ * over eight snake_case names; handing it a user's file would throw at boot for anyone who has one.
  *
- * Este arquivo tinha 423 linhas depois que o `buildHookHandlers` local foi deletado. **331 delas
- * estavam mortas** — `preToolUseVeto`, `transformResult`, `fireObservational`, `policyBlock` e o
- * resto do motor antigo, inalcancaveis porque o unico chamador era a funcao removida. Deletar so o
- * ponto de entrada e deixar o corpo para tras e como a duplicacao sobrevive a uma migracao: nada
- * quebra, nada aponta para la, e o proximo leitor encontra dois motores.
+ * This file was 423 lines after the local `buildHookHandlers` was deleted. **331 of them were
+ * DEAD** — `preToolUseVeto`, `transformResult`, `fireObservational`, `policyBlock` and the rest of
+ * the old engine, unreachable because their only caller was the removed function. Deleting just the
+ * entry point and leaving the body is how duplication survives a migration: nothing breaks, nothing
+ * points there, and the next reader finds two engines.
  */
 
 const EVENTS = HOOK_EVENTS

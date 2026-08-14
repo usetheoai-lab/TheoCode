@@ -169,8 +169,13 @@ const TECHNICAL = new Set([
 
 /** `path:line` allowances — keyed by line so one cannot silently widen to a whole file. */
 const ALLOWED = new Set([
-  // A regression test asserting an error message carries no Portuguese.
-  'packages/agent/src/ask/ask-bridge.test.ts:76',
+  // A regression test asserting an error message carries no Portuguese. The accented characters ARE
+  // the subject: the assertion is that the message contains none of them.
+  //
+  // The line moved from 76 to 156 when the ask module was migrated to `@theokit/agents/ask` and this
+  // file was rewritten. A line-numbered allowlist entry is a citation that rots on any edit above
+  // it — which is why this one silently stopped covering anything and the check went red.
+  'packages/agent/src/ask/ask-bridge.test.ts:156',
 ])
 
 /** Strip combining marks so `seleção` also indexes as `selecao`. */

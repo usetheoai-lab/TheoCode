@@ -22,19 +22,19 @@ function capture() {
 const types = (events: Record<string, unknown>[]) => events.map((e) => e['type'])
 
 /**
- * Dois defeitos que conviviam neste arquivo, e um escondia o outro.
+ * Two defects that lived in this file, and one hid the other.
  *
- * **`finish('ok')`** — a assinatura de `ExecProcessor.finish` aceita `'finished' | 'error'`. Seis
- * chamadas aqui passavam `'ok'`, que e o vocabulario INTERNO (`outcome.status`), nao o da API. Os
- * testes passavam porque a implementacao so pergunta `status === 'error'`, entao `'ok'` caia no mesmo
- * ramo de `'finished'` — comportamento acidentalmente correto sobre uma chamada invalida.
+ * **`finish('ok')`** — `ExecProcessor.finish` accepts `'finished' | 'error'`. Six calls here passed
+ * `'ok'`, which is the INTERNAL vocabulary (`outcome.status`), not the API's. The tests passed
+ * because the implementation only asks `status === 'error'`, so `'ok'` fell into the same branch as
+ * `'finished'` — accidentally correct behaviour over an invalid call.
  *
- * **Os oito `as never`** — nao eram necessarios. `ChunkLike` e estrutural e frouxa (`type: string`),
- * e cada literal aqui ja a satisfazia. Removidos, o `tsc` fica limpo.
+ * **The eight `as never`** — they were not needed. `ChunkLike` is structural and loose
+ * (`type: string`), and every literal here already satisfied it. Removed, `tsc` comes back clean.
  *
- * E a relacao entre os dois e o que vale registrar: os casts anestesiavam o arquivo inteiro. Com
- * `as never` espalhado, ninguem olha os erros que sobram — eu mesmo chamei esses seis de "linha de
- * base pre-existente" durante uma sessao inteira, sem nunca ler o que diziam.
+ * The relationship between the two is what is worth recording: the casts ANAESTHETISED the file.
+ * With `as never` scattered through it, nobody reads the errors that remain — I called those six a
+ * "pre-existing baseline" for an entire session without once reading what they said.
  */
 
 describe('createJsonlProcessor — the turn opens and closes exactly once', () => {

@@ -9,6 +9,23 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A fase CODE-QUALITY, rodada pela primeira vez nesta sequencia, achou quatro coisas — todas
+  minhas, todas desta sessao.**
+  - Tres imports orfaos em `session/session-ops.ts`, sobra da migracao de `protectedTranscripts`.
+  - `buildChatAgent` passou de 10 para 11 de complexidade ciclomatica. Os dois gates de CONFIANCA
+    que estavam em ternarios inline — quais raizes de config ler, e se os servidores MCP sobem —
+    viraram `settingSourcesFor` e `mcpServersFor`. Um gate de confianca enterrado numa expressao
+    dentro de uma funcao de 60 linhas e onde ninguem o procura.
+  - 63 comentarios em portugues em `packages/`, que e English-only.
+  - Uma entrada do allowlist do `check-english-only` apontando para `ask-bridge.test.ts:76` — a linha
+    tinha ido para 156 quando o modulo `ask` foi migrado. Um allowlist por NUMERO DE LINHA e uma
+    citacao que apodrece a qualquer edicao acima dela, e esta parou de cobrir o que devia sem dizer
+    nada.
+
+  Os tres gates (`lint`, `typecheck`, suite) ficam verdes ao mesmo tempo.
+
+### Fixed
+
 - **`tsc` fica limpo: 6 erros -> 0.** Os seis nao eram ruido herdado — eram seis chamadas de
   `processor.finish('ok')` num teste, contra uma assinatura que aceita `'finished' | 'error'`. `'ok'`
   e o vocabulario INTERNO (`outcome.status`), nao o da API.
@@ -23,37 +40,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   `as never` espalhado, ninguem olha os erros que sobram. Foi por isso que esses seis atravessaram
   uma sessao inteira sendo chamados de "linha de base pre-existente" sem que ninguem lesse o que
   diziam.
-
-### Changed
-
-- O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
-  `@theokit/agents/tool-scope`, em vez de repetir `projectRoot: scope.cwd` em sete entradas e
-  `sandbox` em uma.
-
-  Cada repeticao era um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
-  produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou aqui.
-
-  As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente, com override. Nao e
-  detalhe: para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd`
-  ESTREITARIA o escopo de escrita em silencio quando os dois divergem — o caso de
-  `danger-full-access`. Ha teste sobre exatamente essa divergencia.
-
-### Removed
-
-- **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,
-  `fireObservational`, `appendOneHookFeedback`, `policyBlock`, `chainBudgetBlock`, `decideBudget` e o
-  resto do motor antigo. Estavam inalcancaveis desde que o `buildHookHandlers` local foi deletado: o
-  unico chamador delas era ele.
-
-  O arquivo caiu de **423 para 78 linhas** e agora e o que o nome sempre deveria ter dito: o PARSER
-  de `.theokit/hooks.json`, e so ele. O motor e do framework.
-
-  Deletar so o ponto de entrada e deixar o corpo para tras e como duplicacao sobrevive a uma
-  migracao: nada quebra, nada aponta para la, e o proximo leitor encontra dois motores. Foi
-  exatamente o que eu tinha feito.
-
-- `hooks/continuation-budget.ts` — ficou orfao quando o motor saiu. O framework tem o orcamento de
-  continuacao desde o `@theokit/agents@8.5.x`, e ele e o que de fato roda.
 
 ### Changed
 

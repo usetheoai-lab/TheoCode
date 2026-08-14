@@ -156,8 +156,8 @@ describe('B-088 — mcpPanelBody reports servers that did not answer', () => {
 
   it('test_a_failed_server_is_named_with_its_reason', () => {
     const body = mcpPanelBody(LISTED, [
-      // `source` chegou junto com o sink do framework (M82): distingue "falhou no turno" de
-      // "a config ignorou", que sobrevivem a fronteiras de turno diferentes.
+      // `source` arrived with the framework's sink: it separates "failed during the turn" from
+      // "the config ignored it", which survive turn boundaries differently.
       { serverName: 'fixtures', message: 'spawn fixtures ENOENT', source: 'run' as const },
     ])
     expect(body).toContain('fixtures')
