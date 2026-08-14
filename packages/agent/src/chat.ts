@@ -55,6 +55,20 @@ export function buildChatAgent(overrides: {
    * disagreement is the bug worth catching.
    */
   onWired?: (wired: WiredCapabilities) => void
+  /**
+   * M82 — where `loadMcpJson`'s warnings go.
+   *
+   * Same shape as `onHookVeto` and `onWired`, and here for the same reason: the surface that SHOWS
+   * MCP state supplies the channel, and this layer stays free of it. The alternative would be
+   * importing the TUI's holder from `packages/agent`, inverting the dependency.
+   *
+   * Omitting it is not neutral. The framework's `loadMcpJson` documents that without `onWarn` the
+   * warnings go to `stderr` — never nowhere, but never to the user either. Under the TUI, stderr is
+   * a log file nobody has open, so "server X was ignored: unknown field" was invisible while `/mcp`
+   * cheerfully listed the servers that DID load. A user reading that panel had no way to learn one
+   * was missing.
+   */
+  onMcpWarn?: (warning: string) => void
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -108,7 +122,7 @@ export function buildChatAgent(overrides: {
   // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
   // which is why every listing that wanted it had to re-read the file and could disagree with what
   // actually ran.
-  const mcpServers = posture.allows.mcp ? loadMcpJson(cwd) : {}
+  const mcpServers = posture.allows.mcp ? loadMcpJson(cwd, { onWarn: overrides?.onMcpWarn }) : {}
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,

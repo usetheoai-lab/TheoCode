@@ -1,5 +1,5 @@
 import { homedir } from 'node:os'
-import { startMcpFailureTurn } from './mcp-failure-record.js'
+import { recordMcpWarning, startMcpFailureTurn } from './mcp-failure-record.js'
 import { mcpFailureSink } from './mcp-failure-sink.js'
 import { recordWiring } from './wiring-record.js'
 
@@ -64,6 +64,11 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
               // B-070 — capture what THIS build wired, so `/skills` reports the agent that exists
               // rather than re-reading config and describing one that might not.
               onWired: recordWiring,
+              // M82 — a config warning reaches the SAME list a run failure does. Without this,
+              // `loadMcpJson` wrote "server X was ignored" to stderr, which under the TUI is a log
+              // file nobody has open — while `/mcp` listed the servers that DID load and gave the
+              // user no way to learn one was missing.
+              onMcpWarn: recordMcpWarning,
             }),
           },
           key,
