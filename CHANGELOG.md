@@ -7,6 +7,54 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tsc` fica limpo: 6 erros -> 0.** Os seis nao eram ruido herdado — eram seis chamadas de
+  `processor.finish('ok')` num teste, contra uma assinatura que aceita `'finished' | 'error'`. `'ok'`
+  e o vocabulario INTERNO (`outcome.status`), nao o da API.
+
+  Passavam porque a implementacao so pergunta `status === 'error'`, entao `'ok'` caia no mesmo ramo
+  de `'finished'`: comportamento acidentalmente correto sobre uma chamada invalida.
+
+- **Oito `as never` removidos do mesmo arquivo.** Nao eram necessarios: `ChunkLike` e estrutural e
+  frouxa, e cada literal ja a satisfazia.
+
+  A relacao entre os dois defeitos e o que vale registrar. Os casts **anestesiavam o arquivo**: com
+  `as never` espalhado, ninguem olha os erros que sobram. Foi por isso que esses seis atravessaram
+  uma sessao inteira sendo chamados de "linha de base pre-existente" sem que ninguem lesse o que
+  diziam.
+
+### Changed
+
+- O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
+  `@theokit/agents/tool-scope`, em vez de repetir `projectRoot: scope.cwd` em sete entradas e
+  `sandbox` em uma.
+
+  Cada repeticao era um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
+  produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou aqui.
+
+  As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente, com override. Nao e
+  detalhe: para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd`
+  ESTREITARIA o escopo de escrita em silencio quando os dois divergem — o caso de
+  `danger-full-access`. Ha teste sobre exatamente essa divergencia.
+
+### Removed
+
+- **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,
+  `fireObservational`, `appendOneHookFeedback`, `policyBlock`, `chainBudgetBlock`, `decideBudget` e o
+  resto do motor antigo. Estavam inalcancaveis desde que o `buildHookHandlers` local foi deletado: o
+  unico chamador delas era ele.
+
+  O arquivo caiu de **423 para 78 linhas** e agora e o que o nome sempre deveria ter dito: o PARSER
+  de `.theokit/hooks.json`, e so ele. O motor e do framework.
+
+  Deletar so o ponto de entrada e deixar o corpo para tras e como duplicacao sobrevive a uma
+  migracao: nada quebra, nada aponta para la, e o proximo leitor encontra dois motores. Foi
+  exatamente o que eu tinha feito.
+
+- `hooks/continuation-budget.ts` — ficou orfao quando o motor saiu. O framework tem o orcamento de
+  continuacao desde o `@theokit/agents@8.5.x`, e ele e o que de fato roda.
+
 ### Changed
 
 - O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
