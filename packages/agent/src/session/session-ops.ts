@@ -5,6 +5,7 @@ import { dirname } from 'node:path'
 
 import { Agent, TheokitAgentError } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
+import { protectedTranscripts } from '@theokit/agents/session'
 
 import { listAgents } from './agent-list.js'
 import { readPointerId } from './gc/pointer.js'
@@ -125,30 +126,29 @@ export async function deleteSession(
   return { transcriptRemoved: existed }
 }
 
-// B-003 — this list is what `forkTranscript` refuses to overwrite. Swallowing a read error and
-// returning `[]` handed the SDK an empty guard, which is the one input that disables its
-// `LiveSessionError` entirely. Refusing is the safe direction on a path that writes over transcripts.
-//
-// The SDK documents three categories: the live pointer, the most recent transcript, and any active
-// registry entry. The first two are resolvable synchronously and are covered here. The registry is
-// NOT: `listAgents` is async and both callers (`forkSession` and the backtrack fork) are synchronous
-// write paths, so including it would turn two write paths async for a guard that is already
-// backstopped -- `forkTranscript` opens the destination with `wx`, so an existing transcript cannot
-// be overwritten regardless. What the missing category costs is the typed `LiveSessionError` in
-// place of a bare EEXIST, not the protection itself.
+/**
+ * B-003 — what `forkTranscript` refuses to overwrite, and what `deleteSession` refuses to remove.
+ *
+ * ## The third category, which this file documented as unreachable
+ *
+ * The comment this replaces named the SDK's three categories — live pointer, most recent transcript,
+ * active registry entry — covered two, and explained the omission: *"`listAgents` is async and both
+ * callers are synchronous write paths, so including it would turn two write paths async for a guard
+ * that is already backstopped."* The stated cost was losing the typed `LiveSessionError` in favour
+ * of a bare `EEXIST` — not losing the protection.
+ *
+ * `protectedTranscripts` (M71) covers that third category SYNCHRONOUSLY, through the SDK's writer
+ * lease instead of the async registry. The constraint that forced the omission does not apply to it,
+ * so the guard is complete now and neither caller became async.
+ *
+ * It also carries the REASON per session (`'resumable session pointer'`, `'most recent session'`,
+ * `'active writer lease'`) — which is what a refusal needs to say. This projection drops it because
+ * both callers here take paths; anything wanting the reason calls the primitive directly.
+ */
 export function protectedSessions(cwd: string, baseDir: string): string[] {
-  const live = new Set<string>()
-
-  const pointed = readPointerId(cwd)
-  if (pointed !== undefined) live.add(pointed)
-
-  // The most recent transcript is the session a running TUI is most likely still appending to.
-  const newest = readTranscriptDir(transcriptDir(cwd, baseDir)).sort(
-    (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
-  )[0]?.id
-  if (newest !== undefined) live.add(newest)
-
-  return [...live].map((id) => transcriptPath(baseDir, cwd, id))
+  return [...protectedTranscripts(cwd, baseDir).keys()].map((id) =>
+    transcriptPath(baseDir, cwd, id),
+  )
 }
 
 export function forkSession(
