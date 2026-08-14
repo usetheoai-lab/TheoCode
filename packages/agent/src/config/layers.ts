@@ -7,7 +7,7 @@
  * named layers with their precedences, `profile` among them because this product has profiles.
  */
 import { TheokitAgentError } from '@theokit/agents'
-import { foldLayers as fold, verifyLayerOrdering } from '@theokit/sdk'
+import { foldLayers as fold, verifyLayerOrdering } from '@theokit/agents'
 
 class LayerError extends TheokitAgentError {
   override readonly name = 'LayerError'

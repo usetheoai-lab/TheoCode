@@ -12,7 +12,7 @@
 import { z } from 'zod'
 
 import { Tool, type CustomTool } from '@theokit/agents'
-import type { ToolResultContentBlock } from '@theokit/sdk'
+import type { ToolResultContentBlock } from '@theokit/agents'
 
 import { readImageAttachment } from '../context/image-attach.js'
 import { resolveImagePath } from './image-root.js'
