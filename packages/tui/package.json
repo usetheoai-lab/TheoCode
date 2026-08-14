@@ -10,7 +10,7 @@
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
-    "@theokit/agents": "^8.3.0",
+    "@theokit/agents": "^8.5.2",
     "@theokit/tui": "^0.52.1",
     "figlet": "^1.7.0",
     "ink": "^7.1.0",
