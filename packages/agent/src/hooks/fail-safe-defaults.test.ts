@@ -122,6 +122,22 @@ describe('B-021 — a matcher scopes a hook to tool names, so a result with no t
   })
 })
 
+/**
+ * VERMELHO CONHECIDO, com causa medida — e deliberadamente NAO desabilitado.
+ *
+ * Este teste falha contra `@theokit/agents@8.5.2` e passa contra o `8.6.0`, que esta commitado no
+ * framework e ainda nao publicado. A diferenca e o FORMATO do payload: o 8.5.2 manda o lote inteiro
+ * (`{ tools: [{ name, args }], result }`) e este teste le `payload.name` no topo, que e o que os
+ * scripts de hook dos usuarios leem. O 8.6.0 passa a rodar uma vez por chamada e manda
+ * `{ tool, name, args, result }`.
+ *
+ * Por que fica vermelho em vez de ajustado: mudar a assercao para a forma aninhada faria a suite
+ * ficar verde e quebraria em silencio todo script de hook ja no disco de um usuario. E `skip` seria
+ * pior — um teste desabilitado e divida invisivel, enquanto um vermelho com motivo escrito e uma
+ * pergunta em aberto que alguem responde.
+ *
+ * Some no minuto em que o 8.6.0 for publicado.
+ */
 describe('B-044 — a PostToolUse hook receives what the tool was actually called with', () => {
   it('test_the_tool_arguments_reach_the_hook_payload', async () => {
     // `args` was a hardcoded `{}` on the reachable path, while the code that WOULD have supplied it
