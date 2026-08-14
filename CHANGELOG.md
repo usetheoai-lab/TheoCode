@@ -7,6 +7,20 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
+  `@theokit/agents/tool-scope`, em vez de repetir `projectRoot: scope.cwd` em sete entradas e
+  `sandbox` em uma.
+
+  Cada repeticao era um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
+  produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou aqui.
+
+  As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente, com override. Nao e
+  detalhe: para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd`
+  ESTREITARIA o escopo de escrita em silencio quando os dois divergem — o caso de
+  `danger-full-access`. Ha teste sobre exatamente essa divergencia.
+
 ### Removed
 
 - **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,

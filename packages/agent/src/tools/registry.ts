@@ -1,6 +1,7 @@
 import { ConfigurationError, Toolset, ToolsetError } from '@theokit/agents'
 import { createViewImageTool } from './view-image.js'
 import type { CustomTool } from '@theokit/agents'
+import { bindToolScope } from '@theokit/agents/tool-scope'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import {
   createApplyPatchTool,
@@ -70,36 +71,57 @@ export class ToolRegistry {
   readonly #toolset: Toolset<CustomTool>
 
   constructor(scope: ToolScope) {
+    /**
+     * M78 — o escopo e LIGADO uma vez, e as fabricas o herdam.
+     *
+     * Antes, `projectRoot: scope.cwd` era repetido em sete entradas e `sandbox` em uma. Cada
+     * repeticao e um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
+     * produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou
+     * aqui e que o M78 fechou no framework.
+     *
+     * As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente. Nao e detalhe:
+     * para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd` mudaria o
+     * escopo de escrita em silencio — na direcao errada quando os dois divergem.
+     */
+    const bound = bindToolScope({
+      projectRoot: scope.cwd,
+      writeRoot: scope.writeRoot,
+      sandbox: scope.sandbox,
+    })
+
     const entries = new Map<string, CustomTool>([
       [
         'read_file',
-        createReadFileTool({ projectRoot: scope.cwd, lineNumbers: true, allowAbsolute: true }),
+        bound.bind(createReadFileTool)({ lineNumbers: true, allowAbsolute: true }),
       ],
-      ['list_dir', createListDirTool({ projectRoot: scope.cwd, allowAbsolute: true })],
+      ['list_dir', bound.bind(createListDirTool)({ allowAbsolute: true })],
       [
         'grep',
         withName(
-          createSearchTextTool({ projectRoot: scope.cwd, regex: true, allowAbsolute: true }),
+          bound.bind(createSearchTextTool)({ regex: true, allowAbsolute: true }),
           'grep',
         ),
       ],
-      ['repo_status', createGitStatusTool({ projectRoot: scope.cwd, name: 'repo_status' })],
-      ['git_diff', createGitDiffTool({ projectRoot: scope.cwd })],
+      ['repo_status', bound.bind(createGitStatusTool)({ name: 'repo_status' })],
+      ['git_diff', bound.bind(createGitDiffTool)()],
       ['current_time', createCurrentTimeTool()],
       // B-082 — the model can look at a diagram or screenshot itself, under the same read root.
-      ['view_image', createViewImageTool({ projectRoot: scope.cwd })],
-      ['apply_patch', createApplyPatchTool({ projectRoot: scope.writeRoot })],
-      ['edit_file', withName(createEditFileTool({ projectRoot: scope.writeRoot }), 'edit_file')],
+      ['view_image', bound.bind(createViewImageTool)()],
+      // Override explicito: para uma tool de escrita a raiz do projeto E a raiz de escrita.
+      ['apply_patch', bound.bind(createApplyPatchTool)({ projectRoot: scope.writeRoot })],
+      [
+        'edit_file',
+        withName(bound.bind(createEditFileTool)({ projectRoot: scope.writeRoot }), 'edit_file'),
+      ],
       [
         'run_shell',
         withName(
-          createShellTool({
-            projectRoot: scope.cwd,
-            sandbox: scope.sandbox,
-            ...(scope.defaultTimeoutMs !== undefined
+          // `sandbox` vem do escopo ligado — nao ha caminho aqui que o esqueca.
+          bound.bind(createShellTool)(
+            scope.defaultTimeoutMs !== undefined
               ? { defaultTimeoutMs: scope.defaultTimeoutMs }
-              : {}),
-          }),
+              : {},
+          ),
           'run_shell',
         ),
       ],
