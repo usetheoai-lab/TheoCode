@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Surface 1 — the terminal UI.",
+  "description": "Surface 1 \u2014 the terminal UI.",
   "exports": {
     ".": "./src/main.tsx"
   },
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
-    "@theokit/agents": "^8.0.0",
+    "@theokit/agents": "^8.1.0",
     "@theokit/tui": "^0.52.1",
     "figlet": "^1.7.0",
     "ink": "^7.1.0",
