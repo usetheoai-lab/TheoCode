@@ -17,15 +17,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 - `hook-runner.ts`: 164 -> 83 linhas. O spawn, o grupo de processo, o teto de saida e o drain budget
   sairam para `@theokit/agents/hooks`.
 
-### Known
-
-- `fail-safe-defaults > test_the_tool_arguments_reach_the_hook_payload` esta VERMELHO contra
-  `@theokit/agents@8.5.2` e passa contra o `8.6.0`, commitado no framework e ainda nao publicado. E
-  diferenca de FORMATO: o 8.5.2 manda o lote (`{ tools: [...] }`) e o teste le `payload.name`, que e
-  o que os scripts de hook dos usuarios leem.
-
-  Deixado vermelho de proposito. Ajustar a assercao deixaria a suite verde e quebraria em silencio
-  todo script de hook ja no disco; `skip` seria pior, porque teste desabilitado e divida invisivel.
 
 ### Added
 - **theokit-sdk 4.51.0: the session, approval and credential rules the framework now owns (B-096, B-098, B-099).** Refusing to destroy a session another process is writing — with "could not determine" kept apart from "nothing is open", because the second is the input that would disable the guard. A veto as a typed decision rather than a tool result the model retries around. And a credential reported by presence and a hashed fingerprint, never by value.
