@@ -9,6 +9,6 @@
     "./diagnostic-sink": "./src/diagnostic-sink.ts"
   },
   "dependencies": {
-    "@theokit/agents": "^8.3.0"
+    "@theokit/agents": "^8.5.2"
   }
 }
