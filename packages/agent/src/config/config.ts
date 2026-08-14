@@ -1,4 +1,4 @@
-import { auditEnvReachability } from '@theokit/sdk'
+import { auditEnvReachability } from '@theokit/agents'
 import { TheokitAgentError } from '@theokit/agents'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'

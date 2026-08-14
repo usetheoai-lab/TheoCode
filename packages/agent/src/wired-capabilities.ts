@@ -19,7 +19,7 @@
  * (the posture gates eight things, and durable memory is not a list), plus the two fields that are
  * not entities at all — whether project sources loaded, and which sandbox mode the build was given.
  */
-import { recordWiring, type WiredEntity } from '@theokit/sdk'
+import { recordWiring, type WiredEntity } from '@theokit/agents'
 
 export type { WiredEntity }
 

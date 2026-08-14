@@ -19,7 +19,7 @@
  * are this product's words and belong to this product. The framework owns "a lower-trust layer may
  * confine and never widen", which is the part every agent product rebuilds identically.
  */
-import { applySecurityFloor as applyFloor } from '@theokit/sdk'
+import { applySecurityFloor as applyFloor } from '@theokit/agents'
 
 import { LAYERS } from './layers.js'
 

@@ -8,7 +8,7 @@
 import {
   resolveTrustPosture as resolvePosture,
   type TrustPosture as SdkTrustPosture,
-} from '@theokit/sdk'
+} from '@theokit/agents'
 
 import { ENV_TRUST_ALL_DIRS, ENV_TRUST_ALL_DIRS_LEGACY } from './env-knobs.js'
 import { TRUST_STORE, isTrusted } from './trust-store.js'
