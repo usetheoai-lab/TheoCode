@@ -72,16 +72,15 @@ export class ToolRegistry {
 
   constructor(scope: ToolScope) {
     /**
-     * M78 — o escopo e LIGADO uma vez, e as fabricas o herdam.
+     * The scope is BOUND once, and the factories inherit it.
      *
-     * Antes, `projectRoot: scope.cwd` era repetido em sete entradas e `sandbox` em uma. Cada
-     * repeticao e um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
-     * produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou
-     * aqui e que o M78 fechou no framework.
+     * `projectRoot: scope.cwd` used to be repeated across seven entries and `sandbox` on one. Every
+     * repetition is a place to forget — and forgetting `sandbox` on `createShellTool` produces an
+     * UNCONFINED SHELL with no error and no warning, which is the defect B-006 documented here.
      *
-     * As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente. Nao e detalhe:
-     * para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd` mudaria o
-     * escopo de escrita em silencio — na direcao errada quando os dois divergem.
+     * The two WRITE tools pass `projectRoot: scope.writeRoot` explicitly. Not a detail: for them the
+     * project root IS the write root, and letting the bind apply `cwd` would narrow the write scope
+     * silently whenever the two diverge.
      */
     const bound = bindToolScope({
       projectRoot: scope.cwd,
@@ -107,7 +106,7 @@ export class ToolRegistry {
       ['current_time', createCurrentTimeTool()],
       // B-082 — the model can look at a diagram or screenshot itself, under the same read root.
       ['view_image', bound.bind(createViewImageTool)()],
-      // Override explicito: para uma tool de escrita a raiz do projeto E a raiz de escrita.
+      // Explicit override: for a write tool, the project root IS the write root.
       ['apply_patch', bound.bind(createApplyPatchTool)({ projectRoot: scope.writeRoot })],
       [
         'edit_file',
@@ -116,7 +115,7 @@ export class ToolRegistry {
       [
         'run_shell',
         withName(
-          // `sandbox` vem do escopo ligado — nao ha caminho aqui que o esqueca.
+          // `sandbox` comes from the bound scope — no path here can forget it.
           bound.bind(createShellTool)(
             scope.defaultTimeoutMs !== undefined
               ? { defaultTimeoutMs: scope.defaultTimeoutMs }

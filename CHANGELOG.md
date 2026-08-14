@@ -9,6 +9,23 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **A fase CODE-QUALITY, rodada pela primeira vez nesta sequencia, achou quatro coisas — todas
+  minhas, todas desta sessao.**
+  - Tres imports orfaos em `session/session-ops.ts`, sobra da migracao de `protectedTranscripts`.
+  - `buildChatAgent` passou de 10 para 11 de complexidade ciclomatica. Os dois gates de CONFIANCA
+    que estavam em ternarios inline — quais raizes de config ler, e se os servidores MCP sobem —
+    viraram `settingSourcesFor` e `mcpServersFor`. Um gate de confianca enterrado numa expressao
+    dentro de uma funcao de 60 linhas e onde ninguem o procura.
+  - 63 comentarios em portugues em `packages/`, que e English-only.
+  - Uma entrada do allowlist do `check-english-only` apontando para `ask-bridge.test.ts:76` — a linha
+    tinha ido para 156 quando o modulo `ask` foi migrado. Um allowlist por NUMERO DE LINHA e uma
+    citacao que apodrece a qualquer edicao acima dela, e esta parou de cobrir o que devia sem dizer
+    nada.
+
+  Os tres gates (`lint`, `typecheck`, suite) ficam verdes ao mesmo tempo.
+
+### Fixed
+
 - **`tsc` fica limpo: 6 erros -> 0.** Os seis nao eram ruido herdado — eram seis chamadas de
   `processor.finish('ok')` num teste, contra uma assinatura que aceita `'finished' | 'error'`. `'ok'`
   e o vocabulario INTERNO (`outcome.status`), nao o da API.

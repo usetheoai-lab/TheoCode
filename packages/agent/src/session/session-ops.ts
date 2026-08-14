@@ -8,8 +8,6 @@ import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/
 import { protectedTranscripts } from '@theokit/agents/session'
 
 import { listAgents } from './agent-list.js'
-import { readPointerId } from './gc/pointer.js'
-import { readTranscriptDir, transcriptDir } from './gc/per-session.js'
 
 const defaultBaseDir = transcriptRoot
 
