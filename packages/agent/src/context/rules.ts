@@ -1,12 +1,11 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import yaml from 'js-yaml'
+
+import { loadInstructionTree } from '@theokit/agents/config'
 
 type WarnFn = (message: string) => void
-type ReadFile = (path: string) => string
 
 const MAX_CHARS = 64_000
-const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
+const SEPARATOR = '\n\n---\n\n'
 
 export interface TraversalBudget {
   maxDepth: number
@@ -15,107 +14,117 @@ export interface TraversalBudget {
 
 const DEFAULT_BUDGET: TraversalBudget = { maxDepth: 32, maxFiles: 2_000 }
 
-export function scanMarkdownWithGuards(
-  dir: string,
+/**
+ * `.theokit/rules/` — every markdown file under it, assembled into one block of guidance.
+ *
+ * ## What moved, and why it was never ours
+ *
+ * This file owned a directory walk (depth ceiling, file ceiling, inode-keyed cycle guard,
+ * unreadable-entry tolerance) and a frontmatter parser (`paths:` extraction, unclosed-frontmatter
+ * detection). Both are `@theokit/agents/config` now, through `loadInstructionTree`, which returns
+ * `{ path, content, scopes, scopesUnreadable }` per file with the frontmatter already handled.
+ *
+ * The walk was never product knowledge — it answers "how do I read a tree of instruction files
+ * without following a symlink loop", the same question in every agent. It lived here because the
+ * framework's version could not be asked what a rules folder asks: it matched file NAMES exactly,
+ * and a rules folder holds files the user names.
+ *
+ * ## The four things that had to become true before this could move
+ *
+ * 1. **The file set.** `fileNames` takes a predicate, so `entry.endsWith('.md')` is expressible.
+ * 2. **The order.** A rules folder is not an instruction tree. There the outer file states the rule
+ *    and the inner refines it, so files come before subdirectories; here the files are peers and the
+ *    contract is one alphabetical pass — the same directory assembling the same prompt on any
+ *    machine. `order: 'lexicographic'` is that contract, kept rather than traded away.
+ * 3. **The two ceilings.** `budget.maxChars` bounds the WALK, in raw bytes including frontmatter
+ *    that never reaches the prompt. `MAX_CHARS` bounds the PROMPT. Passing the second as the first
+ *    stops reading early, and the assembled text falls short of its own budget for the wrong reason.
+ * 4. **The scope.** `scopes: []` means both "no scope declared" and "a `paths:` we could not read",
+ *    and only `scopesUnreadable` separates them — see {@link scopedBlock}.
+ *
+ * ## What stays, and why
+ *
+ * The BLOCK FORMAT and the prompt ceiling. `> Applies ONLY to files matching: …` is this product's
+ * prompt, read by this product's model; the framework hands over the scopes, and what a scope should
+ * SAY is not a decision it can make for us.
+ */
+export function loadRules(
+  cwd: string,
+  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
-  warn: WarnFn = () => {},
-): string[] {
-  const acc: string[] = []
-  descend(dir, { budget, warn, seen: new Set(), acc }, 0)
-  return acc
+): { text: string; count: number } {
+  requirePositiveBudget(budget)
+
+  const tree = loadInstructionTree({
+    cwd,
+    roots: [join('.theokit', 'rules')],
+    // See § 3 — the walk is bounded by depth and file count, the ceilings this product declares.
+    budget: {
+      maxDepth: budget.maxDepth,
+      maxFiles: budget.maxFiles,
+      maxChars: Number.MAX_SAFE_INTEGER,
+    },
+    // Prefixed, not rewritten. The wording is the framework's — it knows what it refused and why —
+    // and the prefix says which subsystem is speaking.
+    onWarn: (message) => {
+      warn(`[rules] ${message}`)
+    },
+    fileNames: (entry) => entry.endsWith('.md'),
+    order: 'lexicographic',
+  })
+
+  const blocks = tree.blocks.map(scopedBlock).filter((block) => block.length > 0)
+  return assemble(blocks, warn)
 }
 
-function alreadyVisited(dir: string, seen: Set<string>, warn: WarnFn): boolean {
-  try {
-    const st = statSync(dir)
-    const key = `${String(st.dev)}:${String(st.ino)}`
-    if (seen.has(key)) {
-      warn(`[rules] ${dir}: already visited (same inode) — cycle broken`)
-      return true
-    }
-    seen.add(key)
-  } catch {
-    // See the docblock: continuing without a key is the decision, and the ceilings guarantee termination.
+/**
+ * Join the blocks, and slice at the prompt ceiling.
+ *
+ * The slice is mid-block on purpose, and it is the behaviour this function inherited: filling the
+ * budget beats stopping short of it, because the rules a user wrote are worth more to the model
+ * than a tidy boundary.
+ *
+ * `count` is the number of rules that CONTRIBUTED to the returned text — not the number read. The
+ * first attempt at this migration read every block and reported that, so a caller was told "3 rules"
+ * while the model saw two. A number describing something the caller cannot see is worse than none.
+ */
+function assemble(blocks: readonly string[], warn: WarnFn): { text: string; count: number } {
+  const full = blocks.join(SEPARATOR)
+  if (full.length <= MAX_CHARS) return { text: full, count: blocks.length }
+
+  let consumed = 0
+  let count = 0
+  for (const block of blocks) {
+    if (consumed >= MAX_CHARS) break
+    count += 1
+    consumed += block.length + (count > 1 ? SEPARATOR.length : 0)
   }
-  return false
+
+  warn(`[rules] rules block truncated to ${String(MAX_CHARS)} chars (was ${String(full.length)})`)
+  return { text: full.slice(0, MAX_CHARS), count }
 }
 
-interface WalkState {
-  readonly budget: TraversalBudget
-  readonly warn: WarnFn
-  readonly seen: Set<string>
-  readonly acc: string[]
-}
+/**
+ * How a scope is announced to the model.
+ *
+ * FAIL CLOSED on a scope that was declared and could not be read. `scopes: []` means two different
+ * things — "no scope declared" and "a `paths:` we could not parse" — and only the flag separates
+ * them. Rendering the second as unscoped takes a rule written for one subtree and applies it to
+ * every file, silently. A dropped rule is one the author notices missing; a widened one is one
+ * nobody sees widen.
+ */
+function scopedBlock(block: {
+  readonly content: string
+  readonly scopes: readonly string[]
+  readonly scopesUnreadable: boolean
+}): string {
+  if (block.scopesUnreadable) return ''
 
-function descend(dir: string, st: WalkState, depth: number): void {
-  if (depth > st.budget.maxDepth) {
-    st.warn(
-      `[rules] ${dir}: maximum depth of ${String(st.budget.maxDepth)} reached — descent stopped`,
-    )
-    return
-  }
-  let entries: string[]
-  try {
-    entries = readdirSync(dir)
-  } catch {
-    return
-  }
-  if (alreadyVisited(dir, st.seen, st.warn)) return
-  for (const entry of entries.sort()) {
-    if (st.acc.length >= st.budget.maxFiles) {
-      st.warn(
-        `[rules] ${dir}: ceiling of ${String(st.budget.maxFiles)} files reached — sweep stopped`,
-      )
-      return
-    }
-    absorbInput(join(dir, entry), entry, st, depth)
-  }
-}
-
-function absorbInput(
-  full: string,
-  entry: string,
-  st: WalkState,
-  depth: number,
-): void {
-  try {
-    if (statSync(full).isDirectory()) {
-      descend(full, st, depth + 1)
-    } else if (entry.endsWith('.md')) {
-      st.acc.push(full)
-    }
-  } catch {
-    // unreachable entry — the same outcome as never having found it
-  }
-}
-
-function frontmatterScope(rawYaml: string, file: string, warn: WarnFn): string[] | undefined {
-  try {
-    const parsed = yaml.load(rawYaml)
-    if (parsed === null || typeof parsed !== 'object') return []
-    const p = (parsed as Record<string, unknown>).paths
-    return Array.isArray(p) ? p.filter((x): x is string => typeof x === 'string') : []
-  } catch (err) {
-    warn(
-      `[rules] ${file}: failed to parse YAML frontmatter (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — rule skipped`,
-    )
-    return undefined
-  }
-}
-
-function ruleBlock(file: string, raw: string, warn: WarnFn): string | undefined {
-  const fm = FRONTMATTER_REGEX.exec(raw)
-  if (fm === null && /^---\r?\n/.test(raw)) {
-    warn(`[rules] ${file}: frontmatter opened but never closed (missing ---) — rule skipped`)
-    return undefined
-  }
-  const paths = fm === null ? [] : frontmatterScope(fm[1] ?? '', file, warn)
-  if (paths === undefined) return undefined
-  const trimmed = (fm === null ? raw : raw.slice(fm[0].length)).trim()
-  if (trimmed.length === 0) return undefined
-  return paths.length > 0
-    ? `> Applies ONLY to files matching: ${paths.join(', ')}\n\n${trimmed}`
-    : trimmed
+  const body = block.content.trim()
+  if (body.length === 0) return ''
+  return block.scopes.length > 0
+    ? `> Applies ONLY to files matching: ${block.scopes.join(', ')}\n\n${body}`
+    : body
 }
 
 function requirePositiveBudget(budget: TraversalBudget): void {
@@ -125,33 +134,4 @@ function requirePositiveBudget(budget: TraversalBudget): void {
         `maxFiles=${String(budget.maxFiles)} — both must be > 0`,
     )
   }
-}
-
-export function loadRules(
-  cwd: string,
-  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
-  budget: TraversalBudget = DEFAULT_BUDGET,
-  readFile: ReadFile = (f) => readFileSync(f, 'utf8'),
-): { text: string; count: number } {
-  requirePositiveBudget(budget)
-  const base = join(cwd, '.theokit', 'rules')
-  const blocks: string[] = []
-  let accumulated = 0
-  let truncated = false
-  for (const file of scanMarkdownWithGuards(base, budget, warn)) {
-    if (accumulated > MAX_CHARS) {
-      truncated = true
-      break
-    }
-    const block = ruleBlock(file, readFile(file), warn)
-    if (block === undefined) continue
-    blocks.push(block)
-    accumulated += block.length
-  }
-  const text = blocks.join('\n\n---\n\n')
-  if (truncated || text.length > MAX_CHARS) {
-    warn(`[rules] rules block truncated to ${MAX_CHARS} chars (was ${text.length})`)
-    return { text: text.slice(0, MAX_CHARS), count: blocks.length }
-  }
-  return { text, count: blocks.length }
 }

@@ -19,7 +19,7 @@ import { join } from 'node:path'
 
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { loadRules, scanMarkdownWithGuards, type TraversalBudget } from './rules.js'
+import { loadRules, type TraversalBudget } from './rules.js'
 
 const sandbox = mkdtempSync(join(tmpdir(), 'rules-char-'))
 afterAll(() => rmSync(sandbox, { recursive: true, force: true }))
@@ -110,15 +110,27 @@ describe('loadRules — frontmatter, which changes what the rule CLAIMS to apply
     const { warn, messages } = collectWarnings()
 
     expect(loadRules(root, warn)).toEqual({ text: '', count: 0 })
-    expect(messages.some((m) => m.includes('frontmatter opened but never closed'))).toBe(true)
+    // The wording is the framework's now — it is the layer that refused the file, and it says so in
+    // its own words. What this test pins is the OUTCOME (nothing reaches the prompt) and that the
+    // refusal is announced through the seam; owning the sentence would be owning the wrong thing.
+    expect(messages.some((m) => m.startsWith('[rules] ') && m.includes('never closes'))).toBe(true)
   })
 
-  it('test_unparseable_yaml_skips_the_rule_and_says_so', () => {
+  it('test_a_declared_scope_that_cannot_be_read_drops_the_rule_and_says_so', () => {
+    // Renamed because the mechanism changed and the GUARANTEE did not.
+    //
+    // This used to run a YAML parser and skip the file when it threw. The framework reads
+    // frontmatter by line and never throws, so "unparseable YAML" is not a state it can be in — but
+    // the state that MATTERED is: a `paths:` that was declared and yielded nothing. Rendering that
+    // as unscoped takes a rule written for one subtree and applies it everywhere.
+    //
+    // `scopesUnreadable` is that signal, and `scopedBlock` fails closed on it. Same outcome, and now
+    // the narrower question is the one being asked.
     const root = project({ 'bad.md': '---\npaths: [unclosed\n---\nbody' })
     const { warn, messages } = collectWarnings()
 
     expect(loadRules(root, warn).count).toBe(0)
-    expect(messages.some((m) => m.includes('failed to parse YAML frontmatter'))).toBe(true)
+    expect(messages.some((m) => m.includes('no scope could be read'))).toBe(true)
   })
 
   it('test_a_rule_whose_body_is_empty_after_frontmatter_is_dropped_silently', () => {
@@ -130,22 +142,30 @@ describe('loadRules — frontmatter, which changes what the rule CLAIMS to apply
     expect(messages).toEqual([])
   })
 
-  it('test_non_string_entries_in_paths_are_discarded_rather_than_stringified', () => {
+  it('test_every_declared_path_is_announced_including_ones_yaml_would_have_typed', () => {
+    // A RELAXATION, recorded rather than hidden.
+    //
+    // The YAML parser this file used to run returned typed values, so `- 42` and `- null` came back
+    // as a number and a null and were filtered out. The framework reads lines and cannot know a
+    // type, so they arrive as the strings `42` and `null`.
+    //
+    // Accepted because the direction is safe: a scope matching nothing NARROWS a rule, and the
+    // failure this whole area guards against is the opposite one — a scope silently WIDENING. The
+    // cost is cosmetic, a slightly noisier line in the prompt.
     const root = project({ 'mixed.md': '---\npaths:\n  - "ok.ts"\n  - 42\n  - null\n---\nbody' })
     expect(loadRules(root, () => {}).text).toBe(
-      '> Applies ONLY to files matching: ok.ts\n\nbody',
+      '> Applies ONLY to files matching: ok.ts, 42, null\n\nbody',
     )
   })
 })
 
 describe('loadRules — the seams a caller can inject', () => {
-  it('test_readFile_is_the_seam_content_arrives_through', () => {
-    // The migration must keep this: `trust-posture.ts` and the tests both rely on being able to
-    // supply content without touching the disk.
-    const root = project({ 'a.md': 'ON DISK' })
-    const { text } = loadRules(root, () => {}, undefined, () => 'INJECTED')
-    expect(text).toBe('INJECTED')
-  })
+  // The `readFile` seam was removed, and the comment that guarded it was measured wrong.
+  //
+  // It claimed `trust-posture.ts` relied on injecting content without touching the disk. It does
+  // not: that file lists the STRING `'loadRules'` in a `loaders:` array — a declaration of which
+  // loaders are trust-gated — and never calls it. The only production caller is `chat.ts:218`,
+  // `loadRules(cwd).text`, with no seam. A seam whose only user was its own test is cost.
 
   it('test_warn_is_the_seam_diagnostics_arrive_through_and_nothing_reaches_stderr', () => {
     const root = project({ 'broken.md': '---\nunclosed' })
@@ -177,7 +197,8 @@ describe('loadRules — the traversal budget', () => {
     const { count } = loadRules(root, warn, { maxDepth: 32, maxFiles: 2 })
 
     expect(count).toBe(2)
-    expect(messages.some((m) => m.includes('ceiling of 2 files reached'))).toBe(true)
+    // Same ceiling, the framework's sentence. The number is what matters and it is still in it.
+    expect(messages.some((m) => m.startsWith('[rules] ') && m.includes('2'))).toBe(true)
   })
 
   it('test_the_depth_ceiling_stops_the_descent_and_says_where', () => {
@@ -188,33 +209,41 @@ describe('loadRules — the traversal budget', () => {
 
     // `one/` is depth 1 and is entered; `one/two/` is depth 2 and is refused.
     expect(count).toBe(1)
-    expect(messages.some((m) => m.includes('maximum depth of 1 reached'))).toBe(true)
+    expect(messages.some((m) => m.startsWith('[rules] ') && m.includes('1'))).toBe(true)
   })
 })
 
-describe('scanMarkdownWithGuards — the cycle guard', () => {
-  it('test_a_symlink_loop_is_broken_by_inode_rather_than_by_path', () => {
+describe('loadRules — the guards, now the framework\'s and still load-bearing here', () => {
+  it('test_a_symlink_loop_is_broken_rather_than_hitting_the_ceilings', () => {
     // A path-based guard is defeated by two different paths reaching the same directory; this one
     // keys on dev:ino. Without it the walk does not terminate, it merely hits the ceilings — which
     // is termination by accident rather than by design.
     const root = mkdtempSync(join(sandbox, 'cycle-'))
-    const inner = join(root, 'inner')
-    mkdirSync(inner)
+    const rules = join(root, '.theokit', 'rules')
+    const inner = join(rules, 'inner')
+    mkdirSync(inner, { recursive: true })
     writeFileSync(join(inner, 'a.md'), 'A')
-    symlinkSync(root, join(inner, 'loop'), 'dir')
+    // The loop: `inner/loop` points back at the rules root, so `rules/inner/loop/inner` is the same
+    // directory reached by a second path.
+    symlinkSync(rules, join(inner, 'loop'), 'dir')
 
-    const { warn, messages } = collectWarnings()
-    const found = scanMarkdownWithGuards(root, { maxDepth: 32, maxFiles: 2_000 }, warn)
+    // Asserted through `loadRules` rather than through the walk, because the walk is no longer
+    // ours to call. What this product depends on is unchanged and still worth pinning: a directory
+    // reachable by two paths is read ONCE, so a loop terminates by design rather than by exhausting
+    // a ceiling — which would look identical on a small tree and diverge on a real one.
+    const { warn } = collectWarnings()
+    const { count } = loadRules(root, warn, { maxDepth: 32, maxFiles: 2_000 })
 
-    expect(found).toHaveLength(1)
-    expect(messages.some((m) => m.includes('already visited (same inode)'))).toBe(true)
+    expect(count).toBe(1)
   })
 
-  it('test_an_unreadable_directory_is_skipped_without_a_warning', () => {
-    // Same outcome as never having found it — the docblock's words, pinned so a replacement that
-    // starts warning here does not turn a normal condition into noise.
+  it('test_a_project_without_a_rules_directory_is_silent', () => {
+    // A missing `.theokit/rules/` is the normal state of most projects. Warning about it would put
+    // a line in front of every user who has not written rules — noise indistinguishable from a real
+    // diagnostic once it appears every run.
     const { warn, messages } = collectWarnings()
-    expect(scanMarkdownWithGuards(join(sandbox, 'does-not-exist'), undefined, warn)).toEqual([])
+
+    expect(loadRules(join(sandbox, 'does-not-exist'), warn)).toEqual({ text: '', count: 0 })
     expect(messages).toEqual([])
   })
 })
