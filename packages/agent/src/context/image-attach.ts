@@ -18,7 +18,7 @@ export class ImageAttachError extends TheokitAgentError {
   }
 }
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024 
 
 const MIME_BY_EXT: Record<string, string> = {
   '.png': 'image/png',

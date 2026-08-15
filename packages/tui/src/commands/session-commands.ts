@@ -68,7 +68,7 @@ export function handleLogout(setToast: SetToast): void {
   })
 }
 
-export const DEVICE_PROMPT_DURATION_MS = 10 * 60_000
+const DEVICE_PROMPT_DURATION_MS = 10 * 60_000
 
 export function handleLogin(
   arg: string,

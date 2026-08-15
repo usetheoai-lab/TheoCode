@@ -9,7 +9,7 @@ import { readPointerId } from './pointer.js'
 
 const defaultBaseDir = transcriptRoot
 
-export function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string {
+function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string {
   return join(baseDir, 'projects', encodeProjectDir(cwd))
 }
 
@@ -45,7 +45,7 @@ export interface PlanSessionGCOptions {
 
 /** Transcripts in a project directory, newest first is the caller's job to sort. Sync by design:
  *  the fork guard runs on a synchronous write path. */
-export function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[] {
+function readTranscriptDir(dir: string): { id: string; mtimeMs: number }[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
     .filter((f) => f.endsWith('.jsonl'))

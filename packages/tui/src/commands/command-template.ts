@@ -1,8 +1,8 @@
 
-export const SHELL_REGEX = /!`([^`]+)`/g
-export const FILE_REGEX = /(?<![\w`])@(\.?[^\s`,.]*(?:\.[^\s`,.]+)*)/g
-export const PLACEHOLDER_REGEX = /\$(\d+)/g
-export const ARGS_REGEX = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
+const SHELL_REGEX = /!`([^`]+)`/g
+const FILE_REGEX = /(?<![\w`])@(\.?[^\s`,.]*(?:\.[^\s`,.]+)*)/g
+const PLACEHOLDER_REGEX = /\$(\d+)/g
+const ARGS_REGEX = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
 const QUOTE_TRIM_REGEX = /^["']|["']$/g
 
 const FILE_INLINE_CAP = 64 * 1024

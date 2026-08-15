@@ -1,4 +1,4 @@
-export const APPROVAL_MODES = ['suggest', 'auto-edit', 'full-auto'] as const
+const APPROVAL_MODES = ['suggest', 'auto-edit', 'full-auto'] as const
 
 export type ApprovalMode = (typeof APPROVAL_MODES)[number]
 

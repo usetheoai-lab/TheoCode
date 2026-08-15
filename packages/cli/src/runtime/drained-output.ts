@@ -1,4 +1,4 @@
-export interface DrainedOutputDeps {
+interface DrainedOutputDeps {
   exit: (code: number) => void
   recordExitCode: (code: number) => void
   setTimer: (fn: () => void, ms: number) => unknown
