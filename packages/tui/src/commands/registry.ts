@@ -1,3 +1,8 @@
+import {
+  defineCommand,
+  routeCommand as classifyInput,
+  type CommandDefinition,
+} from '@theokit/agents/commands'
 import type { ChatComposerCommand } from '@theokit/tui'
 
 type DemoMode = 'plan' | 'ask' | 'select' | 'progress'
@@ -58,6 +63,14 @@ export type CommandAction =
   // M55 — autonomous goal (Codex ext/goal parity): arg = objective in natural language.
   | { kind: 'goal'; arg: string }
   | { kind: 'send'; text: string }
+  /**
+   * A leading `/` that is not a command this build knows.
+   *
+   * It used to be `{ kind: 'send' }` — every mistyped slash went to the model as prose, and the
+   * model answered. `/moddel gpt-5` produced a plausible reply to a command that never ran, which
+   * is worse than an error because nothing looks wrong.
+   */
+  | { kind: 'commandError'; reason: string; input: string }
 
 // B-011 — the SDK exports this shape as `SlashCommand` (re-exported as `ChatComposerCommand`, the
 // name `ChatComposer` consumes). Declaring an identical anonymous type meant the composer's contract
@@ -170,18 +183,49 @@ function routeWithArgument(trimmed: string): CommandAction | undefined {
   return undefined
 }
 
+/**
+ * Every name this build answers to, in the shape the framework routes over.
+ *
+ * Built per call because `customNames` is loaded from `.theokit/commands/` and changes at runtime.
+ * `arg` is `'optional'` throughout: this product has never refused a bare `/model`, and tightening
+ * that here would turn a working invocation into an error on the strength of a refactor.
+ */
+function definitions(customNames?: ReadonlySet<string>): CommandDefinition[] {
+  const builtins = [...EXACT_COMMANDS.keys(), ...COMMANDS_WITH_ARGUMENT.map(([name]) => name)]
+  const names = new Set([...builtins.map((n) => n.slice(1)), ...(customNames ?? [])])
+  return [...names].map((name) =>
+    defineCommand({ name, description: '', arg: 'optional' }),
+  )
+}
+
+/**
+ * What the user typed, as this product's verb.
+ *
+ * The CLASSIFICATION — command, prose, or a slash that names nothing — is the framework's now. It
+ * was the defective half: this function ended `EXACT_COMMANDS.get(trimmed) ?? { kind: 'send' }`, so
+ * an unrecognised `/moddel` was handed to the model as text and answered plausibly. The framework
+ * already distinguishes `unknown-command`, `missing-argument`, `unexpected-argument` and
+ * `ambiguous-command`, and states why: a typo hidden behind a helpful answer is worse than an error.
+ *
+ * The VERB MAPPING stays here, because which slash means which action is this product's vocabulary.
+ */
 export function routeCommand(input: string, customNames?: ReadonlySet<string>): CommandAction {
   const trimmed = input.trim()
   if (trimmed.length === 0) return { kind: 'noop' }
-  if (customNames !== undefined && trimmed.startsWith('/')) {
-    const body = trimmed.slice(1)
-    for (const name of [...customNames].sort((a, b) => b.length - a.length)) {
-      if (body === name || body.startsWith(`${name} `)) {
-        return { kind: 'custom', name, arg: body.slice(name.length).trim() }
-      }
-    }
+
+  const routed = classifyInput(trimmed, definitions(customNames))
+  if (routed.kind === 'message') return { kind: 'send', text: routed.text }
+  if (routed.kind === 'error') {
+    return { kind: 'commandError', reason: routed.reason, input: trimmed }
   }
-  const withArgument = routeWithArgument(trimmed)
+
+  // Recognised. A custom command wins over a builtin of the same name only if it IS one — the
+  // framework already resolved ambiguity, so this is a lookup, not a second routing pass.
+  if (customNames?.has(routed.command.name) === true) {
+    return { kind: 'custom', name: routed.command.name, arg: routed.arg }
+  }
+  const slash = `/${routed.command.name}`
+  const withArgument = routeWithArgument(routed.arg.length > 0 ? `${slash} ${routed.arg}` : slash)
   if (withArgument !== undefined) return withArgument
-  return EXACT_COMMANDS.get(trimmed) ?? { kind: 'send', text: trimmed }
+  return EXACT_COMMANDS.get(slash) ?? { kind: 'send', text: trimmed }
 }
