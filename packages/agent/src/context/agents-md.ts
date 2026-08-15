@@ -1,105 +1,24 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
-
-const MAX_CHARS = 64_000
-const SEPARATOR = '\n\n--- project-doc ---\n\n'
-const MAX_IMPORT_DEPTH = 4
-const IMPORT_REGEX = /(?<![\w`])@([\w~./-]+\.md)\b/g
+import { expandInstructionImports } from '@theokit/agents/config'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 type WarnFn = (message: string) => void
 
-function maskCodeSpans(text: string): string {
-  return text
-    .replace(/```[\s\S]*?(```|$)/g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/`[^`\n]*`/g, (m) => ' '.repeat(m.length))
-}
-
+const MAX_CHARS = 64_000
+const SEPARATOR = '\n\n--- project-doc ---\n\n'
 /**
- * B-042 — containment is checked on the REAL path, after symlinks.
+ * B-042 / absorbed 2026-08-15 — the `@file.md` expansion now comes from the framework.
  *
- * This compared `relative()` on a path built with `resolve()`, which does not follow symlinks. A
- * link inside the project pointing anywhere on the filesystem passed the check as a string, and the
- * read then followed it out — into the agent's system prompt, from a repository that may be
- * untrusted.
+ * ~75 lines lived here: the regex, the code-span masking, the `realpath` containment check and the
+ * depth/cycle bounds. All four are `expandInstructionImports` in `@theokit/agents/config`, and this
+ * copy is where the containment bug B-042 had to be found and fixed by hand.
+ *
+ * What did NOT move is the WALK. The framework's `loadInstructionTree` descends into subdirectories;
+ * this product's convention is the opposite — climb from the working directory to the git root and
+ * read the ancestor chain. Two different traversals, and swapping one for the other would change
+ * which files load. So the walk below stays ours and the expansion becomes theirs, which is the
+ * split that was always correct.
  */
-function insideRoot(target: string, rootDir: string): boolean {
-  let real: string
-  let realRoot: string
-  try {
-    real = realpathSync(target)
-    realRoot = realpathSync(rootDir)
-  } catch {
-    // A path we cannot resolve is a path we cannot vouch for.
-    return false
-  }
-  const rel = relative(realRoot, real)
-  return rel !== '' && !rel.startsWith('..') && !rel.includes('..')
-}
-
-function expandableTarget(
-  name: string,
-  filePath: string,
-  rootDir: string,
-  visited: ReadonlySet<string>,
-  warn: WarnFn,
-): string | undefined {
-  const target = name.startsWith('~/') ? name : resolve(dirname(filePath), name)
-  // The existence check moved ABOVE the containment check: `insideRoot` resolves symlinks, and a
-  // path that is not there cannot be resolved.
-  if (!name.startsWith('~/') && !existsSync(target)) {
-    warn(`[agents-md] ${filePath}: import @${name} not found — kept literal`)
-    return undefined
-  }
-  if (name.startsWith('~/') || !insideRoot(target, rootDir)) {
-    warn(
-      `[agents-md] ${filePath}: import @${name} resolves outside the project root — kept literal`,
-    )
-    return undefined
-  }
-  if (visited.has(target)) return undefined
-  return target
-}
-
-function expandImports(
-  text: string,
-  filePath: string,
-  rootDir: string,
-  depth: number,
-  visited: Set<string>,
-  warn: WarnFn,
-): string {
-  if (depth > MAX_IMPORT_DEPTH) {
-    warn(
-      `[agents-md] ${filePath}: import depth cap (${MAX_IMPORT_DEPTH}) reached — deeper imports kept literal`,
-    )
-    return text
-  }
-  const masked = maskCodeSpans(text)
-  const matches = Array.from(masked.matchAll(IMPORT_REGEX))
-  if (matches.length === 0) return text
-
-  const segments: string[] = []
-  let cursor = 0
-  for (const match of matches) {
-    const name = match[1]
-    const start = match.index ?? 0
-    if (!name) continue
-    segments.push(text.slice(cursor, start))
-    cursor = start + match[0].length
-    const target = expandableTarget(name, filePath, rootDir, visited, warn)
-    if (target === undefined) {
-      segments.push(match[0]) 
-      continue
-    }
-    visited.add(target)
-    const imported = readFileSync(target, 'utf8').trim()
-    const expanded = expandImports(imported, target, rootDir, depth + 1, visited, warn)
-    segments.push(`\n--- import: ${name} ---\n${expanded}\n--- end import ---\n`)
-  }
-  segments.push(text.slice(cursor))
-  return segments.join('')
-}
-
 export function loadAgentsMd(
   cwd: string,
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
@@ -133,7 +52,18 @@ export function loadAgentsMd(
   for (const level of chain) {
     const visited = new Set(chainPaths)
     const parts = level.files.map((p) =>
-      expandImports(readFileSync(p, 'utf8').trim(), p, rootDir, 1, visited, warn),
+      expandInstructionImports({
+        text: readFileSync(p, 'utf8').trim(),
+        filePath: p,
+        rootDir,
+        onWarn: warn,
+        // Markers stay: they are visible in the model's prompt, and presentation is this product's.
+        wrap: (name, content) =>
+          `\n--- import: ${name} ---\n${content}\n--- end import ---\n`,
+        // Everything the chain already read — otherwise a file the walk loaded AND an import names
+        // lands in the prompt twice.
+        alreadyLoaded: [...visited],
+      }),
     )
     found.push(parts.filter(Boolean).join(SEPARATOR))
   }
