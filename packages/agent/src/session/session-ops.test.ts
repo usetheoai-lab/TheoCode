@@ -13,7 +13,7 @@
  * an existing transcript still cannot be overwritten — the loser gets a bare EEXIST instead of a
  * typed error the callers can tell apart. That is why this was MEDIUM, not HIGH.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -218,5 +218,53 @@ describe('B-078 — deleteSession refuses a live session', () => {
 
     expect(result.transcriptRemoved).toBe(false)
     expect(removed).toEqual(['tui-ghost'])
+  })
+})
+
+describe('deleteSession — the transcript mechanics are the framework\'s', () => {
+  it('test_the_transcript_removal_has_no_check_then_act_race', async () => {
+    // The reason this file delegates rather than keeping four lines of its own.
+    //
+    // It used to do `existsSync(target)` and then `rmSync(target, { force: true })`, reporting the
+    // FIRST call's answer. Between the two, a concurrent GC sweep or a second TUI can unlink the
+    // file — and the result then claims `transcriptRemoved: true` for a file this call did not
+    // remove. `@theokit/agents`' `deleteSession` has no such window: it calls `rmSync` and derives
+    // the answer from whether that threw, so the reported outcome is the one that happened.
+    //
+    // Asserted through the observable contract rather than by racing the filesystem: the answer must
+    // come from the removal itself, so a transcript that never existed reports false and one that
+    // did reports true — with no third state where the report and the disk disagree.
+    writeTranscript('tui-other', 5000)
+    writeTranscript('tui-current', 1)
+    writeTranscript('tui-doomed', 900)
+
+    const real = await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async () => {},
+    })
+    expect(real.transcriptRemoved).toBe(true)
+
+    // Same call, same session, now absent: the second answer is derived, not remembered.
+    const again = await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async () => {},
+    })
+    expect(again.transcriptRemoved).toBe(false)
+  })
+
+  it('test_it_delegates_the_transcript_removal_to_the_framework', async () => {
+    // Pillar of the migration: the mechanics live in `@theokit/agents/session`, not here. Asserted
+    // on the seam — this module must not reach for `node:fs` to remove a transcript, because two
+    // owners of "how a transcript is deleted" is how the two answers drift apart.
+    const source = readFileSync(new URL('./session-ops.ts', import.meta.url), 'utf8')
+    expect(source).toContain("from '@theokit/agents/session'")
+
+    // Comments stripped first. The prose above the delegation NAMES the call it replaced, and a
+    // guard that reads its own documentation as a violation would force the explanation out of the
+    // file — the opposite of what it is for.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    expect(code, 'session-ops.ts still unlinks transcripts by hand').not.toMatch(/\brmSync\(/)
   })
 })
