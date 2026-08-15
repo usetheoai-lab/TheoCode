@@ -10,7 +10,8 @@ import {
 import { join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
-import { sessionHasWriter, transcriptRoot } from '@theokit/agents/persistence'
+import { sessionHasWriter } from '@theokit/agents/persistence'
+import { projectsRoot } from '@theokit/agents/session'
 
 import { listAgents } from '../agent-list.js'
 import {
@@ -103,7 +104,7 @@ async function listProjectRegistry(
 }
 
 export async function planAllProjectsOnDisk(opts: CliOptions = {}): Promise<AllPlan> {
-  const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
+  const root = opts.projectsRoot ?? projectsRoot()
   return planSessionGCAllProjects({
     projectsRoot: root,
     ...(opts.keepLast !== undefined ? { keepLast: opts.keepLast } : {}),
@@ -141,7 +142,7 @@ export async function runAllProjectsOnDisk(
   plan: AllPlan,
   opts: CliOptions = {},
 ): Promise<AllResult> {
-  const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
+  const root = opts.projectsRoot ?? projectsRoot()
   return runSessionGCAllProjects(plan, {
     ...(opts.apply === true ? { apply: true } : {}),
     unlink: (path) => fsp.unlink(path),
