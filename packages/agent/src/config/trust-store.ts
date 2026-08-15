@@ -87,7 +87,7 @@ function ensurePrivateDir(store: string): void {
  * Throws when the store or its directory is writable by anyone else. A MISSING file is not an
  * error — a first run has no store, and that means "nothing is trusted yet".
  */
-export function readDocument(store: string): Record<string, unknown> {
+function readDocument(store: string): Record<string, unknown> {
   assertPrivate(store)
   try {
     const parsed: unknown = JSON.parse(readFileSync(store, 'utf8'))

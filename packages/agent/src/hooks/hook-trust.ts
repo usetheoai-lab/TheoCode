@@ -1,17 +1,50 @@
-import { createHash } from 'node:crypto'
-import { TRUST_STORE, mutateConsentStore } from '../config/index.js'
+/**
+ * Hook approvals — a FACADE over the framework's `HookApprovalStore` since 2026-08-15.
+ *
+ * The fingerprint, the three-state classification, the per-project scoping and the private-mode
+ * write all live in `@theokit/agents/hooks` now. What stays here is the shape this product's consent
+ * screen speaks: `ClassifiedHook`, and the `HookSpec` field names (`timeout_ms`, which the framework
+ * calls `timeoutMs`).
+ *
+ * ## Why it could not move earlier
+ *
+ * Three properties were missing from the framework store, and every one surfaced by ATTEMPTING the
+ * migration rather than by reading the design:
+ *
+ *  - **Scoping.** It keyed by fingerprint alone, so an approval was machine-wide. Adopting it would
+ *    have WIDENED this product's posture — a hook approved in one repository pre-approved in the
+ *    next one cloned. Fixed in `@theokit/agents@9.0.0` (breaking: `scope` is required).
+ *  - **The directory mode.** The shared `.theokit` directory was created without one and never
+ *    repaired. Fixed in `9.0.1`.
+ *  - **The records.** Only the set of approved hashes was readable, and a consent screen has to say
+ *    WHICH command was approved. Fixed in `9.1.0` with `approvals(scope)`.
+ *
+ * ## `modified` is decided by a rule now, not a heuristic
+ *
+ * The old `previousByEvent` option guessed: exactly one orphaned approval plus exactly one new hook
+ * in the same event meant "edited". The framework compares the event+matcher SLOT, so a command that
+ * changed under the same slot is `modified` outright — no counting, and no ambiguity when two hooks
+ * change at once.
+ *
+ * ## The one thing that does not carry across
+ *
+ * Approvals recorded by the previous store CANNOT be migrated, and that is stated rather than
+ * papered over. The legacy record kept `{command, event}`; the framework fingerprint also needs
+ * `matcher` and `timeoutMs`, which were never written. Recomputing would mean inventing the two
+ * missing fields and producing a hash that matches nothing real. So an old approval reads as
+ * `untrusted` and the operator approves once more — fail-closed, the only safe direction for a
+ * consent store to fail.
+ */
+import { HookApprovalStore, hookFingerprint as frameworkFingerprint } from '@theokit/agents/hooks'
+import type { HookIdentity } from '@theokit/agents/hooks'
+
+import { homedir } from 'node:os'
 
 import type { HookSpec } from './hooks-spec.js'
-import { canonical as canonicalDir, readDocument } from '../config/trust-store.js'
 
 type HookTrustStatus = 'trusted' | 'untrusted' | 'modified'
 
-export interface ApprovedHook {
-  command: string
-  event?: string
-  approvedAt: string
-}
-
+/** What a consent screen renders. `previousCommand` is filled when the framework says `modified`. */
 export interface ClassifiedHook {
   spec: HookSpec
   fingerprint: string
@@ -19,90 +52,79 @@ export interface ClassifiedHook {
   previousCommand?: string
 }
 
-export function hookFingerprint(spec: HookSpec): string {
-  const projection = {
-    command: spec.command,
-    event: spec.event,
-    matcher: spec.matcher ?? null,
-    timeout_ms: spec.timeout_ms,
-  }
-  const canonical = JSON.stringify(projection, Object.keys(projection).sort())
-  return `sha256:${createHash('sha256').update(canonical).digest('hex')}`
+/** One approval, in this product's vocabulary. */
+export interface ApprovedHook {
+  command: string
+  event?: string
+  approvedAt: string
 }
 
+/** `timeout_ms` here, `timeoutMs` there — the same field, and the only translation this facade does. */
+function identityOf(spec: HookSpec): HookIdentity {
+  return {
+    command: spec.command,
+    event: spec.event,
+    ...(spec.matcher === undefined ? {} : { matcher: spec.matcher }),
+    timeoutMs: spec.timeout_ms,
+  }
+}
+
+const storeFor = (home: string = homedir()): HookApprovalStore => new HookApprovalStore({ home })
+
+/** The framework's hash, so what this product SHOWS is what the gate COMPARES. */
+export function hookFingerprint(spec: HookSpec): string {
+  return frameworkFingerprint(identityOf(spec))
+}
+
+export function loadApprovedHooks(dir: string, home?: string): Map<string, ApprovedHook> {
+  return new Map(
+    storeFor(home)
+      .approvals(dir)
+      .map((r) => [
+        r.fingerprint,
+        { command: r.command, event: r.event, approvedAt: r.approvedAt },
+      ]),
+  )
+}
+
+/**
+ * Classify each spec against what THIS project approved.
+ *
+ * The `approved` map is accepted and ignored for the decision: the store is the authority, and
+ * treating a caller-supplied map as truth would let a stale copy answer a security question. It
+ * stays in the signature so the consent screen keeps its call shape.
+ */
 export function classifyHooks(
   specs: readonly HookSpec[],
-  approved: ReadonlyMap<string, ApprovedHook>,
-  opts: { previousByEvent?: boolean } = {},
+  _approved: ReadonlyMap<string, ApprovedHook>,
+  opts: { dir?: string; home?: string } = {},
 ): ClassifiedHook[] {
+  const dir = opts.dir ?? process.cwd()
+  const store = storeFor(opts.home)
+  const records = store.approvals(dir)
+
   return specs.map((spec) => {
-    const fingerprint = hookFingerprint(spec)
-    if (approved.has(fingerprint)) {
-      return { spec, fingerprint, status: 'trusted' as const }
-    }
-    if (opts.previousByEvent === true) {
-      const currentFingerprints = new Set(specs.map(hookFingerprint))
-      const orphanedSameEvent = [...approved.entries()].filter(
-        ([fp, a]) => a.event === spec.event && !currentFingerprints.has(fp),
-      )
-      const newSameEvent = specs.filter(
-        (other) => other.event === spec.event && !approved.has(hookFingerprint(other)),
-      )
-      if (orphanedSameEvent.length === 1 && newSameEvent.length === 1) {
-        const previous = orphanedSameEvent[0]![1]
-        return {
-          spec,
-          fingerprint,
-          status: 'modified' as const,
-          previousCommand: previous.command,
-        }
+    const identity = identityOf(spec)
+    const fingerprint = frameworkFingerprint(identity)
+    const state = store.stateOf(identity, dir)
+    if (state === 'approved') return { spec, fingerprint, status: 'trusted' as const }
+    if (state === 'modified') {
+      const previous = records.find((r) => r.event === spec.event && r.matcher === spec.matcher)
+      return {
+        spec,
+        fingerprint,
+        status: 'modified' as const,
+        ...(previous === undefined ? {} : { previousCommand: previous.command }),
       }
     }
     return { spec, fingerprint, status: 'untrusted' as const }
   })
 }
 
-interface StoreShape {
-  trusted?: string[]
-  hooks?: Record<string, Record<string, ApprovedHook>>
-}
-
-/**
- * B-019 — read through `readDocument`, which is the gate.
- *
- * This function used to open TRUST_STORE with a bare `readFileSync`. B-005 had added a permission
- * check to the OTHER reader of the same file, so directory trust was refused on a group-writable
- * store while the hook-approval set — which decides what reaches `spawn(cmd, { shell: true })` —
- * was read unchecked. The duplicate existed because the gate was module-private; it is exported now
- * for exactly this consumer.
- */
-export function loadApprovedHooks(
-  dir: string,
-  path: string = TRUST_STORE,
-): Map<string, ApprovedHook> {
-  const store = readDocument(path) as StoreShape
-  const forDir = store.hooks?.[canonicalDir(dir)]
-  if (forDir === undefined) return new Map()
-  return new Map(Object.entries(forDir))
-}
-
-export async function approveHook(
-  dir: string,
-  spec: HookSpec,
-  path: string = TRUST_STORE,
-): Promise<void> {
-  await mutateConsentStore(path, (doc) => {
-    const store = doc as StoreShape
-    const hooks = store.hooks ?? {}
-    const key = canonicalDir(dir)
-    const forDir = { ...(hooks[key] ?? {}) }
-
-    forDir[hookFingerprint(spec)] = {
-      command: spec.command,
-      event: spec.event,
-      approvedAt: new Date().toISOString(),
-    }
-
-    return { ...doc, hooks: { ...hooks, [key]: forDir } }
-  })
+export async function approveHook(dir: string, spec: HookSpec, home?: string): Promise<void> {
+  // `await` on a synchronous call, deliberately: the signature was async and its call sites await
+  // it. Narrowing it to sync would be a breaking change for a facade whose whole point is that the
+  // move is invisible.
+  await Promise.resolve()
+  storeFor(home).approve(identityOf(spec), dir)
 }
