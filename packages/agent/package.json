@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@theocode/shared": "*",
-    "@theokit/agents": "^9.1.1",
+    "@theokit/agents": "^9.2.1",
     "js-yaml": "^4.3.1",
     "smol-toml": "^1.7.0",
     "zod": "^4.0.0"
