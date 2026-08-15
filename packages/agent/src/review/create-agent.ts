@@ -17,7 +17,7 @@ import type { ReviewAgentLike, ReviewDeps } from './run-review.js'
 export const REVIEWER_SHELL_CAP = 30_000
 
 
-export type ReviewerConfig = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
+type ReviewerConfig = Pick<AgentConfig, 'model' | 'sandbox_mode'> &
   Partial<Pick<AgentConfig, 'reasoning_effort'>>
 
 function reviewerScope(cfg: ReviewerConfig, cwd: string): ToolScope {

@@ -5,7 +5,7 @@ export interface UpdateGoalSignal {
   status?: 'complete' | 'blocked'
 }
 
-export const updateGoalSchema = z.object({
+const updateGoalSchema = z.object({
   status: z
     .enum(['complete', 'blocked'])
     .describe(

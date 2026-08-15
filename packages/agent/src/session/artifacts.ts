@@ -1,6 +1,7 @@
-export const ARTIFACT_KINDS = ['transcript', 'lock-file', 'lock-directory', 'tmp'] as const
-
-export type ArtifactKind = (typeof ARTIFACT_KINDS)[number]
+// The union, written directly: the `as const` list existed only to derive this type, and nothing
+// walked it at runtime. An array kept alive for a single `typeof` is dead data wearing the shape of
+// live data — it reads as a registry something iterates, and no such caller exists.
+export type ArtifactKind = 'transcript' | 'lock-file' | 'lock-directory' | 'tmp'
 
 
 

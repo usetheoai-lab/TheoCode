@@ -15,7 +15,7 @@ import type { McpFailure } from '../agent-session/mcp-failure-record.js'
  * The suppressed case lists what was REMOVED rather than showing nothing, because "no skills" and
  * "your skills were dropped because this directory is untrusted" send a user to opposite places.
  */
-export function renderWiredEntity(
+function renderWiredEntity(
   entity: WiredEntity | undefined,
   labels: { readonly empty: string; readonly suppressed: string },
 ): string {

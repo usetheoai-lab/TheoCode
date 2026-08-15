@@ -20,7 +20,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { isTrusted, trustDir } from './trust-store.js'
+import { isTrusted, trustDir, frameworkPathFor } from './trust-store.js'
 
 let home: string
 let store: string
@@ -36,10 +36,14 @@ afterEach(() => {
 
 describe('B-005 — the consent store is created with private permissions', () => {
   it('test_writing_creates_a_0700_directory_and_a_0600_file', async () => {
+    // The write path is the framework's `TrustStore` since the facade landed, so the file to inspect
+    // is the one it owns. The PROPERTY is unchanged and still asserted here rather than delegated:
+    // this product reads that file to decide what may execute, and "the store I read is private" is
+    // a boundary fact worth owning even when someone else writes it.
     await trustDir(home, store)
 
     expect(statSync(join(home, '.theokit')).mode & 0o777).toBe(0o700)
-    expect(statSync(store).mode & 0o777).toBe(0o600)
+    expect(statSync(frameworkPathFor(store)).mode & 0o777).toBe(0o600)
   })
 
   it('test_a_pre_existing_world_writable_directory_is_repaired', async () => {

@@ -1,6 +1,6 @@
 import { readTurnUsage, type UIMessageLike } from '@theokit/tui'
 
-export interface StoreSnapshot {
+interface StoreSnapshot {
   status: 'idle' | 'streaming' | 'done' | 'error'
   thread: readonly UIMessageLike[]
   error?: { message: string } | null

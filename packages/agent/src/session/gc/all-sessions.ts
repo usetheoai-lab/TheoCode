@@ -1,11 +1,11 @@
 import { classifyEntry, type ArtifactKind } from '../artifacts.js'
 import { type Liveness } from '../liveness-oracle.js'
 
-export const FLOOR_DAYS = 1
+const FLOOR_DAYS = 1
 
-export const KEEP_PER_PROJECT = 10
+const KEEP_PER_PROJECT = 10
 
-export const DEFAULT_WINDOW_DAYS = 30
+const DEFAULT_WINDOW_DAYS = 30
 
 export interface ProjectEntry {
   name: string

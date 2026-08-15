@@ -10,11 +10,16 @@ import {
   AuthProvider,
   CredentialError,
   credentialHome as storeCredentialHome,
-  readAuthFile as readStoreAuthFile,
   writeCredential as writeStoreCredential,
 } from '@theokit/agents/auth'
 import { isTransientError } from '@theokit/agents'
-import { z } from 'zod'
+import {
+  CredentialNotFoundError,
+  DEFAULT_PROVIDERS,
+  resolveAgentCredential,
+} from '@theokit/agents/auth'
+import type { SourceOrigin } from '@theokit/agents/auth'
+import type { CredentialProviderDescriptor as ProviderDescriptor } from '@theokit/agents/auth'
 
 import { ENV_HOME } from '../config/index.js'
 import { OPENAI_OAUTH_CONFIG, credentialStore } from './oauth-config.js'
@@ -22,21 +27,24 @@ import { OPENAI_OAUTH_CONFIG, credentialStore } from './oauth-config.js'
 const PROVIDERS = ['openrouter', 'anthropic', 'openai'] as const
 export type Provider = (typeof PROVIDERS)[number]
 
-const PREFIXES: Readonly<Record<Provider, string>> = {
-  anthropic: 'sk-ant-',
-  openrouter: 'sk-or-',
-  openai: 'sk-',
-}
+/**
+ * The provider table, DERIVED from the framework's defaults instead of hand-written.
+ *
+ * Three tables lived here (`PREFIXES`, `PREFIXES_BY_LENGTH`, `ENV_KEYS`) saying what every terminal
+ * agent app says. `@theokit/agents@9.2.0` ships them as `DEFAULT_PROVIDERS`, so this file narrows
+ * that list to the providers this product supports rather than restating their env vars, prefixes
+ * and precedence.
+ *
+ * The narrowing is the app policy that genuinely belongs here; the mechanism is not.
+ */
+const DESCRIPTORS: readonly ProviderDescriptor[] = DEFAULT_PROVIDERS.filter(
+  (d): d is ProviderDescriptor => (PROVIDERS as readonly string[]).includes(d.name),
+)
 
-const PREFIXES_BY_LENGTH: ReadonlyArray<readonly [Provider, string]> = (
-  Object.entries(PREFIXES) as Array<[Provider, string]>
-).sort((a, b) => b[1].length - a[1].length)
+const PREFIXES: Readonly<Record<Provider, string>> = Object.fromEntries(
+  DESCRIPTORS.map((d) => [d.name, d.keyPrefix ?? '']),
+) as Record<Provider, string>
 
-const ENV_KEYS: ReadonlyArray<readonly [Provider, string]> = [
-  ['openrouter', 'OPENROUTER_API_KEY'],
-  ['anthropic', 'ANTHROPIC_API_KEY'],
-  ['openai', 'OPENAI_API_KEY'],
-]
 
 export function credentialHome(home: string, env: Record<string, string | undefined> = {}): string {
   return storeCredentialHome(credentialStore(home), env)
@@ -98,39 +106,42 @@ export interface ResolvedCredential {
   expiresAt?: number
 }
 
+/**
+ * Which provider issued this key.
+ *
+ * The longest-prefix scan lived here; `DESCRIPTORS` now carries the prefixes, so what remains is the
+ * narrowing to this product's union. Ordering by length is still explicit rather than assumed —
+ * every OpenRouter and Anthropic key also starts with `sk-`, and a shortest-match-first scan calls
+ * them OpenAI.
+ */
 export function inferProvider(apiKey: string): Provider | undefined {
-  for (const [provider, prefix] of PREFIXES_BY_LENGTH) {
-    if (apiKey.startsWith(prefix)) return provider
-  }
-  return undefined
+  const byLength = [...DESCRIPTORS].sort(
+    (a, b) => (b.keyPrefix ?? '').length - (a.keyPrefix ?? '').length,
+  )
+  return byLength.find((d) => apiKey.startsWith(d.keyPrefix ?? ''))?.name as Provider | undefined
 }
 
-const apiFileSchema = z
-  .object({
-    type: z.literal('api').optional(),
-    provider: z.enum(PROVIDERS).optional(),
-    api_key: z.string(),
-  })
-  .strict()
-
-const oauthFileSchema = z
-  .object({
-    type: z.literal('oauth'),
-    provider: z.enum(PROVIDERS),
-    access: z.string().min(1),
-    refresh: z.string().min(1),
-    expires: z.number(),
-    account_id: z.string().optional(),
-  })
-  .strict()
-
-const fileSchema = z.union([oauthFileSchema, apiFileSchema])
-
-interface StoredApiCredential {
-  type?: 'api'
-  provider?: Provider
-  api_key: string
-}
+/**
+ * The resolution chain — the framework's since `@theokit/agents@9.2.1`.
+ *
+ * ~165 lines lived here: the declared-provider pin, the env precedence walk, the file reader with
+ * its Zod schemas, the key↔provider coherence check and the attempts list. None of it was about this
+ * product; all of it was the policy every terminal agent app needs and none could import, because
+ * the framework shipped the PIECES (store at 0600, device flow, refresh, `writeCredential`) and not
+ * the ASSEMBLY.
+ *
+ * `resolveAgentCredential` is that assembly. What stays here is genuinely ours:
+ *
+ *  - the `Provider` union (this build supports three, and the narrowing buys exhaustiveness),
+ *  - the variable NAME that pins one (`THEOCODE_PROVIDER` — products disagree on it),
+ *  - `MissingCredentialError`, because callers already catch it by type.
+ *
+ * The shapes differ in two places and are adapted rather than propagated: `kind` is `api` here and
+ * `api-key` there, and `source` is a string here and a `SourceOrigin` there. The string form is the
+ * lossy one — `credential-helpers.ts` re-derives the origin from it with a regex — so this is a
+ * translation to keep, not a difference to celebrate.
+ */
+/** The stored OAuth shape, narrowed to this product's `Provider` union — the same refinement as `ResolvedCredential`. */
 export interface StoredOAuthCredential {
   type: 'oauth'
   provider: Provider
@@ -139,27 +150,17 @@ export interface StoredOAuthCredential {
   expires: number
   account_id?: string
 }
-type StoredCredential = StoredApiCredential | StoredOAuthCredential
 
-function readAuthFile(
-  home: string,
-  env: Record<string, string | undefined>,
-): StoredCredential | undefined {
-  const stored = readStoreAuthFile(credentialStore(home), env)
-  if (stored === undefined) return undefined
-  const parsed = fileSchema.safeParse(stored)
-  if (!parsed.success) {
-    throw new CredentialError(
-      `${authFilePath(home, env)} declares a provider this build does not support. ` +
-        `Supported: ${PROVIDERS.join(', ')}.`,
-    )
-  }
-  return parsed.data as StoredCredential
-}
-
+/**
+ * Refuse a key whose prefix contradicts its declared provider, on the WRITE path.
+ *
+ * The read path gets this from the framework (`keyPrefix` on the descriptor). Writing is where the
+ * mistake originates — `theocode auth login --provider anthropic` with an OpenAI key — and catching
+ * it here means the bad pair never reaches disk.
+ */
 function assertPairMatches(provider: Provider, apiKey: string, where: string): void {
   const expected = PREFIXES[provider]
-  if (expected !== undefined && !apiKey.startsWith(expected)) {
+  if (expected !== undefined && expected !== '' && !apiKey.startsWith(expected)) {
     throw new CredentialError(
       `${where}: the key declared for provider "${provider}" does not start with "${expected}". ` +
         `Either the provider or the key is wrong; sending it would fail mid-request.`,
@@ -167,100 +168,15 @@ function assertPairMatches(provider: Provider, apiKey: string, where: string): v
   }
 }
 
-function storedCredentialOf(
-  provider: Provider,
-  home: string,
-  env: Record<string, string | undefined>,
-): ResolvedCredential | undefined {
-  const stored = readAuthFile(home, env)
-  if (stored === undefined || stored.provider !== provider) return undefined
-  const source = authFilePath(home, env)
-  if (stored.type === 'oauth') {
-    return {
-      kind: 'oauth',
-      provider,
-      apiKey: stored.access,
-      source,
-      inferred: false,
-      expiresAt: stored.expires,
-    }
-  }
-  if (stored.api_key.length === 0) return undefined
-  assertPairMatches(provider, stored.api_key, source)
-  return { kind: 'api', provider, apiKey: stored.api_key, source, inferred: false }
+function toLocalKind(kind: 'api-key' | 'oauth'): 'api' | 'oauth' {
+  return kind === 'api-key' ? 'api' : 'oauth'
 }
 
-function declaredProvider(env: Record<string, string | undefined>): Provider | undefined {
-  const declared = env.THEOCODE_PROVIDER?.trim()
-  if (declared === undefined) return undefined
-  if (!(PROVIDERS as readonly string[]).includes(declared)) {
-    throw new CredentialError(
-      `THEOCODE_PROVIDER is "${declared.slice(0, 12)}${declared.length > 12 ? '…' : ''}" ` +
-        `— expected one of ${PROVIDERS.join(', ')}`,
-    )
-  }
-  return declared as Provider
-}
-
-function resolveDeclaredProvider(
-  env: Record<string, string | undefined>,
-  home: string | undefined,
-): ResolvedCredential | undefined {
-  const provider = declaredProvider(env)
-  if (provider === undefined) return undefined
-  const varName = ENV_KEYS.find(([p]) => p === provider)?.[1] ?? ''
-  const fromEnv = env[varName]
-  if (fromEnv !== undefined && fromEnv.length > 0) {
-    assertPairMatches(provider, fromEnv, varName)
-    return { kind: 'api', provider, apiKey: fromEnv, source: varName, inferred: false }
-  }
-  const storedCredential = home === undefined ? undefined : storedCredentialOf(provider, home, env)
-  if (storedCredential !== undefined) return storedCredential
-  throw new CredentialError(
-    `provider "${provider}" is declared via THEOCODE_PROVIDER but no key for it was found ` +
-      `(looked at ${varName}${home !== undefined ? ` and ${authFilePath(home, env)}` : ''}). ` +
-      `Refusing to fall back to a different provider's credential.`,
-  )
-}
-
-function resolveFromFile(
-  home: string,
-  env: Record<string, string | undefined>,
-  attempts: string[],
-): ResolvedCredential | undefined {
-  const path = authFilePath(home, env)
-  attempts.push(path)
-  const stored = readAuthFile(home, env)
-  if (stored !== undefined) {
-    if (stored.type === 'oauth') {
-      return {
-        kind: 'oauth',
-        provider: stored.provider,
-        apiKey: stored.access,
-        source: path,
-        inferred: false,
-        expiresAt: stored.expires,
-      }
-    }
-    if (stored.api_key.length > 0) {
-      const provider = stored.provider ?? inferProvider(stored.api_key)
-      if (provider === undefined) {
-        throw new CredentialError(
-          `${path}: cannot tell which provider this key belongs to. ` +
-            `Add "provider": one of ${PROVIDERS.join(', ')}.`,
-        )
-      }
-      assertPairMatches(provider, stored.api_key, path)
-      return {
-        kind: 'api',
-        provider,
-        apiKey: stored.api_key,
-        source: path,
-        inferred: stored.provider === undefined,
-      }
-    }
-  }
-  return undefined
+/** Flatten the framework's structured provenance into the string this product's types carry. */
+function toLocalSource(source: SourceOrigin): string {
+  if (source.kind === 'env') return source.varName
+  if (source.kind === 'file') return source.path
+  return source.provider
 }
 
 export function resolveCredential(opts: {
@@ -268,31 +184,34 @@ export function resolveCredential(opts: {
   home: string | undefined
 }): ResolvedCredential {
   const { env, home } = opts
-  const attempts: string[] = []
-
-  const declaredByEnv = resolveDeclaredProvider(env, home)
-  if (declaredByEnv !== undefined) return declaredByEnv
-
-  for (const [provider, varName] of ENV_KEYS) {
-    attempts.push(varName)
-    const value = env[varName]
-    if (value !== undefined && value.length > 0) {
-      assertPairMatches(provider, value, varName)
-      return { kind: 'api', provider, apiKey: value, source: varName, inferred: false }
+  try {
+    const resolved = resolveAgentCredential({
+      env,
+      providers: DESCRIPTORS,
+      // The variable NAME is this product's; the refuse-to-fall-back semantics are the framework's.
+      declaredProviderEnvVar: 'THEOCODE_PROVIDER',
+      ...(home === undefined ? {} : { home, store: credentialStore(home) }),
+    })
+    return {
+      kind: toLocalKind(resolved.kind),
+      provider: resolved.provider as Provider,
+      apiKey: resolved.apiKey,
+      source: toLocalSource(resolved.source),
+      inferred: resolved.inferred,
     }
+  } catch (err) {
+    // Re-typed, not re-worded: callers catch `MissingCredentialError` by type, and the framework's
+    // message already carries the attempts list this product used to build by hand.
+    if (err instanceof CredentialNotFoundError) {
+      throw new MissingCredentialError(
+        `${err.message}\n\nSet one of those environment variables, or create the credential file:\n` +
+          `  ${home !== undefined ? authFilePath(home, env) : '~/.theocode/auth.json'}\n` +
+          `  {"provider": "openrouter", "api_key": "sk-or-..."}   (mode 0600)`,
+        err.attempts,
+      )
+    }
+    throw err
   }
-
-  const fromTheFile = home === undefined ? undefined : resolveFromFile(home, env, attempts)
-  if (fromTheFile !== undefined) return fromTheFile
-
-  throw new MissingCredentialError(
-    `No provider credential found. Tried, in order:\n` +
-      attempts.map((a, i) => `  ${i + 1}. ${a}`).join('\n') +
-      `\n\nSet one of those environment variables, or create the credential file:\n` +
-      `  ${home !== undefined ? authFilePath(home, env) : '~/.theocode/auth.json'}\n` +
-      `  {"provider": "openrouter", "api_key": "sk-or-..."}   (mode 0600)`,
-    attempts,
-  )
 }
 
 function isOAuthWrite(

@@ -1,6 +1,6 @@
 import { isTransientError, TheokitAgentError } from '@theokit/agents'
 
-export interface TurnErrorView {
+interface TurnErrorView {
   kind: 'transient' | 'fatal'
   message: string
   hint?: string

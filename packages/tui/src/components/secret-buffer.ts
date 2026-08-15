@@ -7,11 +7,6 @@
  * the honest place for it is here.
  */
 
-/** A paste arrives as one chunk and may carry newlines; a newline is not a keystroke. */
-export function appendKeystroke(buffer: string, input: string): string {
-  return buffer + input.replace(/\r?\n/g, '')
-}
-
 /**
  * What is handed to `login()`, or `undefined` when there is nothing to submit.
  *

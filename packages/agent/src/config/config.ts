@@ -143,7 +143,7 @@ export function optOutsThatExemptNothing(
   ]
 }
 
-export const DEFAULTS: AgentConfig = {
+const DEFAULTS: AgentConfig = {
   model: 'openai/gpt-5.4',
   reasoning_effort: 'medium',
   sandbox_mode: 'workspace-write',

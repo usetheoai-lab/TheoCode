@@ -25,8 +25,3 @@ export function setSandboxModeForSession(mode: SandboxMode | undefined): void {
 export function sandboxModeForSession(configured: SandboxMode): SandboxMode {
   return override ?? configured
 }
-
-/** Tests only — the override outlives a single test otherwise. */
-export function resetSandboxOverride(): void {
-  override = undefined
-}

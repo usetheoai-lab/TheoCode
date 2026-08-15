@@ -52,7 +52,7 @@ function isRealUserTurn(record: SessionRecord): boolean {
   return !textOf(record).startsWith('[[theokit:goal-continuation]]')
 }
 
-export interface TruncationResult {
+interface TruncationResult {
   prefix: SessionRecord[]
   selectedText: string
 }

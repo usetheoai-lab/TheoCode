@@ -6,10 +6,10 @@ import { type ChatComposerCommand, ChatComposer, FreeTextInput } from '@theokit/
 import { abandonQuestion, answerQuestion } from '@theocode/agent/ask'
 import { login } from '@theocode/agent/auth'
 import { BUILTIN_COMMANDS } from '../commands/index.js'
+import { submittableSecret } from './secret-buffer.js'
 import { PLACEHOLDER } from '../theme.js'
 import { DemoSurface } from './Demos.js'
 import type { Mode, ToastPayload } from '../screen-types.js'
-import { SecretInput } from './SecretInput.js'
 
 function CredentialField({
   provider,
@@ -21,9 +21,20 @@ function CredentialField({
   setLoginProvider: Dispatch<SetStateAction<string | undefined>>
 }): ReactElement {
   return (
-    <SecretInput
+    <FreeTextInput
       label={`API key for ${provider} — nothing is echoed`}
-      onSubmit={(key) => {
+      // `mask` is the framework's since @theokit/tui@0.53.0 — it renders a placeholder and strips a
+      // pasted newline, which is what the local `SecretInput` existed to do.
+      mask
+      onSubmit={(raw) => {
+        // Trim and empty-cancel stay HERE: they are product policy, not rendering, and
+        // `submittableSecret` carries both with the reason and the test they were written with.
+        const key = submittableSecret(raw)
+        if (key === undefined) {
+          setLoginProvider(undefined)
+          setToast({ message: 'Login cancelled — no key was saved', variant: 'info' })
+          return
+        }
         setLoginProvider(undefined)
         try {
           const r = login(key, homedir(), { provider: provider as never })

@@ -66,10 +66,6 @@ export function toolsNamed(registry: ToolRegistry, names: readonly string[]): Ca
   return new ToolsCapability(registry.resolve(names) as never)
 }
 
-/** Extra tools that are not in the registry — the `extraTools` seam, and the framework built-ins. */
-export function toolsGiven(tools: readonly CustomTool[]): Capability {
-  return new ToolsCapability(tools as never)
-}
 
 /**
  * Declare a named agent shape. THIS is the entry the DoD asks the three sites to share.

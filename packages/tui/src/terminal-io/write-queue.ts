@@ -17,8 +17,5 @@ const queue = createWriteQueue()
 /** Run `op` after everything already queued under `key`. */
 export const enqueue = <T>(key: string, op: () => Promise<T>): Promise<T> => queue.enqueue(key, op)
 
-/** Resolve once everything queued under `key` has settled. */
-export const drain = (key: string): Promise<void> => queue.drain(key)
-
 /** Resolve once every key has settled. Used at shutdown. */
 export const drainAll = (): Promise<void> => queue.drainAll()

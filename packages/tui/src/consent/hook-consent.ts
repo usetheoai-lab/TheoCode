@@ -20,7 +20,11 @@ export function computePendingHooks(deps: HookConsentDeps): ClassifiedHook[] {
     const specs = deps.parseHooks(deps.resolveEffectiveConfig({ cwd: deps.cwd }).hooks)
     const approved = deps.loadApprovedHooks(deps.cwd)
     return deps
-      .classifyHooks(specs, approved, { previousByEvent: true })
+      // `previousByEvent` is gone: it was a heuristic (exactly one orphaned approval plus exactly
+      // one new hook in the same event meant "edited"), and the framework store decides `modified`
+      // by comparing the event+matcher SLOT — no counting, and no ambiguity when two hooks change at
+      // once. What it needs instead is WHICH project is being asked about.
+      .classifyHooks(specs, approved, { dir: deps.cwd })
       .filter((h) => h.status !== 'trusted' && !deps.declined.has(h.fingerprint))
   } catch (err) {
     // B-039 — a HookError used to be discarded here, with no diagnostic at all. An empty list means
