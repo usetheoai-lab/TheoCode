@@ -133,7 +133,11 @@ export async function deleteSession(
   //
   // A registry entry outliving its file stays a normal state (the GC removes transcripts by age),
   // reported through the result rather than raised at someone deleting a session.
-  const { transcriptRemoved } = deleteInFramework(agentId, {
+  // `await` since @theokit/agents@10.0.0: `deleteSession` went async because the only agent registry
+  // in the ecosystem is `Agent.delete(id): Promise<void>`, and the registry half of a deletion is
+  // unreachable without awaiting it. Without the `await` this destructures a Promise and
+  // `transcriptRemoved` is `undefined` — reported to the caller as "not removed" for a file that was.
+  const { transcriptRemoved } = await deleteInFramework(agentId, {
     cwd,
     root: dir,
     force: true,

@@ -44,7 +44,7 @@
     "theocode": "./dist/theocode.mjs"
   },
   "overrides": {
-    "@theokit/presenter": "^0.6.0"
+    "@theokit/presenter": "^0.7.0"
   },
   "dependencies": {}
 }
