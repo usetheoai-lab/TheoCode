@@ -7,6 +7,247 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-17
+
+### Added
+
+- **A dead-export gate runs in `npm run lint`, and `knip.jsonc` is committed with it (B-049).** The
+  configuration is the point, not the tool: under knip's defaults every `exports` subpath counts as
+  an entry, so every barrel is reachable by definition — measured on this tree, the default config
+  reported **1** issue and this one reported **28**. `includeEntryExports` is on for the same
+  reason, since every `index.ts` here is an entry and that is precisely where dead surface collects.
+  The gate was verified by injecting a dead export in an entry file and in a non-entry file and
+  confirming a non-zero exit for both; a gate nobody has seen fail is not known to work.
+
+### Removed
+
+- **Three functions nobody called, with their re-exports (B-033, B-049).** `mutateConsentStore`
+  (`config/trust-store.ts`), `measuredPrecedenceChain` (`config/layers.ts`) and
+  `effectiveConfigUnderPosture` (`config/effective-config.ts`). Each appeared exactly twice in the
+  repository — its definition and its barrel line — and in no test. `effectiveConfigUnderPosture` is
+  not a new find: B-033 shipped with the DoD bullet "has a caller or is deleted" and its own
+  `dod_verified` says "NOT addressed — belongs to B-049"; B-049 then shipped without addressing it.
+  Deleting `mutateConsentStore` cascaded into `ensurePrivateDir` and four now-unused imports, which
+  is the usual shape: dead code hides more of itself behind itself.
+- **Twelve barrel re-exports with no consumer, and four `export` keywords that widened nothing
+  (B-049).** The implementations stay — they are used inside their own packages — so this narrows
+  the declared surface without touching behaviour. `CONFIG_SCHEMA_KEYS`, `MissingCredentialError`
+  and `BackendComPosse` lost the `export` keyword itself, and the `Check` / `CheckStatus` /
+  `Diagnosis` type surface left the entrypoints; `doctor.ts`'s `CheckStatus` turned out to be unused
+  even in-module, contradicting the comment that claimed it was "retained because this module's own
+  checks are written in terms of it".
+- **`figlet` from `packages/tui`, closing a B-010 DoD bullet that shipped unmet (B-010).** That
+  bullet read "`figlet` is used (via `renderFigletArt`) or removed". `renderFigletArt` belongs to
+  `@theokit/tui`, and it is never called: it appears in that package only at its definition and in
+  its export list, `WelcomeBanner` does not produce art, and `Banner.tsx` passes a literal `LOGO`.
+  So the "or removed" branch is the true one. `lowlight`, the other half of the same bullet, STAYS —
+  see Fixed below.
+- **The `./chat-acp` subpath and the whole `exports` map of `packages/tui` (B-049).** Both are
+  reached by file path instead: `scripts.build:acp` runs esbuild against
+  `packages/agent/src/chat-acp.ts`, and `scripts.dev` starts the TUI with `tsx`. B-049 kept
+  `./chat-acp` deliberately, calling it "the external ACP integration surface"; the rationale does
+  not survive re-examination, because every package here is `private: true` and the external ACP
+  client consumes the `dist/acp-entry.mjs` bundle, never the subpath.
+- **`packages/agent/tests/`, an empty directory outside the test-discovery patterns.** It matched
+  neither `packages/*/src/**/*.test.{ts,tsx}` nor `tools/**/*.test.mjs`, so a test placed there
+  would have silently never run — a trap rather than clutter.
+- **`hooks/hook-runner.ts` and its test — 140 lines that no production code reached.** The wrapper
+  around the framework's `runHookCommand` lost its last caller when the whole builder moved upstream:
+  `build-handlers.ts` bridges to `buildHookHandlers`, which owns the result transform, so nothing
+  regresses. Its only importer was its own test, which is why neither the dead-export gate nor the
+  reference graph reported it — **a test is a consumer**. Found by asking a different question:
+  which production symbols have consumers, but only test ones. The stale citation of
+  `hook-runner.ts:39` in `hook-trust.test.ts` was repointed at the real path.
+- **The `REVIEWER_TOOLS` re-export in `review/create-agent.ts` (B-084).** Its own comment set the
+  sunset — "delete once nothing outside this file reads it" — and the one reader was
+  `composition.test.ts`. That test now imports the name from `composition/agent-spec.ts`, where it
+  is declared and where `reviewerShape` reads it. A re-export whose only consumer is the test that
+  consumes it is surface the product does not have.
+
+### Fixed
+
+- **`lowlight` was almost deleted as dead, and is not (B-010).** No file in this repository imports
+  it, which is why a repo-wide search calls it unused. It is reached at runtime through
+  `AgentTimeline` → `ChatMessage` → `MarkdownText` → `CodeBlock` → `import("lowlight")`, so every
+  assistant reply containing a fenced code block goes through it; without the declaration the
+  framework warns `code renders unhighlighted` and the TUI loses syntax highlighting silently.
+  Caught by reading `@theokit/tui`'s own loaders after the removal, not by any tool: `knip` and
+  `depcheck` both reported the dependencies clean, and on this one they were right. Recorded here
+  because "no import site" and "no consumer" are different claims, and the gate added above cannot
+  tell them apart.
+- **`vitest.config.ts` is inside the type program.** `tsconfig.json` included
+  `packages/*/src/**/*` and `tools/**/*`, which matched 258 of the repository's 259 TypeScript
+  files. The one exception was the test configuration itself, so a type error there survived
+  `npm run typecheck`. Now covered by a `*.config.ts` entry.
+- **The `check-english-only` allowlist citation, again.** The entry moved 76 → 156 when the `ask`
+  module was migrated, and 156 → 166 when this cleanup added an import above it. The comment now
+  records both moves and why the entry stays line-numbered: keying it by file alone would exempt the
+  whole file.
+- **A test that pinned a public export was invisible to static analysis (B-004).**
+  `ask-bridge.test.ts` asserted the entrypoint exports `ConcurrentQuestionError` by importing the
+  namespace and indexing it with a string, so the dead-export analysis read that export as
+  unconsumed and the cleanup removed it — only the assertion failing caught the mistake. The export
+  is restored, now re-exported straight from `@theokit/agents/ask` rather than through
+  `ask-bridge.ts` (that middle hop had no consumer of its own), and the test reaches it by a static
+  named import. Its two siblings, `ConcurrentListenerError` and `QuestionAbandonedError`, stay
+  removed: nothing imports them and nothing tests them.
+
+### Fixed
+
+- **A fase CODE-QUALITY, rodada pela primeira vez nesta sequencia, achou quatro coisas — todas
+  minhas, todas desta sessao.**
+  - Tres imports orfaos em `session/session-ops.ts`, sobra da migracao de `protectedTranscripts`.
+  - `buildChatAgent` passou de 10 para 11 de complexidade ciclomatica. Os dois gates de CONFIANCA
+    que estavam em ternarios inline — quais raizes de config ler, e se os servidores MCP sobem —
+    viraram `settingSourcesFor` e `mcpServersFor`. Um gate de confianca enterrado numa expressao
+    dentro de uma funcao de 60 linhas e onde ninguem o procura.
+  - 63 comentarios em portugues em `packages/`, que e English-only.
+  - Uma entrada do allowlist do `check-english-only` apontando para `ask-bridge.test.ts:76` — a linha
+    tinha ido para 156 quando o modulo `ask` foi migrado. Um allowlist por NUMERO DE LINHA e uma
+    citacao que apodrece a qualquer edicao acima dela, e esta parou de cobrir o que devia sem dizer
+    nada.
+
+  Os tres gates (`lint`, `typecheck`, suite) ficam verdes ao mesmo tempo.
+
+### Fixed
+
+- **`tsc` fica limpo: 6 erros -> 0.** Os seis nao eram ruido herdado — eram seis chamadas de
+  `processor.finish('ok')` num teste, contra uma assinatura que aceita `'finished' | 'error'`. `'ok'`
+  e o vocabulario INTERNO (`outcome.status`), nao o da API.
+
+  Passavam porque a implementacao so pergunta `status === 'error'`, entao `'ok'` caia no mesmo ramo
+  de `'finished'`: comportamento acidentalmente correto sobre uma chamada invalida.
+
+- **Oito `as never` removidos do mesmo arquivo.** Nao eram necessarios: `ChunkLike` e estrutural e
+  frouxa, e cada literal ja a satisfazia.
+
+  A relacao entre os dois defeitos e o que vale registrar. Os casts **anestesiavam o arquivo**: com
+  `as never` espalhado, ninguem olha os erros que sobram. Foi por isso que esses seis atravessaram
+  uma sessao inteira sendo chamados de "linha de base pre-existente" sem que ninguem lesse o que
+  diziam.
+
+### Changed
+
+- O registry de tools passa a LIGAR o escopo uma vez, via `bindToolScope` de
+  `@theokit/agents/tool-scope`, em vez de repetir `projectRoot: scope.cwd` em sete entradas e
+  `sandbox` em uma.
+
+  Cada repeticao era um lugar onde se pode esquecer — e esquecer o `sandbox` no `createShellTool`
+  produz um shell NAO CONFINADO sem erro e sem aviso, que e o defeito que o B-006 documentou aqui.
+
+  As duas tools de ESCRITA passam `projectRoot: scope.writeRoot` explicitamente, com override. Nao e
+  detalhe: para elas a raiz do projeto E a raiz de escrita, e deixar o bind aplicar o `cwd`
+  ESTREITARIA o escopo de escrita em silencio quando os dois divergem — o caso de
+  `danger-full-access`. Ha teste sobre exatamente essa divergencia.
+
+### Removed
+
+- **331 linhas mortas em `hooks/hooks.ts`** — `preToolUseVeto`, `transformResult`,
+  `fireObservational`, `appendOneHookFeedback`, `policyBlock`, `chainBudgetBlock`, `decideBudget` e o
+  resto do motor antigo. Estavam inalcancaveis desde que o `buildHookHandlers` local foi deletado: o
+  unico chamador delas era ele.
+
+  O arquivo caiu de **423 para 78 linhas** e agora e o que o nome sempre deveria ter dito: o PARSER
+  de `.theokit/hooks.json`, e so ele. O motor e do framework.
+
+  Deletar so o ponto de entrada e deixar o corpo para tras e como duplicacao sobrevive a uma
+  migracao: nada quebra, nada aponta para la, e o proximo leitor encontra dois motores. Foi
+  exatamente o que eu tinha feito.
+
+- `hooks/continuation-budget.ts` — ficou orfao quando o motor saiu. O framework tem o orcamento de
+  continuacao desde o `@theokit/agents@8.5.x`, e ele e o que de fato roda.
+
+### Changed
+
+- O motor de hooks passa a ser o do framework. `buildHookHandlers` local (486 LOC) deletado; ficou um
+  adaptador que faz as duas coisas que o framework nao pode saber: traduz os NOMES DE EVENTO deste
+  produto (`PreToolUse`/`PostToolUse`/`Stop`/`SessionStart`, que os usuarios escrevem em
+  `.theokit/hooks.json`) e injeta o NOSSO fingerprint, para que nenhuma aprovacao ja em disco perca a
+  validade.
+- `hook-runner.ts`: 164 -> 83 linhas. O spawn, o grupo de processo, o teto de saida e o drain budget
+  sairam para `@theokit/agents/hooks`.
+
+
+### Added
+- **theokit-sdk 4.51.0: the session, approval and credential rules the framework now owns (B-096, B-098, B-099).** Refusing to destroy a session another process is writing — with "could not determine" kept apart from "nothing is open", because the second is the input that would disable the guard. A veto as a typed decision rather than a tool result the model retries around. And a credential reported by presence and a hashed fingerprint, never by value.
+- **theokit-tui:** backlog B-126 — SonarCloud's *analysis* has failed on every PR in that repo (not its quality gate), so the check has been red for at least three PRs and reads as noise.
+- **theokit-tui:** backlog B-125 — a rendering test fails about one run in four; the rate and the limits of the evidence are recorded, including that it was not established whether the flake pre-existed.
+- **The slash-command router's dispatch is covered, and the test says what it actually pins (B-116, second slice).** The obvious property to assert was precedence — the chain of responsibility over seven capability groups, first-to-claim wins. Measured, precedence is NOT observable: the 38 actions partition cleanly across the seven switches, so reordering `GROUPS` changes nothing. Three mutations proved it — reordering the chain, removing the early return, making `noop` stop claiming — and none turned a case red. The first version of this test claimed to pin precedence and was therefore vacuous for its own stated purpose. What replaced it pins the invariant the chain actually rests on: no action is claimed by two groups, read from the source rather than from a hand-kept list, because a list would need updating by the same person who broke the invariant at the same moment. Duplicating one action across groups turns it red. The behavioural cases stay, asserting that each group's actions reach it and that an unclaimed action is inert — where a registry entry added without a handler lands.
+- **`rules.ts` is characterized — 157 LoC that had no test at all (B-103, B-116).** It is consumed by `config/trust-posture.ts`, which decides whether a project's `[[hooks]]` are honoured, and a hook is arbitrary command execution on every tool call (B-086) — so migrating it onto `@theokit/sdk/context` without a safety net would be a security change wearing a refactor's clothes. The 22 cases pin what the module DOES today rather than what it should do, concentrating on the product policy the SDK's `runDiscovery` may not carry: the traversal budget and its two typed refusals, the 64 000-char truncation and its warning, the injected `readFile`/`warn` seams, the frontmatter `paths:` scoping that decides whether a rule applies everywhere or to a subset, and the inode-keyed cycle guard. Six mutations turn the covering cases red (join separator 3, budget guard 3, character ceiling 1, cycle guard 1, unclosed frontmatter 2, scope prefix 2). A seventh is recorded as NOT detected and the test says so in place: deleting the explicit `.sort()` leaves every case green, because `readdirSync` on this filesystem already returns sorted entries at 3 and at 40 entries — the assertion pins the output contract, not the sort call.
+- **`routeKey` now has a test per surface state (B-116, first of two slices).** The 115-LoC modal state machine that decides what Ctrl-C, Esc and Enter mean across seven surface states — open question, demo, consent gate, login, backtrack ladder, streaming turn, composer — had no direct test. Its failures are the silent kind: the key appears to do nothing, or it does the other thing, and B-029 is the record of exactly that shipping (Esc-rewind was dead because a flag was raised before the data it announced). 26 cases assert the ACTIONS returned rather than the effect of applying them, which is possible because the function is pure and returns its actions instead of performing them — asserting effects would test `applyKeyAction` instead, and would pass on a router returning the wrong action whenever two actions converge on the same effect. Escape's six-way priority gets its own block, each case setting every lower-priority trigger as well, because the real defect here is usually not a broken branch but a right branch that never runs. Shown to detect rather than assumed to: six mutations — reordering the goal/streaming precedence, dropping the composer-text guard, widening `Ctrl-C` to any `ctrl` key, not stacking `reset-backtrack`, making a demo `Ctrl-C` quit on the first press, and dropping `interrupt-turn` from question abandonment — each turn the covering cases red. The slash-command router's dispatch, the item's second bullet, is not covered yet.
+- **The goal refusal in `sendMessage` now has a test (B-116).** Two refusals protect a running turn from being disturbed; the `streaming` one in `resume-command.ts` was already covered, and this one was not. It is the more dangerous of the two to lose, because losing it neither throws nor looks broken — the message simply reaches the agent while a goal is driving it, interleaving a human turn with the goal's own, and the operator sees their message accepted. Three cases assert the refusal, the wording that tells the operator both ways out, and (anti-vacuity) that an ordinary message still goes through. `lastSentMessage` is asserted alongside, because a refusal that still recorded the message would make the next `/retry` replay something the agent never received — a worse failure than the one being refused. Deleting the guard turns two of the three red.
+- **A `theokit` routing domain, so a gap that belongs upstream can be filed against the repo that owns it.** Items for the framework previously routed nowhere — correct while this install governed one product, and increasingly untrue once three consumer-measured gaps in one day turned out to be framework bugs. Ships with `agents/theokit.md` so the routing resolves to a named owner rather than to nobody.
+- **Seven backlog items scoping what would make a second agent product nearly free to build (B-096..B-102),** derived from measuring which subsystems this repo had to write itself.
+- **theokit-sdk:** backlog B-103 — context assembly exists in the SDK and no consumer can reach it.
+- **theokit-tui:** backlog B-104 — terminal-surface primitives are rebuilt by every agent CLI.
+- **theokit:** backlog B-105 — `@theokit/presenter` is pinned, imported nowhere, and its job is done by hand.
+- **theokit-sdk:** backlog B-106 — the framework creates session artifacts and leaves the reaping to the consumer.
+- **theokit-sdk:** backlog B-107 — the two invariants that keep a trust posture honest live only in the consumer.
+- **theokit:** backlog B-108 — what an agent actually wired is not observable from the framework.
+- **theokit-sdk:** backlog B-109 — every release leaves `develop` behind `main`, and the next release PR would re-publish shipped work.
+- **theocode:** backlog B-110 — the README tells every reader this repository has no test suite (it has 67 files, 427 cases).
+- **theokit-sdk:** backlog B-111 — the tarball guard covers one publishing repo, and today's release came from the other.
+- **theokit-sdk:** backlog B-112 — the release workflow disables provenance citing a repository privacy that no longer holds.
+- **theokit-sdk:** backlog B-113 — the pre-push gate re-runs the full validate for a push that introduces no commits.
+- **theokit-sdk:** backlog B-114 — a tag push reported success and transferred nothing.
+- **theokit-sdk:** backlog B-115 — nothing tests what the SDK does with a file the repository controls.
+- **theocode:** backlog B-116 — the most stateful surface subsystems are the least tested.
+- **theokit-sdk:** backlog B-117 — two containment guards judge a path by its name, so a symlink out of the root is judged by where it sits rather than where it points.
+- **theokit-sdk:** backlog B-118 — the repo `.npmrc` makes every local publish fail as a 404, sending the diagnosis to token permissions.
+- **theokit-sdk:** backlog B-119 — `globbed` discovery cannot see a nested rule, and a pattern written to say so matches nothing at all.
+- **theokit-sdk:** backlog B-120 — the re-release guard answers "all clear" for a ref it cannot read.
+- **theokit-sdk:** backlog B-121 — six publishable packages cannot publish with provenance because `repository.url` is empty.
+- **theokit-tui:** backlog B-122 — CI has been red on `develop` for at least 8 runs, and the cause is step order.
+- **theokit:** backlog B-123 — `@theokit/presenter` has no lifecycle surface, so a Codex-shaped consumer cannot use it.
+- **theokit:** backlog B-124 — `create-theokit`'s TUI template loads a project `.env` with no guard, so every scaffolded product starts exposed.
+
+### Changed
+- **The JSONL emitter projects the framework lifecycle fold (B-123).** `createJsonlProcessor` composes `foldTurnLifecycle` from `@theokit/presenter@0.6.0`. The LoC delta is **+13, not a shrink** — recorded as measured. What the migration exposed matters more: three mutations survived the entire CLI suite because nothing covered the emitter, which is the contract every consumer of `--json` reads.
+- **B-106 closes: the framework decides what may be reaped, and deletes nothing (B-106).** `planReaping` ships in `@theokit/sdk@4.50.0`. The severity that deferred it — this is the path that deletes user data — is answered by the design rather than waived: planning is separated from deleting, so the dry run is structural and the dangerous case ("could not determine whether this session is live") is asserted rather than simulated.
+- **B-103 is killed on evidence, and its one surviving finding registered as B-127.** Measured against `@theokit/sdk@4.49.0` in a clean project: a consumer both reaches context assembly and registers its own discovery source. What survives is that a spec's `priority` is a raw position in a list the consumer does not own — placing a source between two defaults means picking 25 by reading them.
+- **B-104 closes: all three terminal primitives ship (B-104).** The keypress router joins the stderr guard and the serialised writes at `@theokit/tui@0.52.0`. The deferral is answered rather than waived — what is published is the ordering rule, not one product's key vocabulary.
+- **The keypress router declares its layers instead of nesting ifs (B-104).** The ordering rule is `@theokit/tui@0.52.0`'s `./keys`; the layers — `open-question`, `demo`, `gated`, `composer` — and every word in them stay here. Precedence is now readable in one place and enforced: moving `gated` ahead of `open-question` turns tests red. The file grew by four lines of code, which is the honest number — the value is that the contract is declared rather than implied by nesting.
+- **B-107 closes, in a narrower form than it asked (B-107).** The bullet expected config-key reachability to be checkable *in* the framework; measured after B-097 shipped, the framework has no config-key registry and by design will not have one — the keys are the consumer's vocabulary. So `auditEnvReachability` (`@theokit/sdk@4.49.0`) owns the rule and TheoCode ranges over its own keys with it. The failure still surfaces in this repo's suite; what this repo no longer writes is the detector, including the half everyone forgets — an opt-out that no longer exempts anything.
+- **B-116 closes: the two most stateful surface subsystems now have tests that detect (B-116).** `routeKey` has a case per surface state and the slash-command router a case per capability group — all seven, after a first pass with four read as done. The router's precedence turns out not to be observable at all (the actions partition cleanly across the switches), so the tests pin the disjointness the chain actually rests on, which nothing enforced. One refusal is asserted through dispatch; the other is recorded as a known gap rather than proven with a test that would await disk to make a routing claim.
+- **B-108 closes: the framework reports what it wired (B-108).** All three bullets hold — the record is derived from the values handed to the builder rather than from a second read of configuration, "withheld because untrusted" is distinguishable from "none configured", and TheoCode's `wired-capabilities.ts` is now a projection. Measured on the projection: one of eight wiring mutations found a real hole and closed it — `projectSources` pinned to `true` passed the whole suite, and it gates whether an untrusted repository may redirect a squad member's model.
+- **`wiredCapabilities` becomes a projection of the framework's record (B-108).** The derivation moved to `@theokit/sdk@4.48.0`'s `recordWiring`, which takes the trust posture as its gate; what stays here is this product's shape — which three capabilities are lists of names, plus the two fields that are not entities at all. Behaviour is unchanged and the framework version adds a guard this one never had: recording a capability the posture does not gate now throws instead of quietly reporting it as suppressed.
+- **B-097 closes: the config layer's rules are the framework's, its words are its own.** All three DoD bullets hold — the framework provides layered resolution with declared precedence, the floor rule and a trust posture; a consumer adds a layer without reimplementing precedence; and TheoCode's `config/` shrank to its keys plus composition (212 -> 172 lines of code). Measured, not asserted: 14 wiring mutations on the migrated code are all detected, including trust granted by the store — the normal path, which had no test before this.
+- **TheoCode's config layer now consumes the framework's rules instead of restating them (B-097).** `security-floor`, `layers` and `trust-posture` keep this product's vocabulary — the sandbox and approval orderings, the six-layer chain with its precedences, the eight capabilities and what withholding each one costs — and delegate the rules that every layered-config product rebuilds identically to `@theokit/sdk@4.47.0`. Code shrinks 212 → 172 lines, and the rules now live where they are tested for: the framework's suite pins the ceiling that only descends, hooks accumulating across layers, and untrusted denying every declared capability.
+- **`terminal-io/` now consumes `@theokit/tui/terminal` instead of owning it (B-104, third DoD bullet).** 387 → 308 production LoC, delta −79, measured rather than estimated: `log-rotation.ts` deleted outright (33 → 0), `stderr-guard.ts` reduced to binding this product's `[theocode]` label (66 → 17). `write-queue.ts` GREW by three lines (21 → 24) and that is the correct trade — the framework ships a factory rather than module state, because two library consumers in one process must not serialise against each other, so the application has to own the single instance explicitly. That single instance is the whole reason the file still exists: two queues over one file would interleave writes and nothing would fail loudly. The input router stays, as B-104's measurement said it would — its mechanism generalises, its vocabulary does not. 71 files / 487 cases green, typecheck clean, 216 modules cruised with no dependency violation.
+- **B-107's second invariant is blocked on B-097, measured (B-107).** The mechanism checks that every config key is either env-reachable or carries a documented opt-out — and it needs a set of config keys to range over. The framework has none: no `config` subpath, no `configSchema` / `layeredConfig` / `loadConfig` anywhere in the source, and the only enumerable key list in the package is the `SOVEREIGN_ENV_KEYS` that bullet (a) just added. Implementing it would mean inventing the config-key registry first, which is B-097 — and inventing it inside a lint would fix the shape of the framework's config surface as a side effect. B-097 is now the keystone for three items: this bullet, B-108, and the harder half of B-106.
+- **B-108 measured: blocked on B-097, structurally (B-108).** The evidence holds exactly — zero occurrences of `onWired` / `wiredCapabilities` / `suppressedBy` across both framework trees, against 72 LoC in the consumer. But the second DoD bullet requires the framework to KNOW about directory trust, and it does not: B-097, which moves the trust gate upstream, is still `raw`, and the SDK's 23 hits for "posture" are all SANDBOX posture, a different concept sharing a word. A framework cannot report a decision it does not make. Implementing the first bullet alone would be worse than waiting: a listing without the trust dimension cannot distinguish suppression from absence, which is exactly the defect B-071 was REOPENED for — and shipping it upstream would hand that defect to every consumer. Moved to `triaged` with the three properties the implementation must preserve recorded on the item.
+- **B-106 measured: the SDK ships no collector for the artifacts it creates, and the item's own grep claim needed correcting (B-106).** Every pointer in the evidence resolves — file, line, and the symbol on that line. The item said `grep -rlniE "garbage|retention|prune|reap"` finds nothing; it finds five files, none of which reap session artifacts (compaction prunes message history, `session-scope` documents state *a consumer* prunes, `task.ts` has `retentionMs` for the task registry, two are false positives). The definitive measurement is different and stronger: the SDK unlinks only what is in flight in the operation doing it — a lock it just released, a `.tmp` from a failed atomic write — and the built barrel exposes ZERO symbols matching gc / collect / reap / prune / retention / sweep. Moved to `triaged` and deliberately NOT implemented in this pass: this is the path that deletes user data, the consumer's version is 1 402 LoC, and a half-correct data-deleting API is worse than the duplication it removes. The three constraints the consumer paid to learn — B-020's `mtimeMs = 0` aging to 20 000 days, the sweep-wide rather than per-directory budget, the TOCTOU re-check of the writer lease — are recorded on the item so the implementation starts from them.
+- **The `@theokit/presenter` override is justified, and the justification is written down (B-105).** It is not an orphan pin: it forces a TRANSITIVE dependency (`@theokit/agents` → `@theokit/presenter`), and it entered to carry the fix where `readMessageStream` dropped the whole `finish` chunk — and with it the `messageMetadata` that makes the real token readout possible (B-090, B-080). Measured now, it changes nothing: `@theokit/agents@7.5.0` declares presenter as exactly `0.5.1`, and removing the override resolves to 0.5.1 anyway, verified by regenerating the lock and reading it. KEPT anyway, because agents pins exactly rather than by range — a future agents declaring 0.4.0 would silently reintroduce the dropped-token bug, and this is the floor that prevents it. The justification lives here because package.json admits no comments.
+- **B-104 is measured and split in two, and the split is the finding (B-104).** The intake evidence — "0 of 8 files import `@theokit/*`" — reads as *all of it is transferable*; per-file measurement says coupling is not uniform. `write-queue.ts` (21 LoC), `log-rotation.ts` (33) and `stderr-guard.ts` (66) are generic and extractable now. `input-router.ts` (115) is the trap: zero references to this product, so it looks portable, while its entire contract is this surface's vocabulary — `KeyboardState` declares `hasOpenQuestion`, `inDemoInput`, `emLogin`, `backtrackArmed` and `KeyAction` returns `prime-backtrack`, `pause-goal`, `close-demo`. A second agent CLI has none of those. A public API is semver-bound, so a keypress router with the wrong state vocabulary is worse than none — the second consumer routes around it instead of around nothing. Item moved to `triaged` with the design pass named as its own slice.
+- **B-103's consumer migration is decided against, on evidence (B-103).** With `@theokit/sdk@4.43.0` reachable and the recursion blocker gone, the question became answerable per capability rather than per file: the SDK covers 2 of 9 — the recursive rules walk and `@import` expansion — and does not carry the traversal budget and its typed refusal, the inode cycle guard, the character-ceiling truncation and its warning, the injected `readFile`/`warn` seams, `AGENTS.local.md`, or the tail-truncation that keeps the nearest instructions. The one equivalent piece would be a downgrade: TheoCode's containment guard refuses a path it cannot resolve, while the SDK's falls back to the lexical path. The item's "~430 LoC could be returned" came from file sizes, and file size is not capability. What survives is the gap restated — not "no consumer can reach context assembly" but "what it reaches is the easy half", one upstream item per missing capability, which is what B-119 already was.
+- **`ehRotaChatGPT` is now `isRouteChatGPT`.** The last Portuguese identifier in the auth routing path; the project's convention is that code is English and only the conversation is not. Private to `model-route.ts`, so no caller changed and no public surface moved.
+- **The README's test count was re-measured (B-110, B-116).** B-110 replaced a false claim ("this repository holds no test suite") with a measured one; the same day's work made the measured one stale, as 67 files / 427 cases became 69 / 456 once `routeKey` and the `sendMessage` refusal got their tests. A number that ages silently is B-110's defect one step removed — a reader cannot tell a stale measurement from a current one, and both read as authoritative. Re-measured with `npm test`, not incremented by arithmetic.
+- **`@theokit/sdk/context` exists upstream (B-103).** Discovery, rule activation and `@path` import resolution are now a semver-covered public surface of the SDK instead of code every consumer re-derives. TheoCode has not migrated yet — its `packages/agent/src/context/` still carries all 602 LoC, and the ~430 that could be returned is consumer-side work the upstream plan deliberately left out of scope.
+- **`theokit-tui` joins the `theokit` routing domain.** A measured item (B-104) belongs to that repo and to no other, which is the trigger `cycle-backlog.md § Domain routing` names for extending the table. It routes to the existing `agents/theokit.md` specialist rather than to a new one, so the resolution names an owner.
+
+### Fixed
+- **theokit-tui 0.52.1: the suite stops failing about one run in twenty (B-125).** Two timing assumptions replaced by waits on the actual signal — a fixed 50ms sleep per keystroke, and "two ticks are enough for useInput to subscribe". Twenty consecutive full-suite runs: 20 green.
+- **theokit-sdk 4.51.1: a user-visible failure is never the message nobody receives (B-102).** `diagFailure` falls back to stderr when no sink is installed, while ordinary chatter stays silent. A corrupted frame is visible and recoverable; a dropped failure is neither.
+- **The README no longer tells readers this repository has no test suite (B-110).** It stated "`npm test` does not exist here. Any claim about this code's behaviour is currently unverified in this repository" — false on all three counts: `npm test` runs 67 files and 427 cases. The sentence did not merely age, it instructed: a contributor arriving at a repo whose README says the tests are absent does not run them. Sibling of B-062, which found the same disease in the domain specialist file.
+
+### Security
+- **theokit-sdk:** a tool now declares the scope it reaches and whether its action is reversible, and the approval layer gates on those rather than on the tool name (B-101, and B-100's structural bullet). A sandbox answers which files a process may touch; it cannot answer what an action reaches. Refusal outranks approval, an empty grant refuses, and an undeclared scope refuses.
+- **theokit-sdk:** the last two lexical containment guards now resolve symlinks (B-117), and the re-release guard refuses an unreadable ref instead of reporting a clean release (B-120). Both were failures whose symptom was a green tick.
+- **theokit:** scaffolded products no longer load a project `.env` unguarded (B-124). The framework was handing every new product the unguarded loader as its starting point — a cloned repository could redirect the credential store through `THEOKIT_AUTH_HOME` before any trust prompt. The guard walks every template file, not the one path the defect was found in.
+- **`resolveTrustPosture` shipped in `@theokit/sdk@4.47.0`, and B-108 is no longer blocked (B-097, B-108).** A framework cannot report a decision it does not make; now it makes one. Verified against the registry: untrusted denies every declared capability, the gate covers every capability declared, a trusted store grants and says `store`, and a blanket environment switch is reported as `env` rather than hidden behind the same word. The invariant is the point — `allows` is built FROM the declared list, so a product adding a ninth capability cannot forget to gate it, and that failure is invisible when it happens. What remains in B-097 is the consumer migration and the wiring from posture to withheld loaders.
+- **B-097's two slices are live in `@theokit/sdk@4.46.0`, verified against the registry.** Installed into a clean project and exercised: a project layer cannot loosen the operator's sandbox, the operator's explicit flag still wins, `hooks` accumulate across layers instead of being displaced, and a chain that is not strictly ascending is refused. The release also validated the B-114 correction in production — the ref verifier ran at its new position, after the action pushes tags, and reported `✓ all 1 release tag(s) at HEAD are on origin` instead of the false negative it produced when wired inside the publish.
+- **`foldLayers` moved upstream — B-097's second slice (B-097).** Later layers win, `undefined` never overwrites, and named keys ACCUMULATE. That last rule is the security-relevant one: with plain last-wins a project file DISPLACES the user's entries for a list-valued key rather than adding to them, and for `hooks` — arbitrary command execution on every tool call — that is the difference between a repository adding a hook and a repository removing yours. Layer names are the caller's data, so `profile` never reaches the framework. 15 cases; five mutations, four detected, and the fifth recorded as unobservable in both the source and the test rather than left to look covered. The TRUST POSTURE is still not extracted, which is what B-107(b) and B-108 actually wait on.
+- **The release-ref verifier moved to run AFTER the tags are pushed (B-114, correction).** It caught a failure on its first CI release and the failure was the wiring: `changeset publish` creates the tags, the changesets action pushes them in a later step, so checking inside `pnpm release` asked before the pusher ran. 4.45.0 published successfully, the check reported its tag missing, and `git ls-remote` showed it there moments later. A gate that fails every release is worse than no gate — it is how a red check stops being read, which B-122 measured happening for eight consecutive runs on the sibling repo. Now its own workflow step, guarded on `published == 'true'`, with `pnpm verify:refs` for the local path where it can legitimately fail.
+- **`applySecurityFloor` moved upstream — the first slice of B-097, chosen by measurement (B-097).** Layered config resolves last-wins, and for the keys that decide confinement that is a hole: a project layer outranks the user's own file, so a cloned repository can hand itself the most permissive sandbox and the operator's global choice loses silently, at the moment the directory is opened. Which slice to extract was decided by measuring, not by file size: across the consumer's 12 config files coupling count does NOT predict genericity — `env-knobs.ts` has zero framework references and is entirely this product's key names, the same trap as B-104's keypress router. The floor rule was extractable because its vocabulary is DATA (a permissiveness ordering, the restricted layer names, the override name), so a second product supplies its own. 16 cases; four mutations detected, one of which found a real coverage gap first — `ceiling = level` versus `Math.max` differs only when a restricted layer HARDENS and a later one offers a value in between. The precedence chain, the trust posture and the consumer migration are NOT done, so B-097 is still the keystone for B-107(b), B-108 and the harder half of B-106.
+- **The release path now verifies its tags reached the remote (B-114, closed).** `changeset publish` reports success on its own exit code, and an exit code is not evidence a ref transferred: git contacts the remote BEFORE `pre-push` runs, the hook takes ~11 minutes, and the idle connection is dropped before the transfer — git dies of SIGPIPE (141) with no message and output ending in a green gate line. Both hypotheses filed at intake are refuted (it reproduces on a plain branch name, and the process dies before any transfer). A second defect compounded it: `git push … | tail -N` reports the pipeline's last status, hiding the 141 behind `tail`'s 0. `scripts/verify-release-refs.mjs` is wired into `pnpm release` after the publish, with three distinct exit codes — verified, a tag never arrived, could not check — because collapsing the third into the first is the defect. Its own first draft had exactly that flaw and was caught before shipping.
+- **The trust invariant moved upstream: `@theokit/sdk` now guards a project `.env` (B-107).** `process.loadEnvFile()` reads the PROJECT's `.env` into `process.env` — right for a provider key, a hole for the variables that decide where credentials live and what is trusted. Without a guard, a cloned repository shipping `THEOKIT_AUTH_HOME=/tmp/attacker-store` redirects the credential store at startup, before any trust prompt, because locating the store is what happens first. The new `loadProjectEnv` captures a NAMED set of sovereign keys before the load and restores them after, including restoring "was not set" by deleting the key. The measurement was worse than B-107 claimed: the framework's own scaffolder ships the unguarded version, so every product generated from `create-theokit` starts exposed — filed as B-124. TheoCode's own 38-line version stays until the published release lands.
+- **`@theokit/tui@0.51.0` ships the terminal loop primitives, and fixes a CI gate that had been red for 8 runs (B-104 slice 1, B-122).** The new `./terminal` subpath carries `installStderrGuard`, `createWriteQueue` and `rotateLog` — verified against the REGISTRY: installed into a clean project, the queue serialises per key, the guard redirects stderr to its log, and rotation refuses a nonsense argument with a typed RangeError. The keypress router stays out, deliberately. Along the way, `gates` on that repo turned out to have been failing on `develop` for at least 8 consecutive runs — `publint --strict` resolves `exports` against a `dist/` that `build` had not yet produced, so it reported every entry as missing including the two that predate all recent work. Reproduced on a worktree of the earlier commit, so it was not caused by the change it blocked, and now green on both Node versions.
+- **B-119 and B-121 shipped in `@theokit/sdk@4.43.0` and the 3.0.2 line, both verified against the registry.** `globbed` discovery understands `**`: installing 4.43.0 into a clean project and running `runDiscovery` with `.theokit/rules/**/*.md` surfaces a nested rule, while `.theokit/rules/*.md` still surfaces only the top level — the capability is new, the shipped default is unchanged. And the six packages that could not publish with provenance at all now do: `@theokit/acp`, `@theokit/cli`, the three memory adapters and `@theokit/sdk-pty` each carry a SLSA attestation, which is B-121's third bullet met by a release rather than by reading manifests.
+- **B-112 is closed, and the last third was proven on the registry (provenance).** `NPM_CONFIG_PROVENANCE` is back in `release.yml` and the obsolete header is gone; the third bullet asked for an attestation verified on the REGISTRY rather than asserted from a green job, and `@theokit/sdk@4.43.0` — cut through the workflow — answers with a SLSA provenance predicate. The distinction the bullet drew earned itself: the run that produced it reported FAILURE, because a different package was refused with E422 for an empty `repository.url` (B-121). A green job would have been the wrong thing to trust in both directions.
+- **B-109, B-111, B-113 and B-115 are shipped and released upstream.** `@theokit/sdk@4.42.1` carries the containment fix; the release-hygiene guards (workspace-protocol publish guard, the re-release refusal, the automatic back-merge, the pre-push skip) are on `main`. The back-merge workflow proved itself on the release that carried it — it fired on the push to `main`, saw `develop` one commit behind, and opened the PR without anyone remembering to. B-114 stays open: two of its three DoD bullets are met (cause established, remedy in the rule) and the third, a release path that verifies a pushed ref rather than trusting an exit code, is not built.
+- **`@theokit/sdk@4.42.1` is published, and the context-manager containment fix is live (B-115).** The guard was `absolute.startsWith(resolvePath(cwd))` — no separator boundary and lexical, so it admitted a sibling directory whose name extends the project's (`<cwd>-evil`) and any symlink resolving outside the root. Verified against the REGISTRY rather than the source tree: installed 4.42.1 into a clean project, a sibling-directory escape is refused and a legitimate in-root import is still inlined.
+- **Upgraded to `@theokit/sdk@4.41.1`,** which confines `@path` context imports to the repository that declares them. Before it, a repository this agent was pointed at could inline any file readable by the process — an SSH key, a `.env` — into the system prompt via a `CLAUDE.md` line that was exactly `@~/.ssh/id_rsa`. Found and fixed upstream from here; TheoCode's own `AGENTS.md` loader was already contained (B-042), but the SDK's discovery path runs whenever the `project` setting source is enabled for a trusted directory.
+
 ## [0.2.0] - 2026-08-10
 
 ### Added

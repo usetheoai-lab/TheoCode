@@ -1,11 +1,24 @@
 import { classifyEntry, type ArtifactKind } from '../artifacts.js'
-import { type Liveness } from '../liveness-oracle.js'
+/**
+ * The GC's own verdict vocabulary.
+ *
+ * Moved here from `liveness-oracle.ts` when that file was deleted in favour of `classifyProjects`
+ * from `@theokit/agents/session`. The ALGORITHM was absorbed; this TYPE was not, and should not be:
+ * it is a discriminated union that guarantees a `cwd` on ALIVE, which is what lets `resolveGuards`
+ * consult the registry and the pointer without a null check on every line. The framework's
+ * `LivenessVerdict` carries `cwd` as optional because `undetermined` has none — correct there,
+ * weaker here. The adapter that bridges the two lives at the seam, in `filesystem.ts`.
+ */
+export type Liveness =
+  | { state: 'ALIVE'; cwd: string }
+  | { state: 'DEAD'; cwd?: string }
+  | { state: 'UNDETERMINED'; reason: string }
 
-export const FLOOR_DAYS = 1
+const FLOOR_DAYS = 1
 
-export const KEEP_PER_PROJECT = 10
+const KEEP_PER_PROJECT = 10
 
-export const DEFAULT_WINDOW_DAYS = 30
+const DEFAULT_WINDOW_DAYS = 30
 
 export interface ProjectEntry {
   name: string

@@ -1,14 +1,16 @@
 import { join } from 'node:path'
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 
 import { dirname } from 'node:path'
 
 import { Agent, TheokitAgentError } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
+import {
+  deleteSession as deleteInFramework,
+  protectedTranscripts,
+} from '@theokit/agents/session'
 
 import { listAgents } from './agent-list.js'
-import { readPointerId } from './gc/pointer.js'
-import { readTranscriptDir, transcriptDir } from './gc/per-session.js'
 
 const defaultBaseDir = transcriptRoot
 
@@ -117,38 +119,55 @@ export async function deleteSession(
   const removeFromRegistry = opts.removeFromRegistry ?? ((id: string) => Agent.delete(id))
   await removeFromRegistry(agentId)
 
-  // `force` reports "already gone" as success; the caller is told which happened through the result
-  // rather than through an exception, because a registry entry outliving its file is a normal state
-  // (the GC removes transcripts by age) and not an error to raise at a user deleting a session.
-  const existed = existsSync(target)
-  rmSync(target, { force: true })
-  return { transcriptRemoved: existed }
+  // The transcript removal is the framework's — and not only to avoid a second copy.
+  //
+  // This used to be `existsSync(target)` followed by `rmSync(target, { force: true })`, reporting
+  // the FIRST call's answer. Between the two there is a window: a GC sweep or a second TUI can
+  // unlink the file, and the result then claims `transcriptRemoved: true` for a file this call did
+  // not remove. `deleteSession` in `@theokit/agents/session` derives the answer from whether its own
+  // `rmSync` threw, so what it reports is what happened.
+  //
+  // `force: true` is honest here rather than a bypass: the live check ran above, BEFORE the registry
+  // entry was removed, and it raised this product's typed error. Re-running it now would test a
+  // state that this function itself has already changed.
+  //
+  // A registry entry outliving its file stays a normal state (the GC removes transcripts by age),
+  // reported through the result rather than raised at someone deleting a session.
+  // `await` since @theokit/agents@10.0.0: `deleteSession` went async because the only agent registry
+  // in the ecosystem is `Agent.delete(id): Promise<void>`, and the registry half of a deletion is
+  // unreachable without awaiting it. Without the `await` this destructures a Promise and
+  // `transcriptRemoved` is `undefined` — reported to the caller as "not removed" for a file that was.
+  const { transcriptRemoved } = await deleteInFramework(agentId, {
+    cwd,
+    root: dir,
+    force: true,
+  })
+  return { transcriptRemoved }
 }
 
-// B-003 — this list is what `forkTranscript` refuses to overwrite. Swallowing a read error and
-// returning `[]` handed the SDK an empty guard, which is the one input that disables its
-// `LiveSessionError` entirely. Refusing is the safe direction on a path that writes over transcripts.
-//
-// The SDK documents three categories: the live pointer, the most recent transcript, and any active
-// registry entry. The first two are resolvable synchronously and are covered here. The registry is
-// NOT: `listAgents` is async and both callers (`forkSession` and the backtrack fork) are synchronous
-// write paths, so including it would turn two write paths async for a guard that is already
-// backstopped -- `forkTranscript` opens the destination with `wx`, so an existing transcript cannot
-// be overwritten regardless. What the missing category costs is the typed `LiveSessionError` in
-// place of a bare EEXIST, not the protection itself.
+/**
+ * B-003 — what `forkTranscript` refuses to overwrite, and what `deleteSession` refuses to remove.
+ *
+ * ## The third category, which this file documented as unreachable
+ *
+ * The comment this replaces named the SDK's three categories — live pointer, most recent transcript,
+ * active registry entry — covered two, and explained the omission: *"`listAgents` is async and both
+ * callers are synchronous write paths, so including it would turn two write paths async for a guard
+ * that is already backstopped."* The stated cost was losing the typed `LiveSessionError` in favour
+ * of a bare `EEXIST` — not losing the protection.
+ *
+ * `protectedTranscripts` (M71) covers that third category SYNCHRONOUSLY, through the SDK's writer
+ * lease instead of the async registry. The constraint that forced the omission does not apply to it,
+ * so the guard is complete now and neither caller became async.
+ *
+ * It also carries the REASON per session (`'resumable session pointer'`, `'most recent session'`,
+ * `'active writer lease'`) — which is what a refusal needs to say. This projection drops it because
+ * both callers here take paths; anything wanting the reason calls the primitive directly.
+ */
 export function protectedSessions(cwd: string, baseDir: string): string[] {
-  const live = new Set<string>()
-
-  const pointed = readPointerId(cwd)
-  if (pointed !== undefined) live.add(pointed)
-
-  // The most recent transcript is the session a running TUI is most likely still appending to.
-  const newest = readTranscriptDir(transcriptDir(cwd, baseDir)).sort(
-    (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
-  )[0]?.id
-  if (newest !== undefined) live.add(newest)
-
-  return [...live].map((id) => transcriptPath(baseDir, cwd, id))
+  return [...protectedTranscripts(cwd, baseDir).keys()].map((id) =>
+    transcriptPath(baseDir, cwd, id),
+  )
 }
 
 export function forkSession(

@@ -13,19 +13,15 @@
  *
  * Built ONCE for every consumer. Building it privately per command is what B-085 had to undo for
  * the composer, and there would have been four of them.
+ *
+ * B-108 — the derivation is now `@theokit/sdk`'s `recordWiring`, which takes the trust posture as
+ * its gate. What stays here is this product's shape: which three capabilities are lists of NAMES
+ * (the posture gates eight things, and durable memory is not a list), plus the two fields that are
+ * not entities at all — whether project sources loaded, and which sandbox mode the build was given.
  */
+import { recordWiring, type WiredEntity } from '@theokit/agents'
 
-export interface WiredEntity {
-  /** Names actually handed to the builder. Empty when trust removed them. */
-  readonly active: readonly string[]
-  /**
-   * Names configuration ASKED for. Equal to `active` when nothing was suppressed; the difference is
-   * exactly what a user cannot otherwise see.
-   */
-  readonly requested: readonly string[]
-  /** True when the directory's trust posture is what emptied `active`. */
-  readonly suppressedByTrust: boolean
-}
+export type { WiredEntity }
 
 export interface WiredCapabilities {
   readonly mcp: WiredEntity
@@ -41,17 +37,6 @@ export interface WiredCapabilities {
   readonly sandboxMode: string
 }
 
-function entity(requested: readonly string[], allowed: boolean): WiredEntity {
-  return {
-    active: allowed ? requested : [],
-    requested,
-    // Only call it suppression when something was actually removed. A trusted directory with no
-    // skills and an untrusted one with no skills are the same emptiness, and flagging the first
-    // would teach the user to ignore the flag.
-    suppressedByTrust: !allowed && requested.length > 0,
-  }
-}
-
 export function wiredCapabilities(input: {
   readonly posture: { readonly allows: { mcp: boolean; skills: boolean; hooks: boolean } }
   readonly projectSourcesAllowed: boolean
@@ -62,10 +47,19 @@ export function wiredCapabilities(input: {
   readonly hookEvents: readonly string[]
   readonly sandboxMode: string
 }): WiredCapabilities {
+  const record = recordWiring({
+    posture: input.posture,
+    requested: {
+      // Sorted because the map's key order is insertion order from a JSON file, and a listing whose
+      // order changes when someone reorders `.mcp.json` looks like something moved.
+      mcp: Object.keys(input.mcpServers).sort(),
+      skills: input.configuredSkills,
+      hooks: input.hookEvents,
+    },
+  })
+
   return {
-    mcp: entity(Object.keys(input.mcpServers).sort(), input.posture.allows.mcp),
-    skills: entity([...input.configuredSkills], input.posture.allows.skills),
-    hooks: entity([...input.hookEvents], input.posture.allows.hooks),
+    ...record,
     projectSources: input.projectSourcesAllowed,
     sandboxMode: input.sandboxMode,
   }

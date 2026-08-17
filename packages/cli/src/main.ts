@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import process from 'node:process'
 
 import { ensureAuthHome } from '@theocode/agent/auth'
-import { createShutdown, WATCHDOG_MS } from '@theocode/shared/shutdown'
+import { createShutdown } from '@theokit/agents/commands'
 import { loadProjectEnv, gitGate, parseExecArgs, USAGE } from './runtime/index.js'
 import { goalCommand } from './commands/goal.js'
 import { reviewCommand } from './commands/review.js'
@@ -32,19 +32,23 @@ function bootstrap(): void {
 }
 
 async function main(): Promise<void> {
+  // The local `shared/shutdown.ts` was deleted in favour of the framework's, which is the same
+  // mechanism with more information: cleanups are NAMED (a watchdog timeout can say WHICH one hung,
+  // not merely that one did), `run()` returns the outcome, and the three outcomes get three exit
+  // codes instead of two.
+  //
+  // Behaviour change, deliberate: a clean Ctrl-C now exits 130 rather than 0. 130 is the Unix
+  // convention for "terminated by SIGINT" (128 + 2), and it is what distinguishes an interrupted run
+  // from a completed one for anything wrapping this process. B-045 raised exactly that distinction
+  // and the local version could only express two of the three states.
   const shutdown = createShutdown({
-    timeoutMs: WATCHDOG_MS,
+    onSignal: (sig, fn) => {
+      process.on(sig, fn)
+    },
     exit: (code) => {
       process.exit(code)
     },
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (t) => {
-      clearTimeout(t)
-    },
-    onError: (err) => process.stderr.write(`[exec] cleanup failed: ${String(err)}\n`),
-  })
-  shutdown.installSignalHandler((sig, fn) => {
-    process.on(sig, fn)
+    onWarn: (message) => process.stderr.write(`[exec] ${message}\n`),
   })
 
   const args = parseExecArgs(process.argv.slice(2), process.stdin.isTTY === true)

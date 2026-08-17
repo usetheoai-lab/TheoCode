@@ -13,7 +13,7 @@
  * an existing transcript still cannot be overwritten — the loser gets a bare EEXIST instead of a
  * typed error the callers can tell apart. That is why this was MEDIUM, not HIGH.
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -69,6 +69,39 @@ describe('B-003 — protectedSessions covers what the caller can see', () => {
   it('test_an_empty_project_protects_nothing', () => {
     // Anti-vacuity floor: a function returning a constant would satisfy the assertions above.
     expect(protectedSessions(cwd, base)).toEqual([])
+  })
+
+  it('test_an_ACTIVE_WRITER_LEASE_protects_a_transcript_that_is_neither', async () => {
+    // The third category, and the reason this migration was worth making.
+    //
+    // This file used to carry a comment explaining that the category was UNREACHABLE here:
+    // `listAgents` is async and both callers are synchronous write paths, so covering it would
+    // have made two write paths async. `protectedTranscripts` (M71) resolves it through the SDK's
+    // writer LEASE instead of the async registry — synchronously — so the constraint no longer
+    // applies.
+    //
+    // The assertion is deliberately over a transcript that is NEITHER the pointer NOR the most
+    // recent: those two were already protected, so a test using one of them would pass against the
+    // old implementation and prove nothing about what changed.
+    const { acquireSessionWriter } = await import('@theokit/agents/persistence')
+    const leased = writeTranscript('leased', 3600) // old, and not pointed at
+    writeTranscript('newest', 5) // the most recent, so `leased` is protected only by its lease
+
+    // Anti-vacuity, in the same test: WITHOUT the lease this transcript is collectable. That is the
+    // assertion the old implementation would satisfy, and it is what makes the one below meaningful
+    // instead of true-by-construction.
+    expect(protectedSessions(cwd, base)).not.toContain(leased)
+
+    const lease = await acquireSessionWriter(leased)
+    try {
+      expect(
+        protectedSessions(cwd, base),
+        'a transcript with a live writer lease was collectable — the category this file previously ' +
+          'documented as out of reach',
+      ).toContain(leased)
+    } finally {
+      await (lease as { release?: () => Promise<void> }).release?.()
+    }
   })
 
   it('test_the_pointer_and_the_most_recent_are_not_duplicated', () => {
@@ -185,5 +218,53 @@ describe('B-078 — deleteSession refuses a live session', () => {
 
     expect(result.transcriptRemoved).toBe(false)
     expect(removed).toEqual(['tui-ghost'])
+  })
+})
+
+describe('deleteSession — the transcript mechanics are the framework\'s', () => {
+  it('test_the_transcript_removal_has_no_check_then_act_race', async () => {
+    // The reason this file delegates rather than keeping four lines of its own.
+    //
+    // It used to do `existsSync(target)` and then `rmSync(target, { force: true })`, reporting the
+    // FIRST call's answer. Between the two, a concurrent GC sweep or a second TUI can unlink the
+    // file — and the result then claims `transcriptRemoved: true` for a file this call did not
+    // remove. `@theokit/agents`' `deleteSession` has no such window: it calls `rmSync` and derives
+    // the answer from whether that threw, so the reported outcome is the one that happened.
+    //
+    // Asserted through the observable contract rather than by racing the filesystem: the answer must
+    // come from the removal itself, so a transcript that never existed reports false and one that
+    // did reports true — with no third state where the report and the disk disagree.
+    writeTranscript('tui-other', 5000)
+    writeTranscript('tui-current', 1)
+    writeTranscript('tui-doomed', 900)
+
+    const real = await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async () => {},
+    })
+    expect(real.transcriptRemoved).toBe(true)
+
+    // Same call, same session, now absent: the second answer is derived, not remembered.
+    const again = await deleteSession('tui-doomed', {
+      cwd,
+      baseDir: base,
+      removeFromRegistry: async () => {},
+    })
+    expect(again.transcriptRemoved).toBe(false)
+  })
+
+  it('test_it_delegates_the_transcript_removal_to_the_framework', async () => {
+    // Pillar of the migration: the mechanics live in `@theokit/agents/session`, not here. Asserted
+    // on the seam — this module must not reach for `node:fs` to remove a transcript, because two
+    // owners of "how a transcript is deleted" is how the two answers drift apart.
+    const source = readFileSync(new URL('./session-ops.ts', import.meta.url), 'utf8')
+    expect(source).toContain("from '@theokit/agents/session'")
+
+    // Comments stripped first. The prose above the delegation NAMES the call it replaced, and a
+    // guard that reads its own documentation as a violation would force the explanation out of the
+    // file — the opposite of what it is for.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    expect(code, 'session-ops.ts still unlinks transcripts by hand').not.toMatch(/\brmSync\(/)
   })
 })

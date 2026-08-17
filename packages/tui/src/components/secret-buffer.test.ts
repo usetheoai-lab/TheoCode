@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { appendKeystroke, submittableSecret } from './secret-buffer.js'
+import { submittableSecret } from './secret-buffer.js'
 
 describe('B-047 — the submitted secret carries no pasted whitespace', () => {
   it('test_an_ordinary_key_is_submitted_unchanged', () => {
@@ -29,9 +29,7 @@ describe('B-047 — the submitted secret carries no pasted whitespace', () => {
     expect(submittableSecret('')).toBe(undefined)
   })
 
-  it('test_a_newline_inside_a_pasted_chunk_does_not_extend_the_buffer', () => {
-    // A paste is one chunk. The newline that ends it is not a character of the key.
-    expect(appendKeystroke('sk-', 'ant\n')).toBe('sk-ant')
-    expect(appendKeystroke('', 'a\r\nb')).toBe('ab')
-  })
+  // The pasted-newline case moved to `@theokit/tui@0.53.0`: `FreeTextInput mask` strips newlines on
+  // insert, and asserts it there with an EXACT mask-length count. Keeping a copy of the assertion
+  // here would test a function this package no longer owns.
 })

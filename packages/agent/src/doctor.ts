@@ -13,35 +13,20 @@
  * NO SECRET EVER LEAVES THIS FILE. A credential is reported present / absent / unreadable and never
  * by value, not even truncated: a diagnostic is the output people paste into issues.
  */
-export type CheckStatus = 'ok' | 'warn' | 'fail'
 
-export interface Check {
-  readonly name: string
-  readonly status: CheckStatus
-  readonly detail: string
-}
+/**
+ * The quartet — `Check`, `Diagnosis`, `diagnose`, `renderDiagnosis` — moved to
+ * `@theokit/agents/doctor` and was deleted here. It is the part every product re-derives
+ * identically; the LIST of checks below is the part that is actually this product's.
+ *
+ * Two things came back richer than what was removed. `Diagnosis.failed` is now a COUNT rather than
+ * a boolean, and `diagnose([])` no longer reports a clean bill of health: an empty list exits
+ * non-zero, because a product whose check list failed to load would otherwise announce that an
+ * installation nobody examined is fine. The local version had exactly that hole.
+ */
+import type { Check } from '@theokit/agents/doctor'
 
-export interface Diagnosis {
-  readonly checks: readonly Check[]
-  /** True when any check failed — the caller exits non-zero, so this is usable in a script. */
-  readonly failed: boolean
-}
-
-export function diagnose(checks: readonly Check[]): Diagnosis {
-  return { checks, failed: checks.some((c) => c.status === 'fail') }
-}
-
-/** One line per check, aligned, with the status first so a scan finds failures immediately. */
-export function renderDiagnosis(d: Diagnosis): string {
-  const mark: Readonly<Record<CheckStatus, string>> = {
-    ok: '  ok  ',
-    warn: ' warn ',
-    // Upper-case so a failure is findable by eye in a long paste, which is where this output lands.
-    fail: ' FAIL ',
-  }
-  const width = Math.max(...d.checks.map((c) => c.name.length), 0)
-  return d.checks.map((c) => `[${mark[c.status]}] ${c.name.padEnd(width)}  ${c.detail}`).join('\n')
-}
+export { diagnose, renderDiagnosis } from '@theokit/agents/doctor'
 
 /**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an

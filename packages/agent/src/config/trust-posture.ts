@@ -1,3 +1,15 @@
+/**
+ * B-097 — the DERIVATION is `@theokit/sdk`'s: pick a level, and gate every declared capability on
+ * it, with `allows` built FROM the declared list so a ninth capability cannot be forgotten. What
+ * stays here is everything that is this product's: the eight capabilities and what withholding each
+ * one actually costs, the environment variable's name, its deprecated alias, and where the operator
+ * records a trusted directory.
+ */
+import {
+  resolveTrustPosture as resolvePosture,
+  type TrustPosture as SdkTrustPosture,
+} from '@theokit/agents'
+
 import { ENV_TRUST_ALL_DIRS, ENV_TRUST_ALL_DIRS_LEGACY } from './env-knobs.js'
 import { TRUST_STORE, isTrusted } from './trust-store.js'
 
@@ -60,21 +72,7 @@ export const TRUST_CAPABILITIES = [
 
 type TrustCapabilityKey = (typeof TRUST_CAPABILITIES)[number]['key']
 
-type TrustAllows = Readonly<Record<TrustCapabilityKey, boolean>>
-
-type TrustSource = 'env' | 'store' | 'default'
-
-type TrustLevel = 'trusted' | 'untrusted'
-
-export interface TrustPosture {
-  readonly level: TrustLevel
-  readonly source: TrustSource
-  readonly allows: TrustAllows
-}
-
-function allowEverything(value: boolean): TrustAllows {
-  return Object.fromEntries(TRUST_CAPABILITIES.map((c) => [c.key, value])) as TrustAllows
-}
+export type TrustPosture = SdkTrustPosture<TrustCapabilityKey>
 
 let aliasAlreadyWarned = false
 
@@ -91,20 +89,19 @@ function warnAboutTheAlias(): void {
   )
 }
 
-function trustOrigin(
-  cwd: string,
-  store: string,
-  // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
-  // trust decision from that same environment. Reading the ambient one meant the posture could
-  // disagree with the config it was supposed to describe.
-  env: Record<string, string | undefined> = process.env,
-): TrustSource {
-  if (env[ENV_TRUST_ALL_DIRS] === '1') return 'env'
+/**
+ * Whether the operator switched trust on for EVERY directory, in this product's own vocabulary.
+ *
+ * `false` means "did not switch it on", never "switched it off" — an unset variable must not
+ * override a directory the operator recorded as trusted.
+ */
+function environmentGrantsTrust(env: Record<string, string | undefined>): boolean {
+  if (env[ENV_TRUST_ALL_DIRS] === '1') return true
   if (env[ENV_TRUST_ALL_DIRS_LEGACY] === '1') {
     warnAboutTheAlias()
-    return 'env'
+    return true
   }
-  return isTrusted(cwd, store) ? 'store' : 'default'
+  return false
 }
 
 /**
@@ -119,9 +116,16 @@ function trustOrigin(
 export function resolveTrustPosture(
   cwd: string,
   store: string = TRUST_STORE,
+  // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
+  // trust decision from that same environment. Reading the ambient one meant the posture could
+  // disagree with the config it was supposed to describe.
   env: Record<string, string | undefined> = process.env,
 ): TrustPosture {
-  const source = trustOrigin(cwd, store, env)
-  const level: TrustLevel = source === 'default' ? 'untrusted' : 'trusted'
-  return { level, source, allows: allowEverything(level === 'trusted') }
+  return resolvePosture({
+    capabilities: TRUST_CAPABILITIES.map((c) => c.key),
+    // A function rather than a boolean: it reads the trust store off disk, and the framework skips
+    // it entirely when the environment already granted trust.
+    isTrusted: () => isTrusted(cwd, store),
+    envOverride: environmentGrantsTrust(env),
+  })
 }

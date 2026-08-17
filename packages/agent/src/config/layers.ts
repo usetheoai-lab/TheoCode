@@ -1,4 +1,13 @@
+/**
+ * The layer chain this product resolves configuration through, and the reporting that cites it.
+ *
+ * B-097 — the FOLD is `@theokit/sdk`'s: later layers win, `undefined` never erases, named keys
+ * accumulate, and the declared order is verified rather than assumed. Those rules are identical in
+ * every layered-config product. What is this product's, and stays here, is the chain itself: six
+ * named layers with their precedences, `profile` among them because this product has profiles.
+ */
 import { TheokitAgentError } from '@theokit/agents'
+import { foldLayers as fold, verifyLayerOrdering } from '@theokit/agents'
 
 class LayerError extends TheokitAgentError {
   override readonly name = 'LayerError'
@@ -20,20 +29,9 @@ export const LAYERS: readonly DeclaredLayer[] = Object.freeze([
   Object.freeze({ layer: 'cli' as const, precedence: 60 }),
 ])
 
-function verifyOrdering(layers: readonly DeclaredLayer[]): void {
-  for (let i = 1; i < layers.length; i += 1) {
-    const previous = layers[i - 1]!
-    const current = layers[i]!
-    if (current.precedence <= previous.precedence) {
-      throw new LayerError(
-        `layers out of order: \`${current.layer}\` (precedence ${current.precedence}) comes after ` +
-          `\`${previous.layer}\` (precedence ${previous.precedence}) but does not outrank it`,
-      )
-    }
-  }
-}
-
-verifyOrdering(LAYERS)
+// At module load, so a chain edited into an inconsistent state fails on import rather than on the
+// first resolution — which would be somewhere far from the edit.
+verifyLayerOrdering(LAYERS)
 
 const PRECEDENCE_PER_LAYER: ReadonlyMap<string, number> = new Map(
   LAYERS.map((c) => [c.layer, c.precedence]),
@@ -54,37 +52,10 @@ export function foldLayers(
   entries: readonly LayerWithValues[],
   accumulatingKeys: readonly string[] = [],
 ): Record<string, unknown> {
-  verifyOrdering(entries.map((e) => ({ layer: e.layer, precedence: precedenceOf(e.layer) })))
-
-  const accumulated = new Map<string, unknown[]>(accumulatingKeys.map((k) => [k, []]))
-  const combined: Record<string, unknown> = {}
-  for (const { values } of entries) {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) continue
-      const stack = accumulated.get(key)
-      if (stack !== undefined && Array.isArray(value)) {
-        stack.push(...(value as unknown[]))
-        combined[key] = stack
-        continue
-      }
-      combined[key] = value
-    }
-  }
-  return combined
-}
-
-export function measuredPrecedenceChain(descendingWinners: readonly string[]): {
-  line: string
-  divergence: string | null
-} {
-  const declaredDescendant = [...LAYERS].reverse().map((c) => c.layer)
-  const measured = descendingWinners.join(' > ')
-  const declared = declaredDescendant.join(' > ')
-  if (measured !== declared) {
-    const divergence =
-      `the measured order (${measured || '(empty)'}) does not match the order declared in ` +
-      `\`agents/config/layers.ts\` (${declared})`
-    return { line: `**DIVERGENCE** — ${divergence}`, divergence }
-  }
-  return { line: [...declaredDescendant].reverse().join(' < '), divergence: null }
+  return fold(
+    // The precedence is attached here rather than trusted from the array order: the caller passes
+    // layers it assembled itself, and an assembly bug would otherwise invert precedence silently.
+    entries.map((e) => ({ ...e, precedence: precedenceOf(e.layer) })),
+    accumulatingKeys,
+  )
 }

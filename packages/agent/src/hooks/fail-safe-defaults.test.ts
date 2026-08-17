@@ -24,7 +24,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { buildHookHandlers } from './hooks.js'
+import { buildHookHandlers } from './build-handlers.js'
 import { hookFingerprint } from './hook-trust.js'
 import { ctxTurn, tmp } from './hooks-test-helpers.js'
 import { resolveHeadlessApproval } from '../config/approval-policy.js'

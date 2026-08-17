@@ -47,6 +47,10 @@ export function headlessApprovalPosture(
 ): ApprovalPosture {
   const decision = resolveHeadlessApproval(policy, sandbox)
   return decision.approved
-    ? { kind: 'auto-approve', reason: decision.reason }
+    ? // M86 / `@theokit/agents@8.0.0` — `auto-approve` now carries the confinement it claims.
+      // The posture was already in hand, and already the thing that permitted this branch; passing
+      // the SAME value (never a synthesised one) is what keeps "approved automatically" and
+      // "confined by a kernel sandbox" from drifting into two independent assertions.
+      { kind: 'auto-approve', confinedBy: sandbox, reason: decision.reason }
     : { kind: 'auto-reject', reason: decision.reason }
 }

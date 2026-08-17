@@ -76,6 +76,11 @@ bench/reports/run.log
 .*fix/
 cross-validation-output/
 
+# loop-deadcode-audit plugin output. Same rule as `code-review-output` above: the durable
+# deliverable is the CHANGELOG entry and the `knip.jsonc` gate this run produced, not the
+# SQLite database and the intermediate finding files.
+deadcode-output/
+
 # M58 error-handling-gate test temp dirs (created/removed per test)
 .eh-gate-*/
 .m67-fixtures-*/

@@ -10,7 +10,7 @@ import {
 const MENTION_RE = /@([^\s]+)/g
 const MAX_MENTION_TOKENS = 2000
 
-export const MAX_TOTAL_MENTION_TOKENS = 20_000
+const MAX_TOTAL_MENTION_TOKENS = 20_000
 
 function parseMentions(text: string): string[] {
   return Array.from(text.matchAll(MENTION_RE), (m) => m[1])

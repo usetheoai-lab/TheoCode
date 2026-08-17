@@ -2,7 +2,6 @@
 export {
   archiveSession,
   deleteSession,
-  LiveSessionDeletionError,
   compactSession,
   legacyRootHint,
   forkSession,

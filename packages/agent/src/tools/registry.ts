@@ -1,6 +1,7 @@
-import { ConfigurationError, Toolset, ToolsetError } from '@theokit/agents'
+import { ConfigurationError, Toolset } from '@theokit/agents'
 import { createViewImageTool } from './view-image.js'
 import type { CustomTool } from '@theokit/agents'
+import { bindToolScope } from '@theokit/agents/tool-scope'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import {
   createApplyPatchTool,
@@ -44,62 +45,60 @@ export const REGISTRY_TOOL_NAMES = [
 
 export type RegistryToolName = (typeof REGISTRY_TOOL_NAMES)[number]
 
-/**
- * Bridges `ToolsetError` into the SDK's error hierarchy, and has an end date.
- *
- * `ToolsetError` extended `Error` directly, so a caller catching `TheokitAgentError` missed it and
- * had to match on name or message. Rather than do that here, this translates it once at the
- * boundary (upstream gap U-3, finding TIP-15).
- *
- * Fixed upstream — `ToolsetError` now extends `TheokitAgentError` (`theokit` commit `92b962ad`) —
- * but NOT released: this package resolves `@theokit/agents@7.4.0`, which predates it. Delete this on
- * the next bump, not before: removing it now changes which error type callers actually receive.
- */
-function translateError<T>(fn: () => T): T {
-  try {
-    return fn()
-  } catch (err) {
-    if (err instanceof ToolsetError) {
-      throw new ConfigurationError(err.message, { code: err.code, cause: err })
-    }
-    throw err
-  }
-}
-
 export class ToolRegistry {
   readonly #toolset: Toolset<CustomTool>
 
   constructor(scope: ToolScope) {
+    /**
+     * The scope is BOUND once, and the factories inherit it.
+     *
+     * `projectRoot: scope.cwd` used to be repeated across seven entries and `sandbox` on one. Every
+     * repetition is a place to forget — and forgetting `sandbox` on `createShellTool` produces an
+     * UNCONFINED SHELL with no error and no warning, which is the defect B-006 documented here.
+     *
+     * The two WRITE tools pass `projectRoot: scope.writeRoot` explicitly. Not a detail: for them the
+     * project root IS the write root, and letting the bind apply `cwd` would narrow the write scope
+     * silently whenever the two diverge.
+     */
+    const bound = bindToolScope({
+      projectRoot: scope.cwd,
+      writeRoot: scope.writeRoot,
+      sandbox: scope.sandbox,
+    })
+
     const entries = new Map<string, CustomTool>([
       [
         'read_file',
-        createReadFileTool({ projectRoot: scope.cwd, lineNumbers: true, allowAbsolute: true }),
+        bound.bind(createReadFileTool)({ lineNumbers: true, allowAbsolute: true }),
       ],
-      ['list_dir', createListDirTool({ projectRoot: scope.cwd, allowAbsolute: true })],
+      ['list_dir', bound.bind(createListDirTool)({ allowAbsolute: true })],
       [
         'grep',
         withName(
-          createSearchTextTool({ projectRoot: scope.cwd, regex: true, allowAbsolute: true }),
+          bound.bind(createSearchTextTool)({ regex: true, allowAbsolute: true }),
           'grep',
         ),
       ],
-      ['repo_status', createGitStatusTool({ projectRoot: scope.cwd, name: 'repo_status' })],
-      ['git_diff', createGitDiffTool({ projectRoot: scope.cwd })],
+      ['repo_status', bound.bind(createGitStatusTool)({ name: 'repo_status' })],
+      ['git_diff', bound.bind(createGitDiffTool)()],
       ['current_time', createCurrentTimeTool()],
       // B-082 — the model can look at a diagram or screenshot itself, under the same read root.
-      ['view_image', createViewImageTool({ projectRoot: scope.cwd })],
-      ['apply_patch', createApplyPatchTool({ projectRoot: scope.writeRoot })],
-      ['edit_file', withName(createEditFileTool({ projectRoot: scope.writeRoot }), 'edit_file')],
+      ['view_image', bound.bind(createViewImageTool)()],
+      // Explicit override: for a write tool, the project root IS the write root.
+      ['apply_patch', bound.bind(createApplyPatchTool)({ projectRoot: scope.writeRoot })],
+      [
+        'edit_file',
+        withName(bound.bind(createEditFileTool)({ projectRoot: scope.writeRoot }), 'edit_file'),
+      ],
       [
         'run_shell',
         withName(
-          createShellTool({
-            projectRoot: scope.cwd,
-            sandbox: scope.sandbox,
-            ...(scope.defaultTimeoutMs !== undefined
+          // `sandbox` comes from the bound scope — no path here can forget it.
+          bound.bind(createShellTool)(
+            scope.defaultTimeoutMs !== undefined
               ? { defaultTimeoutMs: scope.defaultTimeoutMs }
-              : {}),
-          }),
+              : {},
+          ),
           'run_shell',
         ),
       ],
@@ -121,10 +120,10 @@ export class ToolRegistry {
   }
 
   get(name: RegistryToolName): CustomTool {
-    return translateError(() => this.#toolset.get(name))
+    return this.#toolset.get(name)
   }
 
   resolve(names: readonly string[]): CustomTool[] {
-    return translateError(() => [...this.#toolset.resolve(names)])
+    return [...this.#toolset.resolve(names)]
   }
 }

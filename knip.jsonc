@@ -1,0 +1,57 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // The dead-export gate `npm run lint` enforces.
+  //
+  // `includeEntryExports` is the setting that carries this file. Without it an export declared IN an
+  // entry file is exempt, and in a barrel-per-package layout that is exactly where dead surface
+  // accumulates — every `index.ts` here is an entry. Measured on this tree before the cleanup: knip
+  // under its defaults reported 1 issue, this configuration reported 28. A green run under the
+  // defaults would have meant nothing, which is why this file is committed rather than left to the
+  // tool's inference.
+  //
+  // Every package here is `private: true` and never published, so an export nobody imports has no
+  // downstream consumer to protect: it is dead surface, not API. If a survivor must be kept, add it
+  // to the workspace's `ignore` or `ignoreDependencies` WITH a comment saying why. An unexplained
+  // exemption is how the previous cleanup (B-049) ended with 120 survivors and not one recorded
+  // reason, which is what let the surface regrow unnoticed.
+  //
+  // WHAT THIS GATE CANNOT SEE — do not read a green run as more than it is. A dependency loaded
+  // through a runtime-computed specifier is invisible to every static tool: `@theokit/tui` loads its
+  // optional peers exactly that way (`const spec = "figlet"; await import(spec)`), and `lowlight`
+  // is reached through `AgentTimeline` -> `ChatMessage` -> `MarkdownText` -> `CodeBlock`. Before
+  // deleting any dependency, read the framework's own loaders and grep the shipped bundle by hand.
+
+  "includeEntryExports": true,
+
+  "workspaces": {
+    ".": {
+      "entry": [
+        "tools/build-cli.mjs",
+        "tools/check-english-only.mjs",
+        "tools/check-artifact-promotion.mjs",
+        "tools/**/*.test.mjs",
+        "vitest.config.ts",
+        "eslint.config.mjs",
+        ".dependency-cruiser.cjs"
+      ],
+      "project": ["tools/**/*.mjs", "*.ts", "*.mjs"]
+    },
+    "packages/agent": {
+      "entry": ["src/chat-acp.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/cli": {
+      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/tui": {
+      "entry": ["src/main.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"],
+      "project": ["src/**/*.ts", "src/**/*.tsx"]
+    },
+    "packages/shared": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

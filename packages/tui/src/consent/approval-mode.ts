@@ -1,37 +1,43 @@
-export const APPROVAL_MODES = ['suggest', 'auto-edit', 'full-auto'] as const
+import {
+  APPROVAL_MODES,
+  shouldAutoApprove as decide,
+  type ApprovalMode,
+} from '@theokit/agents/bridge'
 
-export type ApprovalMode = (typeof APPROVAL_MODES)[number]
-
-const EDIT_TOOLS = new Set(['apply_patch'])
+export type { ApprovalMode }
 
 /**
- * B-006 — `full-auto` means "run commands without asking", which is only defensible when something
- * else is doing the confining. The headless surface already refuses this combination in writing
- * (`agent/config/approval-policy.ts`): *refusing instead of claiming a confinement that does not
- * exist*. This surface used to auto-approve regardless, while the same screen rendered
- * `sandbox:<mode> ⚠ tool-gating` to tell the user there was none.
+ * Which tools THIS product lets run without asking, in `auto-edit`.
  *
- * An absent posture counts as unconfined. Absence of evidence is not evidence of confinement, and
- * defaulting the other way would silently disable the guard anywhere the posture has not been
- * threaded through.
+ * Passed explicitly on every call, and that is the point rather than ceremony. `@theokit/agents`
+ * also exports `WRITE_SCOPED_TOOLS` — `apply_patch`, `edit_file`, `write_file` — but that is a
+ * CATALOG of which SDK tools bound their own writes, not a policy about who may skip the human.
+ * Adopting it as a default here would silently widen an approval gate: this surface registers
+ * `edit_file` (`agent/chat.ts:272-273`) and deliberately does not auto-approve it, so inheriting the
+ * framework's list would un-gate a live, model-callable write tool as a side effect of deleting
+ * duplicated code. The framework's `auto-edit` approves nothing when no set is given, precisely so
+ * that widening cannot happen by omission.
  *
- * `auto-edit` is deliberately unchanged: `apply_patch` is bounded by the tool's own write scope
- * rather than by the kernel, and the user opted into edits specifically. The headless refusal is
- * about running commands blind, not about editing files.
+ * `apply_patch` is here because it is bounded by the tool's own write scope rather than by the
+ * kernel, and the user opted into edits specifically.
+ */
+const EDIT_TOOLS: ReadonlySet<string> = new Set(['apply_patch'])
+
+/**
+ * Whether a gated tool may run without asking.
+ *
+ * The RULE is `@theokit/agents`'; only the set above is ours. This replaces a local copy of the same
+ * switch, and the framework's version carries the reasoning that copy had to restate: `full-auto`
+ * means "run commands without asking", which is only defensible when something else is confining
+ * them, so an absent or unenforced sandbox posture auto-approves nothing (B-006) — absence of
+ * evidence is not evidence of confinement.
  */
 export function shouldAutoApprove(
   mode: ApprovalMode,
   toolName: string,
   posture?: { enforced: boolean; detail: string },
 ): boolean {
-  switch (mode) {
-    case 'suggest':
-      return false
-    case 'auto-edit':
-      return EDIT_TOOLS.has(toolName)
-    case 'full-auto':
-      return posture?.enforced === true
-  }
+  return decide(mode, toolName, posture, { writeScopedTools: EDIT_TOOLS })
 }
 
 export function parseApprovalMode(input: string): ApprovalMode | undefined {
@@ -40,5 +46,5 @@ export function parseApprovalMode(input: string): ApprovalMode | undefined {
 
 export function nextApprovalMode(mode: ApprovalMode): ApprovalMode {
   const i = APPROVAL_MODES.indexOf(mode)
-  return APPROVAL_MODES[(i + 1) % APPROVAL_MODES.length]
+  return APPROVAL_MODES[(i + 1) % APPROVAL_MODES.length] as ApprovalMode
 }

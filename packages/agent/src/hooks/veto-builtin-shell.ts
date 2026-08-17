@@ -1,8 +1,8 @@
 import type { HookHandlers } from '@theokit/agents'
 
-export const BUILTIN_SHELL = 'shell'
+const BUILTIN_SHELL = 'shell'
 
-export const VETO_REASON =
+const VETO_REASON =
   `The '${BUILTIN_SHELL}' tool (a runtime builtin) is not used by this agent: it does not go through ` +
   "the project's sandbox scope, so a write through it would ignore `--sandbox read-only` and the " +
   '`writeRoot` of `workspace-write`. Use `run_shell`, which does the same confined by the active policy.'

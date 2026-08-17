@@ -21,8 +21,3 @@ export function recordWiring(wired: WiredCapabilities): void {
 export function currentWiring(): WiredCapabilities | undefined {
   return lastWired
 }
-
-/** Tests only — the holder outlives a single test otherwise. */
-export function resetWiring(): void {
-  lastWired = undefined
-}

@@ -24,7 +24,7 @@ export interface ExportableMessage {
  * The timeline is heterogeneous — thinking, tool and explored events sit alongside messages, and
  * only messages carry a role. Narrowing here lets callers pass the real `AgentEvent[]`.
  */
-export function isExportableMessage(event: unknown): event is ExportableMessage {
+function isExportableMessage(event: unknown): event is ExportableMessage {
   if (typeof event !== 'object' || event === null) return false
   const candidate = event as { kind?: unknown; role?: unknown; text?: unknown }
   return (

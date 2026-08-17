@@ -12,7 +12,7 @@ export const TEAM_ROLES = ['explorer', 'worker'] as const
 
 type AgentOptions = Parameters<typeof Agent.create>[0]
 
-export interface RoleConfig {
+interface RoleConfig {
   name: string
   model?: string
   reasoning_effort?: ReasoningEffort
@@ -20,7 +20,7 @@ export interface RoleConfig {
   tools: string[]
 }
 
-export interface ParentDefaults {
+interface ParentDefaults {
   model: string
   reasoning_effort: ReasoningEffort
 }

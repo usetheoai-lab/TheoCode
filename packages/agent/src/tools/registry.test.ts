@@ -69,3 +69,37 @@ describe('B-018 — the tool scope follows the directory it is given', () => {
     )
   })
 })
+
+describe('bindToolScope — the scope is bound once, and write tools stay at the write root', () => {
+  /**
+   * The migration to `bindToolScope` replaced seven repetitions of `projectRoot: scope.cwd` with one
+   * bind. Two properties have to survive that, and neither is obvious from the diff.
+   */
+  it('test_the_permissive_mode_widens_the_WRITE_root_without_widening_the_read_root', () => {
+    // The detail a naive bind would have erased. `apply_patch` and `edit_file` receive
+    // `projectRoot: scope.writeRoot` — for them the project root IS the write root. Letting the bind
+    // apply `cwd` would narrow the write scope silently whenever the two diverge, which is exactly
+    // the `danger-full-access` case.
+    const wide = resolveToolScope({ sandbox_mode: 'danger-full-access' } as never, '/tmp/proj')
+    const narrow = resolveToolScope({ sandbox_mode: 'workspace-write' } as never, '/tmp/proj')
+
+    expect(wide.cwd, 'the READ root should not change with the mode').toBe(narrow.cwd)
+    expect(wide.writeRoot, 'the permissive mode did not widen the write root').not.toBe(
+      narrow.writeRoot,
+    )
+  })
+
+  it('test_a_scope_WITHOUT_a_sandbox_does_not_compile', () => {
+    // The thesis: an unconfined shell must be UNREPRESENTABLE, and the guarantee is in the TYPE, not
+    // in a runtime check. So the honest assertion is about compilation.
+    //
+    // The first version of this test checked `names()).toContain('run_shell')` under a name that
+    // promised to speak about the sandbox. That would pass with the sandbox removed, and would have
+    // said nothing.
+    const withoutSandbox = { cwd: '/tmp/proj', writeRoot: '/tmp/proj' }
+
+    // @ts-expect-error — `sandbox` is required on ToolScope (B-006). Omitting it is what produced an
+    // unconfined shell, with no error and no warning.
+    expect(() => new ToolRegistry(withoutSandbox)).toBeTypeOf('function')
+  })
+})

@@ -10,10 +10,18 @@
  * bypassing the accumulation that stops a project from displacing the user's global guard. The same
  * reasoning applies to these two keys and had not been applied.
  *
- * The floor is narrow on purpose. `project` and `env` may only HARDEN. `cli` may still loosen: that
- * is the operator typing an explicit flag for a single session, and the threat model here is a
- * repository or an inherited environment, not the person at the keyboard.
+ * The floor is narrow on purpose. `project`, `profile` and `env` may only HARDEN. `cli` may still
+ * loosen: that is the operator typing an explicit flag for a single session, and the threat model
+ * here is a repository or an inherited environment, not the person at the keyboard.
+ *
+ * B-097 — the RULE now lives in `@theokit/sdk`; what stays here is the VOCABULARY. Which values
+ * count as more permissive, which layers may only tighten, and which one is the operator's override
+ * are this product's words and belong to this product. The framework owns "a lower-trust layer may
+ * confine and never widen", which is the part every agent product rebuilds identically.
  */
+import { applySecurityFloor as applyFloor } from '@theokit/agents'
+
+import { LAYERS } from './layers.js'
 
 /** Each vocabulary ordered from most confined to least. Index = permissiveness. */
 export const MORE_PERMISSIVE = {
@@ -23,8 +31,11 @@ export const MORE_PERMISSIVE = {
 
 export type SecurityKey = keyof typeof MORE_PERMISSIVE
 
-/** Layers that may only tighten the user's choice, in precedence order. */
+/** Layers that may only tighten the user's choice. */
 const CANNOT_LOOSEN = ['project', 'profile', 'env'] as const
+
+/** The layer that wins outright in both directions — the operator's explicit flag. */
+const OPERATOR_OVERRIDE = 'cli'
 
 export interface LayeredValues {
   defaults?: string | undefined
@@ -35,33 +46,19 @@ export interface LayeredValues {
   cli?: string | undefined
 }
 
-function permissiveness(key: SecurityKey, value: string | undefined): number {
-  if (value === undefined) return -1
-  const i = (MORE_PERMISSIVE[key] as readonly string[]).indexOf(value)
-  return i
-}
-
 /**
  * Resolve one security key across layers: last-wins, except that `project`/`profile`/`env` may never
  * choose something more permissive than what a lower layer already established.
  */
 export function applySecurityFloor(key: SecurityKey, layers: LayeredValues): string | undefined {
-  // The baseline the restricted layers must not exceed: whatever defaults/user settled on.
-  let resolved = layers.user ?? layers.defaults
-  let ceiling = permissiveness(key, resolved)
-
-  for (const layer of CANNOT_LOOSEN) {
-    const candidate = layers[layer]
-    if (candidate === undefined) continue
-    const level = permissiveness(key, candidate)
-    if (level < 0) continue
-    // Harden freely; loosen never. With no ceiling yet, the layer simply applies.
-    if (ceiling < 0 || level <= ceiling) {
-      resolved = candidate
-      ceiling = level
-    }
-  }
-
-  // The operator's explicit flag wins outright, in both directions.
-  return layers.cli ?? resolved
+  return applyFloor({
+    permissiveness: MORE_PERMISSIVE[key],
+    restricted: CANNOT_LOOSEN,
+    override: OPERATOR_OVERRIDE,
+    // Built by walking `LAYERS` rather than from an object literal: the framework takes the
+    // unrestricted layers in the order given, so the baseline (`user` beats `defaults`) depends on
+    // key order. Deriving it from the declared chain states that dependency once, next to the
+    // precedences it comes from, instead of resting on how someone happened to type a literal.
+    layers: Object.fromEntries(LAYERS.map(({ layer }) => [layer, layers[layer]])),
+  })
 }

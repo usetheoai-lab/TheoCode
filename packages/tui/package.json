@@ -3,18 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Surface 1 — the terminal UI.",
-  "exports": {
-    ".": "./src/main.tsx"
-  },
+  "description": "Surface 1 \u2014 the terminal UI.",
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
-    "@theokit/agents": "^7.5.0",
-    "@theokit/tui": "^0.50.4",
-    "figlet": "^1.7.0",
+    "@theokit/agents": "^10.1.0",
+    "@theokit/tui": "^0.53.0",
     "ink": "^7.1.0",
-    "js-yaml": "^4.3.1",
     "lowlight": "^3.0.0",
     "react": "^19.0.0",
     "zod": "^4.0.0"

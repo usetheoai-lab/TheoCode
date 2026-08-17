@@ -1,9 +1,5 @@
+import { loadCustomCommands as loadInFramework, frontmatterValue } from '@theokit/agents/config'
 
-import { readFileSync } from 'node:fs'
-
-import { scanMarkdownWithGuards } from '@theocode/agent/context'
-import { join, relative } from 'node:path'
-import yaml from 'js-yaml'
 import { hints } from './command-template.js'
 import { BUILTIN_COMMAND_NAMES } from './registry.js'
 
@@ -24,99 +20,78 @@ export interface LoadOptions {
   warn: (message: string) => void
 }
 
-const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
-
-function mdFilesUnder(dir: string, warn?: (m: string) => void): string[] {
-  return scanMarkdownWithGuards(dir, undefined, warn)
-}
-
-function splitFrontmatter(
-  path: string,
-  warn: LoadOptions['warn'],
-): { readonly data: Record<string, unknown>; readonly body: string } | undefined {
-  const raw = readFileSync(path, 'utf8')
-  const fm = FRONTMATTER_REGEX.exec(raw)
-  if (fm === null) return { data: {}, body: raw }
-  try {
-    const parsed = yaml.load(fm[1] ?? '')
-    const data =
-      parsed !== null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
-    return { data, body: raw.slice(fm[0].length) }
-  } catch (err) {
-    warn(
-      `[custom-command] ${path}: failed to parse YAML frontmatter (${err instanceof Error ? err.message.split('\n')[0] : String(err)}) — file skipped`,
-    )
-    return undefined
-  }
-}
-
-function parseCommandFile(
-  path: string,
-  name: string,
-  warn: LoadOptions['warn'],
-): CustomCommand | undefined {
-  const split = splitFrontmatter(path, warn)
-  if (split === undefined) return undefined
-  const { data, body } = split
-  const template = body.trim()
-  return {
-    name,
-    template,
-    ...(typeof data.description === 'string' ? { description: data.description } : {}),
-    ...(typeof data.agent === 'string' ? { agent: data.agent } : {}),
-    ...(typeof data.model === 'string' ? { model: data.model } : {}),
-    ...(typeof data.subtask === 'boolean' ? { subtask: data.subtask } : {}),
-    hints: hints(template),
-  }
-}
-
+/**
+ * `.theokit/commands/*.md` — this product's commands, loaded by the framework.
+ *
+ * ## What moved
+ *
+ * The whole loader: which directories are read, that the project's are read ONLY when the directory
+ * is trusted, that project beats user, that a name colliding with a builtin is reported, that a file
+ * whose frontmatter never closes is skipped rather than half-parsed, and the walk under each
+ * directory. None of it was about this product — all of it was written here because the framework's
+ * result had nowhere to put the keys this product reads.
+ *
+ * ## What stays, and why
+ *
+ * The KEYS. `agent`, `model`, `subtask` are how this product decides who runs a command; `hints` is
+ * derived from the template for its own composer. The framework carries the frontmatter LINES and
+ * `frontmatterValue` reads them, so the vocabulary stays ours without the loader having to be.
+ *
+ * That split is deliberate on the framework's side too: Claude Code's custom commands declare `model`
+ * and `argument-hint`, which is already a second vocabulary. A loader that adopted one product's
+ * keys would have to refuse the other's.
+ */
 export function loadCustomCommands(options: LoadOptions): Map<string, CustomCommand> {
-  const commands = new Map<string, CustomCommand>()
-  const sourceRoot = new Map<string, string>()
-  const roots = options.projectTrusted ? [options.homeDir, options.projectDir] : [options.homeDir]
-  if (!options.projectTrusted && hasAnyCommandFile(options.projectDir)) {
-    options.warn(
-      '[custom-command] project .theokit/commands present but the directory is untrusted — project commands NOT loaded',
-    )
-  }
-  for (const root of roots) {
-    for (const sub of ['command', 'commands']) {
-      loadFromFolder(join(root, '.theokit', sub), root, options, commands, sourceRoot)
-    }
-  }
-  return commands
-}
+  const { commands, shadowedBuiltins } = loadInFramework({
+    projectDir: options.projectDir,
+    homeDir: options.homeDir,
+    projectTrusted: options.projectTrusted,
+    builtinNames: [...BUILTIN_COMMAND_NAMES],
+    onWarn: (message) => {
+      options.warn(`[custom-command] ${message}`)
+    },
+  })
 
-function loadFromFolder(
-  base: string,
-  root: string,
-  options: LoadOptions,
-  commands: Map<string, CustomCommand>,
-  sourceRoot: Map<string, string>,
-): void {
-  for (const file of mdFilesUnder(base, options.warn)) {
-    const name = relative(base, file).replace(/\.md$/, '')
-    const parsed = parseCommandFile(file, name, options.warn)
-    if (parsed === undefined) continue
-    if (parsed.template.length === 0) {
-      options.warn(`[custom-command] ${file}: empty template — file skipped`)
+  for (const name of shadowedBuiltins) {
+    options.warn(`[custom-command] "/${name}" shadows builtin — the custom command wins`)
+  }
+
+  const loaded = new Map<string, CustomCommand>()
+  for (const command of commands) {
+    const template = command.body.trim()
+    if (template.length === 0) {
+      // An empty command is a no-op the user cannot see failing — the file exists, the name appears
+      // in the composer, and invoking it sends nothing.
+      options.warn(`[custom-command] ${command.path}: empty template — file skipped`)
       continue
     }
-    if (BUILTIN_COMMAND_NAMES.has(name)) {
-      options.warn(`[custom-command] "/${name}" shadows builtin — the custom command wins`)
-    }
-    if (commands.has(name) && sourceRoot.get(name) === root) {
-      options.warn(
-        `[custom-command] duplicate command name "${name}" within ${root} — later file wins`,
-      )
-    }
-    commands.set(name, parsed)
-    sourceRoot.set(name, root)
+    loaded.set(command.name, {
+      name: command.name,
+      template,
+      ...(command.description !== undefined ? { description: command.description } : {}),
+      ...readOwnKeys(command.frontmatter),
+      hints: hints(template),
+    })
   }
+  return loaded
 }
 
-function hasAnyCommandFile(projectDir: string): boolean {
-  return ['command', 'commands'].some(
-    (sub) => mdFilesUnder(join(projectDir, '.theokit', sub)).length > 0,
-  )
+/**
+ * The keys the framework does not know about, read from the lines it hands over.
+ *
+ * `subtask` is compared against the literal `'true'` rather than coerced: a frontmatter reader
+ * returns strings, and `Boolean('false')` is `true` — the one coercion in this file that would
+ * silently invert a user's intent.
+ */
+function readOwnKeys(
+  frontmatter: readonly string[],
+): Pick<CustomCommand, 'agent' | 'model' | 'subtask'> {
+  const agent = frontmatterValue(frontmatter, 'agent')
+  const model = frontmatterValue(frontmatter, 'model')
+  const subtask = frontmatterValue(frontmatter, 'subtask')
+  return {
+    ...(agent !== undefined ? { agent } : {}),
+    ...(model !== undefined ? { model } : {}),
+    ...(subtask !== undefined ? { subtask: subtask.trim() === 'true' } : {}),
+  }
 }

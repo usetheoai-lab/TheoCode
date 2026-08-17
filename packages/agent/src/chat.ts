@@ -39,7 +39,7 @@ import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
-import { projectSourceAllowed } from './config/project-source.js'
+import { projectSettingsPosture, projectSourceAllowed } from './config/project-source.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
@@ -55,6 +55,20 @@ export function buildChatAgent(overrides: {
    * disagreement is the bug worth catching.
    */
   onWired?: (wired: WiredCapabilities) => void
+  /**
+   * M82 — where `loadMcpJson`'s warnings go.
+   *
+   * Same shape as `onHookVeto` and `onWired`, and here for the same reason: the surface that SHOWS
+   * MCP state supplies the channel, and this layer stays free of it. The alternative would be
+   * importing the TUI's holder from `packages/agent`, inverting the dependency.
+   *
+   * Omitting it is not neutral. The framework's `loadMcpJson` documents that without `onWarn` the
+   * warnings go to `stderr` — never nowhere, but never to the user either. Under the TUI, stderr is
+   * a log file nobody has open, so "server X was ignored: unknown field" was invisible while `/mcp`
+   * cheerfully listed the servers that DID load. A user reading that panel had no way to learn one
+   * was missing.
+   */
+  onMcpWarn?: (warning: string) => void
   extraTools?: readonly CustomTool[]
   appendInstructions?: string
   baseInstructions?: string
@@ -108,7 +122,7 @@ export function buildChatAgent(overrides: {
   // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
   // which is why every listing that wanted it had to re-read the file and could disagree with what
   // actually ran.
-  const mcpServers = posture.allows.mcp ? loadMcpJson(cwd) : {}
+  const mcpServers = mcpServersFor(posture, cwd, overrides?.onMcpWarn)
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
@@ -383,7 +397,17 @@ function withShellAndProjectEntities(
       // how `.skills()` and AGENTS.md are already gated (subagents were the one disk entity that was not).
       // B-008 — the `project` source enables repository hooks too, not just subagent discovery, and
       // those bypass TheoCode's per-hook fingerprint gate. It now requires both capabilities.
-      .settingSources(projectSourceAllowed(posture.allows) ? ['project', 'user'] : ['user'])
+      // M86 — `@theokit/agents@8.0.0` asks for the evidence instead of a string list. `user` stays a
+      // boolean (`~/.theokit/` is the operator's own machine); `project` now carries the posture that
+      // authorized it, so a refusal inside the framework can say WHERE the decision came from. The
+      // gate itself is unchanged — `projectSettingsPosture` projects the same B-008 conjunction.
+      //
+      // `project` is OMITTED rather than passed with a denying posture. The framework REFUSES a
+      // requested-but-ungranted `project` by throwing — right for a caller that asked for it, and
+      // TheoCode is not asking. An untrusted directory here has always degraded to user-only and
+      // kept working; passing the grant unconditionally would turn that into a hard failure on every
+      // untrusted repo. Omitting a root is not enabling it.
+      .settingSources(settingSourcesFor(posture))
       .hooks(lifecycleHooks)
   )
 
@@ -573,4 +597,47 @@ function profileTools(
       })
     }
   }
+}
+
+/**
+ * Which on-disk config roots this build may read.
+ *
+ * Lifted out of the chain for one mechanical reason and one better one: the ternary took
+ * `buildChatAgent` from 10 to 11 cyclomatic complexity, over the lint ceiling — and a TRUST decision
+ * buried in a builder link is where nobody looks when they ask "why did this repo manage to load
+ * hooks?".
+ *
+ * `project` is OMITTED, not passed with a denying posture. The framework REFUSES a
+ * requested-but-ungranted `project` — right for a caller that asked, and this build is not asking.
+ * An untrusted directory here has always degraded to user-only and kept working; passing the grant
+ * unconditionally would turn that into a hard failure on every untrusted repo. Omitting a root is
+ * not enabling it.
+ */
+function settingSourcesFor(posture: TrustPosture): {
+  user: true
+  project?: { trustedBy: ReturnType<typeof projectSettingsPosture> }
+} {
+  return projectSourceAllowed(posture.allows)
+    ? { user: true, project: { trustedBy: projectSettingsPosture(posture) } }
+    : { user: true }
+}
+
+/**
+ * The MCP servers this build will start — or none.
+ *
+ * Lifted out for the same reason as `settingSourcesFor`: it is a TRUST GATE, and a gate buried in a
+ * ternary inside a 60-line function is where nobody looks. An MCP server is local process execution
+ * at agent init, before any per-tool approval exists to refuse it.
+ *
+ * `onWarn` travels with it deliberately. Without it the framework sends warnings to stderr — which
+ * under the TUI is a log file nobody has open — while `/mcp` cheerfully lists the servers that DID
+ * load and never says one was ignored.
+ */
+function mcpServersFor(
+  posture: TrustPosture,
+  cwd: string,
+  onWarn?: (warning: string) => void,
+): ReturnType<typeof loadMcpJson> {
+  if (!posture.allows.mcp) return {}
+  return loadMcpJson(cwd, { onWarn })
 }

@@ -1,6 +1,6 @@
-import { atomicWriteJson, withFileLock } from '@theokit/agents/persistence'
+import { TrustStore } from '@theokit/agents/config'
 
-import { chmodSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -65,19 +65,6 @@ function assertNotWritableByOthers(target: string, forbidden: number, remedy: st
   }
 }
 
-/** Create the store's directory private, and repair it when it already exists. */
-function ensurePrivateDir(store: string): void {
-  const dir = dirname(store)
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  // `mkdirSync({ mode })` is a no-op on an existing directory, and this one is SHARED with the SDK's
-  // transcript root, which creates it without a mode. Whoever got there first set the permissions.
-  try {
-    if ((statSync(dir).mode & 0o077) !== 0) chmodSync(dir, 0o700)
-  } catch {
-    // A directory we cannot stat is one we are about to fail on anyway, loudly, at write time.
-  }
-}
-
 /**
  * The one gated reader of the consent store. Exported because it is a gate, and a gate that only
  * one of two consumers can reach is not one: `hook-trust.ts` kept a private, ungated copy of this
@@ -86,7 +73,7 @@ function ensurePrivateDir(store: string): void {
  * Throws when the store or its directory is writable by anyone else. A MISSING file is not an
  * error — a first run has no store, and that means "nothing is trusted yet".
  */
-export function readDocument(store: string): Record<string, unknown> {
+function readDocument(store: string): Record<string, unknown> {
   assertPrivate(store)
   try {
     const parsed: unknown = JSON.parse(readFileSync(store, 'utf8'))
@@ -96,50 +83,108 @@ export function readDocument(store: string): Record<string, unknown> {
   }
 }
 
-function trustedList(doc: Record<string, unknown>): string[] {
+
+
+
+/**
+ * Directory trust — a FACADE over the framework's `TrustStore` since 2026-08-15.
+ *
+ * The membership list, the canonical key and the atomic write all live in
+ * `@theokit/agents/config` now. The framework version is stricter in the one place that matters: it
+ * canonicalises with `realpath` on BOTH sides of the comparison, which is the defect B-005
+ * documented here in prose and only half fixed. It could not move earlier — the framework store had
+ * no `isTrusted` and keyed records by the raw string until `@theokit/agents@8.7.0`, which landed
+ * measured against this file.
+ *
+ * ## The one-time migration
+ *
+ * The legacy document is `{ trusted: [dir, …], hooks: { … } }` — one file holding two different
+ * consents. The framework store owns its own file, so `migrateLegacyTrust` carries the trusted
+ * directories across and leaves `hooks` alone for `hook-trust.ts`.
+ *
+ * Lossless in this direction: a legacy entry means "this directory was trusted", and the framework
+ * record says exactly that. `decidedAt` is the migration's own timestamp and `decidedBy` says
+ * `legacy-migration` — nothing is invented about when or by whom the original decision was made.
+ */
+export const frameworkPathFor = (legacy: string): string =>
+  `${legacy.replace(/\.json$/, '')}.v2.json`
+
+/** Renamed rather than deleted, so an operator can still read what the legacy document held. */
+const migratedMarkerFor = (legacy: string): string => `${legacy}.migrated`
+
+/**
+ * Carry `{ trusted: [...] }` into the framework store, once.
+ *
+ * NEVER throws: a failed migration must not stop the product from asking for consent the normal
+ * way, which is the safe fallback. Idempotent — `trust` replaces the record for a directory, so a
+ * second pass adds nothing.
+ */
+/**
+ * Not exported: `trustDir` calls it, and `isTrusted` already reads the legacy document, so no caller
+ * needs to trigger the migration by hand. An exported entry point nobody calls is surface that
+ * suggests a step someone must remember — and the whole point of the dual read is that they do not.
+ */
+async function migrateLegacyTrust(store: string = TRUST_STORE): Promise<void> {
+  if (!existsSync(store) || existsSync(migratedMarkerFor(store))) return
+
+  let dirs: string[] = []
+  try {
+    const parsed = JSON.parse(readFileSync(store, 'utf8')) as { trusted?: unknown }
+    dirs = Array.isArray(parsed.trusted)
+      ? parsed.trusted.filter((d): d is string => typeof d === 'string')
+      : []
+  } catch {
+    return
+  }
+
+  const trustStore = new TrustStore(frameworkPathFor(store))
+  for (const dir of dirs) {
+    await trustStore.trust({
+      path: dir,
+      decidedAt: new Date().toISOString(),
+      decidedBy: 'legacy-migration',
+      trusted: true,
+    })
+  }
+
+  try {
+    renameSync(store, migratedMarkerFor(store))
+  } catch {
+    // Losing the marker only means the migration re-runs, and it is idempotent.
+  }
+}
+
+/**
+ * Both sources are consulted, and that is deliberate.
+ *
+ * A first draft read only the framework store, which made `isTrusted` fail-closed before the
+ * migration ran — technically safe, and wrong in practice: a directory the operator already trusted
+ * would be asked about again, and being asked again about something you already decided is exactly
+ * how a person learns to approve without reading. The legacy document stays readable until
+ * `migrateLegacyTrust` consumes it, so a decision is never silently lost.
+ *
+ * The legacy read goes through `readDocument`, which keeps the private-mode gate: a store any local
+ * user can write is refused rather than believed.
+ */
+export function isTrusted(dir: string, store: string = TRUST_STORE): boolean {
+  if (new TrustStore(frameworkPathFor(store)).isTrusted(dir)) return true
+  return legacyTrusted(store).includes(canonical(dir))
+}
+
+/** The legacy `{ trusted: [...] }` list, or empty when there is none. */
+function legacyTrusted(store: string): string[] {
+  const doc = readDocument(store)
   return Array.isArray(doc.trusted)
-    ? doc.trusted.filter((p): p is string => typeof p === 'string')
+    ? doc.trusted.filter((d): d is string => typeof d === 'string')
     : []
 }
 
-function readTrusted(store: string): string[] {
-  return trustedList(readDocument(store))
-}
-
-export async function mutateConsentStore(
-  store: string,
-  mutate: (current: Record<string, unknown>) => Record<string, unknown> | undefined,
-): Promise<void> {
-  ensurePrivateDir(store)
-  await withFileLock(
-    store,
-    async () => {
-      const next = mutate(readDocument(store))
-      if (next === undefined) return
-      await atomicWriteJson(store, next, { mode: 0o600, exclusive: true })
-    },
-    WAIT_BUDGET,
-  )
-}
-
-const WAIT_BUDGET = { retries: 40, retryFactor: 1 } as const
-
-export function isTrusted(dir: string, store: string = TRUST_STORE): boolean {
-  return readTrusted(store).includes(canonical(dir))
-}
-
 export async function trustDir(dir: string, store: string = TRUST_STORE): Promise<void> {
-  // Repair before the early-exit read (B-019). This path is about to write anyway, and the repair
-  // is this module's own remedy for the directory the SDK created without a mode — reading first
-  // would let the new directory gate refuse the very state `ensurePrivateDir` exists to fix.
-  ensurePrivateDir(store)
-
-  const canonicalDir = canonical(dir)
-  if (readTrusted(store).includes(canonicalDir)) return
-
-  await mutateConsentStore(store, (doc) => {
-    const current = trustedList(doc)
-    if (current.includes(canonicalDir)) return undefined
-    return { ...doc, trusted: [...current, canonicalDir] }
+  await migrateLegacyTrust(store)
+  await new TrustStore(frameworkPathFor(store)).trust({
+    path: dir,
+    decidedAt: new Date().toISOString(),
+    decidedBy: 'operator',
+    trusted: true,
   })
 }

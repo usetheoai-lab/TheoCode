@@ -6,10 +6,9 @@
   "description": "Code both surfaces need. Neither owns it.",
   "exports": {
     "./agent": "./src/agent.ts",
-    "./diagnostic-sink": "./src/diagnostic-sink.ts",
-    "./shutdown": "./src/shutdown.ts"
+    "./diagnostic-sink": "./src/diagnostic-sink.ts"
   },
   "dependencies": {
-    "@theokit/agents": "^7.5.0"
+    "@theokit/agents": "^10.1.0"
   }
 }

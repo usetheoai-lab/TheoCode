@@ -7,7 +7,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat.ts",
-    "./chat-acp": "./src/chat-acp.ts",
     "./ask": "./src/ask/index.ts",
     "./auth": "./src/auth/index.ts",
     "./config": "./src/config/index.ts",
@@ -20,8 +19,7 @@
   },
   "dependencies": {
     "@theocode/shared": "*",
-    "@theokit/agents": "^7.5.0",
-    "js-yaml": "^4.3.1",
+    "@theokit/agents": "^10.1.0",
     "smol-toml": "^1.7.0",
     "zod": "^4.0.0"
   }
