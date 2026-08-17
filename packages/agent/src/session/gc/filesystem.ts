@@ -26,18 +26,18 @@ import {
 import { readPointerId } from './pointer.js'
 
 const FIRST_LINE_CAP = 64 * 1024
-const MAX_DFS_DEPTH = 12
-const MAX_DFS_NODES = 20_000
 
 /**
- * B-054 — the whole `--all-projects` sweep shares ONE filesystem-search budget.
+ * B-054 — the whole `--all-projects` sweep shares ONE filesystem budget.
  *
- * Ten times the per-project ceiling: generous enough that the handful of projects which genuinely
- * need the search still get it, bounded so 13 269 projects cannot multiply it into ~64 million
- * readdir calls. Whatever the sweep cannot classify within it is UNDETERMINED and therefore KEPT
- * (B-020) — the safe direction on the only path that deletes user data.
+ * Counts filesystem OPERATIONS now, not DFS nodes: the depth and per-project node ceilings went with
+ * the oracle, because `classifyProjects` resolves a project by reading a transcript's recorded cwd
+ * rather than by walking the disk. The measured cost is ~2.54 operations per project, so 200 000
+ * covers a tree an order of magnitude past the 13 269 that motivated the ticket. What the sweep
+ * cannot classify within it is UNDETERMINED and therefore KEPT (B-020) — the safe direction on the
+ * only path that deletes user data.
  */
-const SWEEP_DFS_NODES = MAX_DFS_NODES * 10
+const SWEEP_FS_BUDGET = 200_000
 
 const io: FsSeam = {
   listEntries: (dir) => readdirSync(dir),
@@ -146,7 +146,7 @@ function sweepClassifier(root: string, projects: readonly string[]): (project: s
   const verdicts = classifyProjects(projects, {
     projectsRoot: root,
     candidatePaths: () => [],
-    budget: SWEEP_DFS_NODES,
+    budget: SWEEP_FS_BUDGET,
     fs: io,
   })
   return (project) => toLiveness(verdicts.get(project))

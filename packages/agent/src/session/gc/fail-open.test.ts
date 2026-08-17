@@ -41,12 +41,6 @@ function options(overrides: Partial<Parameters<typeof planSessionGCAllProjects>[
   } as Parameters<typeof planSessionGCAllProjects>[0]
 }
 
-const PROJECTS_ROOT = '/root/projects'
-const ORACLE_OPTS = {
-  projectsRoot: PROJECTS_ROOT,
-  maxDfsNodes: 1_000,
-  maxDfsDepth: 8,
-} as never
 
 describe('B-020 — retention and age apply to the projects the collector deletes from', () => {
   it('test_a_transcript_with_an_unknown_mtime_is_not_collectable', async () => {
