@@ -7,6 +7,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-17
+
 ### Added
 
 - **A dead-export gate runs in `npm run lint`, and `knip.jsonc` is committed with it (B-049).** The
