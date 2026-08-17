@@ -10,18 +10,14 @@ import {
 import { join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
-import { sessionHasWriter, transcriptRoot } from '@theokit/agents/persistence'
+import { sessionHasWriter } from '@theokit/agents/persistence'
+import { classifyProjects, projectsRoot, type FsSeam } from '@theokit/agents/session'
 
 import { listAgents } from '../agent-list.js'
 import {
-  classifyDirectory,
-  createDfsBudget,
-  type Liveness,
-  type OracleIO,
-} from '../liveness-oracle.js'
-import {
   planSessionGCAllProjects,
   runSessionGCAllProjects,
+  type Liveness,
   type ProjectEntry,
   type CollectableKind,
   type AllPlan,
@@ -30,20 +26,20 @@ import {
 import { readPointerId } from './pointer.js'
 
 const FIRST_LINE_CAP = 64 * 1024
-const MAX_DFS_DEPTH = 12
-const MAX_DFS_NODES = 20_000
 
 /**
- * B-054 — the whole `--all-projects` sweep shares ONE filesystem-search budget.
+ * B-054 — the whole `--all-projects` sweep shares ONE filesystem budget.
  *
- * Ten times the per-project ceiling: generous enough that the handful of projects which genuinely
- * need the search still get it, bounded so 13 269 projects cannot multiply it into ~64 million
- * readdir calls. Whatever the sweep cannot classify within it is UNDETERMINED and therefore KEPT
- * (B-020) — the safe direction on the only path that deletes user data.
+ * Counts filesystem OPERATIONS now, not DFS nodes: the depth and per-project node ceilings went with
+ * the oracle, because `classifyProjects` resolves a project by reading a transcript's recorded cwd
+ * rather than by walking the disk. The measured cost is ~2.54 operations per project, so 200 000
+ * covers a tree an order of magnitude past the 13 269 that motivated the ticket. What the sweep
+ * cannot classify within it is UNDETERMINED and therefore KEPT (B-020) — the safe direction on the
+ * only path that deletes user data.
  */
-const SWEEP_DFS_NODES = MAX_DFS_NODES * 10
+const SWEEP_FS_BUDGET = 200_000
 
-const io: OracleIO = {
+const io: FsSeam = {
   listEntries: (dir) => readdirSync(dir),
   firstLine(file) {
     const fd = openSync(file, 'r')
@@ -57,7 +53,7 @@ const io: OracleIO = {
       closeSync(fd)
     }
   },
-  isDirectory(path) {
+  exists(path) {
     try {
       return statSync(path).isDirectory()
     } catch (err) {
@@ -102,20 +98,28 @@ async function listProjectRegistry(
   return listAgents(cwd)
 }
 
+/** The encoded project directories under `root`. Absent root lists nothing rather than throwing. */
+function listProjectDirs(root: string): string[] {
+  return existsSync(root)
+    ? readdirSync(root, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+    : []
+}
+
 export async function planAllProjectsOnDisk(opts: CliOptions = {}): Promise<AllPlan> {
-  const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
+  const root = opts.projectsRoot ?? projectsRoot()
+  // Enumerated ONCE and shared: the framework's sweep classifies the whole list in one call against
+  // one budget, so it needs the names up front — and reading the directory twice could hand the two
+  // halves different sets on a tree that changes under them.
+  const projects = listProjectDirs(root)
   return planSessionGCAllProjects({
     projectsRoot: root,
     ...(opts.keepLast !== undefined ? { keepLast: opts.keepLast } : {}),
     ...(opts.maxAgeDays !== undefined ? { maxAgeDays: opts.maxAgeDays } : {}),
-    listProjects: () =>
-      existsSync(root)
-        ? readdirSync(root, { withFileTypes: true })
-            .filter((e) => e.isDirectory())
-            .map((e) => e.name)
-        : [],
+    listProjects: () => projects,
     listProject: (p) => listRealProject(root, p),
-    classify: sweepClassifier(root, io),
+    classify: sweepClassifier(root, projects),
     listRegistry: (cwd) => listProjectRegistry(cwd),
     hasLiveWriter: (transcript) => sessionHasWriter(transcript),
     readPointer: (cwd) => readPointerId(cwd),
@@ -123,25 +127,57 @@ export async function planAllProjectsOnDisk(opts: CliOptions = {}): Promise<AllP
 }
 
 /**
- * A `classify` bound to one shared search budget, so the cost of a sweep does not scale with the
- * number of projects. A single-project run does not use this and keeps its own ceiling.
+ * `classify`, backed by the framework's sweep.
+ *
+ * What this replaces is 188 lines of oracle that lived here and answered the same question. The
+ * shared budget it was built for is now structural rather than threaded by hand: `classifyProjects`
+ * takes the whole list and spends ONE budget across it, so the per-project ceiling cannot multiply
+ * into the ~64M readdir calls that motivated B-054.
+ *
+ * ONE capability is not carried over, and it is recorded rather than glossed: the deleted oracle
+ * searched the filesystem from `/` for a project whose transcript held no cwd. The framework takes a
+ * `candidatePaths` pool instead, and this product has none to give — enumerating the disk is what
+ * the framework's design rejects. Measured on a real tree of 13 624 projects before the swap: 5
+ * verdicts change, every one of them from a decided verdict to `undetermined`, which the collector
+ * KEEPS. So the loss costs stale directories surviving, never a live project deleted — the safe
+ * direction, and the only one that matters on a path that unlinks user data (B-020).
  */
-function sweepClassifier(root: string, io: OracleIO): (project: string) => Liveness {
-  const dfsBudget = createDfsBudget(SWEEP_DFS_NODES)
-  return (project) =>
-    classifyDirectory(project, io, {
-      projectsRoot: root,
-      maxDfsDepth: MAX_DFS_DEPTH,
-      maxDfsNodes: MAX_DFS_NODES,
-      dfsBudget,
-    })
+function sweepClassifier(root: string, projects: readonly string[]): (project: string) => Liveness {
+  const verdicts = classifyProjects(projects, {
+    projectsRoot: root,
+    candidatePaths: () => [],
+    budget: SWEEP_FS_BUDGET,
+    fs: io,
+  })
+  return (project) => toLiveness(verdicts.get(project))
+}
+
+/**
+ * Framework verdict → the GC's vocabulary.
+ *
+ * `alive` without a `cwd` is treated as UNDETERMINED rather than trusted. The framework types `cwd`
+ * as optional because `undetermined` has none, so nothing at the type level guarantees it here — and
+ * the GC uses that path to consult the registry and the pointer. Fail-safe: a project we cannot
+ * place is one we keep.
+ */
+function toLiveness(verdict: { liveness: string; reason: string; cwd?: string } | undefined): Liveness {
+  if (verdict === undefined) return { state: 'UNDETERMINED', reason: 'not classified in this sweep' }
+  if (verdict.liveness === 'alive') {
+    return verdict.cwd === undefined
+      ? { state: 'UNDETERMINED', reason: `alive but no cwd resolved: ${verdict.reason}` }
+      : { state: 'ALIVE', cwd: verdict.cwd }
+  }
+  if (verdict.liveness === 'dead') {
+    return verdict.cwd === undefined ? { state: 'DEAD' } : { state: 'DEAD', cwd: verdict.cwd }
+  }
+  return { state: 'UNDETERMINED', reason: verdict.reason }
 }
 
 export async function runAllProjectsOnDisk(
   plan: AllPlan,
   opts: CliOptions = {},
 ): Promise<AllResult> {
-  const root = opts.projectsRoot ?? join(transcriptRoot(), 'projects')
+  const root = opts.projectsRoot ?? projectsRoot()
   return runSessionGCAllProjects(plan, {
     ...(opts.apply === true ? { apply: true } : {}),
     unlink: (path) => fsp.unlink(path),

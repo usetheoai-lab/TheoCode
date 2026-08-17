@@ -6,7 +6,7 @@ import { interactiveWrapCommand } from '@theokit/agents/sandbox'
 import type { InteractiveWrapOptions, SandboxMode } from '@theokit/agents/sandbox'
 import { MORE_PERMISSIVE } from '../config/security-floor.js'
 
-export interface BackendComPosse extends InteractiveBackend {
+interface BackendComPosse extends InteractiveBackend {
   killAll(): void
   activeSessionCount(): number
 }

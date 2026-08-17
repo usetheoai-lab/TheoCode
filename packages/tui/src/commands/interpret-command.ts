@@ -372,6 +372,18 @@ function conduct(action: CommandAction, _text: string, cap: SteeringCapabilities
       sendMessage(action.text, goalActive, agent, lastSentMessage, setToast)
       return true
     }
+    case 'commandError': {
+      // The half that makes the router's refusal worth having: it has to be SAID.
+      //
+      // A slash that names nothing used to reach the model as prose and come back answered, so the
+      // user read a plausible reply to a command that never ran. Refusing it silently would trade
+      // that for a keystroke that does nothing — visibly worse to use, and no easier to diagnose.
+      setToast({
+        message: `${action.input} — ${action.reason.replaceAll('-', ' ')}`,
+        variant: 'error',
+      })
+      return true
+    }
     default:
       return false
   }

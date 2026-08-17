@@ -173,9 +173,12 @@ const ALLOWED = new Set([
   // the subject: the assertion is that the message contains none of them.
   //
   // The line moved from 76 to 156 when the ask module was migrated to `@theokit/agents/ask` and this
-  // file was rewritten. A line-numbered allowlist entry is a citation that rots on any edit above
-  // it — which is why this one silently stopped covering anything and the check went red.
-  'packages/agent/src/ask/ask-bridge.test.ts:156',
+  // file was rewritten, and from 156 to 166 when the dead-export cleanup added a static import at
+  // the top of that file. A line-numbered allowlist entry is a citation that rots on any edit above
+  // it — twice now it has silently stopped covering anything and turned the check red. It is kept
+  // line-numbered on purpose (an entry keyed by file alone would exempt the whole file), so the
+  // cost is real and accepted: whoever edits above line 166 fixes this number in the same commit.
+  'packages/agent/src/ask/ask-bridge.test.ts:166',
 ])
 
 /** Strip combining marks so `seleção` also indexes as `selecao`. */

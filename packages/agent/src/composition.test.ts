@@ -330,7 +330,10 @@ describe('path 2 — createReviewAgent composes the reviewer', () => {
     // and `resolveToolScope` but not the name list, so the registry's own vocabulary is not part
     // of the module's public face.
     const { REGISTRY_TOOL_NAMES } = await import('./tools/registry.js')
-    const { REVIEWER_TOOLS } = await import('./review/create-agent.js')
+    // From `composition/agent-spec.js`, where the list is declared and where `reviewerShape` reads
+    // it. This used to import from `review/create-agent.js`, which re-exported the name for this
+    // test alone — surface kept alive by its only consumer being the test that consumed it.
+    const { REVIEWER_TOOLS } = await import('./composition/agent-spec.js')
     for (const name of REVIEWER_TOOLS) {
       expect(
         (REGISTRY_TOOL_NAMES as readonly string[]).includes(name),

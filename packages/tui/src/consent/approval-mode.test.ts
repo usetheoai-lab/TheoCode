@@ -59,3 +59,34 @@ describe('B-006 — the other modes are unchanged', () => {
     expect(shouldAutoApprove('auto-edit', 'apply_patch', NOT_ENFORCED)).toBe(true)
   })
 })
+
+/**
+ * The gate this product chose, pinned against the framework's wider catalog.
+ *
+ * `shouldAutoApprove` is now `@theokit/agents`' rule with our set passed in. The framework also
+ * exports `WRITE_SCOPED_TOOLS` — `apply_patch`, `edit_file`, `write_file` — as a catalog of which
+ * SDK tools bound their own writes. Adopting it here would widen an approval gate: this surface
+ * REGISTERS `edit_file` (`agent/chat.ts:272-273`) and deliberately does not auto-approve it.
+ *
+ * Written because the migration was mutation-tested and the suite did not catch it: swapping our
+ * one-tool set for the framework's three left all seven existing tests green. A gate that can be
+ * widened without a red test is a gate that will be widened.
+ */
+describe('the auto-edit set is this product', () => {
+  const ENFORCED = { enforced: true, detail: 'seccomp' }
+
+  it('test_edit_file_still_requires_a_human_in_auto_edit', () => {
+    // The tool the framework's catalog would have un-gated. It is registered and model-callable.
+    expect(shouldAutoApprove('auto-edit', 'edit_file')).toBe(false)
+    expect(shouldAutoApprove('auto-edit', 'edit_file', ENFORCED)).toBe(false)
+  })
+
+  it('test_write_file_still_requires_a_human_in_auto_edit', () => {
+    expect(shouldAutoApprove('auto-edit', 'write_file', ENFORCED)).toBe(false)
+  })
+
+  it('test_apply_patch_is_the_one_that_auto_approves', () => {
+    // Anti-vacuity floor: without this, a policy of the empty set would satisfy both cases above.
+    expect(shouldAutoApprove('auto-edit', 'apply_patch')).toBe(true)
+  })
+})

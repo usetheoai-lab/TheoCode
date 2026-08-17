@@ -1,11 +1,14 @@
 import { join } from 'node:path'
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 
 import { dirname } from 'node:path'
 
 import { Agent, TheokitAgentError } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
-import { protectedTranscripts } from '@theokit/agents/session'
+import {
+  deleteSession as deleteInFramework,
+  protectedTranscripts,
+} from '@theokit/agents/session'
 
 import { listAgents } from './agent-list.js'
 
@@ -116,12 +119,30 @@ export async function deleteSession(
   const removeFromRegistry = opts.removeFromRegistry ?? ((id: string) => Agent.delete(id))
   await removeFromRegistry(agentId)
 
-  // `force` reports "already gone" as success; the caller is told which happened through the result
-  // rather than through an exception, because a registry entry outliving its file is a normal state
-  // (the GC removes transcripts by age) and not an error to raise at a user deleting a session.
-  const existed = existsSync(target)
-  rmSync(target, { force: true })
-  return { transcriptRemoved: existed }
+  // The transcript removal is the framework's — and not only to avoid a second copy.
+  //
+  // This used to be `existsSync(target)` followed by `rmSync(target, { force: true })`, reporting
+  // the FIRST call's answer. Between the two there is a window: a GC sweep or a second TUI can
+  // unlink the file, and the result then claims `transcriptRemoved: true` for a file this call did
+  // not remove. `deleteSession` in `@theokit/agents/session` derives the answer from whether its own
+  // `rmSync` threw, so what it reports is what happened.
+  //
+  // `force: true` is honest here rather than a bypass: the live check ran above, BEFORE the registry
+  // entry was removed, and it raised this product's typed error. Re-running it now would test a
+  // state that this function itself has already changed.
+  //
+  // A registry entry outliving its file stays a normal state (the GC removes transcripts by age),
+  // reported through the result rather than raised at someone deleting a session.
+  // `await` since @theokit/agents@10.0.0: `deleteSession` went async because the only agent registry
+  // in the ecosystem is `Agent.delete(id): Promise<void>`, and the registry half of a deletion is
+  // unreachable without awaiting it. Without the `await` this destructures a Promise and
+  // `transcriptRemoved` is `undefined` — reported to the caller as "not removed" for a file that was.
+  const { transcriptRemoved } = await deleteInFramework(agentId, {
+    cwd,
+    root: dir,
+    force: true,
+  })
+  return { transcriptRemoved }
 }
 
 /**

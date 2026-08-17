@@ -21,7 +21,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { planSessionGCAllProjects } from './all-sessions.js'
-import { classifyDirectory } from '../liveness-oracle.js'
 import { CursorNotDrainedError, listAgents } from '../agent-list.js'
 
 const DAY = 86_400_000
@@ -42,59 +41,6 @@ function options(overrides: Partial<Parameters<typeof planSessionGCAllProjects>[
   } as Parameters<typeof planSessionGCAllProjects>[0]
 }
 
-const PROJECTS_ROOT = '/root/projects'
-const ORACLE_OPTS = {
-  projectsRoot: PROJECTS_ROOT,
-  maxDfsNodes: 1_000,
-  maxDfsDepth: 8,
-} as never
-
-/**
- * An OracleIO whose pointer lookup succeeds and finds NOTHING, so `classifyDirectory` falls through
- * to the DFS. Without this the projects-root read throws, `classifyDirectory` catches it, and every
- * assertion below passes through a branch that already worked — proving nothing about the DFS.
- */
-function oracleIO(over: Record<string, unknown>) {
-  return { listEntries: () => [], firstLine: () => '{}', isDirectory: () => true, ...over } as never
-}
-
-describe('B-020 — an unknown never resolves to DEAD', () => {
-  it('test_an_unreadable_directory_yields_UNDETERMINED_not_DEAD', () => {
-    // EACCES on one ancestor that leads to the project's cwd. The DFS cannot answer "is it there?",
-    // and absence of evidence was being reported as evidence of absence.
-    const io = oracleIO({
-      listEntries: (path: string) => {
-        if (path === PROJECTS_ROOT + '/-home-someone-proj') return [] // no pointer recorded
-        if (path === '/') return ['home']
-        throw Object.assign(new Error('EACCES'), { code: 'EACCES' }) // the ancestor we cannot read
-      },
-    })
-
-    const r = classifyDirectory('-home-someone-proj', io, ORACLE_OPTS)
-
-    expect(r.state, 'an unreadable ancestor was reported as positive evidence the project is gone').toBe(
-      'UNDETERMINED',
-    )
-  })
-
-  it('test_an_unstatable_cwd_yields_UNDETERMINED_not_DEAD', () => {
-    // The pointer names a cwd, but `statSync` fails for a reason that is not ENOENT (EACCES on a
-    // non-traversable parent, ENOTDIR mid-path, EMFILE under a wide sweep).
-    const io = oracleIO({
-      // The pointer names a cwd whose encoding matches, so the ALIVE/DEAD branch is reached; the
-      // stat of that cwd is what cannot be answered.
-      firstLine: () => JSON.stringify({ cwd: '/home/someone/proj' }),
-      listEntries: (path: string) =>
-        path === PROJECTS_ROOT + '/-home-someone-proj' ? ['s.jsonl'] : [],
-      isDirectory: () => undefined,
-    })
-
-    const r = classifyDirectory('-home-someone-proj', io, ORACLE_OPTS)
-
-    expect(r.state, 'a cwd we cannot stat is not a cwd we know to be gone').toBe('UNDETERMINED')
-  })
-
-})
 
 describe('B-020 — retention and age apply to the projects the collector deletes from', () => {
   it('test_a_transcript_with_an_unknown_mtime_is_not_collectable', async () => {

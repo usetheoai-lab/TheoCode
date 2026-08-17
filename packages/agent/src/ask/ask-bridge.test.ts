@@ -23,11 +23,21 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+// `ConcurrentQuestionError` comes from the framework, not from this module: `ask-bridge.ts` used to
+// re-export it, but a re-export nobody outside the tests imported is dead surface under the
+// dead-export gate. Importing it from its real home keeps the `instanceof` assertions below exactly
+// as strong — there is one class under this name in the process, which is the property B-004 cared
+// about — and removes the indirection that made it look consumed.
+import { ConcurrentQuestionError } from '@theokit/agents/ask'
+
+// The package entrypoint's own re-export, aliased so the assertion below reads as the identity
+// check it is: what `@theocode/agent/ask` hands a consumer IS the framework's class.
+import { ConcurrentQuestionError as entrypointConcurrentQuestionError } from './index.js'
+
 import {
   abandonQuestion,
   answerQuestion,
   ask,
-  ConcurrentQuestionError,
   currentQuestion,
   setListener,
 } from './ask-bridge.js'
@@ -157,14 +167,18 @@ describe('B-004 — the concurrent-question error is reachable and readable', ()
     expect(err.message).toMatch(/already/i)
   })
 
-  it('test_the_error_is_exported_from_the_package_entrypoint', async () => {
+  it('test_the_error_is_exported_from_the_package_entrypoint', () => {
     // Surfaces import from `@theocode/agent/ask`, never from the module directly. While the class
     // was absent from the entrypoint, no consumer could write `instanceof` against it — a typed
     // error nobody can catch by type is an untyped error with extra steps. It is the framework's
     // class now, which is what makes ONE class exist under that name in the process.
-    const entry = (await import('./index.js')) as Record<string, unknown>
-
-    expect(entry.ConcurrentQuestionError).toBe(ConcurrentQuestionError)
+    //
+    // The entrypoint is reached by a STATIC named import (see the top of this file) rather than by
+    // indexing a namespace object with a string. Both assert the same contract, but the string form
+    // is invisible to static analysis: the dead-export gate read this export as unconsumed and a
+    // cleanup removed it, and only this assertion failing caught that. A test that pins a public
+    // export should be legible to the tool that decides whether the export is public.
+    expect(entrypointConcurrentQuestionError).toBe(ConcurrentQuestionError)
   })
 
   it('test_the_error_keeps_its_typed_code', () => {

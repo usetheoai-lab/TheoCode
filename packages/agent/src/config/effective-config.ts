@@ -14,7 +14,7 @@ import {
 } from './config.js'
 import { approvalModeFor } from './sandbox-policy.js'
 import { TRUST_STORE } from './trust-store.js'
-import { resolveTrustPosture, type TrustPosture } from './trust-posture.js'
+import { resolveTrustPosture } from './trust-posture.js'
 
 export class EffectiveConfig {
   readonly model: string
@@ -101,12 +101,6 @@ export function resolveEffectiveConfig(
       posture: resolveTrustPosture(cwd, opts.store ?? TRUST_STORE),
     }),
   )
-}
-
-export function effectiveConfigUnderPosture(
-  opts: LayersOnDisk & { posture: TrustPosture },
-): EffectiveConfig {
-  return new EffectiveConfig(loadConfig({ ...withCliLayer(opts), posture: opts.posture }))
 }
 
 /**

@@ -59,19 +59,3 @@ export function foldLayers(
     accumulatingKeys,
   )
 }
-
-export function measuredPrecedenceChain(descendingWinners: readonly string[]): {
-  line: string
-  divergence: string | null
-} {
-  const declaredDescendant = [...LAYERS].reverse().map((c) => c.layer)
-  const measured = descendingWinners.join(' > ')
-  const declared = declaredDescendant.join(' > ')
-  if (measured !== declared) {
-    const divergence =
-      `the measured order (${measured || '(empty)'}) does not match the order declared in ` +
-      `\`agents/config/layers.ts\` (${declared})`
-    return { line: `**DIVERGENCE** — ${divergence}`, divergence }
-  }
-  return { line: [...declaredDescendant].reverse().join(' < '), divergence: null }
-}

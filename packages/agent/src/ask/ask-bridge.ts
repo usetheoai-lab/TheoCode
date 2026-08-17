@@ -124,8 +124,3 @@ export const setListener = (listener: () => void): (() => void) => {
   }
 }
 
-export {
-  ConcurrentListenerError,
-  ConcurrentQuestionError,
-  QuestionAbandonedError,
-} from '@theokit/agents/ask'
