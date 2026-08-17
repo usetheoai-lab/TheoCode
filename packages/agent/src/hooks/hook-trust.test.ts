@@ -7,7 +7,9 @@
  *
  * The consequence was the inverse of the fix. Directory trust — the cheaper decision — was gated,
  * and the hook-approval set was not. That set decides which command lines are pre-approved for
- * `spawn(cmd, { shell: true, detached: true })` (`hook-runner.ts:39`), and B-005's own docstring
+ * `spawn(cmd, { shell: true, detached: true })` (the framework's hook engine, reached through
+ * `build-handlers.ts`; this used to cite `hook-runner.ts:39`, a wrapper deleted once the builder
+ * moved upstream and left it without a production caller), and B-005's own docstring
  * names hook execution as the threat it defends against. B-005's own evidence field already cited
  * `hooks/hook-trust.ts`; the fix commit touched the file without routing it through the gate.
  *

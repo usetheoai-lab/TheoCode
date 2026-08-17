@@ -45,7 +45,7 @@ export interface AgentConfig {
   profile?: string
 }
 
-export const CONFIG_SCHEMA_KEYS = [
+const CONFIG_SCHEMA_KEYS = [
   'model',
   'reasoning_effort',
   'sandbox_mode',

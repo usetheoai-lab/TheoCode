@@ -2,12 +2,11 @@ import { Agent, buildModelSelection } from '@theokit/agents'
 import type { CustomTool, HookHandlers } from '@theokit/agents'
 
 import { hooksForMember } from '../delegation/index.js'
-// B-084 — re-exported, not aliased. This file used to export `TOOLS_DO_REVIEWER` as a
-// back-compat name pinned to the real one, and its own docstring set the sunset: "delete once
-// nothing outside this file reads it". Removing the Portuguese name IS that moment, and the one
-// consumer (`composition.test.ts`) reads it from here, so the re-export keeps that path alive
-// without a second identifier to drift.
-export { REVIEWER_TOOLS } from '../composition/agent-spec.js'
+// B-084's back-compat re-export of `REVIEWER_TOOLS` is gone. Its own comment set the sunset —
+// "delete once nothing outside this file reads it" — and the one reader was `composition.test.ts`,
+// which now imports the name from `composition/agent-spec.ts`, where it is declared and where
+// production reads it. A re-export whose only consumer is a test is surface the product does not
+// have.
 import { reviewerShape } from '../composition/agent-spec.js'
 
 import type { AgentConfig } from '../config/index.js'

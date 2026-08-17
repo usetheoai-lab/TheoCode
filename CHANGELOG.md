@@ -7,6 +7,89 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A dead-export gate runs in `npm run lint`, and `knip.jsonc` is committed with it (B-049).** The
+  configuration is the point, not the tool: under knip's defaults every `exports` subpath counts as
+  an entry, so every barrel is reachable by definition — measured on this tree, the default config
+  reported **1** issue and this one reported **28**. `includeEntryExports` is on for the same
+  reason, since every `index.ts` here is an entry and that is precisely where dead surface collects.
+  The gate was verified by injecting a dead export in an entry file and in a non-entry file and
+  confirming a non-zero exit for both; a gate nobody has seen fail is not known to work.
+
+### Removed
+
+- **Three functions nobody called, with their re-exports (B-033, B-049).** `mutateConsentStore`
+  (`config/trust-store.ts`), `measuredPrecedenceChain` (`config/layers.ts`) and
+  `effectiveConfigUnderPosture` (`config/effective-config.ts`). Each appeared exactly twice in the
+  repository — its definition and its barrel line — and in no test. `effectiveConfigUnderPosture` is
+  not a new find: B-033 shipped with the DoD bullet "has a caller or is deleted" and its own
+  `dod_verified` says "NOT addressed — belongs to B-049"; B-049 then shipped without addressing it.
+  Deleting `mutateConsentStore` cascaded into `ensurePrivateDir` and four now-unused imports, which
+  is the usual shape: dead code hides more of itself behind itself.
+- **Twelve barrel re-exports with no consumer, and four `export` keywords that widened nothing
+  (B-049).** The implementations stay — they are used inside their own packages — so this narrows
+  the declared surface without touching behaviour. `CONFIG_SCHEMA_KEYS`, `MissingCredentialError`
+  and `BackendComPosse` lost the `export` keyword itself, and the `Check` / `CheckStatus` /
+  `Diagnosis` type surface left the entrypoints; `doctor.ts`'s `CheckStatus` turned out to be unused
+  even in-module, contradicting the comment that claimed it was "retained because this module's own
+  checks are written in terms of it".
+- **`figlet` from `packages/tui`, closing a B-010 DoD bullet that shipped unmet (B-010).** That
+  bullet read "`figlet` is used (via `renderFigletArt`) or removed". `renderFigletArt` belongs to
+  `@theokit/tui`, and it is never called: it appears in that package only at its definition and in
+  its export list, `WelcomeBanner` does not produce art, and `Banner.tsx` passes a literal `LOGO`.
+  So the "or removed" branch is the true one. `lowlight`, the other half of the same bullet, STAYS —
+  see Fixed below.
+- **The `./chat-acp` subpath and the whole `exports` map of `packages/tui` (B-049).** Both are
+  reached by file path instead: `scripts.build:acp` runs esbuild against
+  `packages/agent/src/chat-acp.ts`, and `scripts.dev` starts the TUI with `tsx`. B-049 kept
+  `./chat-acp` deliberately, calling it "the external ACP integration surface"; the rationale does
+  not survive re-examination, because every package here is `private: true` and the external ACP
+  client consumes the `dist/acp-entry.mjs` bundle, never the subpath.
+- **`packages/agent/tests/`, an empty directory outside the test-discovery patterns.** It matched
+  neither `packages/*/src/**/*.test.{ts,tsx}` nor `tools/**/*.test.mjs`, so a test placed there
+  would have silently never run — a trap rather than clutter.
+- **`hooks/hook-runner.ts` and its test — 140 lines that no production code reached.** The wrapper
+  around the framework's `runHookCommand` lost its last caller when the whole builder moved upstream:
+  `build-handlers.ts` bridges to `buildHookHandlers`, which owns the result transform, so nothing
+  regresses. Its only importer was its own test, which is why neither the dead-export gate nor the
+  reference graph reported it — **a test is a consumer**. Found by asking a different question:
+  which production symbols have consumers, but only test ones. The stale citation of
+  `hook-runner.ts:39` in `hook-trust.test.ts` was repointed at the real path.
+- **The `REVIEWER_TOOLS` re-export in `review/create-agent.ts` (B-084).** Its own comment set the
+  sunset — "delete once nothing outside this file reads it" — and the one reader was
+  `composition.test.ts`. That test now imports the name from `composition/agent-spec.ts`, where it
+  is declared and where `reviewerShape` reads it. A re-export whose only consumer is the test that
+  consumes it is surface the product does not have.
+
+### Fixed
+
+- **`lowlight` was almost deleted as dead, and is not (B-010).** No file in this repository imports
+  it, which is why a repo-wide search calls it unused. It is reached at runtime through
+  `AgentTimeline` → `ChatMessage` → `MarkdownText` → `CodeBlock` → `import("lowlight")`, so every
+  assistant reply containing a fenced code block goes through it; without the declaration the
+  framework warns `code renders unhighlighted` and the TUI loses syntax highlighting silently.
+  Caught by reading `@theokit/tui`'s own loaders after the removal, not by any tool: `knip` and
+  `depcheck` both reported the dependencies clean, and on this one they were right. Recorded here
+  because "no import site" and "no consumer" are different claims, and the gate added above cannot
+  tell them apart.
+- **`vitest.config.ts` is inside the type program.** `tsconfig.json` included
+  `packages/*/src/**/*` and `tools/**/*`, which matched 258 of the repository's 259 TypeScript
+  files. The one exception was the test configuration itself, so a type error there survived
+  `npm run typecheck`. Now covered by a `*.config.ts` entry.
+- **The `check-english-only` allowlist citation, again.** The entry moved 76 → 156 when the `ask`
+  module was migrated, and 156 → 166 when this cleanup added an import above it. The comment now
+  records both moves and why the entry stays line-numbered: keying it by file alone would exempt the
+  whole file.
+- **A test that pinned a public export was invisible to static analysis (B-004).**
+  `ask-bridge.test.ts` asserted the entrypoint exports `ConcurrentQuestionError` by importing the
+  namespace and indexing it with a string, so the dead-export analysis read that export as
+  unconsumed and the cleanup removed it — only the assertion failing caught the mistake. The export
+  is restored, now re-exported straight from `@theokit/agents/ask` rather than through
+  `ask-bridge.ts` (that middle hop had no consumer of its own), and the test reaches it by a static
+  named import. Its two siblings, `ConcurrentListenerError` and `QuestionAbandonedError`, stay
+  removed: nothing imports them and nothing tests them.
+
 ### Fixed
 
 - **A fase CODE-QUALITY, rodada pela primeira vez nesta sequencia, achou quatro coisas — todas

@@ -77,7 +77,7 @@ export function ensureAuthHome(env: Record<string, string | undefined>, home: st
 
 export { CredentialError }
 
-export class MissingCredentialError extends CredentialError {
+class MissingCredentialError extends CredentialError {
   override readonly name = 'MissingCredentialError'
   readonly attempts: readonly string[]
   constructor(message: string, attempts: readonly string[]) {

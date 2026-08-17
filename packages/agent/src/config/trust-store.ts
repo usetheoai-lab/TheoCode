@@ -1,7 +1,6 @@
 import { TrustStore } from '@theokit/agents/config'
-import { atomicWriteJson, withFileLock } from '@theokit/agents/persistence'
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -66,19 +65,6 @@ function assertNotWritableByOthers(target: string, forbidden: number, remedy: st
   }
 }
 
-/** Create the store's directory private, and repair it when it already exists. */
-function ensurePrivateDir(store: string): void {
-  const dir = dirname(store)
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  // `mkdirSync({ mode })` is a no-op on an existing directory, and this one is SHARED with the SDK's
-  // transcript root, which creates it without a mode. Whoever got there first set the permissions.
-  try {
-    if ((statSync(dir).mode & 0o077) !== 0) chmodSync(dir, 0o700)
-  } catch {
-    // A directory we cannot stat is one we are about to fail on anyway, loudly, at write time.
-  }
-}
-
 /**
  * The one gated reader of the consent store. Exported because it is a gate, and a gate that only
  * one of two consumers can reach is not one: `hook-trust.ts` kept a private, ungated copy of this
@@ -99,23 +85,6 @@ function readDocument(store: string): Record<string, unknown> {
 
 
 
-export async function mutateConsentStore(
-  store: string,
-  mutate: (current: Record<string, unknown>) => Record<string, unknown> | undefined,
-): Promise<void> {
-  ensurePrivateDir(store)
-  await withFileLock(
-    store,
-    async () => {
-      const next = mutate(readDocument(store))
-      if (next === undefined) return
-      await atomicWriteJson(store, next, { mode: 0o600, exclusive: true })
-    },
-    WAIT_BUDGET,
-  )
-}
-
-const WAIT_BUDGET = { retries: 40, retryFactor: 1 } as const
 
 /**
  * Directory trust — a FACADE over the framework's `TrustStore` since 2026-08-15.

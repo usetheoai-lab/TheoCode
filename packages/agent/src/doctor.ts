@@ -26,10 +26,7 @@
  */
 import type { Check } from '@theokit/agents/doctor'
 
-export { diagnose, renderDiagnosis, type Check, type Diagnosis } from '@theokit/agents/doctor'
-
-/** Retained because this module's own checks are written in terms of it. */
-export type CheckStatus = Check['status']
+export { diagnose, renderDiagnosis } from '@theokit/agents/doctor'
 
 /**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an

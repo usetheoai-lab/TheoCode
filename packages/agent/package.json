@@ -7,7 +7,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat.ts",
-    "./chat-acp": "./src/chat-acp.ts",
     "./ask": "./src/ask/index.ts",
     "./auth": "./src/auth/index.ts",
     "./config": "./src/config/index.ts",

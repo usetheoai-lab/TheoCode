@@ -8,7 +8,9 @@ import tseslint from 'typescript-eslint'
  * each one freezes a good state instead of announcing debt.
  */
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**'] },
+  // `deadcode-output/` is the loop-deadcode-audit plugin's working directory (gitignored, like
+  // `code-review-output`). Its scripts are throwaway analysis tooling, not project source.
+  { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // `tools/` and the dependency-cruiser config are Node CommonJS/ESM build scripts, not app source:
