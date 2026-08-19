@@ -7,6 +7,20 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The session GC's refusal to delete a live session is now covered by a test that can fail
+  (B-017).** Neutralising the guard used to leave all 534 tests green, while
+  `theocode sessions --apply` reaches it and deleting a user's live pointer is unrecoverable. The
+  tests assert the delete seam is never CALLED for a protected id — asserting only that an error is
+  reported passes against a version that deletes the session and complains about it.
+- **The veto that keeps the agent off the unsandboxed builtin shell is now covered (B-017).** It is
+  wired at `chat.ts:245` and no test imported it; a regression would have surfaced as a write that
+  ignored `--sandbox read-only`, in the field. The pass-through case asserts the previous handler's
+  return VALUE, so a wrapper that calls the chain and discards its decision is caught.
+
+  Both suites were verified by mutation rather than by existing: 11 mutants, 11 detected.
+
 ## [0.3.0] - 2026-08-19
 
 ### Added
