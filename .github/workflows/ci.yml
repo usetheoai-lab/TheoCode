@@ -61,8 +61,25 @@ jobs:
       # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
       # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
       # report.
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
-        timeout-minutes: 4
+      - name: Install word lists (retried — the mirror stalls silently)
+        run: |
+          set -u
+          for attempt in 1 2 3; do
+            # `timeout` per ATTEMPT, not per step: the observed failure is a silent stall with
+            # zero output, so a whole-step ceiling only tells us it died, never lets it recover.
+            if timeout 90 sudo apt-get update -qq \
+               && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
+              echo "word lists installed on attempt ${attempt}"
+              exit 0
+            fi
+            echo "attempt ${attempt} failed or stalled; backing off" >&2
+            sleep $((attempt * 15))
+          done
+          echo "::error::apt could not provide wamerican/wbrazilian after 3 attempts." >&2
+          echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
+          echo "job is RED rather than silently skipping the language gate." >&2
+          exit 1
+        timeout-minutes: 8
       - run: npm ci
       - run: npm test
 
@@ -87,8 +104,25 @@ jobs:
       # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
       # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
       # report.
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
-        timeout-minutes: 4
+      - name: Install word lists (retried — the mirror stalls silently)
+        run: |
+          set -u
+          for attempt in 1 2 3; do
+            # `timeout` per ATTEMPT, not per step: the observed failure is a silent stall with
+            # zero output, so a whole-step ceiling only tells us it died, never lets it recover.
+            if timeout 90 sudo apt-get update -qq \
+               && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
+              echo "word lists installed on attempt ${attempt}"
+              exit 0
+            fi
+            echo "attempt ${attempt} failed or stalled; backing off" >&2
+            sleep $((attempt * 15))
+          done
+          echo "::error::apt could not provide wamerican/wbrazilian after 3 attempts." >&2
+          echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
+          echo "job is RED rather than silently skipping the language gate." >&2
+          exit 1
+        timeout-minutes: 8
       - run: npm ci
       - run: npm run lint
 
