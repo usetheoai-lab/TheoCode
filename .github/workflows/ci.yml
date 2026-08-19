@@ -47,6 +47,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
+      # them — "a guard that passes when it cannot check is worse than no guard, because it is
+      # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
+      # the gate was passing locally and failing here. Declaring the dependency is the fix;
+      # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
       - run: npm ci
       - run: npm test
 
@@ -58,6 +64,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
+      # them — "a guard that passes when it cannot check is worse than no guard, because it is
+      # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
+      # the gate was passing locally and failing here. Declaring the dependency is the fix;
+      # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
       - run: npm ci
       - run: npm run lint
 
