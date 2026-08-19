@@ -7,6 +7,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-08-19
+
 ### Changed
 
 - **CI's five checks are documented as NOT required, with the measurement that proves it (B-062).**
