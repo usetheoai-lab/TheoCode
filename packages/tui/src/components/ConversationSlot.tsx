@@ -1,7 +1,13 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react'
 import { homedir } from 'node:os'
 
-import { type ChatComposerCommand, ChatComposer, FreeTextInput } from '@theokit/tui'
+import {
+  type ChatComposerCommand,
+  type SurfaceLayer,
+  ChatComposer,
+  FreeTextInput,
+  selectSurface,
+} from '@theokit/tui'
 
 import { abandonQuestion, answerQuestion } from '@theocode/agent/ask'
 import { login } from '@theocode/agent/auth'
@@ -116,60 +122,89 @@ export interface ConversationSlotProps {
   readonly setShowHelp: Dispatch<SetStateAction<boolean>>
 }
 
-export function ConversationSlot({
-  customCommands,
-  loginProvider,
-  pendingQuestion,
-  mode,
-  elapsed,
-  exitArmed,
-  clearEpoch,
-  lastUsage,
-  backtrack,
-  currentSessionId,
-  handleSubmit,
-  backToChat,
-  setToast,
-  setComposerText,
-  setPendingQuestion,
-  setLoginProvider,
-  setShowHelp,
-}: ConversationSlotProps): ReactElement {
-  return (
-    <>
-      {loginProvider !== undefined ? (
-        <CredentialField
-          provider={loginProvider}
-          setToast={setToast}
-          setLoginProvider={setLoginProvider}
-        />
-      ) : pendingQuestion !== undefined ? (
-        <AgentQuestion
-          question={pendingQuestion}
-          currentSessionId={currentSessionId}
-          setPendingQuestion={setPendingQuestion}
-        />
-      ) : mode !== 'chat' ? (
+/**
+ * Which surface the conversation slot draws, in precedence order — read top to bottom.
+ *
+ * B-008 — the inner half of the same rewrite as `INPUT_LAYERS`. All three conditions are
+ * independent props, so ANY pair can hold at once and the order is the only thing that decides.
+ * That is exactly the case a nested ternary answers silently.
+ *
+ * Two lists rather than one flat list of seven (ADR D2): this component receives a narrower prop
+ * set, and flattening would force the outer file to know these props. The nesting survives as one
+ * declared hop — the outer list's last layer renders this component.
+ */
+/**
+ * `DemoSurface` takes `Exclude<Mode, 'chat'>`, and a TYPE GUARD is what carries that across the
+ * layer boundary.
+ *
+ * The ternary got this narrowing for free: `mode !== 'chat' ? <DemoSurface mode={mode} …>` told
+ * TypeScript, in one expression, both that the branch applies and what `mode` is inside it. A
+ * layer splits those into two functions, and `SurfaceLayer.when` is typed `(state: S) => boolean`
+ * — a boolean carries no narrowing, so `render` still sees the wide `Mode`.
+ *
+ * Naming the guard once and using it on BOTH sides keeps the invariant checked rather than cast.
+ * The `null` branch in `render` is unreachable while `when` uses the same guard; it is written
+ * out instead of asserted away because an `as` there would be the one place a future edit to
+ * `when` could silently produce a `DemoSurface` with `mode === 'chat'`.
+ */
+const isDemoMode = (mode: Mode): mode is Exclude<Mode, 'chat'> => mode !== 'chat'
+
+export const CONVERSATION_LAYERS: readonly SurfaceLayer<ConversationSlotProps>[] = [
+  {
+    name: 'credential',
+    when: (p) => p.loginProvider !== undefined,
+    render: (p) => (
+      <CredentialField
+        provider={p.loginProvider as string}
+        setToast={p.setToast}
+        setLoginProvider={p.setLoginProvider}
+      />
+    ),
+  },
+  {
+    name: 'question',
+    when: (p) => p.pendingQuestion !== undefined,
+    render: (p) => (
+      <AgentQuestion
+        question={p.pendingQuestion as string}
+        currentSessionId={p.currentSessionId}
+        setPendingQuestion={p.setPendingQuestion}
+      />
+    ),
+  },
+  {
+    name: 'demo',
+    when: (p) => isDemoMode(p.mode),
+    render: (p) =>
+      isDemoMode(p.mode) ? (
         <DemoSurface
-          mode={mode}
-          elapsed={elapsed}
-          tokens={lastUsage?.totalTokens}
-          onComplete={backToChat}
-          onToast={setToast}
+          mode={p.mode}
+          elapsed={p.elapsed}
+          tokens={p.lastUsage?.totalTokens}
+          onComplete={p.backToChat}
+          onToast={p.setToast}
         />
-      ) : (
-        <ChatComposer
-          key={clearEpoch}
-          initialValue={backtrack.composerSeed}
-          onChange={setComposerText}
-          placeholder={PLACEHOLDER}
-          bordered
-          hint={exitArmed ? 'Press Ctrl+C again to quit' : undefined}
-          commands={composerCommands(customCommands)}
-          onHelpToggle={() => setShowHelp((h) => !h)}
-          onSubmit={handleSubmit}
-        />
-      )}
-    </>
-  )
+      ) : null,
+  },
+  {
+    name: 'composer',
+    when: () => true,
+    render: (p) => (
+      <ChatComposer
+        key={p.clearEpoch}
+        initialValue={p.backtrack.composerSeed}
+        onChange={p.setComposerText}
+        placeholder={PLACEHOLDER}
+        bordered
+        hint={p.exitArmed ? 'Press Ctrl+C again to quit' : undefined}
+        commands={composerCommands(p.customCommands)}
+        onHelpToggle={() => p.setShowHelp((h) => !h)}
+        onSubmit={p.handleSubmit}
+      />
+    ),
+  },
+]
+
+export function ConversationSlot(props: ConversationSlotProps): ReactElement {
+  return <>{selectSurface(CONVERSATION_LAYERS, props).render()}</>
 }
