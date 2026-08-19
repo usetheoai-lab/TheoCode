@@ -12,6 +12,50 @@
 #
 # Five jobs rather than one: a single job stops at the first failure and hides the other four.
 # Each pays its own `npm ci`, which is the price of independent red/green.
+#
+# ---------------------------------------------------------------------------------------------
+# B-062: THESE FIVE CHECKS ARE NOT REQUIRED. NOTHING HERE BLOCKS A MERGE.
+#
+# Read "blocking" above in its narrow sense: no job reports a failure as a pass. It does NOT mean
+# GitHub refuses the merge. It does not, and cannot at this tier. Measured 2026-08-19 with a token
+# holding `permissions.admin: true` on this repository:
+#
+#   gh api repos/usetheoai-lab/TheoCode/branches/develop/protection
+#     403  Upgrade to GitHub Pro or make this repository public to enable this feature.
+#   gh api repos/usetheoai-lab/TheoCode/branches/main/protection
+#     403  Upgrade to GitHub Pro or make this repository public to enable this feature.
+#   gh api repos/usetheoai-lab/TheoCode/rulesets
+#     403  Upgrade to GitHub Pro or make this repository public to enable this feature.
+#   gh api orgs/usetheoai-lab/rulesets
+#     403  Upgrade to GitHub Team to enable this feature.
+#
+# Rulesets are the newer mechanism and were measured, not assumed: refused on all three surfaces.
+# There is no free-tier route to a required check on a private repository. It is a billing wall,
+# not a permission we lack and not a file we forgot to write — `main` is as unprotected as
+# `develop`.
+#
+# What holds the line today is a person waiting for five green ticks. Surveyed at the same time:
+# ten merged PRs (#25-#49), none merged red, and the six most recent merged 20-49 seconds after the
+# last check completed. Correct practice, entirely unenforced. There is no compensating local layer
+# either — `core.hooksPath` is unset and `.git/hooks` holds only samples.
+#
+# Three ways out, and NONE has been chosen:
+#   * buy GitHub Team for `usetheoai-lab` — the tier the org-ruleset refusal names. No price is
+#     quoted here because this measurement did not take one, and inventing one would be fabrication
+#   * make this repository public — removes the wall for free, and is irreversible in practice:
+#     the full history becomes readable. A disclosure decision, not a CI one
+#   * accept the gap — which is where we are by default, not by decision
+#
+# The choice costs money or discloses source and belongs to the account owner, so this file records
+# the state of the decision rather than making it. This comment is NOT an approval of the gap.
+#
+# FALSIFIER — one ungated command, true of a private repo under a free org and of nothing else:
+#
+#   gh api repos/usetheoai-lab/TheoCode/branches --jq \'.[] | {name, protected}\'
+#
+# It reports `protected: false` for every branch today. The moment it reports anything else, the
+# tier or the visibility changed and this stanza is stale. Nothing runs it automatically.
+# ---------------------------------------------------------------------------------------------
 
 name: CI
 
