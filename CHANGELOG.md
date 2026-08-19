@@ -8,6 +8,25 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 
+## [0.4.4] - 2026-08-19
+
+### Changed
+
+- **The context warning's rise detection comes from `@theokit/tui` (B-012).** `useContextWarning`
+  now calls `useRisingEdge`; the eight hand-written lines it replaces had two failure modes the
+  library's docstring enumerates, both of which show up as *the warning does not appear*.
+
+  Three owners, one fact each: `@theokit/agents/config` classifies the pressure,
+  `@theokit/tui` detects the rise, and `contextWarning` — which names `/compact` and says what
+  compaction costs — stays here, because a framework that wrote it would be putting words in this
+  product's mouth.
+
+  **An absent usage reading now explicitly HOLDS the last level.** The tempting adoption maps it
+  to `ok`, and `ok` is a fall, which re-arms the detector — so the next reading would warn a second
+  time for a level the user had already been told about. The existing test drove an absent reading
+  only at the start and would have stayed green through exactly that. The new one drives it
+  mid-stream, and it is the only test that fails against the wrong version.
+
 ## [0.4.3] - 2026-08-19
 
 ### Changed
