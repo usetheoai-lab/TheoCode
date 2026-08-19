@@ -10,7 +10,7 @@ import {
 } from './transcript-commands.js'
 import { join } from 'node:path'
 
-import { CLEAR_SCREEN } from '../terminal-io/index.js'
+import { CLEAR_SCREEN_AND_SCROLLBACK } from '@theokit/tui/terminal'
 import {
   handleApprovalMode,
   handleCustomCommand,
@@ -100,7 +100,7 @@ function sessionAndScreen(
       goalAbort.current = null
       setGoalRun(null)
       setGoalFeed(null)
-      stdout?.write(CLEAR_SCREEN)
+      stdout?.write(CLEAR_SCREEN_AND_SCROLLBACK)
       setClearEpoch((e) => e + 1)
       return true
     case 'effort':
