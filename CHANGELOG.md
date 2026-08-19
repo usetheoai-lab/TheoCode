@@ -9,6 +9,23 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The backtrack overlay windows through `@theokit/tui`'s `WindowedList` (B-004).**
+  `windowAroundSelection` — 25 lines of hand-rolled centred windowing — is deleted, and
+  `BacktrackOverlay` goes from 91 lines to 45.
+
+  The fork was deliberate and its own test recorded the two conditions under which it would end:
+  the library's `windowFor` was a trailing window, and it reported overflow as booleans where the
+  overlay needs counts. Both now hold, so the record's expiry arrived.
+
+  **The hidden-row markers now read `▲ 8` / `▼ 7` instead of `… 8 older` / `… 7 newer`** — a
+  deliberate, user-visible change, not a side effect: the arrows are the compact conventional form
+  and this overlay already carries a wordy header. What the overlay needed and the library does not
+  draw is kept rather than lost: the rounded border (the consumer's own `Box`), the per-row numbers
+  the header's "message 11/20" refers to (formatted into the rows), and the header's own gesture
+  words (the `header` slot, which exists so the library never puts them in its mouth).
+
+### Changed
+
 - **The usage panel comes from `@theokit/tui` instead of a local copy (B-002).** The 31-line
   `components/UsagePanel.tsx` composed three primitives it already imported from the library — which
   is exactly the composition the library extracted and published. It is deleted, and
