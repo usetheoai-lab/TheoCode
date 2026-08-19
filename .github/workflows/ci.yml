@@ -61,12 +61,34 @@ jobs:
       # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
       # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
       # report.
-      - name: Install word lists (retried — the mirror stalls silently)
+      - name: Provide word lists (skip apt when the image already has them)
         run: |
           set -u
+          # B-073 — ASK BEFORE INSTALLING. `check-english-only.mjs` accepts any of these paths, and
+          # the runner image may already carry one; three consecutive runs on 2026-08-19 exhausted
+          # every apt retry against a mirror that stalls with zero output, so an install we do not
+          # need is an outage we do not need to survive. This also prints what IS present, which is
+          # the measurement the workflow never made.
+          echo "--- dictionaries present before any install:"
+          ls -1 /usr/share/dict/ 2>/dev/null || echo "  (no /usr/share/dict)"
+          ls -1 /usr/share/hunspell/ 2>/dev/null || echo "  (no /usr/share/hunspell)"
+
+          have_en=0; have_pt=0
+          for f in /usr/share/dict/american-english /usr/share/dict/words /usr/share/hunspell/en_US.dic; do
+            [ -s "$f" ] && have_en=1
+          done
+          for f in /usr/share/dict/brazilian /usr/share/dict/portuguese /usr/share/hunspell/pt_BR.dic; do
+            [ -s "$f" ] && have_pt=1
+          done
+          if [ "$have_en" = 1 ] && [ "$have_pt" = 1 ]; then
+            echo "both dictionaries already present — apt not needed"
+            exit 0
+          fi
+          echo "missing (en=$have_en pt=$have_pt) — installing"
+
           for attempt in 1 2 3; do
-            # `timeout` per ATTEMPT, not per step: the observed failure is a silent stall with
-            # zero output, so a whole-step ceiling only tells us it died, never lets it recover.
+            # `timeout` per ATTEMPT, not per step: the failure is a silent stall with zero output,
+            # so a whole-step ceiling can only report the death, never recover from it.
             if timeout 90 sudo apt-get update -qq \
                && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
               echo "word lists installed on attempt ${attempt}"
@@ -104,12 +126,34 @@ jobs:
       # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
       # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
       # report.
-      - name: Install word lists (retried — the mirror stalls silently)
+      - name: Provide word lists (skip apt when the image already has them)
         run: |
           set -u
+          # B-073 — ASK BEFORE INSTALLING. `check-english-only.mjs` accepts any of these paths, and
+          # the runner image may already carry one; three consecutive runs on 2026-08-19 exhausted
+          # every apt retry against a mirror that stalls with zero output, so an install we do not
+          # need is an outage we do not need to survive. This also prints what IS present, which is
+          # the measurement the workflow never made.
+          echo "--- dictionaries present before any install:"
+          ls -1 /usr/share/dict/ 2>/dev/null || echo "  (no /usr/share/dict)"
+          ls -1 /usr/share/hunspell/ 2>/dev/null || echo "  (no /usr/share/hunspell)"
+
+          have_en=0; have_pt=0
+          for f in /usr/share/dict/american-english /usr/share/dict/words /usr/share/hunspell/en_US.dic; do
+            [ -s "$f" ] && have_en=1
+          done
+          for f in /usr/share/dict/brazilian /usr/share/dict/portuguese /usr/share/hunspell/pt_BR.dic; do
+            [ -s "$f" ] && have_pt=1
+          done
+          if [ "$have_en" = 1 ] && [ "$have_pt" = 1 ]; then
+            echo "both dictionaries already present — apt not needed"
+            exit 0
+          fi
+          echo "missing (en=$have_en pt=$have_pt) — installing"
+
           for attempt in 1 2 3; do
-            # `timeout` per ATTEMPT, not per step: the observed failure is a silent stall with
-            # zero output, so a whole-step ceiling only tells us it died, never lets it recover.
+            # `timeout` per ATTEMPT, not per step: the failure is a silent stall with zero output,
+            # so a whole-step ceiling can only report the death, never recover from it.
             if timeout 90 sudo apt-get update -qq \
                && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
               echo "word lists installed on attempt ${attempt}"

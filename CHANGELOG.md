@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.4.3] - 2026-08-19
+
 ### Changed
 
 - **The frame budget comes from `@theokit/tui` (B-010).** `rendering/coalesced-memo.ts` (79 lines)
@@ -25,7 +28,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   also what ink receives as `maxFps`. The window is now computed by `coalesceWindowMs(TUI_MAX_FPS)`
   and passed explicitly, with three tests pinning the derivation — including one that fails for a
   hardcoded 34.
-
 
 ## [0.4.2] - 2026-08-19
 
