@@ -9,11 +9,12 @@ import {
   Notice,
   Toast,
   UsagePanel,
+  composerShortcutsFor,
 } from '@theokit/tui'
 import { BacktrackOverlay } from '../backtrack/index.js'
 import { KeyboardHelp } from '@theokit/tui'
 
-import { composerShortcuts } from './composer-shortcuts.js'
+import { THIS_BUILD } from './composer-capabilities.js'
 
 import { formatTurnError } from '../formatting/index.js'
 import { THINKING_PHRASES } from '../theme.js'
@@ -80,9 +81,9 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
       {props.showHelp ? (
         <KeyboardHelp
           shortcuts={[
-            // B-028 — `shell: false` because `ChatComposer` below is not given `onShellCommand`.
-            // See `composer-shortcuts.ts` for why wiring it is a separate, security-relevant call.
-            ...composerShortcuts({ shell: false }),
+            // B-028 / B-006 — the rows THIS build wires, derived by the library from the
+            // declaration in `composer-capabilities.ts`. `shell` is absent there by ADR 0001.
+            ...composerShortcutsFor(THIS_BUILD),
             ...[...props.customCommands.values()].map((c) => ({
               keys: `/${c.name}${c.hints.length > 0 ? ` ${c.hints.join(' ')}` : ''}`,
               description: c.description ?? 'custom command',

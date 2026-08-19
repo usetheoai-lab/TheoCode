@@ -7,9 +7,13 @@
  * has never built (B-072 is that capability; it does not exist yet).
  *
  * That is the same defect B-028 closed for the `!` shell shortcut, arriving through a channel
- * B-028's filter cannot observe. `composerShortcuts()` filters the toolkit's SHORTCUT LIST by
+ * B-028's filter cannot observe. That filter read the toolkit's SHORTCUT LIST and gated it by
  * capability; nothing filtered the toolkit's FOOTER HINT, and its docstring claimed a scope
  * ("the next unwired shortcut cannot be advertised either") that only ever covered the list.
+ *
+ * B-006 — both channels are now derived by `@theokit/tui` (`composerShortcutsFor` /
+ * `footerHintFor`) from one declaration in `composer-capabilities.ts`. These tests did not move
+ * and were not edited: they assert the rendered frame, so they are the migration's proof.
  *
  * These tests assert what the user READS, not what this app passes — so a hint supplied by the
  * toolkit's default, by a future toolkit version, or by us turns them red the same way.
