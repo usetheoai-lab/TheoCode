@@ -7,6 +7,25 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The frame budget comes from `@theokit/tui` (B-010).** `rendering/coalesced-memo.ts` (79 lines)
+  and its test (60 lines) are deleted; `use-timeline.ts` consumes `useCoalesced`, whose suite
+  covers every assertion the local test pinned plus four the local suite never had — a backward
+  clock jump, a zero window, screen-reader passthrough, and the trailing update.
+
+  The deleted `test_the_clock_is_monotonic_non_decreasing`, whose detection power was
+  mutation-verified under B-030, is replaced by
+  `src/renderer/frame-budget.test.ts` `test_the_default_clock_is_performance_now_and_not_Date_now`
+  upstream. It is named here so the question "what happened to that assertion?" has an answer.
+
+  **`frame-budget.ts` survives, and that is the point of the change.** The library's default window
+  is 34ms, which equals `ceil(1000 / 30)` — but only while `TUI_MAX_FPS` is 30. Taking the default
+  would convert one derived pair into two constants that agree by coincidence, and `TUI_MAX_FPS` is
+  also what ink receives as `maxFps`. The window is now computed by `coalesceWindowMs(TUI_MAX_FPS)`
+  and passed explicitly, with three tests pinning the derivation — including one that fails for a
+  hardcoded 34.
+
 
 ## [0.4.2] - 2026-08-19
 
