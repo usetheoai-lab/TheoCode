@@ -30,6 +30,7 @@ concurrency:
 jobs:
   typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,6 +42,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,12 +54,21 @@ jobs:
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
       # the gate was passing locally and failing here. Declaring the dependency is the fix;
       # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      # B-073 — bounded because it hung. Measured 2026-08-19 on run 32269423670: this step sat
+      # `in_progress` for 21 minutes with no output and did not respond to a cancel, blocking a PR
+      # whose other four jobs were green in under two minutes. It is the only step here that talks
+      # to a network mirror, so it is the only one that can hang on something outside this repo.
+      # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
+      # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
+      # report.
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
+        timeout-minutes: 4
       - run: npm ci
       - run: npm test
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,12 +80,21 @@ jobs:
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
       # the gate was passing locally and failing here. Declaring the dependency is the fix;
       # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      # B-073 — bounded because it hung. Measured 2026-08-19 on run 32269423670: this step sat
+      # `in_progress` for 21 minutes with no output and did not respond to a cancel, blocking a PR
+      # whose other four jobs were green in under two minutes. It is the only step here that talks
+      # to a network mirror, so it is the only one that can hang on something outside this repo.
+      # A ceiling turns an indefinite block into a fast red, which is the whole of fail-fast
+      # (`rules/error-handling.md` § 1): a gate that can hang forever is a gate nobody can trust to
+      # report.
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
+        timeout-minutes: 4
       - run: npm ci
       - run: npm run lint
 
   depcruise:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -86,6 +106,7 @@ jobs:
 
   crossval:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # `fetch-depth: 0` is load-bearing: the check resolves every `fixed_in` sha against the
       # history. A shallow clone makes real commits look like fabricated ones.
