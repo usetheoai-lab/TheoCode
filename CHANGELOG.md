@@ -7,17 +7,41 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+
+## [0.4.1] - 2026-08-19
 
 ### Changed
 
-### Deprecated
+- **Both advertising channels are derived by `@theokit/tui` from one declaration (B-006).**
+  `components/composer-shortcuts.ts` (72 lines) is deleted; `composerShortcutsFor` and
+  `footerHintFor` — the derivation the library extracted in B-005 — replace it, reading a single
+  `THIS_BUILD` declaration in `components/composer-capabilities.ts`.
 
-### Removed
+  **The adoption was not a pure deletion, and that is the finding.** The library gates four keys
+  where the local filter gated one, so a minimal declaration would have silently dropped the `?`,
+  `/` and `@` rows. Each was measured at the app's `<ChatComposer/>` instead of assumed.
+
+  **`mentions` is declared `true` although this app passes no `fileSearch`.** `ChatComposer`
+  declares `fileSearch = defaultFileSearch`, so omitting the prop installs a `.gitignore`-aware cwd
+  walk rather than disabling mentions — the `@` menu works. The library's own field docstring says
+  "a mention provider is passed", which is the predicate the code does not use; following it
+  literally would hide a working affordance, the inverse of the defect this model exists to
+  prevent. The upstream correction is tracked separately.
+
+  `!` stays unadvertised (ADR 0001) and `← for agents` stays unadvertised (B-067). The three B-028
+  tests changed only their CALL, never an assertion, and the `SessionFooter` tests were not touched
+  at all — they assert the rendered frame, which is what makes them the migration's proof.
+
 
 ### Fixed
 
-### Security
+- **CI could hang indefinitely on one network step, and now cannot (B-073).** The word-list
+  install had no time ceiling anywhere in the workflow; measured on run `32269423670` it sat
+  in-progress for 21 minutes with zero output and did not respond to a cancel, while the other
+  four jobs finished green in under two. Every job now declares a ceiling, and the install
+  retries three bounded attempts with backoff — the stall is silent, so a whole-step timeout
+  could only report the death, never recover from it. If all three attempts fail the job is RED:
+  the language gate fails closed by design and is never silently skipped.
 
 ## [0.4.0] - 2026-08-19
 

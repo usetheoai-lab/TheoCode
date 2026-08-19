@@ -2,19 +2,13 @@ import type { ReactElement } from 'react'
 
 import { Text } from 'ink'
 
-import { StatusFooter } from '@theokit/tui'
+import { StatusFooter, footerHintFor } from '@theokit/tui'
 
 import { contextPressure, fmtK } from '../formatting/index.js'
-import { footerHint } from './composer-shortcuts.js'
+import { AGENTS_PANEL_WIRED } from './composer-capabilities.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
 import type { ApprovalMode } from '../consent/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
-
-/**
- * B-067 — this build has no agents panel behind `←`. Flips to `true` in the same commit that wires
- * one (B-072), never before: the footer is not the place to announce intent.
- */
-const AGENTS_PANEL_WIRED = false
 
 /**
  * B-076 — the sandbox the AGENT was built with, falling back to config before the first turn.
@@ -82,7 +76,7 @@ export function SessionFooter(props: FooterProps): ReactElement {
       }
       // B-067 — never `undefined`: that reaches `StatusFooter`'s default parameter, which
       // advertises every affordance the toolkit can do rather than the ones this build wires.
-      hint={footerHint({ shortcuts: props.shortcutsAvailable, agents: AGENTS_PANEL_WIRED })}
+      hint={footerHintFor({ shortcuts: props.shortcutsAvailable, agents: AGENTS_PANEL_WIRED })}
     />
   )
 }
