@@ -52,6 +52,16 @@ describe('B-080 — useContextWarning', () => {
     expect(drive([10, 95, 20, 95])).toHaveLength(2)
   })
 
+  it('test_an_absent_reading_mid_stream_does_not_re_arm', () => {
+    // B-012 — written BEFORE the rewrite, to fail the WRONG version of it.
+    //
+    // An absent reading is NO INFORMATION. The tempting adoption maps `undefined` to `'ok'`, and
+    // `'ok'` is a FALL, which re-arms the detector — so 82 would warn a second time for a level
+    // the user was already told about. The test below it drives `[undefined, undefined]`, absent
+    // at the START, and would stay green through exactly that regression.
+    expect(drive([10, 80, undefined, 82])).toHaveLength(1)
+  })
+
   it('test_an_absent_usage_reading_is_not_a_signal', () => {
     // Before the first turn there is no usage. Treating undefined as zero would be harmless here
     // and treating it as full would be an alarm on every startup.
