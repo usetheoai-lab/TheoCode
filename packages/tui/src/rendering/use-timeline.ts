@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 
-import { readTurnUsage, type UIMessageLike } from '@theokit/tui'
+import { readTurnUsage, useCoalesced, type UIMessageLike } from '@theokit/tui'
 
 import { AGENT } from '@theocode/shared/agent'
 import { formatToolHeader, formatToolResult } from '../formatting/index.js'
 import { latestUsage } from '../formatting/index.js'
-import { useCoalescedMemo } from './coalesced-memo.js'
-import { COALESCE_WINDOW_MS } from './frame-budget.js'
+import { TUI_MAX_FPS, coalesceWindowMs } from './frame-budget.js'
 import { deriveTimeline, prepareThread } from './timeline-memo.js'
 
 interface AgentWithThread {
@@ -31,14 +30,16 @@ export function useTimeline(agent: AgentWithThread, resumed: boolean): TuiTimeli
       },
     ],
   }
-  const events = useCoalescedMemo(
+  const events = useCoalesced(
     () =>
       deriveTimeline([greeting, ...prepareThread(agent.thread)], {
         formatToolHeader,
         formatToolResult,
       }),
     agent.thread,
-    COALESCE_WINDOW_MS,
+    // Explicit rather than defaulted: the library's 34ms equals ceil(1000/30) only while
+    // TUI_MAX_FPS is 30, and the window must follow the frame rate rather than shadow it.
+    { windowMs: coalesceWindowMs(TUI_MAX_FPS) },
   )
   const lastUsage = useMemo(() => latestUsage(agent.thread, readTurnUsage), [agent.thread])
   return { events, lastUsage }
