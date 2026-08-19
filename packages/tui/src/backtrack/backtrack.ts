@@ -1,4 +1,4 @@
-import { CLEAR_SCREEN } from '../terminal-io/index.js'
+import { CLEAR_SCREEN_AND_SCROLLBACK } from '@theokit/tui/terminal'
 import { randomUUID } from 'node:crypto'
 
 import { homedir } from 'node:os'
@@ -98,7 +98,7 @@ export async function confirmBacktrack(
     try {
       setSessionAndPersist(newId)
       agent.reset()
-      stdout?.write(CLEAR_SCREEN)
+      stdout?.write(CLEAR_SCREEN_AND_SCROLLBACK)
       setComposerSeed(out.selectedText ?? '')
       setClearEpoch((e) => e + 1)
     } catch (e) {
