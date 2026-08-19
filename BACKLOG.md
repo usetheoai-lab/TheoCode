@@ -3518,6 +3518,7 @@ shipped: |
 
   5 mutations detected.
 status: shipped
+fixed_in: @theokit/sdk@4.51.0 (guardSessionDestruction)
 severity: major
 dod:
   - `@theokit/agents` exposes session list / resume / archive / delete / fork with the
@@ -3644,6 +3645,7 @@ consumer_migrated: |
 
   REMAINING in B-097: nothing. All three DoD bullets hold.
 status: shipped
+fixed_in: @theokit/sdk@4.47.0 (the layer fold, three slices)
 severity: major
 dod:
   - the framework provides layered resolution with declared precedence and a trust posture that
@@ -3688,6 +3690,7 @@ shipped: |
 
   7 mutations detected.
 status: shipped
+fixed_in: @theokit/sdk@4.51.0 (decideApproval)
 severity: major
 dod:
   - approval modes and the per-tool gate are a framework contract, with the veto reaching the
@@ -3732,6 +3735,7 @@ shipped: |
 
   6 mutations detected.
 status: shipped
+fixed_in: @theokit/sdk@4.51.0 (describeCredential)
 severity: major
 dod:
   - the framework resolves model → credential, including OAuth refresh, as a documented contract
@@ -3825,6 +3829,7 @@ shipped: |
 
   12 mutations detected across the two modules.
 status: shipped
+fixed_in: @theokit/sdk (evaluateBlastRadius — no version recorded at closure)
 severity: major
 dod:
   - a tool can declare the scope it acts on and the reversibility of its action, and the approval
@@ -3901,6 +3906,7 @@ shipped: |
 
   3 mutations detected, including the central one: making the failure silent again.
 status: shipped
+fixed_in: @theokit/sdk@4.51.1 (diagFailure)
 severity: minor
 dod:
   - the in-process and HTTP entry points are checked against each other for field parity, so a
@@ -4014,6 +4020,7 @@ kill_reason: |
   2026-08-11). The proposed consumer migration is refuted on capability, not deferred. The one
   verified residual is registered as B-127.
 status: killed
+fixed_in: (decision) — KILLED 2026-08-11 on measurement against @theokit/sdk@4.49.0
 severity: major
 evidence_measured: |
   MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
@@ -4167,6 +4174,7 @@ slice_2_shipped: |
 
   6 mutations on the consumer's declaration, all detected, including a real reorder.
 status: shipped
+fixed_in: @theokit/tui@0.52.0 (the deferred slice)
 severity: major
 dod:
   - `@theokit/tui` exposes the terminal loop as primitives: a keypress→action router whose state is
@@ -4227,6 +4235,7 @@ outcome: |
 
      Not a case of "nobody has looked" after all — the item's premise on this point is refuted.
 status: shipped
+fixed_in: (decision) — closed 2026-08-11; events.ts deliberately NOT replaced, filed upstream as B-123; @theokit/agents@7.5.0
 severity: minor
 dod:
   - a measurement states whether `presenter` covers the Codex-shaped JSONL contract, naming the gap
@@ -4332,6 +4341,7 @@ shipped: |
   That is a consumer slice with its own risk, and B-103 is the standing precedent for not assuming a
   migration is warranted before comparing capabilities.
 status: shipped
+fixed_in: @theokit/sdk@4.50.0 (planReaping)
 severity: major
 dod:
   - the framework reaps the artifacts it creates: retention window, keep-last, the writer lease
@@ -4436,6 +4446,7 @@ outcome_b_resolved: |
 
   10 cases in the framework, seven mutations all detected.
 status: shipped
+fixed_in: @theokit/sdk@4.48.0, @theokit/sdk@4.49.0 (loadProjectEnv)
 severity: major
 dod:
   - the framework's own project-env loading refuses to let a project-scoped source set the keys that
@@ -4534,6 +4545,7 @@ shipped: |
   gates whether `.theokit/agents/*.md` load, and subagents plus repository-declared hooks ride on it,
   so a stuck `true` lets an untrusted repository redirect the model of a squad member.
 status: shipped
+fixed_in: @theokit/sdk@4.48.0 (WiredEntity.suppressedByTrust)
 severity: major
 dod:
   - the build reports which disk entities were requested, which were wired, and which were withheld,
@@ -4577,6 +4589,7 @@ why_now: |
   deprecated. This blocked a SECURITY release for the time it took to diagnose, which is when a
   process defect is most expensive.
 status: shipped
+fixed_in: @theokit/sdk (release process — released upstream)
 severity: major
 dod:
   - after a release completes, `develop` carries the version bump and the changeset deletions without
@@ -4612,6 +4625,7 @@ why_now: |
   exactly this class of unearned statement in the other direction. A contributor arriving at a repo
   whose README says the tests are absent does not run them.
 status: shipped
+fixed_in: @theokit/sdk@4.42.1
 severity: minor
 dod:
   - the paragraph states what is measurably true, with the date of the measurement, or is deleted
@@ -4648,6 +4662,7 @@ why_now: |
   only deprecated — B-092 measured `npm install` failing outright on a clean checkout because of it.
   The repo that ships the most packages is the one without the guard.
 status: shipped
+fixed_in: @theokit/sdk (tarball guard — released upstream)
 severity: major
 dod:
   - `theokit-sdk` runs the same tarball check in CI over every publishable package, and it fails the
@@ -4680,6 +4695,7 @@ why_now: |
   token from the workflow entirely, which removes that failure class rather than renewing it on a
   schedule. The comment's own migration path is the fix, and its precondition already holds.
 status: shipped
+fixed_in: @theokit/sdk@4.43.0 (provenance re-enabled)
 closed_note: |
   Two of three DoD bullets are met and verified on `main`: `NPM_CONFIG_PROVENANCE` is back in
   `release.yml`, and the header no longer carries the obsolete "PROVENANCE IS DISABLED" text.
@@ -4734,6 +4750,7 @@ why_now: |
   commits is the same argument, and it is the push that happens during a release — when the cost of
   a ten-minute gate is paid at the worst moment.
 status: shipped
+fixed_in: @theokit/sdk (pre-push gate — released upstream)
 severity: minor
 dod:
   - a push whose ref introduces no new commits (a tag at an already-pushed commit) does not re-run
@@ -4857,6 +4874,7 @@ post_release_correction: |
   The finding stands: an exit code is not evidence a ref transferred. What was wrong was where the
   question was asked.
 status: shipped
+fixed_in: @theokit/sdk@4.44.0
 severity: minor
 dod:
   - the cause is established by reproduction, or the item is killed with the measurement that refuted it
@@ -4890,6 +4908,7 @@ why_now: |
   the SDK reads because a repository named it is untrusted input, and the framework's whole value to
   a consumer is that it decided this once, correctly, for everyone.
 status: shipped
+fixed_in: @theokit/sdk (containment tests — released upstream)
 severity: major
 evidence_measured: |
   MEASURED 2026-08-11 by `/discover-execute`. Opportunity:
@@ -4999,6 +5018,7 @@ shipped: |
   `listPtys` sets a toast rather than a panel, and the resume refusal is a returned value. Each
   showed up as a red test in seconds, which is the argument for writing them.
 status: shipped
+fixed_in: 6d28edd, 28eafe4
 severity: minor
 dod:
   - `routeKey` has a case per surface state, asserting the ACTIONS it returns rather than the effect
@@ -5043,6 +5063,7 @@ shipped: |
   Six cases, three mutations detected, 4 300 tests green. The suite also caught an English-only
   violation I introduced in CLAUDE.md — the gate doing its job on its author.
 status: shipped
+fixed_in: @theokit/sdk (internal/runtime/context/path-containment.ts — upstream)
 dod:
   - each of the two guards is measured against a symlink escape, and the result is recorded as
     reachable or unreachable — not asserted from reading
@@ -5114,6 +5135,7 @@ shipped: |
   The local file is gone, so the pnpm warning that printed twice per invocation for a whole session
   is at zero and npm no longer reports `overridden by project`.
 status: shipped
+fixed_in: @theokit/sdk (the .npmrc auth-token test — upstream; the file was never versioned here)
 severity: major
 dod:
   - a local publish either works with an ordinary user credential or fails with a message naming the
@@ -5168,6 +5190,7 @@ why_now: |
   most dangerous way available — a migration that looks successful while dropping rules nobody
   notices are missing, on the path that decides whether repository hooks execute.
 status: shipped
+fixed_in: @theokit/sdk (globbed discovery — upstream)
 severity: major
 dod:
   - a spec whose pattern contains `**` finds files at every depth, proven against a fixture with a
@@ -5225,6 +5248,7 @@ shipped: |
 
   Verified at the exit-code level because that is what CI reads: unreadable -> 2, legitimate -> 0.
 status: shipped
+fixed_in: @theokit/sdk (changesetsAt — upstream)
 severity: major
 dod:
   - a ref the repository cannot resolve produces a REFUSAL (exit 2, "could not check"), never exit 0
@@ -5267,6 +5291,7 @@ why_now: |
   provenance so much as a latent defect provenance exposed — the field was empty before and nothing
   needed it. Left alone, the next release of any of those six fails the same way, after signing.
 status: shipped
+fixed_in: @theokit/sdk@4.43.0 (repository.url on six packages)
 severity: major
 dod:
   - every publishable package declares a `repository.url` matching this repository, with `directory`
@@ -5319,6 +5344,7 @@ why_now: |
   means every promotion since has been merged past a failing check, so the check is no longer
   protecting anything — and the next real regression arrives looking exactly like the current noise.
 status: shipped
+fixed_in: @theokit/tui (CI step order — upstream)
 severity: major
 dod:
   - `pnpm build` runs before `pnpm test` in `ci.yml`, so publint resolves against a real artifact
@@ -5412,6 +5438,7 @@ shipped: |
   dropping `errorSeen` left the WIRE correct while `ProcessorResult.errorSeen` — which the caller
   reads to set its exit code — went false. A failed run would have exited 0.
 status: shipped
+fixed_in: @theokit/presenter@0.6.0
 severity: minor
 dod:
   - the gap is decided rather than assumed: either presenter gains a lifecycle event set alongside
@@ -5480,6 +5507,7 @@ shipped: |
   that imported the guard and then loaded the env some other way would have looked correct. The case
   now asserts the call.
 status: shipped
+fixed_in: @theokit/sdk@4.50.0 (loadProjectEnv + SOVEREIGN_ENV_KEYS)
 severity: major
 dod:
   - the TUI template calls the SDK's guarded loader rather than `process.loadEnvFile` directly, and
@@ -5581,6 +5609,7 @@ shipped: |
   ~20ms meta-prefix window after a lone ESC, which is a real timer rather than a render, and none
   of them failed across the twenty runs. Changing them would have been motion without evidence.
 status: shipped
+fixed_in: @theokit/tui@0.52.1
 severity: minor
 dod:
   - the failure mode is captured (assertion diff from a failing run), not just the test name
@@ -5630,6 +5659,7 @@ shipped: |
   saying so — the third DoD bullet's spirit, since a step that fails for a missing credential is
   the same unreadable red mark this item is about.
 status: shipped
+fixed_in: @theokit/tui (sonar-project.properties + CI step — upstream)
 severity: minor
 dod:
   - the analysis failure's cause is named from the workflow log, not guessed
@@ -5677,6 +5707,7 @@ shipped: |
 
   Four mutations detected.
 status: shipped
+fixed_in: (decision) — recorded decision plus a frozen-id contract, which the third DoD bullet allows
 severity: minor
 dod:
   - a consumer can place its source relative to a NAMED default (before/after `AGENTS.md`) rather

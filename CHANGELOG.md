@@ -7,6 +7,24 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-19
+
+### Added
+
+- **The five declared gates now run on every pull request (B-015).** `typecheck`, `test`, `lint`,
+  `depcruise` and `crossval` each run as their own job, so a failure names which gate broke instead
+  of stopping at the first one. None of them is allowed to report a failure as a pass. Before this,
+  `.github` had never existed across 383 commits and every gate passed only when a human remembered.
+
+### Fixed
+
+- **The 31 closed items that recorded no commit now say who closed them (B-016).** `crossval` was
+  reporting `31 problems` to nobody. Each value was read off the commit that recorded the closure,
+  not chosen to satisfy the check — 30 of the 31 name another repository's release
+  (`@theokit/sdk`, `@theokit/tui`, `@theokit/presenter`, `@theokit/agents`) and one names two local
+  commits. That distribution is the explanation for the lapse: the registry had become a tracker for
+  framework work, and a `fixed_in` field that assumes a local commit has nothing true to say about it.
+
 ## [0.2.1] - 2026-08-17
 
 ### Added

@@ -1,0 +1,98 @@
+# The five gates this repository declares, run on every pull request.
+#
+# B-015: `.github` had never existed across 383 commits. Five gates were declared in
+# `package.json` and every one of them passed only when a human remembered to run it. A gate
+# nobody runs is documentation.
+#
+# One workflow, five jobs, and every one of them blocking — deliberately. No job is allowed to
+# report a failure as a pass; a job that cannot fail is the gate that motivated this file, one
+# layer down. `crossval` was RED when this work
+# started (31 closed items with no `fixed_in`); it was made green BEFORE this file landed, because
+# a gate wired in red is a gate everyone learns to ignore.
+#
+# Five jobs rather than one: a single job stops at the first failure and hides the other four.
+# Each pays its own `npm ci`, which is the price of independent red/green.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
+      # them — "a guard that passes when it cannot check is worse than no guard, because it is
+      # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
+      # the gate was passing locally and failing here. Declaring the dependency is the fix;
+      # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
+      - run: npm ci
+      - run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
+      # them — "a guard that passes when it cannot check is worse than no guard, because it is
+      # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
+      # the gate was passing locally and failing here. Declaring the dependency is the fix;
+      # weakening the guard so it reports clean without a lexicon is the defect it warns about.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq wamerican wbrazilian
+      - run: npm ci
+      - run: npm run lint
+
+  depcruise:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run depcruise
+
+  crossval:
+    runs-on: ubuntu-latest
+    steps:
+      # `fetch-depth: 0` is load-bearing: the check resolves every `fixed_in` sha against the
+      # history. A shallow clone makes real commits look like fabricated ones.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: npm run crossval
