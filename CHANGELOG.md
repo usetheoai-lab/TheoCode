@@ -7,6 +7,18 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The input row's precedence is a declared list, and it is asserted for the first time (B-008).**
+  Two nested ternaries decided which of seven surfaces owns the row — four branches in `InputSlot`,
+  four more in `ConversationSlot` — and neither file had a test. They are now two layer lists
+  consumed by `@theokit/tui`'s `selectSurface`, read top to bottom, with nine tests: eight ask a
+  plain state object which surface wins, one mounts to prove the names are wired to real surfaces.
+
+  Precedence is unchanged. The overlapping cases were found by measuring which conditions can hold
+  at once — the pair the work item's own wording suggested turned out to be the one pair that
+  cannot overlap, so a test written from that phrasing would have asserted an unreachable state.
+
 
 ## [0.4.1] - 2026-08-19
 
