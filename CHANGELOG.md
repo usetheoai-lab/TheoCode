@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.4.2] - 2026-08-19
+
 ### Changed
 
 - **The input row's precedence is a declared list, and it is asserted for the first time (B-008).**
@@ -18,7 +21,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   Precedence is unchanged. The overlapping cases were found by measuring which conditions can hold
   at once — the pair the work item's own wording suggested turned out to be the one pair that
   cannot overlap, so a test written from that phrasing would have asserted an unreachable state.
-
 
 ## [0.4.1] - 2026-08-19
 
