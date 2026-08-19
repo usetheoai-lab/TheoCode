@@ -14,7 +14,7 @@
 # Each pays its own `npm ci`, which is the price of independent red/green.
 #
 # ---------------------------------------------------------------------------------------------
-# B-062: THESE FIVE CHECKS ARE NOT REQUIRED. NOTHING HERE BLOCKS A MERGE.
+# B-062: these five checks are not required. Nothing here blocks a merge.
 #
 # Read "blocking" above in its narrow sense: no job reports a failure as a pass. It does NOT mean
 # GitHub refuses the merge. It does not, and cannot at this tier. Measured 2026-08-19 with a token
@@ -34,10 +34,20 @@
 # not a permission we lack and not a file we forgot to write — `main` is as unprotected as
 # `develop`.
 #
-# What holds the line today is a person waiting for five green ticks. Surveyed at the same time:
-# ten merged PRs (#25-#49), none merged red, and the six most recent merged 20-49 seconds after the
-# last check completed. Correct practice, entirely unenforced. There is no compensating local layer
-# either — `core.hooksPath` is unset and `.git/hooks` holds only samples.
+# What holds the line today is a person waiting for five green ticks — usually. Surveyed at the
+# same time: 25 merged PRs (#25 through #49, every integer in that range), none of which merged
+# with a red rollup, and the six most recent merged 20-49 seconds after the last check completed.
+#
+# One exception, and it is the reason "usually" is the honest word: **PR #33 merged at 14:56:45Z,
+# one second after its checks STARTED, with zero of them completed** (the last finished at
+# 14:57:55Z). It went green afterwards, so it is not in the "merged red" count — but nothing
+# gated it. The umbrella backlog records that as B-070: the merge guard read an EMPTY
+# `statusCheckRollup` and matched neither IN_PROGRESS nor QUEUED, so the wait loop passed it
+# through. The practice is correct; a practice is not a control, and that PR is the proof.
+#
+# The compensating control is that guard — B-070 — and its limit is exactly the one that failed:
+# it runs on one person's machine, against a rollup that can legitimately be empty. There is no
+# repository-side layer at all: `core.hooksPath` is unset and `.git/hooks` holds only samples.
 #
 # Three ways out, and NONE has been chosen:
 #   * buy GitHub Team for `usetheoai-lab` — the tier the org-ruleset refusal names. No price is
@@ -49,12 +59,16 @@
 # The choice costs money or discloses source and belongs to the account owner, so this file records
 # the state of the decision rather than making it. This comment is NOT an approval of the gap.
 #
-# FALSIFIER — one ungated command, true of a private repo under a free org and of nothing else:
+# FALSIFIER — one ungated command, runnable verbatim:
 #
-#   gh api repos/usetheoai-lab/TheoCode/branches --jq \'.[] | {name, protected}\'
+#   gh api repos/usetheoai-lab/TheoCode/branches --jq '.[] | {name, protected}'
 #
-# It reports `protected: false` for every branch today. The moment it reports anything else, the
-# tier or the visibility changed and this stanza is stale. Nothing runs it automatically.
+# It reports `protected: false` for every branch today. Anything else means protection now exists
+# and this stanza is stale. Nothing runs it automatically.
+#
+# What it does NOT prove, stated because the first draft of this stanza overclaimed it: a green
+# result is consistent with a paid tier where nobody configured protection, so `protected: false`
+# does not by itself establish the billing wall. Re-run the four API calls above for that.
 # ---------------------------------------------------------------------------------------------
 
 name: CI
