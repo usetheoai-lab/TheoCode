@@ -24,16 +24,18 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   surveyed (#25 through #49), none merged with a red rollup, the six most recent merged 20-49
   seconds after the last check completed. But PR #33 merged **one second after its checks started,
   with zero completed**; it went green afterwards, so it is not a red merge, and nothing gated it.
-  That is B-070, and it is why "correct practice" is not the same as a control.
+  That is B-070 in the umbrella backlog (not this file's own B-070), and it is why "correct
+  practice" is not the same as a control.
 
   **No decision was made, and this entry is not an approval of the gap.** Three ways out, each with
   its consequence and none recommended: buying GitHub Team costs money this measurement did not
   price; making the repository public removes the wall for free and discloses the full history
   irreversibly; leaving it as it is keeps merges ungated by anything but attention. The choice
   belongs to the account owner. The record states where the decision stands and embeds a one-line falsifier
-  (`gh api .../branches --jq '.[] | {name, protected}'`) that goes false the moment the tier or the
-  visibility changes — with the limit stated in the record itself, since a paid tier where nobody
-  configured protection prints the same result.
+  (`gh api .../branches --jq '.[] | {name, protected}'`) that goes false the moment protection is
+  configured. It does NOT prove the billing wall on its own: a paid tier where nobody configured
+  protection prints the same result, so the four API calls are what establish that, and the record
+  says so.
 
   No job, step, trigger or product file changed. This buys traceability, not enforcement.
 
