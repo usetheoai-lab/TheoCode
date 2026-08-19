@@ -1,6 +1,11 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react'
 
-import { PermissionPrompt, type PendingApproval } from '@theokit/tui'
+import {
+  PermissionPrompt,
+  selectSurface,
+  type PendingApproval,
+  type SurfaceLayer,
+} from '@theokit/tui'
 
 import { formatApproval } from '../formatting/index.js'
 import type { ApprovalMode } from '../consent/index.js'
@@ -64,32 +69,61 @@ function ApprovalCard({
   )
 }
 
+/**
+ * Which surface owns the input row, in precedence order — read top to bottom.
+ *
+ * B-008 — this was a four-branch ternary inside the JSX, and the ORDER was the contract it
+ * recorded nowhere. `selectSurface` (`@theokit/tui`, shipped by B-007 from a measurement of this
+ * exact file) evaluates `when` in order and stops at the first that holds, which is what the
+ * ternary did — the difference is that the order is now a list a test can read without mounting.
+ *
+ * Two of these overlap in practice: an approval can be pending while hooks are unreviewed, and
+ * while trust is unresolved. Overlap is precedence working, not a defect. The pair that CANNOT
+ * overlap is hooks-gate vs trust-gate — the first requires `trusted`, the second `!trusted`.
+ *
+ * The last layer is unconditional, so the row is never blank. `InputSlot.test.tsx` asserts that
+ * rather than trusting it: an edit that makes the fallback conditional should fail a test, not
+ * render a hung-looking terminal.
+ */
+export const INPUT_LAYERS: readonly SurfaceLayer<InputSlotProps>[] = [
+  {
+    name: 'hooks-gate',
+    when: (p) => p.trusted && !p.consent.hooksReviewed && p.pendingHooks.length > 0,
+    render: (p) => (
+      <HooksGate consent={p.consent} pendingHooks={p.pendingHooks} setToast={p.setToast} />
+    ),
+  },
+  {
+    name: 'trust-gate',
+    when: (p) => !p.trusted,
+    render: (p) => (
+      <TrustGate
+        consent={p.consent}
+        SESSION={p.SESSION}
+        setToast={p.setToast}
+        setApprovalMode={p.setApprovalMode}
+        setEffort={p.setEffort}
+        exit={p.exit}
+      />
+    ),
+  },
+  {
+    name: 'approval',
+    when: (p) => p.pendingApproval !== undefined,
+    render: (p) => (
+      <ApprovalCard
+        approval={p.pendingApproval as PendingApproval}
+        settleApproval={p.settleApproval}
+      />
+    ),
+  },
+  {
+    name: 'conversation',
+    when: () => true,
+    render: (p) => <ConversationSlot {...p} />,
+  },
+]
+
 export function InputSlot(props: InputSlotProps): ReactElement {
-  return (
-    <>
-      {props.trusted && !props.consent.hooksReviewed && props.pendingHooks.length > 0 ? (
-        <HooksGate
-          consent={props.consent}
-          pendingHooks={props.pendingHooks}
-          setToast={props.setToast}
-        />
-      ) : !props.trusted ? (
-        <TrustGate
-          consent={props.consent}
-          SESSION={props.SESSION}
-          setToast={props.setToast}
-          setApprovalMode={props.setApprovalMode}
-          setEffort={props.setEffort}
-          exit={props.exit}
-        />
-      ) : props.pendingApproval !== undefined ? (
-        <ApprovalCard
-          approval={props.pendingApproval}
-          settleApproval={props.settleApproval}
-        />
-      ) : (
-        <ConversationSlot {...props} />
-      )}
-    </>
-  )
+  return <>{selectSurface(INPUT_LAYERS, props).render()}</>
 }
