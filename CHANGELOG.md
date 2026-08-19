@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.4.5] - 2026-08-19
+
 ### Changed
 
 - **The clear-screen sequence comes from `@theokit/tui/terminal` (B-014).** `terminal-io/clear-screen.ts`
@@ -16,7 +19,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   ships no behaviour change. What it buys is the name and the tests. `CLEAR_SCREEN` did not say it
   clears the scrollback, so shortening it would have silently left the history on screen — and the
   local constant had no test at all, while the library's pins all three parts of the sequence.
-
 
 ## [0.4.4] - 2026-08-19
 
