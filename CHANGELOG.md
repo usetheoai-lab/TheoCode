@@ -7,6 +7,21 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The usage panel comes from `@theokit/tui` instead of a local copy (B-002).** The 31-line
+  `components/UsagePanel.tsx` composed three primitives it already imported from the library — which
+  is exactly the composition the library extracted and published. It is deleted, and
+  `ConversationRegion` imports the published component.
+
+  `@theokit/tui` moves `^0.53.0` → `^0.67.0`. That bump is the substance rather than a detail:
+  under npm's semver `^0.x` is pinned to the same minor, so `^0.53.0` could never reach the version
+  that ships the component.
+
+  The render was proven identical before the deletion — both components drawn with a turn carrying
+  input, output, cached, reasoning and cost, and the full frames compared — rather than assumed from
+  the two files composing the same primitives.
+
 ## [0.3.1] - 2026-08-19
 
 ### Fixed
