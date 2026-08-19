@@ -2,8 +2,14 @@ import type { ReactElement } from 'react'
 
 import { Box, Text } from 'ink'
 
-import { AgentStreaming, AgentTimeline, DiffViewer, Notice, Toast } from '@theokit/tui'
-import { UsagePanel } from './UsagePanel.js'
+import {
+  AgentStreaming,
+  AgentTimeline,
+  DiffViewer,
+  Notice,
+  Toast,
+  UsagePanel,
+} from '@theokit/tui'
 import { BacktrackOverlay } from '../backtrack/index.js'
 import { KeyboardHelp } from '@theokit/tui'
 
