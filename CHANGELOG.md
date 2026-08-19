@@ -7,6 +7,20 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.4.0] - 2026-08-19
+
 ### Changed
 
 - **The backtrack overlay windows through `@theokit/tui`'s `WindowedList` (B-004).**
@@ -23,8 +37,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   draw is kept rather than lost: the rounded border (the consumer's own `Box`), the per-row numbers
   the header's "message 11/20" refers to (formatted into the rows), and the header's own gesture
   words (the `header` slot, which exists so the library never puts them in its mouth).
-
-### Changed
 
 - **The usage panel comes from `@theokit/tui` instead of a local copy (B-002).** The 31-line
   `components/UsagePanel.tsx` composed three primitives it already imported from the library — which
