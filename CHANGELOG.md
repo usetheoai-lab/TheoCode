@@ -7,6 +7,28 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Both advertising channels are derived by `@theokit/tui` from one declaration (B-006).**
+  `components/composer-shortcuts.ts` (72 lines) is deleted; `composerShortcutsFor` and
+  `footerHintFor` — the derivation the library extracted in B-005 — replace it, reading a single
+  `THIS_BUILD` declaration in `components/composer-capabilities.ts`.
+
+  **The adoption was not a pure deletion, and that is the finding.** The library gates four keys
+  where the local filter gated one, so a minimal declaration would have silently dropped the `?`,
+  `/` and `@` rows. Each was measured at the app's `<ChatComposer/>` instead of assumed.
+
+  **`mentions` is declared `true` although this app passes no `fileSearch`.** `ChatComposer`
+  declares `fileSearch = defaultFileSearch`, so omitting the prop installs a `.gitignore`-aware cwd
+  walk rather than disabling mentions — the `@` menu works. The library's own field docstring says
+  "a mention provider is passed", which is the predicate the code does not use; following it
+  literally would hide a working affordance, the inverse of the defect this model exists to
+  prevent. The upstream correction is tracked separately.
+
+  `!` stays unadvertised (ADR 0001) and `← for agents` stays unadvertised (B-067). The three B-028
+  tests changed only their CALL, never an assertion, and the `SessionFooter` tests were not touched
+  at all — they assert the rendered frame, which is what makes them the migration's proof.
+
 ### Added
 
 ### Changed
