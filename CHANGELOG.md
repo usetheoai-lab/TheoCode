@@ -7,6 +7,9 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.4.4] - 2026-08-19
+
 ### Changed
 
 - **The context warning's rise detection comes from `@theokit/tui` (B-012).** `useContextWarning`
@@ -23,7 +26,6 @@ and versioning follows [Semantic Versioning](https://semver.org/).
   time for a level the user had already been told about. The existing test drove an absent reading
   only at the start and would have stayed green through exactly that. The new one drives it
   mid-stream, and it is the only test that fails against the wrong version.
-
 
 ## [0.4.3] - 2026-08-19
 
