@@ -7,6 +7,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-19
+
 ### Fixed
 
 - **The session GC's refusal to delete a live session is now covered by a test that can fail
