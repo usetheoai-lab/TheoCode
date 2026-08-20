@@ -52,26 +52,39 @@
 # not fail here, is that it runs on one person's machine. There is no
 # repository-side layer at all: `core.hooksPath` is unset and `.git/hooks` holds only samples.
 #
-# Three ways out, and NONE has been chosen:
-#   * buy GitHub Team for `usetheoai-lab` — the tier the org-ruleset refusal names. No price is
-#     quoted here because this measurement did not take one, and inventing one would be fabrication
-#   * make this repository public — removes the wall for free, and is irreversible in practice:
-#     the full history becomes readable. A disclosure decision, not a CI one
-#   * accept the gap — which is where we are by default, not by decision
+# RESOLVED 2026-08-20 — and the stanza was made stale by its own falsifier, which is the outcome
+# it was written to produce.
 #
-# The choice costs money or discloses source and belongs to the account owner, so this file records
-# the state of the decision rather than making it. This comment is NOT an approval of the gap.
+# It listed three ways out and said none had been chosen. The second — "make this repository
+# public — removes the wall for free" — had ALREADY HAPPENED by the time anyone re-read it:
+#
+#   gh api repos/usetheoai-lab/TheoCode --jq '{private}'   ->   {"private": false}
+#
+# So the wall the stanza described was gone and the gap remained, not by decision but because
+# nobody re-ran the check after the fact that made the fix free. Protection was configured on both
+# release branches:
+#
+#   main, develop    required checks: test, typecheck, lint, depcruise, crossval
+#                    enforce_admins: true, force pushes: disabled
+#
+# THE MERGE GUARD IS NO LONGER THE CONTROL, and that is the point rather than a side effect. B-070
+# is about a guard that read an empty `statusCheckRollup` as nothing-to-wait-for and merged PR #33
+# one second after its checks started. A guard on one person's machine reading a field that is
+# legitimately empty was always a practice standing in for a control. GitHub now refuses the merge
+# server-side, where an empty rollup means "not yet" by construction rather than by predicate.
+#
+# The guard's predicate is still worth getting right for anything that polls (`.status` is what
+# says a check has FINISHED; `.conclusion` means nothing until it has), but it is no longer the
+# thing standing between a red CI and `main`.
 #
 # FALSIFIER — one ungated command, runnable verbatim:
 #
 #   gh api repos/usetheoai-lab/TheoCode/branches --jq '.[] | {name, protected}'
 #
-# It reports `protected: false` for every branch today. A row reading `protected: true` means this
-# stanza is stale; a changed SET of rows is only branch churn. Nothing runs it automatically.
-#
-# What it does NOT prove, stated because the first draft of this stanza overclaimed it: a green
-# result is consistent with a paid tier where nobody configured protection, so `protected: false`
-# does not by itself establish the billing wall. Re-run the four API calls above for that.
+# It reports `protected: true` for `main` and `develop` today. A row flipping back to `false` means
+# protection was removed and this stanza is stale in the other direction. `workspace` and feature
+# branches are `false` DELIBERATELY — `rules/git-safety.md` § 1 makes `workspace` where work is
+# born, and requiring a PR to reach it would leave no branch upstream to promote from.
 # ---------------------------------------------------------------------------------------------
 
 name: CI
