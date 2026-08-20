@@ -249,7 +249,16 @@ const ALLOWED = new Set([
   // it — twice now it has silently stopped covering anything and turned the check red. It is kept
   // line-numbered on purpose (an entry keyed by file alone would exempt the whole file), so the
   // cost is real and accepted: whoever edits above line 166 fixes this number in the same commit.
-  'packages/agent/src/ask/ask-bridge.test.ts:166',
+  // THIRD ROT, 2026-08-20: 166 -> 160, this time because `prettier` reformatted the file. Nobody
+  // edited it — the repository's own formatter did, and there is no `prettier --check` job in CI to
+  // have caught the drift at its source. The comment above predicted "whoever edits above line 166
+  // fixes this number in the same commit"; the editor turned out to be a tool, which fixes nothing.
+  //
+  // Kept line-numbered anyway, and that stays the right call: an entry keyed by file alone would
+  // exempt every future accented line in this file, and the whole point is that the accents here are
+  // the SUBJECT of an assertion rather than prose. The cost of the citation rotting is smaller than
+  // the cost of the exemption widening.
+  'packages/agent/src/ask/ask-bridge.test.ts:160',
 ])
 
 /** Strip combining marks so `seleção` also indexes as `selecao`. */
