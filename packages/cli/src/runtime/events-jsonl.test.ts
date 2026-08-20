@@ -85,7 +85,9 @@ describe('createJsonlProcessor — the turn opens and closes exactly once', () =
     p.process({ type: 'error', errorText: 'boom' })
     p.finish('error', { error: 'also' })
 
-    expect(types(c.events()).filter((t) => t === 'turn.failed' || t === 'turn.completed')).toHaveLength(1)
+    expect(
+      types(c.events()).filter((t) => t === 'turn.failed' || t === 'turn.completed'),
+    ).toHaveLength(1)
   })
 })
 

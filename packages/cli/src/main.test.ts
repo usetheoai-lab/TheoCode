@@ -79,7 +79,9 @@ describe('B-026 — the bootstrap does not hide inside the import block', () => 
 
     expect(chdir, 'main.ts no longer chdirs for -C/--cd').toBeGreaterThan(0)
     expect(boot, 'main.ts no longer calls bootstrap()').toBeGreaterThan(0)
-    expect(boot, 'bootstrap() runs before chdir, so `.env` comes from the directory being left').
-      toBeGreaterThan(chdir)
+    expect(
+      boot,
+      'bootstrap() runs before chdir, so `.env` comes from the directory being left',
+    ).toBeGreaterThan(chdir)
   })
 })

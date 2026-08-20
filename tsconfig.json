@@ -11,24 +11,11 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "paths": {
-      "@theocode/agent": [
-        "./packages/agent/src/index.ts"
-      ],
-      "@theocode/agent/*": [
-        "./packages/agent/src/*"
-      ],
-      "@theocode/shared/*": [
-        "./packages/shared/src/*"
-      ]
+      "@theocode/agent": ["./packages/agent/src/index.ts"],
+      "@theocode/agent/*": ["./packages/agent/src/*"],
+      "@theocode/shared/*": ["./packages/shared/src/*"]
     }
   },
-  "include": [
-    "packages/*/src/**/*",
-    "tools/**/*",
-    "*.config.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["packages/*/src/**/*", "tools/**/*", "*.config.ts"],
+  "exclude": ["node_modules", "dist"]
 }

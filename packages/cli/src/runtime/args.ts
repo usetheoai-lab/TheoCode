@@ -19,7 +19,7 @@ export interface ExecRun {
 
 export interface ExecReview {
   mode: 'review'
-  target: string 
+  target: string
   json: boolean
   cd?: string
   skipGitCheck: boolean
@@ -83,13 +83,7 @@ export interface ExecHelp {
 }
 
 export type ExecArgs =
-  | ExecRun
-  | ExecReview
-  | ExecGoal
-  | ExecSessions
-  | ExecDoctor
-  | ExecHelp
-  | ExecUsageError
+  ExecRun | ExecReview | ExecGoal | ExecSessions | ExecDoctor | ExecHelp | ExecUsageError
 
 // B-022 — no `exec` here. It is the npm SCRIPT name (`npm run exec`), not a subcommand of the
 // built binary, and the parser has no branch for it: the token fell through to the PROMPT, so
@@ -218,7 +212,6 @@ function parseSessionAction(
     apply: values.apply === true,
   }
 }
-
 
 /**
  * B-081 — reports the RESOLVED install, so config overrides are honoured rather than refused:
@@ -403,7 +396,10 @@ const AUTO_EDIT_HAS_NO_POLICY =
  * `-o/--output-last-message` are documented in the global Options line, but `review` and `sessions`
  * build no agent and emit no final message. All three were accepted anywhere and quietly dropped.
  */
-function flagAppliedToNoCommand(values: OptionValues, first: string | undefined): string | undefined {
+function flagAppliedToNoCommand(
+  values: OptionValues,
+  first: string | undefined,
+): string | undefined {
   const sub = first ?? ''
   if (values.last === true && sub !== 'resume') {
     return '--last selects the most recent session and applies to `resume` only'
@@ -426,7 +422,9 @@ function collectOverrides(values: OptionValues): {
 } {
   return {
     overrides: [
-      ...SUGAR.flatMap((a) => (values[a.option] !== undefined ? [`${a.key}=${values[a.option]!}`] : [])),
+      ...SUGAR.flatMap((a) =>
+        values[a.option] !== undefined ? [`${a.key}=${values[a.option]!}`] : [],
+      ),
       ...(values.config ?? []),
     ],
     overridesPresent: [

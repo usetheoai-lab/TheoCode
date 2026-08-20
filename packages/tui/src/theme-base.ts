@@ -46,7 +46,9 @@ function parseThemeBase(input: string): ThemeBase | null {
  * Per no-color.org it is the PRESENCE of a non-empty value that carries the meaning, never the
  * value itself.
  */
-export function resolveThemeBase(env: Readonly<Record<string, string | undefined>>): ThemeResolution {
+export function resolveThemeBase(
+  env: Readonly<Record<string, string | undefined>>,
+): ThemeResolution {
   const noColor = env.NO_COLOR
   if (noColor !== undefined && noColor !== '') {
     return { base: 'no-color', source: 'NO_COLOR' }

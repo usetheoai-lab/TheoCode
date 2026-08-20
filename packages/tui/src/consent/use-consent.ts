@@ -1,12 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
-import {
-  approveHook,
-  classifyHooks,
-  loadApprovedHooks,
-  parseHooks,
-} from '@theocode/agent/hooks'
+import { approveHook, classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
 
 import {
   persistedApproval,

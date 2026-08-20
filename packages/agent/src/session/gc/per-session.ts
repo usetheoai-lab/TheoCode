@@ -131,12 +131,9 @@ function resolveApply(plan: SessionGCPlan, opts: RunSessionGCOptions) {
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )[0]?.id
   const untouchable = new Set(
-    [
-      (opts.readPointer ?? realReadPointer)(cwd),
-      newestNow,
-      plan.pointer,
-      plan.mostRecent,
-    ].filter((id): id is string => id !== undefined),
+    [(opts.readPointer ?? realReadPointer)(cwd), newestNow, plan.pointer, plan.mostRecent].filter(
+      (id): id is string => id !== undefined,
+    ),
   )
   return {
     del: opts.delete ?? ((id: string) => Agent.delete(id)),
@@ -170,7 +167,7 @@ export async function runSessionGC(
       removed.push(c.id)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removed.push(c.id) 
+        removed.push(c.id)
         continue
       }
       errors.push(`${c.id}: ${(err as Error).message}`)

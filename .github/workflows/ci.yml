@@ -145,20 +145,29 @@ jobs:
             echo "both dictionaries already present — apt not needed"
             exit 0
           fi
-          echo "missing (en=$have_en pt=$have_pt) — installing"
+          # B-073 bullet 3 — install ONLY what is missing. Measured 2026-08-19 on `ubuntu-24.04`:
+          # `/usr/share/hunspell/en_US.dic` ships with the image, so `have_en` is 1 and `wamerican`
+          # was being fetched for nothing. Half the download and half the surface that can stall,
+          # bought with no benefit. The check stays CONDITIONAL rather than hard-coded to
+          # `wbrazilian`, because "the image always has English" is a fact about today's image and
+          # this step already exists to stop assuming things about it.
+          pkgs=""
+          [ "$have_en" = 0 ] && pkgs="$pkgs wamerican"
+          [ "$have_pt" = 0 ] && pkgs="$pkgs wbrazilian"
+          echo "missing (en=$have_en pt=$have_pt) — installing:$pkgs"
 
           for attempt in 1 2 3; do
             # `timeout` per ATTEMPT, not per step: the failure is a silent stall with zero output,
             # so a whole-step ceiling can only report the death, never recover from it.
             if timeout 90 sudo apt-get update -qq \
-               && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
+               && timeout 90 sudo apt-get install -y -qq $pkgs; then
               echo "word lists installed on attempt ${attempt}"
               exit 0
             fi
             echo "attempt ${attempt} failed or stalled; backing off" >&2
             sleep $((attempt * 15))
           done
-          echo "::error::apt could not provide wamerican/wbrazilian after 3 attempts." >&2
+          echo "::error::apt could not provide$pkgs after 3 attempts." >&2
           echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
           echo "job is RED rather than silently skipping the language gate." >&2
           exit 1

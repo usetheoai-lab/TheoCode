@@ -45,7 +45,6 @@ const PREFIXES: Readonly<Record<Provider, string>> = Object.fromEntries(
   DESCRIPTORS.map((d) => [d.name, d.keyPrefix ?? '']),
 ) as Record<Provider, string>
 
-
 export function credentialHome(home: string, env: Record<string, string | undefined> = {}): string {
   return storeCredentialHome(credentialStore(home), env)
 }

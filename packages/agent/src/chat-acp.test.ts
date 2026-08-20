@@ -38,7 +38,9 @@ describe('B-001 — the ACP entry declares the headless profile', () => {
 
     // `toAgentFactory` receives the builder; invoking it is what reaches `buildChatAgent`.
     const factory = toAgentFactory.mock.calls[0]?.[0] as () => Promise<unknown>
-    expect(factory, 'the ACP entry did not hand a factory to `toAgentFactory`').toBeTypeOf('function')
+    expect(factory, 'the ACP entry did not hand a factory to `toAgentFactory`').toBeTypeOf(
+      'function',
+    )
     await factory()
 
     expect(

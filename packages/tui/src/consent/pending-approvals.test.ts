@@ -19,12 +19,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  createApprovalLedger,
-  findNextApproval,
-  ingest,
-  settle,
-} from './pending-approvals.js'
+import { createApprovalLedger, findNextApproval, ingest, settle } from './pending-approvals.js'
 
 /** One assistant message carrying a part in the `approval-requested` state. */
 const pendingThread = (id: string): Parameters<typeof ingest>[1] => [

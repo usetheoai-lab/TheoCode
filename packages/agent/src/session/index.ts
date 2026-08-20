@@ -1,4 +1,3 @@
-
 export {
   archiveSession,
   deleteSession,
@@ -15,10 +14,6 @@ export { planSessionGC, runSessionGC } from './gc/per-session.js'
 
 export { listAgents, CursorNotDrainedError } from './agent-list.js'
 
-export {
-  planAllProjectsOnDisk,
-  runAllProjectsOnDisk,
-  formatReport,
-} from './gc/filesystem.js'
+export { planAllProjectsOnDisk, runAllProjectsOnDisk, formatReport } from './gc/filesystem.js'
 
 export { readUserTurnPreviewsAsync } from './backtrack.js'

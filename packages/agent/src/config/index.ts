@@ -1,4 +1,3 @@
-
 export {
   EFFORT_LEVELS,
   parseEffort,

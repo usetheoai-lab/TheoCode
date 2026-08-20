@@ -1,4 +1,3 @@
-
 export const REVIEW_RUBRIC = `# Review guidelines:
 
 You are acting as a reviewer for a proposed code change made by another engineer.

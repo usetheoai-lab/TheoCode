@@ -1,4 +1,3 @@
-
 const SHELL_REGEX = /!`([^`]+)`/g
 const FILE_REGEX = /(?<![\w`])@(\.?[^\s`,.]*(?:\.[^\s`,.]+)*)/g
 const PLACEHOLDER_REGEX = /\$(\d+)/g
@@ -69,7 +68,7 @@ function inlineFiles(text: string, deps: TemplateDeps): string {
     const start = match.index ?? 0
     if (!name) continue
     const content = resolveContent(name)
-    if (content === undefined) continue 
+    if (content === undefined) continue
     segments.push(text.slice(cursor, start))
     segments.push(`@${name}\n\`\`\`${name}\n${content}\n\`\`\``)
     cursor = start + match[0].length

@@ -1,4 +1,3 @@
-
 export const HOOK_EVENTS = ['PreToolUse', 'PostToolUse', 'Stop', 'SessionStart'] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]

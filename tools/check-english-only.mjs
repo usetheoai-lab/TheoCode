@@ -43,6 +43,28 @@
  *     rather than reporting clean, because a guard that passes when it cannot check is the failure
  *     this rewrite exists to remove.
  *
+ * ## SYSTEM DEPENDENCY, declared here because this is the file that has it (B-073)
+ *
+ * This tool needs a Portuguese word list on the machine that runs it. That is a real dependency of
+ * the repository and it was never written down anywhere — it lived only in an `apt-get install`
+ * line inside a CI step, which is how a lint gate ended up able to fail because a Debian mirror was
+ * unreachable.
+ *
+ *   English  ALREADY PRESENT on the CI image. Measured 2026-08-19 on `ubuntu-24.04`:
+ *            `/usr/share/hunspell/en_US.dic` ships with it, and LEXICONS.en accepts that path. So
+ *            `wamerican` was being installed for nothing — half the download and half the surface
+ *            that can stall, bought with no benefit.
+ *   Portuguese  GENUINELY ABSENT. `wbrazilian` is the only package actually needed.
+ *
+ * To run this locally on Debian/Ubuntu: `sudo apt-get install wbrazilian`. On other systems, put
+ * any Portuguese word list at one of the LEXICONS.pt paths below — the format is one word per line,
+ * or hunspell's `word/FLAGS`.
+ *
+ * NOT VENDORED, and the reason is a decision rather than an omission: `wbrazilian` is not
+ * public-domain the way the SCOWL-derived English lists are, so shipping a copy is a licensing
+ * question this file cannot answer on its own. Until someone answers it, the dependency is
+ * declared rather than hidden — which is the difference between a known cost and a surprise.
+ *
  * Usage: node tools/check-english-only.mjs [--quiet] [--list-unknown]
  * Exit 0 when clean, 1 when a violation is found or the lexicons are unavailable.
  */
@@ -80,7 +102,11 @@ const ACCENTED = /[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/
 
 /** Where the system keeps word lists. Missing entries are skipped; all missing is fatal. */
 const LEXICONS = {
-  en: ['/usr/share/dict/american-english', '/usr/share/dict/words', '/usr/share/hunspell/en_US.dic'],
+  en: [
+    '/usr/share/dict/american-english',
+    '/usr/share/dict/words',
+    '/usr/share/hunspell/en_US.dic',
+  ],
   pt: ['/usr/share/dict/brazilian', '/usr/share/dict/portuguese', '/usr/share/hunspell/pt_BR.dic'],
 }
 
@@ -104,33 +130,67 @@ const TECHNICAL = new Set([
   'renormalize', // present in /usr/share/dict/portuguese — an English verb either way
   // Tool and protocol names that collide with a Portuguese dictionary entry. Measured against the
   // theokit repositories, where they accounted for ~19% of all matches.
-  'vite', 'astro', 'cron', 'param', 'params', 'abi', 'goto', 'stringify', 'enum',
+  'vite',
+  'astro',
+  'cron',
+  'param',
+  'params',
+  'abi',
+  'goto',
+  'stringify',
+  'enum',
   // Syntax-highlighter language identifiers. Each is a Portuguese dictionary entry and each
   // appears in a language list, never as prose.
-  'mdx', 'cpp', 'apl', 'lua', 'imba', 'vala', 'prisma', 'abap',
+  'mdx',
+  'cpp',
+  'apl',
+  'lua',
+  'imba',
+  'vala',
+  'prisma',
+  'abap',
   // Other measured collisions across the theokit repositories.
   'topo', // `topoSort` — topological, not pt "top"
-  'sao', 'paulo', // the IANA timezone `America/Sao_Paulo`
-  'sms', 'btn', 'mdc', 'jina', 'rgb', 'intra',
+  'sao',
+  'paulo', // the IANA timezone `America/Sao_Paulo`
+  'sms',
+  'btn',
+  'mdc',
+  'jina',
+  'rgb',
+  'intra',
   // English derived forms absent from en_US.dic (it ships without its .aff affix rules) and
   // present in pt_BR.dic. Measured against the theokit corpus; each is unambiguously English here.
-  'subclasses', 'subclass', 'multimodal', 'responder', 'responders', 'transcode',
+  'subclasses',
+  'subclass',
+  'multimodal',
+  'responder',
+  'responders',
+  'transcode',
   // Abbreviations measured in the gateway/plugin repositories.
   'ipc', // inter-process communication
   'tpc', // "topic" in a session-id scheme
   'paras', // "paragraphs" in a chunker test
-  'ses', 'saas', 'bps', 'cta', 'rhf', 'mui',
+  'ses',
+  'saas',
+  'bps',
+  'cta',
+  'rhf',
+  'mui',
   // Terminal and image-format vocabulary measured in theokit-tui.
   'csi', // Control Sequence Introducer (ANSI/CSI-2026)
   'seps', // "separators" in a status-bar test
   'todos', // pt "all" — here the plural of the English TodoItem
-  'sof', 'soi', 'uno',
+  'sof',
+  'soi',
+  'uno',
   'mis', // the English prefix in "mis-splits" — wordParts breaks on the hyphen
   'ico', // the .ico file extension in a MIME map
   'ccc', // a CSS hex colour (#ccc) — three-letter hex runs read as words
   'gru', // the IATA code for Guarulhos airport, used in flight-search fixtures
   'facto', // the Latin in "de-facto"
-  'wai', 'wcag', // WAI-ARIA and WCAG
+  'wai',
+  'wcag', // WAI-ARIA and WCAG
   'dlg', // "dialog" in a test id
   'tri', // the English prefix in "tri-state" — wordParts breaks on the hyphen
   'mantissas', // the English plural of mantissa (the 1/2/5 nice-number ladder)
@@ -164,7 +224,18 @@ const TECHNICAL = new Set([
   'mono', // monospace, in a font stack
   'vero', // `vero_id`, a cache-key field name
   'cpf', // the Brazilian taxpayer id — a proper noun, and a thing PII redaction must name
-  'sdk', 'api', 'url', 'dir', 'tmp', 'src', 'min', 'max', 'doc', 'ref', 'dev', 'log',
+  'sdk',
+  'api',
+  'url',
+  'dir',
+  'tmp',
+  'src',
+  'min',
+  'max',
+  'doc',
+  'ref',
+  'dev',
+  'log',
 ])
 
 /** `path:line` allowances — keyed by line so one cannot silently widen to a whole file. */
@@ -182,8 +253,7 @@ const ALLOWED = new Set([
 ])
 
 /** Strip combining marks so `seleção` also indexes as `selecao`. */
-const unaccent = (w) =>
-  w.normalize('NFD').replace(/\p{Mn}/gu, '')
+const unaccent = (w) => w.normalize('NFD').replace(/\p{Mn}/gu, '')
 
 function loadLexicon(paths, alsoUnaccented) {
   const words = new Set()
@@ -239,9 +309,8 @@ export function* wordParts(identifier) {
   // An opaque token is not a word. Generalizes the git-SHA case: any alphanumeric run of 20+ chars
   // containing a digit (base64 key blobs, OAuth client ids) is dropped whole, because splitting it
   // on case boundaries manufactures fragments — `MIIEvQIBADAN...` produced `mii`.
-  const withoutBlobs = withoutEscapes.replace(
-    /[A-Za-z0-9+/=]{20,}/g,
-    (run) => (/\d/.test(run) ? ' ' : run),
+  const withoutBlobs = withoutEscapes.replace(/[A-Za-z0-9+/=]{20,}/g, (run) =>
+    /\d/.test(run) ? ' ' : run,
   )
   // A UUID is one opaque identifier, not five words. The hex rule below requires a digit, so
   // all-letter groups slipped past it: `bebe`, `daca`, `feda` and `abda` are all valid hex AND
@@ -277,7 +346,8 @@ export function* wordParts(identifier) {
  * (`selecao`, `localizacao`, `instrucao`, `delegacao`, `continuacao`, `interrupcao`, `inspecao`,
  * `conducao`, `instancia`, `disponivel`, `intocaveis`) out of 949 words in neither lexicon.
  */
-const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|ncia|ncias|avel|ivel|aveis|iveis|ndo|ao|oes)$/
+const PT_SUFFIX =
+  /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|ncia|ncias|avel|ivel|aveis|iveis|ndo|ao|oes)$/
 
 /**
  * Portuguese words that NO installed dictionary contains and NO suffix rule reaches, found by
@@ -297,13 +367,14 @@ const PT_SUFFIX = /^.{3,}(?:cao|coes|acoes|mento|mentos|dade|dades|agem|agens|nc
  * flag it.
  */
 const KNOWN_PORTUGUESE = new Set([
-
-  'cabecalho', 'cabecalhos', // cabeçalho — header
+  'cabecalho',
+  'cabecalhos', // cabeçalho — header
   'codigo', // código — code
   'espaco', // espaço — space
   'indice', // índice — index (NOT `indices`, the English plural)
   'resetar', // to reset — Portuguese verb form of an English loanword
-  'rotulo', 'rotulos', // rótulo — label
+  'rotulo',
+  'rotulos', // rótulo — label
 ])
 
 /**
@@ -489,33 +560,33 @@ function main() {
           }
 
           // Detector 6 — prose inside comments, with backtick code spans removed (see above).
-        const inComment = portugueseInComments(line)
-        if (inComment.length > 0) {
-          violations.push({
-            at,
-            why: `Portuguese word "${inComment[0]}" in a comment`,
-            text: line.trim().slice(0, 100),
-          })
-          return
-        }
+          const inComment = portugueseInComments(line)
+          if (inComment.length > 0) {
+            violations.push({
+              at,
+              why: `Portuguese word "${inComment[0]}" in a comment`,
+              text: line.trim().slice(0, 100),
+            })
+            return
+          }
 
-        // Detector 5 — string literals, with comments removed first (see portugueseInStrings).
-        // A JSDoc continuation line (` * …`) is a comment too — without this, a backtick code
-        // span quoting Portuguese inside a doc block reads as a string literal.
-        const noComments = /^\s*\*(?!\/)/.test(line)
-          ? ''
-          : line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '')
-        const inString = portugueseInStrings(noComments)
-        if (inString.length > 0) {
-          violations.push({
-            at,
-            why: `Portuguese word "${inString[0]}" in a string literal`,
-            text: line.trim().slice(0, 100),
-          })
-          return
-        }
+          // Detector 5 — string literals, with comments removed first (see portugueseInStrings).
+          // A JSDoc continuation line (` * …`) is a comment too — without this, a backtick code
+          // span quoting Portuguese inside a doc block reads as a string literal.
+          const noComments = /^\s*\*(?!\/)/.test(line)
+            ? ''
+            : line.replace(/\/\/.*$/, '').replace(/\/\*[\s\S]*?\*\//g, '')
+          const inString = portugueseInStrings(noComments)
+          if (inString.length > 0) {
+            violations.push({
+              at,
+              why: `Portuguese word "${inString[0]}" in a string literal`,
+              text: line.trim().slice(0, 100),
+            })
+            return
+          }
 
-        for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+          for (const identifier of codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
             // Detector 6 — the Portuguese POSSESSIVE construction (B-084). The word loop below
             // cannot see it: `do`, `da` and `de` are all English dictionary entries, so every part
             // of `pluginDeHooks` is declined correctly and the identifier passes whole.
@@ -549,7 +620,8 @@ function main() {
     // Neither-lexicon words. Mostly legitimate abbreviations, and the one place an invented
     // Portuguese-looking token could hide — printed on demand so a human can sweep it.
     console.error(`\nwords in neither lexicon (${String(unknown.size)}):`)
-    for (const [w, n] of [...unknown].sort((a, b) => b[1] - a[1])) console.error(`  ${w} (${String(n)})`)
+    for (const [w, n] of [...unknown].sort((a, b) => b[1] - a[1]))
+      console.error(`  ${w} (${String(n)})`)
   }
 
   if (violations.length === 0) {
@@ -569,7 +641,6 @@ function main() {
       'or — when an English technical term collides with a Portuguese word — add it to TECHNICAL.',
   )
   process.exit(1)
-
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

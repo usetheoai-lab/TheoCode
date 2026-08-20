@@ -92,7 +92,9 @@ describe('loadRules — frontmatter, which changes what the rule CLAIMS to apply
   it('test_a_paths_scope_is_announced_above_the_body', () => {
     // This line is the difference between a rule the model applies everywhere and one it applies to
     // a subset. Losing it in a migration silently widens every scoped rule.
-    const root = project({ 'scoped.md': '---\npaths:\n  - "src/**/*.ts"\n  - "*.tsx"\n---\nuse tabs' })
+    const root = project({
+      'scoped.md': '---\npaths:\n  - "src/**/*.ts"\n  - "*.tsx"\n---\nuse tabs',
+    })
 
     expect(loadRules(root, () => {}).text).toBe(
       '> Applies ONLY to files matching: src/**/*.ts, *.tsx\n\nuse tabs',
@@ -213,7 +215,7 @@ describe('loadRules — the traversal budget', () => {
   })
 })
 
-describe('loadRules — the guards, now the framework\'s and still load-bearing here', () => {
+describe("loadRules — the guards, now the framework's and still load-bearing here", () => {
   it('test_a_symlink_loop_is_broken_rather_than_hitting_the_ceilings', () => {
     // A path-based guard is defeated by two different paths reaching the same directory; this one
     // keys on dev:ino. Without it the walk does not terminate, it merely hits the ceilings — which

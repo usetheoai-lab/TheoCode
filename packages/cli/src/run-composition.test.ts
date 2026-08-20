@@ -40,7 +40,10 @@ describe('B-024 — the composition seam is real', () => {
     const composed = composeRun({ overrides: [] }, { cwd: dir, store })
 
     expect(composed.mod.default, 'composition produced no agent module').not.toBe(undefined)
-    expect(composed.policy.reason.length, 'the approval decision carried no reason').toBeGreaterThan(0)
+    expect(
+      composed.policy.reason.length,
+      'the approval decision carried no reason',
+    ).toBeGreaterThan(0)
   })
 
   it('test_the_store_seam_decides_whether_the_project_config_is_read', () => {
@@ -71,10 +74,7 @@ describe('B-024 — the composition seam is real', () => {
   it('test_a_cli_override_reaches_the_effective_config', () => {
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
 
-    const composed = composeRun(
-      { overrides: ['reasoning_effort=high'] },
-      { cwd: dir, store },
-    )
+    const composed = composeRun({ overrides: ['reasoning_effort=high'] }, { cwd: dir, store })
 
     expect(composed.cfg.reasoning_effort, 'a -c override did not reach the effective config').toBe(
       'high',

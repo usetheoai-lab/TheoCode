@@ -165,7 +165,8 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
 }
 
 function turn(action: CommandAction, text: string, cap: TurnCapabilities): boolean {
-  const { agent, SESSION, customCommands, lastSentMessage, setToast, setMode, setApprovalMode } = cap
+  const { agent, SESSION, customCommands, lastSentMessage, setToast, setMode, setApprovalMode } =
+    cap
   switch (action.kind) {
     case 'image':
       handleImage(action.arg, {

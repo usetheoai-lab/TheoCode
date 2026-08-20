@@ -3,8 +3,6 @@
 // live data — it reads as a registry something iterates, and no such caller exists.
 export type ArtifactKind = 'transcript' | 'lock-file' | 'lock-directory' | 'tmp'
 
-
-
 export function classifyEntry(name: string, isDirectory: boolean): ArtifactKind | undefined {
   if (name.endsWith('.jsonl.lock')) return isDirectory ? 'lock-directory' : undefined
   if (isDirectory) return undefined
@@ -13,6 +11,3 @@ export function classifyEntry(name: string, isDirectory: boolean): ArtifactKind 
   if (name.endsWith('.tmp')) return 'tmp'
   return undefined
 }
-
-
-

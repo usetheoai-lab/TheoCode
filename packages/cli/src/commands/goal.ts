@@ -89,8 +89,7 @@ function reportGoalOutcome(
 }
 
 async function resolveGoalContext(args: ExecGoal) {
-  const { resolveCredential, resolveCredentialForModel } =
-    await import('@theocode/agent/auth')
+  const { resolveCredential, resolveCredentialForModel } = await import('@theocode/agent/auth')
   const { TRUST_STORE, resolveEffectiveConfig, resolveTrustPosture } =
     await import('@theocode/agent/config')
   const { routeGoalModel } = await import('@theocode/agent/goal')

@@ -54,9 +54,10 @@ describe('B-022 — every documented invocation routes to its command', () => {
     const routed = new Set(['resume', 'review', 'goal', 'sessions', 'doctor', '[OPTIONS]'])
 
     for (const token of taught) {
-      expect(routed.has(token ?? ''), `usage teaches \`theocode ${token ?? ''}\`, which is not routed`).toBe(
-        true,
-      )
+      expect(
+        routed.has(token ?? ''),
+        `usage teaches \`theocode ${token ?? ''}\`, which is not routed`,
+      ).toBe(true)
     }
   })
 })

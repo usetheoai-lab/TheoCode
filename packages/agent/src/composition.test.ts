@@ -198,7 +198,6 @@ describe('path 1 — buildChatAgent composes the coding agent', () => {
       ).toBe(true)
     }
   })
-
 })
 
 describe('path 1 — buildChatAgent gates what the directory is trusted with', () => {
@@ -246,7 +245,9 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     // where the decision came from rather than only that it was refused.
     expect(agent.settingSources).toEqual({
       user: true,
-      project: { trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } } },
+      project: {
+        trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
+      },
     })
     expect(agent.memory.enabled).toBe(true)
     expect(

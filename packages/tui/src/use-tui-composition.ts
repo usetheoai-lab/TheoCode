@@ -1,4 +1,3 @@
-
 import {
   credential,
   credentialError,
@@ -25,7 +24,6 @@ import { useBacktrack } from './backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 
 process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
-
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -58,7 +56,6 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
     lastSentMessage,
   }
 }
-
 
 function turnInterrupt(d: {
   agent: { abort: () => void }
@@ -178,7 +175,6 @@ export function useTuiComposition() {
   const { agent, currentSessionId, stdout, streaming } = s
   const screen = useScreenState()
 
-
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
@@ -206,17 +202,22 @@ export function useTuiComposition() {
   })
 
   const { handleSubmit } = useComposerCommands(
-    composerDeps(s, screen, {
-      backtrack,
-      goalAbort: conv.goalAbort,
-      lastSentMessage: conv.lastSentMessage,
-      approvalMode: conv.approvalMode,
-      goalRun: conv.goalRun,
-      goalActive: conv.goalActive,
-      setGoalRun: conv.setGoalRun,
-      setApprovalMode: conv.setApprovalMode,
-      credential,
-    }, events),
+    composerDeps(
+      s,
+      screen,
+      {
+        backtrack,
+        goalAbort: conv.goalAbort,
+        lastSentMessage: conv.lastSentMessage,
+        approvalMode: conv.approvalMode,
+        goalRun: conv.goalRun,
+        goalActive: conv.goalActive,
+        setGoalRun: conv.setGoalRun,
+        setApprovalMode: conv.setApprovalMode,
+        credential,
+      },
+      events,
+    ),
   )
 
   const c = {

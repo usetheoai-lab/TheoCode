@@ -25,7 +25,11 @@ const wired = (skills: Entity) =>
 describe('B-070 — skillsPanelBody', () => {
   it('test_lists_the_skills_the_agent_actually_loaded', () => {
     const body = skillsPanelBody(
-      wired({ active: ['daily-briefing'], requested: ['daily-briefing'], suppressedByTrust: false }),
+      wired({
+        active: ['daily-briefing'],
+        requested: ['daily-briefing'],
+        suppressedByTrust: false,
+      }),
     )
     expect(body).toContain('daily-briefing')
   })
@@ -62,7 +66,9 @@ describe('B-070 — skillsPanelBody', () => {
 describe('B-069 — mcpPanelBody', () => {
   it('test_lists_the_servers_the_agent_started', () => {
     expect(
-      mcpPanelBody(wiredMcp({ active: ['fixtures'], requested: ['fixtures'], suppressedByTrust: false })),
+      mcpPanelBody(
+        wiredMcp({ active: ['fixtures'], requested: ['fixtures'], suppressedByTrust: false }),
+      ),
     ).toContain('fixtures')
   })
 
@@ -152,7 +158,11 @@ describe('B-071 — hooksPanelBody', () => {
  * answer exists, so the caveat would understate what the panel can say.
  */
 describe('B-088 — mcpPanelBody reports servers that did not answer', () => {
-  const LISTED = wiredMcp({ active: ['fixtures'], requested: ['fixtures'], suppressedByTrust: false })
+  const LISTED = wiredMcp({
+    active: ['fixtures'],
+    requested: ['fixtures'],
+    suppressedByTrust: false,
+  })
 
   it('test_a_failed_server_is_named_with_its_reason', () => {
     const body = mcpPanelBody(LISTED, [
@@ -165,7 +175,9 @@ describe('B-088 — mcpPanelBody reports servers that did not answer', () => {
   })
 
   it('test_a_failed_server_is_distinct_from_trust_suppression', () => {
-    const failed = mcpPanelBody(LISTED, [{ serverName: 'fixtures', message: 'boom', source: 'run' as const }])
+    const failed = mcpPanelBody(LISTED, [
+      { serverName: 'fixtures', message: 'boom', source: 'run' as const },
+    ])
     // Trust suppression means NOT STARTED by policy; a failure means started and did not answer.
     // Reporting one as the other sends a user to fix the wrong thing.
     expect(failed).not.toContain('DIRECTORY UNTRUSTED')

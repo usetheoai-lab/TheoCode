@@ -32,7 +32,12 @@
  * contributed which field, inspectable as data) and `CapabilityConflictError` instead of last-wins
  * when two members declare the same scalar differently.
  */
-import { CapabilityPreset, ModelCapability, ToolsCapability, applyCapabilities } from '@theokit/agents'
+import {
+  CapabilityPreset,
+  ModelCapability,
+  ToolsCapability,
+  applyCapabilities,
+} from '@theokit/agents'
 import type { Capability, CustomTool } from '@theokit/agents'
 
 import type { ReasoningEffort } from '../config/index.js'
@@ -65,7 +70,6 @@ export interface AgentShape {
 export function toolsNamed(registry: ToolRegistry, names: readonly string[]): Capability {
   return new ToolsCapability(registry.resolve(names) as never)
 }
-
 
 /**
  * Declare a named agent shape. THIS is the entry the DoD asks the three sites to share.

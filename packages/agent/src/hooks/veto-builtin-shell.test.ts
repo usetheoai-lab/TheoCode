@@ -15,14 +15,16 @@ import { withBuiltinShellVeto } from './veto-builtin-shell.js'
 
 type Handlers = Parameters<typeof withBuiltinShellVeto>[0]
 
-const call = (h: Handlers, name: string) =>
-  h.pre_tool_call?.({ name } as never)
+const call = (h: Handlers, name: string) => h.pre_tool_call?.({ name } as never)
 
 describe('withBuiltinShellVeto', () => {
   it('blocks_the_runtime_builtin_shell', async () => {
     const previous = vi.fn(async () => undefined)
 
-    const result = await call(withBuiltinShellVeto({ pre_tool_call: previous } as Handlers), 'shell')
+    const result = await call(
+      withBuiltinShellVeto({ pre_tool_call: previous } as Handlers),
+      'shell',
+    )
 
     expect(result).toMatchObject({ block: true })
     // The reason has to tell the model WHY, or it retries the same call. Asserting the sandbox is

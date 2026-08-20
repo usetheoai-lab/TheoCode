@@ -67,17 +67,11 @@ export class ToolRegistry {
     })
 
     const entries = new Map<string, CustomTool>([
-      [
-        'read_file',
-        bound.bind(createReadFileTool)({ lineNumbers: true, allowAbsolute: true }),
-      ],
+      ['read_file', bound.bind(createReadFileTool)({ lineNumbers: true, allowAbsolute: true })],
       ['list_dir', bound.bind(createListDirTool)({ allowAbsolute: true })],
       [
         'grep',
-        withName(
-          bound.bind(createSearchTextTool)({ regex: true, allowAbsolute: true }),
-          'grep',
-        ),
+        withName(bound.bind(createSearchTextTool)({ regex: true, allowAbsolute: true }), 'grep'),
       ],
       ['repo_status', bound.bind(createGitStatusTool)({ name: 'repo_status' })],
       ['git_diff', bound.bind(createGitDiffTool)()],

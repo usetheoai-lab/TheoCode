@@ -34,13 +34,7 @@ import { ConcurrentQuestionError } from '@theokit/agents/ask'
 // check it is: what `@theocode/agent/ask` hands a consumer IS the framework's class.
 import { ConcurrentQuestionError as entrypointConcurrentQuestionError } from './index.js'
 
-import {
-  abandonQuestion,
-  answerQuestion,
-  ask,
-  currentQuestion,
-  setListener,
-} from './ask-bridge.js'
+import { abandonQuestion, answerQuestion, ask, currentQuestion, setListener } from './ask-bridge.js'
 
 /** Releases the singleton's listener slot so the next case can attach its own. */
 let release: (() => void) | undefined

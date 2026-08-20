@@ -29,11 +29,7 @@ export function useGoalRun(pointer: string): GoalRun {
   return { goalRun, setGoalRun, goalActive, goalBadge }
 }
 
-function goalLabel(
-  goalRun: GoalRunState | null,
-  goalActive: boolean,
-  goalElapsed: number,
-): string {
+function goalLabel(goalRun: GoalRunState | null, goalActive: boolean, goalElapsed: number): string {
   if (goalRun === null) return ''
   if (goalActive) return ` · goal:pursuing (${String(goalElapsed)}s)`
   const total = Math.round(((goalRun.endedAt ?? Date.now()) - goalRun.startedAt) / 1000)

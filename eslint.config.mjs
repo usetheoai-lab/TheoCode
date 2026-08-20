@@ -18,7 +18,13 @@ export default tseslint.config(
   { ignores: ['tools/**', '.dependency-cruiser.cjs'] },
   {
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', URL: 'readonly', fetch: 'readonly' },
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        fetch: 'readonly',
+      },
     },
   },
   {
