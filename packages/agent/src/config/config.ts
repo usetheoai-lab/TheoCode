@@ -274,13 +274,13 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
   const envScalars: Record<string, unknown> = {}
   for (const key of CONFIG_SCHEMA_KEYS) {
     const path = ENV_BY_KEY[key]
-    if (path === undefined) continue 
+    if (path === undefined) continue
     const raw = env[path.knob]
     if (raw !== undefined) envScalars[key] = path.coerce(raw)
   }
   let envParsed: RawScalars
   try {
-    envParsed = scalarSchema.parse(envScalars) 
+    envParsed = scalarSchema.parse(envScalars)
   } catch (err) {
     throw toConfigError(err, 'env')
   }

@@ -15,3 +15,17 @@ CHANGELOG.md
 # content of ours inside it is `knowledge-base/`, which is an audit record — same reason as the
 # CHANGELOG: history is not rewritten by a machine.
 .claude/
+
+# B-073 — the BACKLOG is a PARSED record, not prose, and this file already knew the lesson for the
+# CHANGELOG two entries up without anyone extending it here.
+#
+# `tools/check-backlog-crossval.py:27` reads `^fixed_in: (.+)$` — anchored at column 0 — and line 32
+# skips an item whose value names an upstream repo. Running `prettier --write .` reflowed 6,982
+# lines of this file and left THREE `fixed_in:` lines no longer starting a line: 128 became 125, and
+# crossval went from `0 problems / 42 skipped` to `3 problems / 39 skipped`.
+#
+# Nothing about the content changed. The gate broke because a formatter rewrapped a file whose
+# contract is that certain strings begin a line — the tool answered "make this pretty" while the
+# file's contract was "these lines are parsed". Measured, restored from the pre-format commit, and
+# verified back to 128 and 0 problems.
+BACKLOG.md

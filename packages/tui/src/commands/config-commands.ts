@@ -10,11 +10,7 @@ import { join, resolve } from 'node:path'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { EFFORT_LEVELS, parseEffort, type ReasoningEffort } from '@theocode/agent/config'
-import {
-  type AttachedImage,
-  ImageAttachError,
-  readImageAttachment,
-} from '@theocode/agent/context'
+import { type AttachedImage, ImageAttachError, readImageAttachment } from '@theocode/agent/context'
 import type { ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
 type SetToast = Dispatch<SetStateAction<ToastPayload | null>>

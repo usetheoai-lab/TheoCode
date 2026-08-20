@@ -9,9 +9,7 @@ import { resolveToolScope } from '../tools/index.js'
 import { buildRoleAgent, TEAM_ROLES, type RoleAgentContext } from './roles.js'
 import { withDelegationCap } from './delegation-cap.js'
 
-async function buildTeam(
-  ctx: RoleAgentContext,
-): Promise<{ squad: Squad; members: SDKAgent[] }> {
+async function buildTeam(ctx: RoleAgentContext): Promise<{ squad: Squad; members: SDKAgent[] }> {
   const members = await Promise.all(TEAM_ROLES.map((role) => buildRoleAgent(role, ctx)))
   const squad = Squad.create({ agents: members, process: 'sequential', name: 'theocode-team' })
   return { squad, members }

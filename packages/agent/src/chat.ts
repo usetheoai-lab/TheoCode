@@ -431,15 +431,24 @@ function withShellAndProjectEntities(
  * decision; rebuilding it per `.tool()` call would make the provenance record say the set was
  * declared six times.
  */
-const READ_TOOLS = ['current_time', 'read_file', 'list_dir', 'grep', 'repo_status', 'git_diff'] as const
+const READ_TOOLS = [
+  'current_time',
+  'read_file',
+  'list_dir',
+  'grep',
+  'repo_status',
+  'git_diff',
+] as const
 const shapeCache = new WeakMap<ToolRegistry, Map<string, CustomTool>>()
 
 function readTool(registry: ToolRegistry, name: (typeof READ_TOOLS)[number]): CustomTool {
   let byName = shapeCache.get(registry)
   if (byName === undefined) {
-    const shape = declareAgent('coding-agent-reads', { registry, model: 'unused', reasoning_effort: 'medium' }, [
-      toolsNamed(registry, READ_TOOLS),
-    ])
+    const shape = declareAgent(
+      'coding-agent-reads',
+      { registry, model: 'unused', reasoning_effort: 'medium' },
+      [toolsNamed(registry, READ_TOOLS)],
+    )
     byName = new Map(shape.tools.map((tool) => [tool.name, tool]))
     shapeCache.set(registry, byName)
   }

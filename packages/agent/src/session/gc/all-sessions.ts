@@ -162,7 +162,9 @@ async function planOneProject(
   const dir = `${opts.projectsRoot}/${project}`
   const transcripts = entries
     .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
-    .sort((a, b) => (b.mtimeMs ?? Infinity) - (a.mtimeMs ?? Infinity) || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) => (b.mtimeMs ?? Infinity) - (a.mtimeMs ?? Infinity) || a.name.localeCompare(b.name),
+    )
   const idsOnDisk = new Set(transcripts.map((t) => transcriptId(t.name)))
 
   const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
@@ -302,7 +304,13 @@ function planRegistryEntries(
     if (idsOnDisk.has(entry.agentId)) continue
     const ageDays = (previewWindow.now() - (entry.lastModified ?? 0)) / 86_400_000
     if (ageDays <= previewWindow.maxAgeDays) continue
-    recordCandidate({ project, kind: 'registry', target: entry.agentId, id: entry.agentId, ageDays })
+    recordCandidate({
+      project,
+      kind: 'registry',
+      target: entry.agentId,
+      id: entry.agentId,
+      ageDays,
+    })
   }
 }
 
@@ -416,7 +424,7 @@ export async function runSessionGCAllProjects(
       removed.push(c.target)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removed.push(c.target) 
+        removed.push(c.target)
         continue
       }
       errors.push(`${c.target}: ${(err as Error).message}`)
@@ -452,4 +460,3 @@ async function removeEmptyProjects(
 function assertNeverKind(kind: never): never {
   throw new Error(`unhandled artifact shape: ${String(kind)}`)
 }
-

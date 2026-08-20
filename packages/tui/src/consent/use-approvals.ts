@@ -29,7 +29,7 @@ export function useApprovals(
   const [epoch, setEpoch] = useState(0)
 
   const pendingApproval = useMemo(() => {
-    void epoch 
+    void epoch
     ingest(registry.current, agent.thread)
     return findNextApproval(registry.current)
   }, [agent.thread, epoch])
@@ -47,7 +47,10 @@ export function useApprovals(
   useEffect(() => {
     // B-006 — auto-approval now depends on there actually being a sandbox. Without this the surface
     // approved every command under `full-auto` while rendering `⚠ tool-gating` on the same screen.
-    if (pendingApproval && shouldAutoApprove(approvalMode, pendingApproval.toolName, sandboxPosture)) {
+    if (
+      pendingApproval &&
+      shouldAutoApprove(approvalMode, pendingApproval.toolName, sandboxPosture)
+    ) {
       settleApproval(pendingApproval.approvalId, true)
     }
   }, [pendingApproval, approvalMode, settleApproval, sandboxPosture])

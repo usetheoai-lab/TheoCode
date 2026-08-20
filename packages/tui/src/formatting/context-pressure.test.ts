@@ -3,12 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  CRITICAL_AT,
-  WARN_AT,
-  contextPressure,
-  contextWarning,
-} from './context-pressure.js'
+import { CRITICAL_AT, WARN_AT, contextPressure, contextWarning } from './context-pressure.js'
 
 describe('B-080 — contextPressure', () => {
   it('test_an_empty_conversation_is_ok', () => {

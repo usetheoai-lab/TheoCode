@@ -41,7 +41,11 @@ export function createViewImageTool(opts: { projectRoot: string }): CustomTool {
       const image = readImageAttachment(absolute)
       return { path, mimeType: image.mimeType, data: image.data }
     },
-    toModelOutput: (out: { path: string; mimeType: string; data: string }): ToolResultContentBlock[] => [
+    toModelOutput: (out: {
+      path: string
+      mimeType: string
+      data: string
+    }): ToolResultContentBlock[] => [
       { type: 'text', text: `${out.path} (${out.mimeType})` },
       { type: 'image', source: { type: 'base64', media_type: out.mimeType, data: out.data } },
     ],

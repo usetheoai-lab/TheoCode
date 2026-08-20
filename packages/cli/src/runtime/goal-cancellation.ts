@@ -1,4 +1,3 @@
-
 /**
  * The narrow slice of a shutdown this module needs — deliberately not the whole `Shutdown`.
  *

@@ -1,4 +1,3 @@
-
 export type Mode = 'chat' | 'plan' | 'ask' | 'select' | 'progress'
 
 export interface ToastPayload {

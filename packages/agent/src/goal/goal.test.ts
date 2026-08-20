@@ -61,7 +61,14 @@ describe('T4.2 — every event the loop yields reaches the surface', () => {
     await runGoal(agentWithSend, 'ship it', {} as never, {
       onLine: () => undefined,
       onEvent: (e) => seen.push(e),
-      loop: loopOf([{ type: 'turn_start', turn: 1 }, { type: 'turn_start', turn: 2 }, { type: 'status_change', status: 'completed' }], 'ok'),
+      loop: loopOf(
+        [
+          { type: 'turn_start', turn: 1 },
+          { type: 'turn_start', turn: 2 },
+          { type: 'status_change', status: 'completed' },
+        ],
+        'ok',
+      ),
     })
 
     expect(seen, 'the loop yielded 3 events and the sink saw a different number').toHaveLength(3)

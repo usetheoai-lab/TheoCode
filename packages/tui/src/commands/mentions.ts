@@ -33,7 +33,7 @@ export function resolveMentions(text: string, cwd: string): ResolvedMentions {
     seen.add(path)
     try {
       if (isForbiddenPath(path)) continue
-      const abs = safePathJoin(cwd, path) 
+      const abs = safePathJoin(cwd, path)
       assertNoSymlinkEscape(abs, cwd)
       if (!existsSync(abs)) continue
       let content = readFileSync(abs, 'utf8')

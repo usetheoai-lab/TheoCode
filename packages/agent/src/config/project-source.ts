@@ -15,10 +15,7 @@
  */
 import type { TrustPosture } from './trust-posture.js'
 
-export function projectSourceAllowed(allows: {
-  subagents: boolean
-  hooks: boolean
-}): boolean {
+export function projectSourceAllowed(allows: { subagents: boolean; hooks: boolean }): boolean {
   return allows.subagents && allows.hooks
 }
 

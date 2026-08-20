@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest'
 
 import { wiredCapabilities } from './wired-capabilities.js'
 
-const allows = (mcp: boolean, skills: boolean, hooks: boolean) => ({ allows: { mcp, skills, hooks } })
+const allows = (mcp: boolean, skills: boolean, hooks: boolean) => ({
+  allows: { mcp, skills, hooks },
+})
 
 const input = (over: Partial<Parameters<typeof wiredCapabilities>[0]> = {}) => ({
   posture: allows(true, true, true),
@@ -43,7 +45,12 @@ describe('B-069/B-070/B-071 — wiredCapabilities', () => {
     // A trusted directory with no skills and an untrusted one with no skills are the same
     // emptiness. Flagging the first teaches the user to ignore the flag.
     const w = wiredCapabilities(
-      input({ posture: allows(false, false, false), mcpServers: {}, configuredSkills: [], hookEvents: [] }),
+      input({
+        posture: allows(false, false, false),
+        mcpServers: {},
+        configuredSkills: [],
+        hookEvents: [],
+      }),
     )
     expect(w.mcp.suppressedByTrust).toBe(false)
     expect(w.skills.suppressedByTrust).toBe(false)

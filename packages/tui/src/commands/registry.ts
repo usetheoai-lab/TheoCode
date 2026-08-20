@@ -193,9 +193,7 @@ function routeWithArgument(trimmed: string): CommandAction | undefined {
 function definitions(customNames?: ReadonlySet<string>): CommandDefinition[] {
   const builtins = [...EXACT_COMMANDS.keys(), ...COMMANDS_WITH_ARGUMENT.map(([name]) => name)]
   const names = new Set([...builtins.map((n) => n.slice(1)), ...(customNames ?? [])])
-  return [...names].map((name) =>
-    defineCommand({ name, description: '', arg: 'optional' }),
-  )
+  return [...names].map((name) => defineCommand({ name, description: '', arg: 'optional' }))
 }
 
 /**

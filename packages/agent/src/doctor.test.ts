@@ -85,8 +85,10 @@ describe('B-081 — renderDiagnosis', () => {
     const diagnosis = diagnose(collectChecks({ ...base, credential: 'absent' }))
     const out = renderDiagnosis(diagnosis)
     expect(out).toContain('credential')
-    expect(out, 'the summary must state how many failed, or a long paste hides the one that did')
-      .toContain(`${String(diagnosis.failed)} failed of`)
+    expect(
+      out,
+      'the summary must state how many failed, or a long paste hides the one that did',
+    ).toContain(`${String(diagnosis.failed)} failed of`)
   })
 
   it('test_it_never_prints_a_secret', () => {

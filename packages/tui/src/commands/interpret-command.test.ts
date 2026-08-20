@@ -221,7 +221,9 @@ describe('interpretCommand — an unclaimed action falls through without effect'
     // registry entry added without a handler lands here.
     const h = harness()
 
-    expect(() => interpretCommand({ kind: '__not_a_command__' } as unknown as CommandAction, '', h.cap)).not.toThrow()
+    expect(() =>
+      interpretCommand({ kind: '__not_a_command__' } as unknown as CommandAction, '', h.cap),
+    ).not.toThrow()
     expect(h.resetSession).not.toHaveBeenCalled()
     expect(h.setToast).not.toHaveBeenCalled()
     expect(h.agent.send).not.toHaveBeenCalled()

@@ -80,7 +80,6 @@ describe('B-021 — a gate cannot be disabled by omitting its argument', () => {
 
     expect(d.approved).toBe(true)
   })
-
 })
 
 describe('B-021 — a matcher scopes a hook to tool names, so a result with no tool is out of scope', () => {
@@ -99,7 +98,10 @@ describe('B-021 — a matcher scopes a hook to tool names, so a result with no t
       timeout_ms: 5000,
       ...(matcher === undefined ? {} : { matcher }),
     }
-    const handlers = buildHookHandlers([s], { trusted: true, approved: new Set([hookFingerprint(s)]) })
+    const handlers = buildHookHandlers([s], {
+      trusted: true,
+      approved: new Set([hookFingerprint(s)]),
+    })
 
     await handlers.transform_tool_result?.('a plain string result', ctxTurn())
 
@@ -130,7 +132,10 @@ describe('B-044 — a PostToolUse hook receives what the tool was actually calle
     // hook needs to judge the call.
     const out = join(tmp(), 'payload.json')
     const s: HookSpec = { command: `cat > ${out}`, event: 'PostToolUse', timeout_ms: 5000 }
-    const handlers = buildHookHandlers([s], { trusted: true, approved: new Set([hookFingerprint(s)]) })
+    const handlers = buildHookHandlers([s], {
+      trusted: true,
+      approved: new Set([hookFingerprint(s)]),
+    })
 
     await handlers.transform_tool_result?.(
       [{ toolUseId: 'call-1', content: 'the result' }],

@@ -47,8 +47,6 @@ export class EffectiveConfig {
     return modelLabel(this.model)
   }
 
-
-
   /**
    * B-006 — the posture behind `sandboxLabel`. It was computed only to render the `⚠ tool-gating`
    * warning, so the interactive surface could tell the user confinement was absent and still
@@ -125,7 +123,10 @@ export function resolveEffectiveConfig(
  * standing as the `cli` layer, which may loosen. The guard that belongs to loosening is a
  * CONFIRMATION at the command, not a silent refusal here.
  */
-export function withSandboxMode<T extends { sandbox_mode: SandboxMode }>(cfg: T, mode: SandboxMode): T {
+export function withSandboxMode<T extends { sandbox_mode: SandboxMode }>(
+  cfg: T,
+  mode: SandboxMode,
+): T {
   if (mode === cfg.sandbox_mode) return cfg
   return { ...cfg, sandbox_mode: mode }
 }

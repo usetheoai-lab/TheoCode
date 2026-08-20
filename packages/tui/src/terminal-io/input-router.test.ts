@@ -143,7 +143,13 @@ describe('routeKey — escape, in priority order', () => {
   })
 
   it('test_escape_closes_usage_before_help_goal_or_the_turn', () => {
-    const state = { ...IDLE, showingUsage: true, showingHelp: true, goalActive: true, streaming: true }
+    const state = {
+      ...IDLE,
+      showingUsage: true,
+      showingHelp: true,
+      goalActive: true,
+      streaming: true,
+    }
     expect(kinds(routeKey('', ESC, state))).toEqual(['close-usage'])
   })
 
@@ -207,10 +213,9 @@ describe('routeKey — the composer', () => {
     expect(kinds(routeKey('x', PLAIN, { ...IDLE, backtrackArmed: true }))).toEqual([
       'reset-backtrack',
     ])
-    expect(kinds(routeKey('x', PLAIN, { ...IDLE, backtrackArmed: true, exitArmed: true }))).toEqual([
-      'reset-backtrack',
-      'disarm-exit',
-    ])
+    expect(kinds(routeKey('x', PLAIN, { ...IDLE, backtrackArmed: true, exitArmed: true }))).toEqual(
+      ['reset-backtrack', 'disarm-exit'],
+    )
   })
 
   it('test_ctrl_c_interrupts_a_streaming_turn_rather_than_arming_the_exit', () => {

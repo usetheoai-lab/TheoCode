@@ -58,8 +58,7 @@ export function loadAgentsMd(
         rootDir,
         onWarn: warn,
         // Markers stay: they are visible in the model's prompt, and presentation is this product's.
-        wrap: (name, content) =>
-          `\n--- import: ${name} ---\n${content}\n--- end import ---\n`,
+        wrap: (name, content) => `\n--- import: ${name} ---\n${content}\n--- end import ---\n`,
         // Everything the chain already read — otherwise a file the walk loaded AND an import names
         // lands in the prompt twice.
         alreadyLoaded: [...visited],

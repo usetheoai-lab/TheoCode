@@ -30,7 +30,7 @@ describe('B-006 — project and env cannot loosen what the user set', () => {
         user: 'read-only',
         project: 'danger-full-access',
       }),
-      'a cloned repository handed itself full filesystem access over the user\'s own setting',
+      "a cloned repository handed itself full filesystem access over the user's own setting",
     ).toBe('read-only')
   })
 
