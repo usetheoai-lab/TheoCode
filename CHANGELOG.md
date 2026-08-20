@@ -7,6 +7,8 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-08-20
+
 ### Changed
 
 - **`InputSlot`'s approval surface no longer casts what its own predicate already proved (B-107).**
