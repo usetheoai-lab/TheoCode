@@ -195,6 +195,7 @@ jobs:
           echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
           echo "job is RED rather than silently skipping the language gate." >&2
           exit 1
+        timeout-minutes: 8
 
       # B-073 — VERIFY THE LEXICON, not the package. Added because the step above once reported
       # "word lists installed on attempt 1" while the gate it feeds had lost a quarter of its
@@ -234,7 +235,6 @@ jobs:
             }
           '
         timeout-minutes: 2
-        timeout-minutes: 8
       - run: npm ci
       - run: npm test
 
@@ -299,6 +299,7 @@ jobs:
           echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
           echo "job is RED rather than silently skipping the language gate." >&2
           exit 1
+        timeout-minutes: 8
 
       # B-073 — VERIFY THE LEXICON, not the package. Added because the step above once reported
       # "word lists installed on attempt 1" while the gate it feeds had lost a quarter of its
@@ -338,7 +339,6 @@ jobs:
             }
           '
         timeout-minutes: 2
-        timeout-minutes: 8
       - run: npm ci
       - run: npm run lint
 
