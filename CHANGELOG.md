@@ -7,6 +7,25 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-08-20
+
+### Changed
+
+- **`InputSlot`'s approval surface no longer casts what its own predicate already proved (B-107).**
+
+  `@theokit/tui` moved from `^0.67.0` to `^0.76.1`. Under 0.x the caret pins the MINOR, so
+  `^0.67.0` was `>=0.67.0 <0.68.0` — this package could not reach anything published after 0.67,
+  and `@theokit/tui` was not in `node_modules` at all.
+
+  The version that mattered is 0.76.0, which added `narrowingLayer`: a `SurfaceLayer` whose `when`
+  is a type predicate, so the narrowing survives into `render`. It was extracted **because of the
+  cast in this file** — `approval={p.pendingApproval as PendingApproval}`, three lines below the
+  `when` that had already proved it. That cast is gone.
+
+  Nine minors were crossed with no breakage: 42 distinct symbols across 21 files, all present in
+  both published artifacts, and typecheck / 555 tests / lint / depcruise identical to the
+  pre-bump baseline.
+
 ## [0.4.6] - 2026-08-19
 
 ### Changed
