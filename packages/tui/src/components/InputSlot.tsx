@@ -2,6 +2,7 @@ import type { Dispatch, ReactElement, SetStateAction } from 'react'
 
 import {
   PermissionPrompt,
+  narrowingLayer,
   selectSurface,
   type PendingApproval,
   type SurfaceLayer,
@@ -85,6 +86,9 @@ function ApprovalCard({
  * rather than trusting it: an edit that makes the fallback conditional should fail a test, not
  * render a hung-looking terminal.
  */
+/** `InputSlotProps` with the approval known present — what the `when` predicate proves. */
+type WithApproval = InputSlotProps & { readonly pendingApproval: PendingApproval }
+
 export const INPUT_LAYERS: readonly SurfaceLayer<InputSlotProps>[] = [
   {
     name: 'hooks-gate',
@@ -107,16 +111,21 @@ export const INPUT_LAYERS: readonly SurfaceLayer<InputSlotProps>[] = [
       />
     ),
   },
-  {
+  // B-107 — `narrowingLayer` instead of a cast, and this call site is why it exists.
+  //
+  // `when` already proved `pendingApproval` is defined; with a plain `SurfaceLayer` the proof was
+  // discarded before `render` saw it, and the line below re-asserted it by hand three lines later.
+  // That `as PendingApproval` is the evidence @theokit/tui's B-074 was extracted from.
+  narrowingLayer<InputSlotProps, WithApproval>({
     name: 'approval',
-    when: (p) => p.pendingApproval !== undefined,
+    when: (p): p is WithApproval => p.pendingApproval !== undefined,
     render: (p) => (
       <ApprovalCard
-        approval={p.pendingApproval as PendingApproval}
+        approval={p.pendingApproval}
         settleApproval={p.settleApproval}
       />
     ),
-  },
+  }),
   {
     name: 'conversation',
     when: () => true,
