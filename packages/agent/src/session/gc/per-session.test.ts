@@ -16,7 +16,10 @@ import { runSessionGC, type SessionGCPlan } from './per-session.js'
 const LIVE = 'live-session'
 const OLD = 'old-session'
 
-function planWith(candidates: SessionGCPlan['candidates'], extra: Partial<SessionGCPlan> = {}): SessionGCPlan {
+function planWith(
+  candidates: SessionGCPlan['candidates'],
+  extra: Partial<SessionGCPlan> = {},
+): SessionGCPlan {
   return { candidates, kept: [], total: candidates.length, ...extra }
 }
 
@@ -36,10 +39,11 @@ describe('runSessionGC', () => {
     const del = vi.fn(async () => {})
     const unlink = vi.fn(async () => {})
 
-    const result = await runSessionGC(
-      planWith([{ id: LIVE, ageDays: 99, inRegistry: true }]),
-      { ...seams(LIVE), delete: del, unlink },
-    )
+    const result = await runSessionGC(planWith([{ id: LIVE, ageDays: 99, inRegistry: true }]), {
+      ...seams(LIVE),
+      delete: del,
+      unlink,
+    })
 
     expect(del).not.toHaveBeenCalled()
     expect(unlink).not.toHaveBeenCalled()
@@ -53,10 +57,14 @@ describe('runSessionGC', () => {
     const del = vi.fn(async () => {})
     const unlink = vi.fn(async () => {})
 
-    const result = await runSessionGC(
-      planWith([{ id: LIVE, ageDays: 99, inRegistry: false }]),
-      { ...seams(undefined, [{ id: LIVE, mtimeMs: 2 }, { id: OLD, mtimeMs: 1 }]), delete: del, unlink },
-    )
+    const result = await runSessionGC(planWith([{ id: LIVE, ageDays: 99, inRegistry: false }]), {
+      ...seams(undefined, [
+        { id: LIVE, mtimeMs: 2 },
+        { id: OLD, mtimeMs: 1 },
+      ]),
+      delete: del,
+      unlink,
+    })
 
     expect(unlink).not.toHaveBeenCalled()
     expect(del).not.toHaveBeenCalled()
@@ -69,10 +77,11 @@ describe('runSessionGC', () => {
     const del = vi.fn(async () => {})
     const unlink = vi.fn(async () => {})
 
-    const result = await runSessionGC(
-      planWith([{ id: OLD, ageDays: 99, inRegistry: true }]),
-      { ...seams(LIVE, [{ id: LIVE, mtimeMs: 2 }]), delete: del, unlink },
-    )
+    const result = await runSessionGC(planWith([{ id: OLD, ageDays: 99, inRegistry: true }]), {
+      ...seams(LIVE, [{ id: LIVE, mtimeMs: 2 }]),
+      delete: del,
+      unlink,
+    })
 
     expect(del).toHaveBeenCalledWith(OLD)
     expect(result.removed).toContain(OLD)

@@ -1,10 +1,4 @@
-export {
-  abandonQuestion,
-  answerQuestion,
-  ask,
-  currentQuestion,
-  setListener,
-} from './ask-bridge.js'
+export { abandonQuestion, answerQuestion, ask, currentQuestion, setListener } from './ask-bridge.js'
 /**
  * B-004 — surfaces import from `@theocode/agent/ask`, never from a module directly, so the error a
  * caller must catch by type has to be reachable from HERE. It is the framework's class, re-exported

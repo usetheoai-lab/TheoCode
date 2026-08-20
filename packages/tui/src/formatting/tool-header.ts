@@ -87,59 +87,61 @@ export function formatToolResult(
 
 type ParsedResult = Record<string, unknown>
 
-const BODY_BY_TOOL: ReadonlyMap<
-  string,
-  (p: ParsedResult) => { output: string } | undefined
-> = new Map([
-  ['interactive_shell', terminalBody],
-  ['write_stdin', terminalBody],
-  [
-    'edit_file',
-    (p) => {
-      if (p.ok === false) return { output: `edit_file: ${errorText(p)}` }
-      if (typeof p.replacements !== 'number') return undefined
-      return { output: `Applied ${String(p.replacements)} edit${p.replacements === 1 ? '' : 's'}.` }
-    },
-  ],
-  [
-    'current_time',
-    (p) => {
-      if (p.ok === false) return { output: `current_time: ${errorText(p)}` }
-      return typeof p.current_time === 'string' ? { output: p.current_time } : undefined
-    },
-  ],
-  [
-    'read_file',
-    (p) => {
-      if (p.ok === false) return { output: `read_file: ${errorText(p)}` }
-      return typeof p.content === 'string' ? { output: p.content } : undefined
-    },
-  ],
-  [
-    'apply_patch',
-    (p) => {
-      if (p.ok === false) return { output: `apply_patch: ${errorText(p)}` }
-      const files = Array.isArray(p.files_patched) ? (p.files_patched as unknown[]).map(String) : []
-      if (files.length === 0) return { output: 'Applied patch.' }
-      return {
-        output: `Edited ${String(files.length)} file${files.length === 1 ? '' : 's'}: ${files.join(', ')}`,
-      }
-    },
-  ],
-  [
-    'grep',
-    (p) => {
-      if (p.ok === false) return { output: `grep: ${errorText(p)}` }
-      if (!Array.isArray(p.matches)) return undefined
-      const lines = (p.matches as Array<{ file?: unknown; line?: unknown; preview?: unknown }>).map(
-        (m) => `${String(m.file ?? '')}:${String(m.line ?? '')}: ${String(m.preview ?? '')}`,
-      )
-      return { output: lines.length > 0 ? lines.join('\n') : '(no matches)' }
-    },
-  ],
-  ['update_plan', planBody],
-  ['run_shell', shellBody],
-])
+const BODY_BY_TOOL: ReadonlyMap<string, (p: ParsedResult) => { output: string } | undefined> =
+  new Map([
+    ['interactive_shell', terminalBody],
+    ['write_stdin', terminalBody],
+    [
+      'edit_file',
+      (p) => {
+        if (p.ok === false) return { output: `edit_file: ${errorText(p)}` }
+        if (typeof p.replacements !== 'number') return undefined
+        return {
+          output: `Applied ${String(p.replacements)} edit${p.replacements === 1 ? '' : 's'}.`,
+        }
+      },
+    ],
+    [
+      'current_time',
+      (p) => {
+        if (p.ok === false) return { output: `current_time: ${errorText(p)}` }
+        return typeof p.current_time === 'string' ? { output: p.current_time } : undefined
+      },
+    ],
+    [
+      'read_file',
+      (p) => {
+        if (p.ok === false) return { output: `read_file: ${errorText(p)}` }
+        return typeof p.content === 'string' ? { output: p.content } : undefined
+      },
+    ],
+    [
+      'apply_patch',
+      (p) => {
+        if (p.ok === false) return { output: `apply_patch: ${errorText(p)}` }
+        const files = Array.isArray(p.files_patched)
+          ? (p.files_patched as unknown[]).map(String)
+          : []
+        if (files.length === 0) return { output: 'Applied patch.' }
+        return {
+          output: `Edited ${String(files.length)} file${files.length === 1 ? '' : 's'}: ${files.join(', ')}`,
+        }
+      },
+    ],
+    [
+      'grep',
+      (p) => {
+        if (p.ok === false) return { output: `grep: ${errorText(p)}` }
+        if (!Array.isArray(p.matches)) return undefined
+        const lines = (
+          p.matches as Array<{ file?: unknown; line?: unknown; preview?: unknown }>
+        ).map((m) => `${String(m.file ?? '')}:${String(m.line ?? '')}: ${String(m.preview ?? '')}`)
+        return { output: lines.length > 0 ? lines.join('\n') : '(no matches)' }
+      },
+    ],
+    ['update_plan', planBody],
+    ['run_shell', shellBody],
+  ])
 
 function terminalBody(p: ParsedResult): { output: string } | undefined {
   if (p.ok === false) return { output: `error: ${errorText(p)}` }
@@ -189,57 +191,58 @@ export function formatApproval(pending: { toolName: string; input?: unknown }): 
 
 type ApprovalLabel = { toolType: string; command: string; description?: string }
 
-const APPROVAL_LABELS: ReadonlyMap<
-  string,
-  (input: Record<string, unknown>) => ApprovalLabel
-> = new Map([
-  [
-    'run_shell',
-    (input) => ({
-      toolType: 'Run command',
-      command: typeof input.command === 'string' ? input.command : '',
-    }),
-  ],
-  [
-    'interactive_shell',
-    (input) => ({
-      toolType: 'Start interactive shell',
-      command: typeof input.command === 'string' ? input.command : '',
-    }),
-  ],
-  [
-    'write_stdin',
-    (input) => {
-      const chars = typeof input.input === 'string' ? input.input : ''
-      return { toolType: 'Write to session', command: chars.replace(/\n/g, '⏎').slice(0, 80) }
-    },
-  ],
-  [
-    'edit_file',
-    (input) => ({
-      toolType: 'Apply edit',
-      command: typeof input.path === 'string' ? input.path : 'file',
-    }),
-  ],
-  [
-    'apply_patch',
-    (input) => {
-      const patch = typeof input.patch === 'string' ? input.patch : ''
-      return { toolType: 'Apply patch', command: filesFromV4APatch(patch), description: patch }
-    },
-  ],
-  [
-    'web_fetch',
-    (input) => ({ toolType: 'Fetch URL', command: typeof input.url === 'string' ? input.url : '' }),
-  ],
-  [
-    'web_search',
-    (input) => ({
-      toolType: 'Web search',
-      command: typeof input.query === 'string' ? input.query : '',
-    }),
-  ],
-])
+const APPROVAL_LABELS: ReadonlyMap<string, (input: Record<string, unknown>) => ApprovalLabel> =
+  new Map([
+    [
+      'run_shell',
+      (input) => ({
+        toolType: 'Run command',
+        command: typeof input.command === 'string' ? input.command : '',
+      }),
+    ],
+    [
+      'interactive_shell',
+      (input) => ({
+        toolType: 'Start interactive shell',
+        command: typeof input.command === 'string' ? input.command : '',
+      }),
+    ],
+    [
+      'write_stdin',
+      (input) => {
+        const chars = typeof input.input === 'string' ? input.input : ''
+        return { toolType: 'Write to session', command: chars.replace(/\n/g, '⏎').slice(0, 80) }
+      },
+    ],
+    [
+      'edit_file',
+      (input) => ({
+        toolType: 'Apply edit',
+        command: typeof input.path === 'string' ? input.path : 'file',
+      }),
+    ],
+    [
+      'apply_patch',
+      (input) => {
+        const patch = typeof input.patch === 'string' ? input.patch : ''
+        return { toolType: 'Apply patch', command: filesFromV4APatch(patch), description: patch }
+      },
+    ],
+    [
+      'web_fetch',
+      (input) => ({
+        toolType: 'Fetch URL',
+        command: typeof input.url === 'string' ? input.url : '',
+      }),
+    ],
+    [
+      'web_search',
+      (input) => ({
+        toolType: 'Web search',
+        command: typeof input.query === 'string' ? input.query : '',
+      }),
+    ],
+  ])
 
 function parseJsonObject(raw: unknown): Record<string, unknown> | undefined {
   try {

@@ -31,7 +31,8 @@ export interface KeyboardDeps {
 }
 
 function keyboardState(deps: KeyboardDeps): KeyboardState {
-  const { screen, backtrack, pendingQuestion, pendingApproval, trusted, streaming, goalActive } = deps
+  const { screen, backtrack, pendingQuestion, pendingApproval, trusted, streaming, goalActive } =
+    deps
   const inDemoInput = screen.mode === 'plan' || screen.mode === 'ask' || screen.mode === 'select'
   return {
     hasOpenQuestion: pendingQuestion !== undefined,

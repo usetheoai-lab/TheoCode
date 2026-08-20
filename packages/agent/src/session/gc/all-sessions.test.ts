@@ -28,9 +28,7 @@ function options(overrides: Partial<Parameters<typeof planSessionGCAllProjects>[
     keepLast: 0,
     maxAgeDays: 30,
     listProjects: () => ['proj'],
-    listProject: () => [
-      { name: 'sess-old.jsonl', isDirectory: false, mtimeMs: NOW - 60 * DAY },
-    ],
+    listProject: () => [{ name: 'sess-old.jsonl', isDirectory: false, mtimeMs: NOW - 60 * DAY }],
     classify: () => ({ state: 'DEAD' as const, cwd: '/proj' }),
     listRegistry: async () => [],
     hasLiveWriter: () => false,

@@ -17,11 +17,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import {
-  ENV_OPT_OUTS,
-  keysWithoutEnvPath,
-  optOutsThatExemptNothing,
-} from './config.js'
+import { ENV_OPT_OUTS, keysWithoutEnvPath, optOutsThatExemptNothing } from './config.js'
 import { ENV_KNOBS } from './env-knobs.js'
 
 const ROOT = join(import.meta.dirname, '../../../..')
@@ -41,9 +37,7 @@ const SCHEMA_KEYS = [
 ]
 
 /** The keys ENV_KNOBS says are reachable from the environment. */
-const WITH_ENV_PATH = new Set(
-  ENV_KNOBS.map((k) => k.name.replace(/^THEOCODE_/, '').toLowerCase()),
-)
+const WITH_ENV_PATH = new Set(ENV_KNOBS.map((k) => k.name.replace(/^THEOCODE_/, '').toLowerCase()))
 
 describe('B-041 — the config invariants are enforced, not merely written', () => {
   it('test_every_config_key_is_reachable_from_the_environment_or_exempt', () => {

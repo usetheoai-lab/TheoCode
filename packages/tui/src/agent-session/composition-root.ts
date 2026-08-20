@@ -132,4 +132,3 @@ export function getTuiRoot(): TuiRoot {
   root ??= build()
   return root
 }
-

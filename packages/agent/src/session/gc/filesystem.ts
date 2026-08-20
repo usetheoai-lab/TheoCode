@@ -92,9 +92,7 @@ interface CliOptions {
   projectsRoot?: string
 }
 
-async function listProjectRegistry(
-  cwd: string,
-): Promise<Awaited<ReturnType<typeof listAgents>>> {
+async function listProjectRegistry(cwd: string): Promise<Awaited<ReturnType<typeof listAgents>>> {
   return listAgents(cwd)
 }
 
@@ -160,8 +158,11 @@ function sweepClassifier(root: string, projects: readonly string[]): (project: s
  * the GC uses that path to consult the registry and the pointer. Fail-safe: a project we cannot
  * place is one we keep.
  */
-function toLiveness(verdict: { liveness: string; reason: string; cwd?: string } | undefined): Liveness {
-  if (verdict === undefined) return { state: 'UNDETERMINED', reason: 'not classified in this sweep' }
+function toLiveness(
+  verdict: { liveness: string; reason: string; cwd?: string } | undefined,
+): Liveness {
+  if (verdict === undefined)
+    return { state: 'UNDETERMINED', reason: 'not classified in this sweep' }
   if (verdict.liveness === 'alive') {
     return verdict.cwd === undefined
       ? { state: 'UNDETERMINED', reason: `alive but no cwd resolved: ${verdict.reason}` }

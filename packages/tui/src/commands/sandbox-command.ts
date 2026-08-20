@@ -9,7 +9,11 @@ import { SANDBOX_MODES } from '@theocode/agent/config'
 import type { SandboxMode } from '@theocode/agent/config'
 
 /** Least to most permissive. The order IS the confirmation rule, so it lives with the values. */
-const PERMISSIVENESS: readonly SandboxMode[] = ['read-only', 'workspace-write', 'danger-full-access']
+const PERMISSIVENESS: readonly SandboxMode[] = [
+  'read-only',
+  'workspace-write',
+  'danger-full-access',
+]
 
 export function parseSandboxMode(input: string): SandboxMode | null {
   const v = input.trim().toLowerCase()

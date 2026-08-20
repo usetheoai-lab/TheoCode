@@ -19,8 +19,7 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
   const { resolveEffectiveConfig } = await import('@theocode/agent/config')
   const { homedir } = await import('node:os')
   const execCfg = resolveEffectiveConfig({ cwd: process.cwd(), cli: args.overrides })
-  const { parseHooks, buildHookHandlers, loadApprovedHooks } =
-    await import('@theocode/agent/hooks')
+  const { parseHooks, buildHookHandlers, loadApprovedHooks } = await import('@theocode/agent/hooks')
   const { resolveTrustPosture } = await import('@theocode/agent/config')
   const hookSpecs = parseHooks(execCfg.hooks)
   const surfaceHooks = buildHookHandlers(hookSpecs, {
@@ -61,7 +60,7 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
     process.stderr.write(
       `[exec] review findings=${result.output.findings.length} verdict=${result.output.overall_correctness}\n`,
     )
-    process.exit(0) 
+    process.exit(0)
   } catch (err) {
     process.stderr.write(`ERROR: ${err instanceof Error ? err.message : String(err)}\n`)
     process.exit(1)

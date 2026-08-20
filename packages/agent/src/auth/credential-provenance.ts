@@ -54,7 +54,7 @@ function skipMultilineValue(value: string, lines: readonly string[], i: number):
   if (closesQuote(withoutLeadingSpace, q)) return i
   let j = i
   while (j < lines.length && !closesQuote(lines[j]!, q)) j++
-  return j + 1 
+  return j + 1
 }
 
 export function describeSource(

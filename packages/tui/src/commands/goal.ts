@@ -36,9 +36,7 @@ function openingWarnings(
     lines.push('⚠ danger-full-access: autonomous turns with NO kernel confinement')
   }
   if (cfg.goal_oracle === 'update_goal') {
-    lines.push(
-      '⚠ goal_oracle=update_goal applies to `exec goal` only; the TUI uses the judge',
-    )
+    lines.push('⚠ goal_oracle=update_goal applies to `exec goal` only; the TUI uses the judge')
   }
   return lines
 }
@@ -86,7 +84,10 @@ async function driveGoal(
   const remainingBudget = Math.max(0, GOAL_DEFAULTS.tokenBudget - carried.tokens)
   const remainingTurns = Math.max(0, GOAL_DEFAULTS.maxTurns - carried.turns)
   if (remainingBudget === 0 || remainingTurns === 0) {
-    setToast({ message: 'Goal budget exhausted — /goal clear, then set a new one', variant: 'info' })
+    setToast({
+      message: 'Goal budget exhausted — /goal clear, then set a new one',
+      variant: 'info',
+    })
     return { status: 'budget_limited', turnsUsed: 0, tokensUsed: 0 }
   }
   const result = await runGoal(
@@ -125,7 +126,10 @@ export function runGoalLoop(
 ): void {
   const { agentRef, goalAbort, setGoalRun, setToast } = deps
   if (agentRef.current.status === 'streaming') {
-    setToast({ message: 'Wait for the current turn to finish before starting the goal', variant: 'info' })
+    setToast({
+      message: 'Wait for the current turn to finish before starting the goal',
+      variant: 'info',
+    })
     return
   }
   const controller = new AbortController()
@@ -198,7 +202,7 @@ function verbPause({ state, deps }: VerbContext): void {
     return
   }
   deps.goalAbort.current?.abort()
-  deps.agent.abort() 
+  deps.agent.abort()
   deps.setToast({ message: 'Goal pausing… (resume with /goal resume)', variant: 'info' })
 }
 

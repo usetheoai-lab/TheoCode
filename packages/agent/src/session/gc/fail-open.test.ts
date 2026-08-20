@@ -41,7 +41,6 @@ function options(overrides: Partial<Parameters<typeof planSessionGCAllProjects>[
   } as Parameters<typeof planSessionGCAllProjects>[0]
 }
 
-
 describe('B-020 — retention and age apply to the projects the collector deletes from', () => {
   it('test_a_transcript_with_an_unknown_mtime_is_not_collectable', async () => {
     // mtime 0 made a real transcript ~20 000 days old, clearing every window, AND sorted it last so

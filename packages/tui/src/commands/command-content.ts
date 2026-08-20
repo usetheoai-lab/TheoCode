@@ -90,7 +90,10 @@ export function statusPanel(
 }
 
 export function diffPanel(): ContentPanel | undefined {
-  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
+  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], {
+    cwd: workingDirectory(),
+    encoding: 'utf8',
+  })
   if (r.status !== 0) return undefined
   const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
   const stat = r.stdout.trim()

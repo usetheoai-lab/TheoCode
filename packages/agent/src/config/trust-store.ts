@@ -18,7 +18,7 @@ export function canonical(dir: string): string {
   try {
     return realpathSync(dir)
   } catch {
-    return resolve(dir) 
+    return resolve(dir)
   }
 }
 
@@ -82,9 +82,6 @@ function readDocument(store: string): Record<string, unknown> {
     return {}
   }
 }
-
-
-
 
 /**
  * Directory trust — a FACADE over the framework's `TrustStore` since 2026-08-15.

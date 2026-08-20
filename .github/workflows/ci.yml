@@ -52,26 +52,39 @@
 # not fail here, is that it runs on one person's machine. There is no
 # repository-side layer at all: `core.hooksPath` is unset and `.git/hooks` holds only samples.
 #
-# Three ways out, and NONE has been chosen:
-#   * buy GitHub Team for `usetheoai-lab` — the tier the org-ruleset refusal names. No price is
-#     quoted here because this measurement did not take one, and inventing one would be fabrication
-#   * make this repository public — removes the wall for free, and is irreversible in practice:
-#     the full history becomes readable. A disclosure decision, not a CI one
-#   * accept the gap — which is where we are by default, not by decision
+# RESOLVED 2026-08-20 — and the stanza was made stale by its own falsifier, which is the outcome
+# it was written to produce.
 #
-# The choice costs money or discloses source and belongs to the account owner, so this file records
-# the state of the decision rather than making it. This comment is NOT an approval of the gap.
+# It listed three ways out and said none had been chosen. The second — "make this repository
+# public — removes the wall for free" — had ALREADY HAPPENED by the time anyone re-read it:
+#
+#   gh api repos/usetheoai-lab/TheoCode --jq '{private}'   ->   {"private": false}
+#
+# So the wall the stanza described was gone and the gap remained, not by decision but because
+# nobody re-ran the check after the fact that made the fix free. Protection was configured on both
+# release branches:
+#
+#   main, develop    required checks: test, typecheck, lint, depcruise, crossval
+#                    enforce_admins: true, force pushes: disabled
+#
+# THE MERGE GUARD IS NO LONGER THE CONTROL, and that is the point rather than a side effect. B-070
+# is about a guard that read an empty `statusCheckRollup` as nothing-to-wait-for and merged PR #33
+# one second after its checks started. A guard on one person's machine reading a field that is
+# legitimately empty was always a practice standing in for a control. GitHub now refuses the merge
+# server-side, where an empty rollup means "not yet" by construction rather than by predicate.
+#
+# The guard's predicate is still worth getting right for anything that polls (`.status` is what
+# says a check has FINISHED; `.conclusion` means nothing until it has), but it is no longer the
+# thing standing between a red CI and `main`.
 #
 # FALSIFIER — one ungated command, runnable verbatim:
 #
 #   gh api repos/usetheoai-lab/TheoCode/branches --jq '.[] | {name, protected}'
 #
-# It reports `protected: false` for every branch today. A row reading `protected: true` means this
-# stanza is stale; a changed SET of rows is only branch churn. Nothing runs it automatically.
-#
-# What it does NOT prove, stated because the first draft of this stanza overclaimed it: a green
-# result is consistent with a paid tier where nobody configured protection, so `protected: false`
-# does not by itself establish the billing wall. Re-run the four API calls above for that.
+# It reports `protected: true` for `main` and `develop` today. A row flipping back to `false` means
+# protection was removed and this stanza is stale in the other direction. `workspace` and feature
+# branches are `false` DELIBERATELY — `rules/git-safety.md` § 1 makes `workspace` where work is
+# born, and requiring a PR to reach it would leave no branch upstream to promote from.
 # ---------------------------------------------------------------------------------------------
 
 name: CI
@@ -145,24 +158,83 @@ jobs:
             echo "both dictionaries already present — apt not needed"
             exit 0
           fi
-          echo "missing (en=$have_en pt=$have_pt) — installing"
+          # B-073 bullet 3 — BOTH packages, always, and the reason is a mistake worth keeping.
+          #
+          # This step briefly installed only what `have_en`/`have_pt` reported missing. On
+          # `ubuntu-24.04` that meant `wbrazilian` alone, because `/usr/share/hunspell/en_US.dic`
+          # ships with the image and `LEXICONS.en` lists that path. The install SUCCEEDED —
+          # "missing (en=1 pt=0) — installing: wbrazilian", "word lists installed on attempt 1" —
+          # and five `check-english-only` tests went RED that had been green on the parent commit.
+          #
+          # THE MEASUREMENT WAS TRUE AND ABOUT THE WRONG PROPERTY. `check-english-only.mjs`
+          # ACCEPTS `en_US.dic`, which is what was measured. It does not produce the same LEXICON
+          # from it: `loadLexicon` unions every path that exists, so dropping `wamerican` also
+          # dropped `/usr/share/dict/american-english` AND `/usr/share/dict/words` (a
+          # dictionaries-common symlink that `wamerican` owns) — 102,485 forms down to 75,798.
+          # Path acceptance is not lexicon equivalence, and a gate whose verdict is a set
+          # difference is decided by exactly that.
+          #
+          # So: install both. The download saved was real and small; the property it traded away
+          # was the gate's correctness, which is not a trade. The `have_*` probe stays because
+          # printing what the image carries is worth having on its own.
+          pkgs="wamerican wbrazilian"
+          echo "missing (en=$have_en pt=$have_pt) — installing:$pkgs"
 
           for attempt in 1 2 3; do
             # `timeout` per ATTEMPT, not per step: the failure is a silent stall with zero output,
             # so a whole-step ceiling can only report the death, never recover from it.
             if timeout 90 sudo apt-get update -qq \
-               && timeout 90 sudo apt-get install -y -qq wamerican wbrazilian; then
+               && timeout 90 sudo apt-get install -y -qq $pkgs; then
               echo "word lists installed on attempt ${attempt}"
               exit 0
             fi
             echo "attempt ${attempt} failed or stalled; backing off" >&2
             sleep $((attempt * 15))
           done
-          echo "::error::apt could not provide wamerican/wbrazilian after 3 attempts." >&2
+          echo "::error::apt could not provide$pkgs after 3 attempts." >&2
           echo "check-english-only.mjs needs a dictionary and fails closed without one, so this" >&2
           echo "job is RED rather than silently skipping the language gate." >&2
           exit 1
         timeout-minutes: 8
+
+      # B-073 — VERIFY THE LEXICON, not the package. Added because the step above once reported
+      # "word lists installed on attempt 1" while the gate it feeds had lost a quarter of its
+      # English vocabulary, and five tests went red before anyone connected the two.
+      #
+      # "The package installed" and "the tool can build the lexicon it needs" are different
+      # claims, and only the second one is the reason this step exists. Asserting a FLOOR rather
+      # than an exact count: the numbers move with distro versions, and a gate that fails on a
+      # dictionary getting bigger would be worse than no gate.
+      - name: Verify the lexicons actually load
+        run: |
+          node -e '
+            const { readFileSync, existsSync } = require("node:fs")
+            const load = (paths) => {
+              const words = new Set()
+              let files = 0
+              for (const p of paths) {
+                if (!existsSync(p)) continue
+                files++
+                for (const line of readFileSync(p, "latin1").split("\n")) {
+                  const w = (line.split("/")[0] ?? "").trim().toLowerCase()
+                  if (w.length >= 3 && /^[a-z\u00e0-\u00ff]+$/.test(w)) words.add(w)
+                }
+              }
+              return { files, size: words.size }
+            }
+            const en = load(["/usr/share/dict/american-english", "/usr/share/dict/words", "/usr/share/hunspell/en_US.dic"])
+            const pt = load(["/usr/share/dict/brazilian", "/usr/share/dict/portuguese", "/usr/share/hunspell/pt_BR.dic"])
+            console.log(`en: ${en.files} file(s), ${en.size} forms`)
+            console.log(`pt: ${pt.files} file(s), ${pt.size} forms`)
+            const FLOOR_EN = 90000, FLOOR_PT = 150000
+            if (en.size < FLOOR_EN || pt.size < FLOOR_PT) {
+              console.error(`::error::lexicon too small — en ${en.size} (floor ${FLOOR_EN}), pt ${pt.size} (floor ${FLOOR_PT}).`)
+              console.error("The packages may have installed while the vocabulary the gate needs did not.")
+              console.error("Measured 2026-08-20 on ubuntu-24.04: en 102485 with wamerican, 75798 without.")
+              process.exit(1)
+            }
+          '
+        timeout-minutes: 2
       - run: npm ci
       - run: npm test
 
@@ -228,6 +300,45 @@ jobs:
           echo "job is RED rather than silently skipping the language gate." >&2
           exit 1
         timeout-minutes: 8
+
+      # B-073 — VERIFY THE LEXICON, not the package. Added because the step above once reported
+      # "word lists installed on attempt 1" while the gate it feeds had lost a quarter of its
+      # English vocabulary, and five tests went red before anyone connected the two.
+      #
+      # "The package installed" and "the tool can build the lexicon it needs" are different
+      # claims, and only the second one is the reason this step exists. Asserting a FLOOR rather
+      # than an exact count: the numbers move with distro versions, and a gate that fails on a
+      # dictionary getting bigger would be worse than no gate.
+      - name: Verify the lexicons actually load
+        run: |
+          node -e '
+            const { readFileSync, existsSync } = require("node:fs")
+            const load = (paths) => {
+              const words = new Set()
+              let files = 0
+              for (const p of paths) {
+                if (!existsSync(p)) continue
+                files++
+                for (const line of readFileSync(p, "latin1").split("\n")) {
+                  const w = (line.split("/")[0] ?? "").trim().toLowerCase()
+                  if (w.length >= 3 && /^[a-z\u00e0-\u00ff]+$/.test(w)) words.add(w)
+                }
+              }
+              return { files, size: words.size }
+            }
+            const en = load(["/usr/share/dict/american-english", "/usr/share/dict/words", "/usr/share/hunspell/en_US.dic"])
+            const pt = load(["/usr/share/dict/brazilian", "/usr/share/dict/portuguese", "/usr/share/hunspell/pt_BR.dic"])
+            console.log(`en: ${en.files} file(s), ${en.size} forms`)
+            console.log(`pt: ${pt.files} file(s), ${pt.size} forms`)
+            const FLOOR_EN = 90000, FLOOR_PT = 150000
+            if (en.size < FLOOR_EN || pt.size < FLOOR_PT) {
+              console.error(`::error::lexicon too small — en ${en.size} (floor ${FLOOR_EN}), pt ${pt.size} (floor ${FLOOR_PT}).`)
+              console.error("The packages may have installed while the vocabulary the gate needs did not.")
+              console.error("Measured 2026-08-20 on ubuntu-24.04: en 102485 with wamerican, 75798 without.")
+              process.exit(1)
+            }
+          '
+        timeout-minutes: 2
       - run: npm ci
       - run: npm run lint
 

@@ -29,9 +29,9 @@ describe('T0.1 — a Portuguese filename is a violation', () => {
     // (English "para", as in parachute/paragraph), so it is a genuine EN/PT collision the lexicon
     // test must clear — the same class as `cli` (to click) and `repo` (cabbage). One flagged word
     // is enough to flag the path, which is what the guard needs.
-    expect(portugueseWordsInFilename('packages/agent/src/delegation/hooks-para-membro.ts')).toEqual([
-      'membro',
-    ])
+    expect(portugueseWordsInFilename('packages/agent/src/delegation/hooks-para-membro.ts')).toEqual(
+      ['membro'],
+    )
   })
 
   it('test_an_english_filename_is_not_flagged', () => {
@@ -153,7 +153,9 @@ describe('Detector 6 — Portuguese PROSE in a comment, but not a Portuguese QUO
     // ANTI-VACUITY FLOOR, and the reason the exemption existed at all. A JSDoc block legitimately
     // quotes the Portuguese it explains — all four surviving citations in `packages/` are inside a
     // backtick span. Flagging the quotation would make the check fire on correct code.
-    expect(portugueseInComments('// the old code did `perfis = layer.profiles` and that was the bug')).toEqual([])
+    expect(
+      portugueseInComments('// the old code did `perfis = layer.profiles` and that was the bug'),
+    ).toEqual([])
   })
 
   it('test_an_english_comment_is_not_flagged', () => {
@@ -182,9 +184,10 @@ describe('B-065 — the detector looks at every module extension the repos use',
     // the framework and this detector reported clean on every run until a manual grep found them.
     // A guard that silently skips a file type reports absence of evidence as evidence of absence.
     for (const ext of ['.mts', '.cts']) {
-      expect(EXTS.has(ext), `${ext} is not scanned — a Portuguese identifier there is invisible`).toBe(
-        true,
-      )
+      expect(
+        EXTS.has(ext),
+        `${ext} is not scanned — a Portuguese identifier there is invisible`,
+      ).toBe(true)
     }
   })
 

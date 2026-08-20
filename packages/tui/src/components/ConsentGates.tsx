@@ -37,12 +37,17 @@ export function HooksGate({ consent, pendingHooks, setToast }: HooksGateProps): 
         '\n\nThis command runs on every matching tool call. Approve only what you recognise — ' +
         'declining leaves it inert, and you will be asked again next launch.')(pendingHooks[0]!)}
       onDecision={(decision) => {
-        void applyHookDecision(decision === 'yes' ? 'yes' : 'no', pendingHooks[0]!, pendingHooks.length, {
-          approve: (spec) => consent.approveHookConsent(spec),
-          refuse: (fp) => consent.refuseHook(fp),
-          markReviewed: () => consent.markReviewed(),
-          toast: (message) => setToast({ message, variant: 'error' }),
-        })
+        void applyHookDecision(
+          decision === 'yes' ? 'yes' : 'no',
+          pendingHooks[0]!,
+          pendingHooks.length,
+          {
+            approve: (spec) => consent.approveHookConsent(spec),
+            refuse: (fp) => consent.refuseHook(fp),
+            markReviewed: () => consent.markReviewed(),
+            toast: (message) => setToast({ message, variant: 'error' }),
+          },
+        )
       }}
     />
   )
@@ -103,7 +108,7 @@ export function TrustGate({
           )
           consent.trust()
         } else {
-          exit() 
+          exit()
         }
       }}
     />

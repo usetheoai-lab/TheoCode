@@ -33,25 +33,25 @@
         "tools/**/*.test.mjs",
         "vitest.config.ts",
         "eslint.config.mjs",
-        ".dependency-cruiser.cjs"
+        ".dependency-cruiser.cjs",
       ],
-      "project": ["tools/**/*.mjs", "*.ts", "*.mjs"]
+      "project": ["tools/**/*.mjs", "*.ts", "*.mjs"],
     },
     "packages/agent": {
       "entry": ["src/chat-acp.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
     },
     "packages/cli": {
       "entry": ["src/main.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
     },
     "packages/tui": {
       "entry": ["src/main.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"],
-      "project": ["src/**/*.ts", "src/**/*.tsx"]
+      "project": ["src/**/*.ts", "src/**/*.tsx"],
     },
     "packages/shared": {
       "entry": ["src/**/*.test.ts"],
-      "project": ["src/**/*.ts"]
-    }
-  }
+      "project": ["src/**/*.ts"],
+    },
+  },
 }

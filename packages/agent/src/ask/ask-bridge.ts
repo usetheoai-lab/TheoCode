@@ -1,8 +1,4 @@
-import {
-  ConcurrentListenerError,
-  createAskBridge,
-  type PendingQuestion,
-} from '@theokit/agents/ask'
+import { ConcurrentListenerError, createAskBridge, type PendingQuestion } from '@theokit/agents/ask'
 
 /**
  * The ask channel, reduced to the translation that is genuinely this product's.
@@ -123,4 +119,3 @@ export const setListener = (listener: () => void): (() => void) => {
     if (notify === listener) notify = undefined
   }
 }
-

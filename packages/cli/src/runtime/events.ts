@@ -2,7 +2,6 @@ import { foldTurnLifecycle, type TurnLifecycle } from '@theokit/presenter'
 
 type TurnFold = TurnLifecycle<unknown>
 
-
 export interface ExecIo {
   out: (line: string) => void
   err: (line: string) => void
@@ -157,7 +156,10 @@ function codexDialect(): Parameters<typeof foldTurnLifecycle<unknown>>[0] {
     itemStarted: (item) => commandEvent('item.started', item.id, item.kind, 'in_progress'),
     itemCompleted: (item) =>
       item.id === 'message'
-        ? { type: 'item.completed', item: { id: 'item_msg', type: 'agent_message', text: item.kind } }
+        ? {
+            type: 'item.completed',
+            item: { id: 'item_msg', type: 'agent_message', text: item.kind },
+          }
         : commandEvent('item.completed', item.id, item.kind, 'completed'),
     turnCompleted: (u) => ({
       type: 'turn.completed',

@@ -59,7 +59,10 @@ describe('B-008 — which surface owns the input row', () => {
 
   it('test_trust_gate_wins_over_a_pending_approval', () => {
     expect(
-      claimant(INPUT_LAYERS, settled({ trusted: false, pendingApproval: { approvalId: 'a' } as never })),
+      claimant(
+        INPUT_LAYERS,
+        settled({ trusted: false, pendingApproval: { approvalId: 'a' } as never }),
+      ),
     ).toBe('trust-gate')
   })
 
@@ -72,7 +75,6 @@ describe('B-008 — which surface owns the input row', () => {
   it('test_the_conversation_claims_when_nothing_else_does', () => {
     expect(claimant(INPUT_LAYERS, settled())).toBe('conversation')
   })
-
 })
 
 describe('B-008 — which surface the conversation slot draws', () => {

@@ -27,7 +27,10 @@ const msg = (role: string, text: string): ExportableMessage => ({ kind: 'message
 
 describe('B-075 — conversationToMarkdown', () => {
   it('test_labels_each_turn_by_role', () => {
-    const md = conversationToMarkdown([msg('user', 'how do I build?'), msg('assistant', 'npm run build')])
+    const md = conversationToMarkdown([
+      msg('user', 'how do I build?'),
+      msg('assistant', 'npm run build'),
+    ])
     expect(md).toContain('## You')
     expect(md).toContain('how do I build?')
     expect(md).toContain('npm run build')

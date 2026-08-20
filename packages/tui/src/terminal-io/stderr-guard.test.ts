@@ -70,10 +70,9 @@ describe('B-039 — a dead diagnostic channel says so', () => {
     cap.restore()
 
     const out = cap.seen.join('')
-    expect(
-      out,
-      'the TUI ran with every diagnostic dead and said nothing about it at exit',
-    ).toMatch(/diagnostic/i)
+    expect(out, 'the TUI ran with every diagnostic dead and said nothing about it at exit').toMatch(
+      /diagnostic/i,
+    )
     expect(out, 'the report did not say how many were lost').toMatch(/2/)
   })
 })

@@ -1,4 +1,3 @@
-
 import {
   credential,
   credentialError,
@@ -25,7 +24,6 @@ import { useBacktrack } from './backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 
 process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
-
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -58,7 +56,6 @@ function useConversationState(s: ReturnType<typeof useTuiSession>) {
     lastSentMessage,
   }
 }
-
 
 function turnInterrupt(d: {
   agent: { abort: () => void }
@@ -173,11 +170,47 @@ function useSessionToasts(
   })
 }
 
+/**
+ * The composer's dependency bundle, lifted out of `useTuiComposition` (B-073 follow-up).
+ *
+ * NOT a design improvement on its own — it exists because `prettier` and `eslint` disagreed about
+ * this file. The repository's own formatter expands this call into 18 lines, and
+ * `max-lines-per-function` caps the hook at 60. Neither tool is wrong; the file was simply never
+ * formatted, and no CI job runs `prettier --check`, so nothing forced the question until now.
+ *
+ * Behaviour-preserving: the same object, in the same order, to the same call.
+ */
+function buildComposerDeps(args: {
+  s: ReturnType<typeof useTuiSession>
+  screen: ReturnType<typeof useScreenState>
+  backtrack: ReturnType<typeof useBacktrack>
+  conv: ReturnType<typeof useConversationState>
+  credential: Parameters<typeof composerDeps>[2]['credential']
+  events: Parameters<typeof composerDeps>[3]
+}): ReturnType<typeof composerDeps> {
+  const { s, screen, backtrack, conv, credential, events } = args
+  return composerDeps(
+    s,
+    screen,
+    {
+      backtrack,
+      goalAbort: conv.goalAbort,
+      lastSentMessage: conv.lastSentMessage,
+      approvalMode: conv.approvalMode,
+      goalRun: conv.goalRun,
+      goalActive: conv.goalActive,
+      setGoalRun: conv.setGoalRun,
+      setApprovalMode: conv.setApprovalMode,
+      credential,
+    },
+    events,
+  )
+}
+
 export function useTuiComposition() {
   const s = useTuiSession()
   const { agent, currentSessionId, stdout, streaming } = s
   const screen = useScreenState()
-
 
   const conv = useConversationState(s)
   const { setMode } = screen
@@ -206,17 +239,7 @@ export function useTuiComposition() {
   })
 
   const { handleSubmit } = useComposerCommands(
-    composerDeps(s, screen, {
-      backtrack,
-      goalAbort: conv.goalAbort,
-      lastSentMessage: conv.lastSentMessage,
-      approvalMode: conv.approvalMode,
-      goalRun: conv.goalRun,
-      goalActive: conv.goalActive,
-      setGoalRun: conv.setGoalRun,
-      setApprovalMode: conv.setApprovalMode,
-      credential,
-    }, events),
+    buildComposerDeps({ s, screen, backtrack, conv, credential, events }),
   )
 
   const c = {

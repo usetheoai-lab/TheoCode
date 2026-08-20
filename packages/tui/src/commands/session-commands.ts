@@ -1,4 +1,9 @@
-import { memoryFacts, withFactRemoved, memoryEnabledForSession, setMemoryEnabledForSession } from '@theocode/agent'
+import {
+  memoryFacts,
+  withFactRemoved,
+  memoryEnabledForSession,
+  setMemoryEnabledForSession,
+} from '@theocode/agent'
 import { planResume } from './resume-command.js'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -15,12 +20,7 @@ import {
   renameSession,
 } from '@theocode/agent/session'
 import { resolveTrustPosture } from '@theocode/agent/config'
-import {
-  logout,
-  methodsFor,
-  oauthDeviceLogin,
-  knownProviders,
-} from '@theocode/agent/auth'
+import { logout, methodsFor, oauthDeviceLogin, knownProviders } from '@theocode/agent/auth'
 import type { AuthMethod } from '@theokit/agents/auth'
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'

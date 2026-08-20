@@ -13,7 +13,15 @@
  * an existing transcript still cannot be overwritten — the loser gets a bare EEXIST instead of a
  * typed error the callers can tell apart. That is why this was MEDIUM, not HIGH.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, utimesSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  utimesSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -164,7 +172,6 @@ describe('B-078 — deleteSession', () => {
     // session that cannot be opened and cannot be removed.
     expect(removed).toEqual(['tui-doomed'])
   })
-
 })
 
 /** The guard half — separated so each block stays readable, not to dodge the length rule. */
@@ -221,7 +228,7 @@ describe('B-078 — deleteSession refuses a live session', () => {
   })
 })
 
-describe('deleteSession — the transcript mechanics are the framework\'s', () => {
+describe("deleteSession — the transcript mechanics are the framework's", () => {
   it('test_the_transcript_removal_has_no_check_then_act_race', async () => {
     // The reason this file delegates rather than keeping four lines of its own.
     //

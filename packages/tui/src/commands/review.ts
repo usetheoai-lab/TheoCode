@@ -58,8 +58,7 @@ function reviewShutdown(setToast: ReviewCommandDeps['setToast']): {
 }
 
 async function hookChain(hooks: ReturnType<typeof resolveEffectiveConfig>['hooks']) {
-  const { parseHooks, buildHookHandlers, loadApprovedHooks } =
-    await import('@theocode/agent/hooks')
+  const { parseHooks, buildHookHandlers, loadApprovedHooks } = await import('@theocode/agent/hooks')
   const { resolveTrustPosture } = await import('@theocode/agent/config')
   return buildHookHandlers(parseHooks(hooks), {
     trusted: resolveTrustPosture(workingDirectory()).allows.hooks,
@@ -105,7 +104,7 @@ export async function runReviewCommand(
     process.stderr.write(
       `[review] findings=${result.output.findings.length} verdict=${result.output.overall_correctness}\n`,
     )
-    setReviewResult(result.rendered) 
+    setReviewResult(result.rendered)
     await Agent.injectSessionTurn(ctx.getSessionId(), {
       userText: `<user_action><context>User initiated a review task (${result.target.hint}). User may reference the findings below in follow-ups.</context><action>review</action><results>${result.rendered}</results></user_action>`,
       assistantText: result.rendered,
