@@ -1,0 +1,39 @@
+# The workspace roots. Without this key pnpm sees no packages at all — the file was left
+# holding only the `allowBuilds` prompt pnpm writes when it needs a decision, so `pnpm install`
+# resolved nothing and the tree it produced could not typecheck.
+packages:
+  - packages/*
+
+# The four internal packages depend on each other as `"@theocode/agent": "*"`, which is what npm
+# workspaces reads as "the local one". pnpm defaults to the registry for a bare range and 404s on
+# `@theocode/agent`, which is not published and never will be. This makes pnpm read `*` the way npm
+# already does, so BOTH package managers install this repository from the same manifests — the CI
+# runs `npm ci` in all five jobs and must keep working.
+linkWorkspacePackages: true
+
+# esbuild ships a platform binary and needs its postinstall to run; `tools/build-cli.mjs` and
+# `npm run build:acp` both invoke it. Denying the build leaves the bundler installed and unable
+# to execute.
+allowBuilds:
+  esbuild: true
+  # node-pty is a NATIVE addon. Without its postinstall there is no compiled binding, and
+  # `interactive_shell` / `write_stdin` — the two tools backed by `PtyInteractiveBackend` — fail at
+  # the point the model reaches for a REPL. Denying this build does not degrade a feature, it
+  # removes one.
+  node-pty: true
+
+minimumReleaseAgeExclude:
+  - '@theokit/agents@11.0.0'
+  - '@theokit/presenter@0.8.0'
+  - '@typescript-eslint/eslint-plugin@8.68.0'
+  - '@typescript-eslint/parser@8.68.0'
+  - '@typescript-eslint/project-service@8.68.0'
+  - '@typescript-eslint/scope-manager@8.68.0'
+  - '@typescript-eslint/tsconfig-utils@8.68.0'
+  - '@typescript-eslint/type-utils@8.68.0'
+  - '@typescript-eslint/types@8.68.0'
+  - '@typescript-eslint/typescript-estree@8.68.0'
+  - '@typescript-eslint/utils@8.68.0'
+  - '@typescript-eslint/visitor-keys@8.68.0'
+  - typescript-eslint@8.68.0
+  - '@theokit/tui@0.78.0'

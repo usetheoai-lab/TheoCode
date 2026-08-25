@@ -36,6 +36,22 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
   return found
 }
 
+describe('the version the product shows is the version it IS', () => {
+  it('test_the_declared_version_matches_the_root_manifest', () => {
+    const manifest = JSON.parse(
+      readFileSync(join(PACKAGES, '..', 'package.json'), 'utf8'),
+    ) as { version: string }
+
+    expect(
+      AGENT.version,
+      'AGENT.version is what the welcome banner prints. It is a literal because `packages/shared` ' +
+        'cannot import the root manifest without breaking the bundle, so THIS test is the only ' +
+        'thing keeping the two in step — a release that bumps package.json and forgets this ' +
+        'constant ships a build that misreports itself.',
+    ).toBe(manifest.version)
+  })
+})
+
 describe('B-002 — the agent identifies itself as TheoCode', () => {
   it('test_the_agent_name_is_TheoCode', () => {
     expect(AGENT.name).toBe('TheoCode')

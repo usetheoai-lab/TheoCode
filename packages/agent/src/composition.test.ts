@@ -63,6 +63,9 @@ function config(sandbox_mode: string) {
     reasoning_effort: 'medium',
     hooks: [],
     skills: ['code-review'],
+    // Off, as `DEFAULTS` has it. The fixture used to omit the key entirely, which is how a gate
+    // that yields `undefined` instead of `false` reached a test suite unnoticed.
+    memory: false,
     declaredWindow: undefined,
     contextWindow: { window: 1000 },
     sandboxPosture: { enforced: true, detail: 'test', mode: sandbox_mode },
@@ -200,6 +203,109 @@ describe('path 1 — buildChatAgent composes the coding agent', () => {
   })
 })
 
+/**
+ * What the agent DECLARES, and what each declaration costs.
+ *
+ * Measured 2026-08-25 by instrumenting `fetch`: the tool schemas are re-sent on every round of a
+ * turn and cost MORE than the system prompt (15 115 characters against 10 146). That makes the
+ * declared set a budget, not just a capability list, and a tool that cannot work is not a harmless
+ * extra — it is a fixed toll on every round plus a round the model can waste choosing it.
+ *
+ * These tests pin the two decisions that follow from that measurement. They assert on the COMPILED
+ * definition, so they survive a rewrite of how the chain expresses them.
+ */
+describe('path 1 — buildChatAgent declares only what it can actually use', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllEnvs()
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue(config('workspace-write'))
+  })
+
+  it('test_web_search_is_withheld_when_no_provider_is_configured', async () => {
+    // `createGenericHttpSearchAdapter` returns `[]` when unconfigured and never throws, so the tool
+    // was declared (761 characters/round, measured), approval-gated, and able to return only
+    // nothing. The model paid for it every round and the user was asked to approve a search that
+    // had nothing to search.
+    vi.stubEnv('THEOKIT_SEARCH_API_URL', '')
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const names = namesOf(agent)
+
+    expect(
+      names,
+      'web_search reached the model with no provider behind it — it can only ever return []',
+    ).not.toContain('web_search')
+    expect(
+      Object.keys(agent.approvals),
+      'an approval entry survived for a tool the agent was not given; the framework refuses that ' +
+        'map at construction, so the agent would fail to start',
+    ).not.toContain('web_search')
+    // Anti-vacuity: an agent that lost its whole web section, or compiled to nothing at all, would
+    // satisfy both assertions above for entirely the wrong reason.
+    expect(names, 'the web section did not survive withholding one tool from it').toContain(
+      'web_fetch',
+    )
+    expect(Object.keys(agent.approvals).length).toBeGreaterThan(3)
+  })
+
+  it('test_web_search_is_declared_and_gated_when_a_provider_is_configured', async () => {
+    // The counter-proof. Without it, withholding the tool unconditionally would pass the test above
+    // while silently deleting a capability — the worse outcome of the two.
+    vi.stubEnv('THEOKIT_SEARCH_API_URL', 'https://search.example.invalid/q')
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(
+      namesOf(agent),
+      'a configured search provider did not get its tool declared — the capability was dropped, ' +
+        'not scoped',
+    ).toContain('web_search')
+    expect(
+      Object.keys(agent.approvals),
+      'web_search reaches the network on the user behalf and lost its approval gate',
+    ).toContain('web_search')
+  })
+
+  it('test_the_model_can_look_at_an_image_in_the_working_tree', async () => {
+    // B-082 built `view_image` and registered it, and no agent ever held it: the registry resolved
+    // it, so the test named "view_image is wired" passed, while the compiled agent declared 16
+    // tools without it. The capability the item exists for — the model deciding to look at a
+    // screenshot it just produced — did not exist. Asserting on the AGENT is what the registry
+    // assertion could not do.
+    const headless = await compile({ surface: 'headless', cwd: '/p' })
+    const interactive = await compile({ surface: 'interactive', cwd: '/p' })
+
+    expect(
+      namesOf(headless),
+      'view_image is built by the registry and handed to no one — dead weight in the registry and ' +
+        'a capability the model does not have',
+    ).toContain('view_image')
+    expect(namesOf(interactive)).toContain('view_image')
+  })
+
+  it('test_reading_tools_including_view_image_are_not_approval_gated', async () => {
+    // The decision recorded at the registration site: `view_image` reads a file under the SAME root
+    // through the SAME containment rule as `read_file`, which is ungated. Gating it would gate the
+    // rendering rather than the access, and a card that protects nothing is what teaches users to
+    // click through the cards that do.
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const gated = new Set(Object.keys(agent.approvals))
+
+    for (const reads of ['read_file', 'view_image', 'list_dir', 'grep']) {
+      expect(
+        gated.has(reads),
+        `"${reads}" only reads inside the workspace and was given an approval card, which is ` +
+          'friction that protects nothing and devalues the cards on run_shell and apply_patch',
+      ).toBe(false)
+    }
+    // Anti-vacuity: an agent with an EMPTY approvals map passes the loop above trivially, and would
+    // mean every gate in the product had been dropped.
+    expect(
+      gated.has('run_shell'),
+      'the approvals map is empty or missing run_shell, so the loop above proved nothing',
+    ).toBe(true)
+  })
+})
+
 describe('path 1 — buildChatAgent gates what the directory is trusted with', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -249,12 +355,60 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
         trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
       },
     })
-    expect(agent.memory.enabled).toBe(true)
+    // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
+    // a trusted directory alone leaves it off. The two halves are asserted apart, below, because
+    // collapsing them would let either one carry the other.
+    expect(agent.memory.enabled, 'a trusted directory turned memory on by itself').toBe(false)
     expect(
       Object.keys(agent.mcpServers),
       'the trusted build dropped the MCP server the loader offered — the gate is refusing what it ' +
         'should admit, and the untrusted assertion above would then pass for the wrong reason',
     ).toEqual(['some-server'])
+  })
+
+  it('test_memory_needs_BOTH_a_trusted_directory_and_a_config_that_asks_for_it', async () => {
+    // Two gates, and the failure mode is that one silently carries the other. Codex ships the same
+    // capability with `default_enabled: false`, and this product had it on for every trusted
+    // directory with no config key at all — so the trust gate was doing work the config gate should
+    // have been doing, and nobody could turn it off without editing files outside the product.
+    //
+    // Asserted as a truth table rather than one case, because three of the four combinations are
+    // "off" and only their CONJUNCTION is "on". A test of the on-case alone passes against a build
+    // that ignores trust; a test of one off-case alone passes against a build that ignores config.
+    resolveEffectiveConfig.mockReturnValue({ ...config('workspace-write'), memory: true })
+    const trustedAndAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    resolveTrustPosture.mockReturnValue(UNTRUSTED)
+    const untrustedButAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue({ ...config('workspace-write'), memory: false })
+    const trustedNotAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(trustedAndAsked.memory.enabled, 'both gates open and memory stayed off').toBe(true)
+    expect(
+      untrustedButAsked.memory.enabled,
+      'config re-enabled memory in a directory whose posture forbids writing to it',
+    ).toBe(false)
+    expect(
+      trustedNotAsked.memory.enabled,
+      'trust alone turned memory on — the config gate is not being read',
+    ).toBe(false)
+  })
+
+  it('test_an_absent_memory_key_is_off_rather_than_undefined', async () => {
+    // `&&` yields the first falsy OPERAND, so a config without the key produced `undefined` — which
+    // the SDK reads as off, and which no type check rejects because the field is optional upstream.
+    // It looks identical to `false` in every behavioural assertion and is not the same value.
+    const { memory: _dropped, ...withoutTheKey } = config('workspace-write')
+    // `as never` matches every other mock in this file. The fixture is deliberately MISSING a field
+    // the real config declares, which is the whole point of this case — so the cast is the subject,
+    // not a convenience.
+    resolveEffectiveConfig.mockReturnValue(withoutTheKey as never)
+
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(agent.memory.enabled, 'the gate leaked `undefined` instead of a boolean').toBe(false)
   })
 
   it('test_the_headless_profile_drops_the_tool_that_needs_a_terminal_to_answer', async () => {

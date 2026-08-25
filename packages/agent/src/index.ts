@@ -4,4 +4,5 @@ export { memoryEnabledForSession, setMemoryEnabledForSession } from './memory-sw
 export { setSandboxModeForSession } from './sandbox-switch.js'
 export { memoryFacts, withFactRemoved } from './memory-facts.js'
 export { collectChecks, diagnose, renderDiagnosis } from './doctor.js'
+export type { CredentialState } from './doctor.js'
 export type { WiredCapabilities, WiredEntity } from './wired-capabilities.js'

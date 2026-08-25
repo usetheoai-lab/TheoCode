@@ -16,14 +16,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { homedir } from 'node:os'
+import { basename } from 'node:path'
+
+import { AGENT } from '@theocode/shared/agent'
+
+import { workingDirectory } from './working-directory.js'
 
 import { currentQuestion, setListener } from '@theocode/agent/ask'
-import { credentialHome } from '@theocode/agent/auth'
+import { installAuthHome } from '@theocode/agent/auth'
 
 import { useBacktrack } from './backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 
-process.env.THEOKIT_AUTH_HOME ??= credentialHome(homedir(), process.env)
+// The same call the CLI's bootstrap makes. It used to be a hand-rolled `??=` here and a function
+// call there, which is how the two surfaces came to disagree about whether the variable got set.
+installAuthHome(process.env, homedir())
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -260,6 +267,7 @@ export function useTuiComposition() {
     conversationProps: conversationProps(c),
     slotProps: slotProps(c),
     footerProps: footerProps(c),
+    titleProps: titleProps(c),
   }
 }
 
@@ -342,6 +350,35 @@ function footerProps(c: Composition & FooterExtras) {
     // pressing it does nothing.
     shortcutsAvailable: c.screen.composerText.trim().length === 0,
   }
+}
+
+/**
+ * The facts behind the terminal's window title, gathered where every wire already meets.
+ *
+ * Read on every render rather than captured once, which is the whole requirement: `/model` and
+ * `/fork` both change what the tab should say, and a title computed at startup describes a session
+ * that stopped existing. `TerminalTitle` compares the COMPOSED text, so a render that changes
+ * nothing emits nothing.
+ *
+ * `dir` is the leaf, not the path. A tab is a few dozen columns wide and the tail is the half that
+ * distinguishes one checkout from another; `/status` and `/pwd` are where the full path is read.
+ */
+function titleProps(c: TitleExtras) {
+  return {
+    out: c.stdout,
+    facts: {
+      app: AGENT.name,
+      dir: basename(workingDirectory()),
+      model: c.SESSION.sessionModel() ?? c.SESSION.cfg().modelLabel,
+      session: c.currentSessionId(),
+    },
+  }
+}
+
+interface TitleExtras {
+  stdout: ReturnType<typeof useTuiSession>['stdout']
+  currentSessionId: () => string
+  SESSION: ReturnType<typeof getTuiRoot>['session']
 }
 
 interface SlotExtras {

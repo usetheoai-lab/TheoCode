@@ -24,12 +24,18 @@
 
   "includeEntryExports": true,
 
+  // `check-theokit-updates.mjs` shells out to `pnpm view <pkg> version`. knip reads the first
+  // element of an `execFileSync` argv as a binary and reports `view` as unlisted — it is a pnpm
+  // SUBCOMMAND, and no package provides it. Ignoring the name is narrower than exempting the file.
+  "ignoreBinaries": ["view"],
+
   "workspaces": {
     ".": {
       "entry": [
         "tools/build-cli.mjs",
         "tools/check-english-only.mjs",
         "tools/check-artifact-promotion.mjs",
+        "tools/check-theokit-updates.mjs",
         "tools/**/*.test.mjs",
         "vitest.config.ts",
         "eslint.config.mjs",

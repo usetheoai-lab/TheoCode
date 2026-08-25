@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest'
 
 import { wiredCapabilities } from './wired-capabilities.js'
 
-const allows = (mcp: boolean, skills: boolean, hooks: boolean) => ({
-  allows: { mcp, skills, hooks },
+const allows = (mcp: boolean, skills: boolean, hooks: boolean, agentsMd = hooks) => ({
+  allows: { mcp, skills, hooks, agentsMd },
 })
 
 const input = (over: Partial<Parameters<typeof wiredCapabilities>[0]> = {}) => ({
@@ -19,6 +19,7 @@ const input = (over: Partial<Parameters<typeof wiredCapabilities>[0]> = {}) => (
   mcpServers: { fixtures: {}, api: {} },
   configuredSkills: ['daily-briefing'],
   hookEvents: ['PreToolUse'],
+  agentsMdFiles: ['/repo/AGENTS.md'],
   sandboxMode: 'workspace-write',
   ...over,
 })
@@ -50,6 +51,7 @@ describe('B-069/B-070/B-071 — wiredCapabilities', () => {
         mcpServers: {},
         configuredSkills: [],
         hookEvents: [],
+    agentsMdFiles: [],
       }),
     )
     expect(w.mcp.suppressedByTrust).toBe(false)
@@ -102,6 +104,7 @@ describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
       mcp: { active: expect.any(Array), requested: expect.any(Array) },
       skills: { active: expect.any(Array) },
       hooks: { active: expect.any(Array) },
+      agentsMd: { active: expect.any(Array) },
       projectSources: expect.any(Boolean),
     })
   })

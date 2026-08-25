@@ -5,6 +5,7 @@ import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
 import { streamAgentTurnInProcess } from '@theokit/agents'
+import { turnErrorText } from '@theocode/shared/turn-error'
 
 import { buildChatAgent } from '@theocode/agent'
 import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/config'
@@ -75,6 +76,11 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
           {
             ...input,
             sessionId: deps.getSessionId(),
+            // Without this the framework masks every failure to "An error occurred." — the right
+            // default for a public HTTP endpoint and the wrong one here, where the caller IS the
+            // operator. Same policy as the CLI, from `@theocode/shared/turn-error`, so the two
+            // surfaces cannot describe the same failure differently.
+            onError: turnErrorText,
             // B-088 — subscribe to the SDK's typed run events. Only `mcp_server_failed` is read
             // (see `mcpFailureSink`); every other event is deliberately ignored, so an MCP panel
             // never fills with unrelated runtime noise.

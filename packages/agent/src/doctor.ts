@@ -26,7 +26,50 @@
  */
 import type { Check } from '@theokit/agents/doctor'
 
+/**
+ * What is known about the stored credential. Presence only — never the value, not even truncated,
+ * because this output is pasted into issues.
+ *
+ * `expired` is a distinct state, not a flavour of `present`. An OAuth credential that parsed but
+ * whose `expires` had passed made this report `✓ credential: present` — measured 2026-08-25 against
+ * a token ten days past expiry. A diagnostic whose job is to answer "is this ready to run?" said
+ * yes about the one thing that was going to fail first.
+ *
+ * The docstring on `collectChecks` has claimed since it was written that the tests can "drive an
+ * expired credential". They could not: the state did not exist.
+ */
+export type CredentialState = 'present' | 'absent' | 'unreadable' | 'expired'
+
 export { diagnose, renderDiagnosis } from '@theokit/agents/doctor'
+
+/** The credential row, one branch per state — no state collapses into another. */
+function credentialCheck(state: CredentialState): Check {
+  switch (state) {
+    case 'present':
+      return { name: 'credential', status: 'ok', detail: 'present' }
+    case 'expired':
+      return {
+        name: 'credential',
+        status: 'warn',
+        detail:
+          'EXPIRED — the stored token is past its expiry. A refresh may still renew it on the ' +
+          'next turn; if it does not, run `theocode` and use /login.',
+      }
+    case 'absent':
+      return {
+        name: 'credential',
+        status: 'fail',
+        detail: 'absent — run `theocode` and use /login, or set the provider key',
+      }
+    case 'unreadable':
+      return {
+        name: 'credential',
+        status: 'fail',
+        detail: 'unreadable — the credential file exists and could not be parsed',
+      }
+  }
+}
+
 
 /**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an
@@ -43,8 +86,7 @@ export function collectChecks(input: {
   readonly effort: string
   readonly sandboxMode: string
   readonly approvalPolicy: string
-  /** Presence only. Never the value, not even truncated — this output is pasted into issues. */
-  readonly credential: 'present' | 'absent' | 'unreadable'
+  readonly credential: CredentialState
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
@@ -80,17 +122,7 @@ export function collectChecks(input: {
           ? 'trusted'
           : `${input.trustLevel} — project config, AGENTS.md, hooks, skills, MCP and memory are all withheld`,
     },
-    {
-      name: 'credential',
-      status:
-        input.credential === 'present' ? 'ok' : input.credential === 'absent' ? 'fail' : 'fail',
-      detail:
-        input.credential === 'present'
-          ? 'present'
-          : input.credential === 'absent'
-            ? 'absent — run `theocode` and use /login, or set the provider key'
-            : 'unreadable — the credential file exists and could not be parsed',
-    },
+    credentialCheck(input.credential),
     { name: 'model', status: 'ok', detail: `${input.model} (${input.effort})` },
     { name: 'sandbox', status: 'ok', detail: input.sandboxMode },
     { name: 'approval', status: 'ok', detail: input.approvalPolicy },

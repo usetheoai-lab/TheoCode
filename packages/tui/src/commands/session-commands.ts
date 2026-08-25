@@ -131,6 +131,29 @@ export function handleFork(
   })
 }
 
+/** What the store hands back for a listing, taken from the function so the two cannot drift. */
+export type ListedSessions = Awaited<ReturnType<typeof listSessions>>
+
+/**
+ * One line per session, shared by the `/sessions` toast and the `/agents` panel.
+ *
+ * The id is printed even when the session has a name, and that is a fix rather than a style: the id
+ * is the argument `/resume`, `/archive` and `/delete` take, and the previous line showed `name ??
+ * agentId` — so renaming a session hid the only handle you could act on it with.
+ *
+ * One renderer for one listing, because the `●` encodes a claim about which session you are in, and
+ * two places computing that is how a panel and a toast come to point at different rows.
+ */
+export function sessionListLines(sessions: ListedSessions, currentId: string): string {
+  return sessions
+    .map((s) => {
+      const named = s.name === undefined ? '' : ` — ${s.name}`
+      const marker = s.agentId === currentId ? '● ' : '  '
+      return `${marker}${s.agentId}${named}${s.archived ? ' (archived)' : ''}`
+    })
+    .join('\n')
+}
+
 export function handleListSessions(currentSessionId: () => string, setToast: SetToast): void {
   const cur = currentSessionId()
   void listSessions()
@@ -140,12 +163,7 @@ export function handleListSessions(currentSessionId: () => string, setToast: Set
         setToast({ message: hint ?? 'No sessions yet.', variant: 'info' })
         return
       }
-      const lines = sessions
-        .map(
-          (s) =>
-            `${s.agentId === cur ? '● ' : '  '}${s.name ?? s.agentId}${s.archived ? ' (archived)' : ''}`,
-        )
-        .join('\n')
+      const lines = sessionListLines(sessions, cur)
       setToast({ message: `Sessions (${sessions.length}):\n${lines}`, variant: 'info' })
     })
     .catch((e: unknown) =>

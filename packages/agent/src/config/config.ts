@@ -41,6 +41,27 @@ export interface AgentConfig {
   goal_oracle: GoalOracle
   skills: readonly string[]
   hooks: readonly unknown[]
+  /**
+   * Durable memory: whether the agent records what it did and recalls it on later turns.
+   *
+   * OFF by default, which is a deliberate correction rather than a preference. Codex ships the same
+   * capability as a feature with `default_enabled: false`
+   * (`codex/codex-rs/features/src/lib.rs`, `key: "memories"`, `Stage::Stable`), and this product had
+   * it on for every trusted directory with no config key to turn it off — only a volatile session
+   * switch that reset on the next launch.
+   *
+   * Two costs, measured 2026-08-25. It WRITES: a summary of every session lands in
+   * `<cwd>/.theokit/memory/sessions/`, so running the agent in a repository leaves files there that
+   * nobody asked for (332 KB accumulated in this checkout). And it READS BACK: recall from earlier
+   * sessions enters later turns, so two identical runs of the same task can diverge because the
+   * second one saw the first — which is exactly the property a benchmark against another agent must
+   * not have. It also declares `memory_search` + `memory_get`, 1,462 chars of schema re-sent on
+   * every round of every turn.
+   *
+   * Remembering across sessions is a real feature and worth having; it is not a sensible DEFAULT for
+   * a tool that runs inside someone else's repository.
+   */
+  memory: boolean
   context_window?: number
   profile?: string
 }
@@ -53,6 +74,7 @@ const CONFIG_SCHEMA_KEYS = [
   'goal_oracle',
   'skills',
   'hooks',
+  'memory',
   'context_window',
 ] as const
 
@@ -144,11 +166,13 @@ export function optOutsThatExemptNothing(
 }
 
 const DEFAULTS: AgentConfig = {
-  model: 'openai/gpt-5.4',
+  model: 'openai/gpt-5.6-terra',
   reasoning_effort: 'medium',
   sandbox_mode: 'workspace-write',
   approval_policy: 'on-request',
   goal_oracle: 'judge',
+  // Off, matching Codex's `memories` feature. See `AgentConfig.memory` for the measurement.
+  memory: false,
   skills: ['daily-briefing'],
   hooks: [],
 }
@@ -182,6 +206,7 @@ const scalarSchema = z
     goal_oracle: z.enum(GOAL_ORACLES).optional(),
     skills: z.array(z.string()).optional(),
     hooks: z.array(z.unknown()).optional(),
+    memory: z.boolean().optional(),
     context_window: z.number().int().positive().optional(),
   })
   .strict()
@@ -216,6 +241,7 @@ function pickScalars(raw: RawScalars): Partial<AgentConfig> {
   if (raw.goal_oracle !== undefined) out.goal_oracle = raw.goal_oracle
   if (raw.skills !== undefined) out.skills = raw.skills
   if (raw.hooks !== undefined) out.hooks = raw.hooks
+  if (raw.memory !== undefined) out.memory = raw.memory
   if (raw.context_window !== undefined) out.context_window = raw.context_window
   return out
 }

@@ -11,7 +11,7 @@ export interface SessionTheInterpreterUses {
   attachImages: (images: AttachedImage[] | undefined) => void
   effort: () => ReasoningEffort
   setEffort: (level: ReasoningEffort) => void
-  cfg: () => { modelLabel: string; sandboxLabel: string }
+  cfg: () => { modelLabel: string; sandboxLabel: string; sandboxDetail: string }
   sessionModel: () => string | undefined
   setSessionModel: (model: string) => void
   setModel: (model: string | undefined) => void
@@ -41,6 +41,16 @@ export interface CommandCapabilities {
   readonly goalAbort: MutableRefObject<AbortController | null>
   readonly lastSentMessage: MutableRefObject<string | null>
   readonly stdout: { write: (s: string) => void } | undefined
+  /**
+   * Ink's `useStdout().write` — text placed ABOVE the live frame, in the terminal's own scrollback.
+   *
+   * A second seam onto the same stream as `stdout`, and the distinction is the whole point. Writing
+   * to `stdout` lands inside the region Ink repaints, so the next frame erases it; this one erases
+   * the frame first, writes verbatim, and repaints underneath. `/clear` wants the former (it is
+   * addressing the screen), `/raw` wants the latter (it is addressing the scrollback), and calling
+   * one where the other belongs fails silently in both directions.
+   */
+  readonly writeToScrollback: (text: string) => void
   readonly approvalMode: ApprovalMode
   readonly goalRun: GoalRunState | null
   readonly goalActive: boolean
@@ -127,6 +137,20 @@ export type InspectionCapabilities = Pick<
   | 'exit'
   | 'setToast'
   | 'setPanel'
+  // `/raw` lives in the transcript-out group, which is typed by this pick.
+  | 'writeToScrollback'
+>
+
+/**
+ * What the read-only settings commands need: the two posture values, and the two ways to say them.
+ *
+ * Deliberately WITHOUT `setApprovalMode` — the panel these back is a report, and handing it the
+ * setter is how a report grows a second way to change a value that `/sandbox` guards with an armed
+ * confirmation.
+ */
+export type SettingsCapabilities = Pick<
+  CommandCapabilities,
+  'SESSION' | 'approvalMode' | 'setToast' | 'setPanel'
 >
 
 export type ShellCapabilities = Pick<CommandCapabilities, 'ptyOwner' | 'setToast'>
