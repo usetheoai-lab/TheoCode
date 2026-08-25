@@ -64,7 +64,7 @@ export const THEMES: Readonly<Record<ThemeBase, TheoThemeProp>> = Object.freeze(
 export const LOGO_COLUMNS = 46
 
 /**
- * Centre a line inside the art column.
+ * Pad a line so it sits in the middle of the art column.
  *
  * Padding the STRING is the only lever available: `WelcomeBanner` renders `tagline` and `hints` as
  * plain left-aligned `<Text>` inside a column it owns and the slots take no layout props.
