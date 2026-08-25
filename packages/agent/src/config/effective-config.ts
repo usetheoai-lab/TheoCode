@@ -24,6 +24,8 @@ export class EffectiveConfig {
   readonly goal_oracle: GoalOracle
   readonly skills: readonly string[]
   readonly hooks: readonly unknown[]
+  /** Durable memory — off unless asked for. See `AgentConfig.memory` for why the default is off. */
+  readonly memory: boolean
   readonly profile: string | undefined
 
   readonly #contextWindow: number | undefined
@@ -34,6 +36,7 @@ export class EffectiveConfig {
     this.sandbox_mode = cfg.sandbox_mode
     this.approval_policy = cfg.approval_policy
     this.goal_oracle = cfg.goal_oracle
+    this.memory = cfg.memory
     this.profile = cfg.profile
     this.#contextWindow = cfg.context_window
 
@@ -56,9 +59,24 @@ export class EffectiveConfig {
     return resolveSandboxPosture({ mode: this.sandbox_mode })
   }
 
+  /**
+   * The sandbox posture WITH the `sandbox:` prefix — for the footer, where it sits in a `·`-joined
+   * run of bare values and needs to say which knob it is.
+   */
   get sandboxLabel(): string {
+    return `sandbox:${this.sandboxDetail}`
+  }
+
+  /**
+   * The same posture WITHOUT the prefix, for anywhere the label is already supplied by a column.
+   *
+   * `/status` renders a `sandbox:` column and filled it with `sandboxLabel`, so the panel read
+   * `sandbox:    sandbox:workspace-write`. Splitting the getter is what stops the next consumer
+   * from either repeating the prefix or stripping it back off with a `replace`.
+   */
+  get sandboxDetail(): string {
     const p = this.sandboxPosture
-    return p.enforced ? `sandbox:${p.mode}` : `sandbox:${p.mode} ⚠ tool-gating`
+    return p.enforced ? p.mode : `${p.mode} ⚠ tool-gating`
   }
 
   get approvalMode(): 'suggest' | 'auto-edit' | 'full-auto' {

@@ -27,6 +27,16 @@ export interface WiredCapabilities {
   readonly mcp: WiredEntity
   readonly skills: WiredEntity
   readonly hooks: WiredEntity
+  /**
+   * The `AGENTS.md` chain, gated by the same posture as the other three.
+   *
+   * It was the one trust-gated INSTRUCTION source with no listing: `/skills`, `/mcp` and `/hooks`
+   * each report what survived the gate, and the file that most directly steers the model reported
+   * nothing. An untrusted directory drops it silently, which is the case a user most needs told —
+   * the agent is running without the rules the repository wrote for it, and nothing on screen says
+   * so. Codex puts the same fact on its status panel (`Agents.md: <none>`).
+   */
+  readonly agentsMd: WiredEntity
   /** Whether `.theokit/agents/*.md` were allowed to load — subagents and project hooks ride on it. */
   readonly projectSources: boolean
   /**
@@ -38,13 +48,17 @@ export interface WiredCapabilities {
 }
 
 export function wiredCapabilities(input: {
-  readonly posture: { readonly allows: { mcp: boolean; skills: boolean; hooks: boolean } }
+  readonly posture: {
+    readonly allows: { mcp: boolean; skills: boolean; hooks: boolean; agentsMd: boolean }
+  }
   readonly projectSourcesAllowed: boolean
   /** The map handed to `.mcp()` — already loaded, never re-read here. */
   readonly mcpServers: Readonly<Record<string, unknown>>
   readonly configuredSkills: readonly string[]
   /** The hook events handed to `.hooks()`, in the order they were registered. */
   readonly hookEvents: readonly string[]
+  /** The instruction files the walk found — the paths, never their contents. */
+  readonly agentsMdFiles: readonly string[]
   readonly sandboxMode: string
 }): WiredCapabilities {
   const record = recordWiring({
@@ -55,6 +69,9 @@ export function wiredCapabilities(input: {
       mcp: Object.keys(input.mcpServers).sort(),
       skills: input.configuredSkills,
       hooks: input.hookEvents,
+      // NOT sorted: the walk's order is root-most first, which is the order they are composed into
+      // the prompt. Sorting would present a precedence that is not the one in effect.
+      agentsMd: input.agentsMdFiles,
     },
   })
 

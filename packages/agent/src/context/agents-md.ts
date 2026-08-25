@@ -19,33 +19,51 @@ const SEPARATOR = '\n\n--- project-doc ---\n\n'
  * which files load. So the walk below stays ours and the expansion becomes theirs, which is the
  * split that was always correct.
  */
-export function loadAgentsMd(
-  cwd: string,
-  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
-): string {
+/**
+ * The instruction files the walk finds, grouped by the directory they came from.
+ *
+ * ONE traversal, used by both callers. `/status` has to answer "is an AGENTS.md steering this
+ * agent?" — Codex answers it on its own status panel (`Agents.md: <none>`) and this product
+ * answered it nowhere — and the only wrong way to answer it is a second walk that can disagree
+ * with the one that actually loaded.
+ */
+function walkInstructionChain(cwd: string): {
+  rootDir: string
+  chain: { dir: string; files: string[] }[]
+} {
   const chain: { dir: string; files: string[] }[] = []
   let dir = cwd
-  let rootDir = cwd
   for (;;) {
     const files = ['AGENTS.md', 'AGENTS.local.md']
       .map((f) => join(dir, f))
       .filter((p) => existsSync(p))
     if (files.length > 0) chain.push({ dir, files })
-    if (existsSync(join(dir, '.git'))) {
-      rootDir = dir
-      break
-    }
+    // The repository root bounds the import expansion below.
+    if (existsSync(join(dir, '.git'))) return { rootDir: dir, chain }
     const parent = dirname(dir)
     if (parent === dir) {
       // B-042 — reaching the FILESYSTEM ROOT used to set `rootDir = '/'`, which makes
       // `insideRoot(anything, '/')` true: outside a git repository the confinement did not merely
       // stop working, it permitted reading any file on the machine into the system prompt. With no
       // repository to bound it, the project IS the working directory.
-      rootDir = cwd
-      break
+      return { rootDir: cwd, chain }
     }
     dir = parent
   }
+}
+
+/** The paths the walk would read, root-most first — the order `loadAgentsMd` composes them in. */
+export function agentsMdChain(cwd: string): readonly string[] {
+  return walkInstructionChain(cwd)
+    .chain.flatMap((l) => l.files)
+    .reverse()
+}
+
+export function loadAgentsMd(
+  cwd: string,
+  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
+): string {
+  const { rootDir, chain } = walkInstructionChain(cwd)
   const chainPaths = new Set(chain.flatMap((l) => l.files))
 
   const found: string[] = []

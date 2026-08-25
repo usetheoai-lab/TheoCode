@@ -33,7 +33,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   {
     name: ENV_MODEL,
     reader: CONFIG,
-    default: 'openai/gpt-5.4',
+    default: 'openai/gpt-5.6-terra',
     effect: 'Switches the model. Wins over every `config.toml` layer.',
   },
   {

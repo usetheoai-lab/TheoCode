@@ -7,8 +7,8 @@
   "dependencies": {
     "@theocode/agent": "*",
     "@theocode/shared": "*",
-    "@theokit/agents": "^10.1.0",
-    "@theokit/tui": "^0.76.1",
+    "@theokit/agents": "^11.0.0",
+    "@theokit/tui": "^0.78.0",
     "ink": "^7.1.0",
     "lowlight": "^3.0.0",
     "react": "^19.0.0",

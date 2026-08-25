@@ -63,6 +63,10 @@ function ApprovalCard({
   return (
     <PermissionPrompt
       {...formatApproval(approval)}
+      // Under the choices, where Claude Code puts it. Read before the question — which is where the
+      // slot rendered until `hintPlacement` existed (usetheokit/theokit-tui) — an instruction about
+      // the choices arrives before the choices do.
+      hintPlacement="below"
       onDecision={(decision) => {
         settleApproval(approval.approvalId, decision === 'yes')
       }}
@@ -119,12 +123,7 @@ export const INPUT_LAYERS: readonly SurfaceLayer<InputSlotProps>[] = [
   narrowingLayer<InputSlotProps, WithApproval>({
     name: 'approval',
     when: (p): p is WithApproval => p.pendingApproval !== undefined,
-    render: (p) => (
-      <ApprovalCard
-        approval={p.pendingApproval}
-        settleApproval={p.settleApproval}
-      />
-    ),
+    render: (p) => <ApprovalCard approval={p.pendingApproval} settleApproval={p.settleApproval} />,
   }),
   {
     name: 'conversation',

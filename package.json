@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "tsx packages/tui/src/main.tsx",
     "exec": "tsx packages/cli/src/main.ts",
+    "dev:banner": "tsx packages/tui/tools/render-banner.tsx",
     "build": "node tools/build-cli.mjs && npm run build:acp",
     "build:acp": "esbuild packages/agent/src/chat-acp.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/acp-entry.mjs",
     "test": "vitest run",
@@ -20,6 +21,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && knip --no-progress && node tools/check-english-only.mjs --quiet && node tools/check-artifact-promotion.mjs --quiet",
     "lint:deadcode": "knip --no-progress",
+    "deps:theokit": "node tools/check-theokit-updates.mjs",
+    "deps:theokit:json": "node tools/check-theokit-updates.mjs --json",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
     "lint:english": "node tools/check-english-only.mjs",
@@ -27,26 +30,27 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
-    "@vitest/coverage-v8": "^3.2.7",
-    "dependency-cruiser": "18.1.1",
-    "esbuild": "0.28.1",
-    "eslint": "^9.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "dependency-cruiser": "18.2.0",
+    "esbuild": "0.28.2",
+    "eslint": "^10.9.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "ink-testing-library": "^4.0.0",
     "knip": "^6.32.2",
     "prettier": "^3.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^3.0.0"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
   },
   "bin": {
     "theocode": "./dist/theocode.mjs"
   },
   "overrides": {
-    "@theokit/presenter": "^0.7.0"
+    "@theokit/presenter": "^0.8.0",
+    "@theokit/tui": "^0.78.0"
   }
 }

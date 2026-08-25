@@ -36,7 +36,7 @@ function stubCollaborators() {
     attachImages: vi.fn(),
     effort: vi.fn(() => 'medium' as never),
     setEffort: vi.fn(),
-    cfg: vi.fn(() => ({ modelLabel: 'm', sandboxLabel: 's' })),
+    cfg: vi.fn(() => ({ modelLabel: 'm', sandboxLabel: 's', sandboxDetail: 'read-only' })),
     sessionModel: vi.fn(() => undefined),
     setSessionModel: vi.fn(),
     setModel: vi.fn(),
@@ -70,6 +70,10 @@ function stubSpies() {
     currentSessionId: vi.fn(() => 'sess-1'),
     forkCurrentSession: vi.fn(() => ({ newId: 'sess-2', copied: true })),
     stdoutWrite: vi.fn(),
+    // The OTHER stdout seam. Same file descriptor as `stdout`, opposite meaning: this one survives
+    // the next repaint and that one does not, so the dispatch test has to be able to tell which
+    // of the two a command reached for.
+    writeToScrollback: vi.fn(),
   }
 }
 
@@ -167,6 +171,62 @@ describe('interpretCommand — the remaining groups claim their own', () => {
     expect(h.setPanel).toHaveBeenCalled()
   })
 
+  it('test_showPermissions_reaches_the_settings_group_and_reads_the_sandbox_posture', () => {
+    // The group added for the two read-only knobs. It sits after `transcriptOut`, so an earlier
+    // group starting to claim either action would send `/permissions` somewhere that cannot read
+    // `SESSION.cfg()` — and the panel would render without the half it exists to pair.
+    const h = run({ kind: 'showPermissions' } as CommandAction)
+
+    expect(h.setPanel).toHaveBeenCalled()
+    expect(
+      h.SESSION.cfg,
+      'the panel was built without asking for the sandbox mode',
+    ).toHaveBeenCalled()
+  })
+
+  it('test_theme_reaches_the_settings_group_as_a_toast_and_not_a_panel', () => {
+    // A bare `/theme` reports one line, so a bordered panel would overstate it. The assertion pins
+    // the shape as much as the routing: a report this small is a toast here, the way `/model` is.
+    // The empty argument also keeps this routing test from switching the process-wide session base
+    // out from under whatever runs next in this file.
+    const h = run({ kind: 'theme', arg: '' } as unknown as CommandAction)
+
+    expect(h.setToast).toHaveBeenCalled()
+    expect(h.setPanel).not.toHaveBeenCalled()
+  })
+
+  it('test_title_and_statusline_reach_the_settings_group', () => {
+    // Both joined `settings` rather than opening groups of their own, which put that switch at four
+    // arms. The bare form is used deliberately: it reports, so this routing case cannot leave a
+    // process-wide selection changed under whatever runs next in this file.
+    //
+    // The panel is the assertion because the group is typed by `SettingsCapabilities`, which is
+    // deliberately narrow — a handler routed there without `setPanel` in that pick would throw at
+    // destructuring rather than quietly reporting nowhere.
+    for (const kind of ['title', 'statusline']) {
+      const h = run({ kind, arg: '' } as unknown as CommandAction)
+
+      expect(h.setPanel, `/${kind} did not reach a handler`).toHaveBeenCalled()
+    }
+  })
+
+  it('test_raw_reaches_the_transcript_group_and_writes_above_the_frame', () => {
+    // The seam is the assertion. `/raw` writing to `stdout` instead would be erased by the next
+    // repaint — the command would look like it did nothing, and no other test in this file
+    // distinguishes the two writers.
+    const h = harness()
+    interpretCommand({ kind: 'raw', arg: '' } as unknown as CommandAction, '', {
+      ...h.cap,
+      events: [{ kind: 'message', role: 'assistant', text: 'answer' }],
+    } as CommandCapabilities)
+
+    expect(h.writeToScrollback, '/raw never reached the scrollback writer').toHaveBeenCalled()
+    expect(
+      h.stdoutWrite,
+      '/raw wrote to the raw stream, where the next repaint erases it',
+    ).not.toHaveBeenCalled()
+  })
+
   it('test_listPtys_reaches_the_shells_group', () => {
     // The smallest group, and the one most likely to be dropped from the chain unnoticed: two
     // actions, both about background shells nobody looks at until one is stuck.
@@ -242,6 +302,7 @@ describe('interpretCommand — the partition the chain rests on', () => {
     'turn',
     'inspection',
     'transcriptOut',
+    'settings',
     'shells',
     'conduct',
   ] as const

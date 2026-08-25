@@ -1,6 +1,6 @@
 import { getTuiRoot } from './agent-session/index.js'
 import { TUI_MAX_FPS } from './rendering/index.js'
-import { drainAll, installStderrGuard } from './terminal-io/index.js'
+import { drainAll, installStderrGuard, installTerminalTitle } from './terminal-io/index.js'
 import { join } from 'node:path'
 
 import { render } from 'ink'
@@ -29,9 +29,18 @@ if (typeof process.loadEnvFile === 'function') {
 setWorkingDirectory(process.cwd())
 
 installStderrGuard(join(workingDirectory(), '.theokit', 'tui-stderr.log'))
+
+// BEFORE the first frame, so the push captures the title the shell set rather than one of ours.
+// The disposer is idempotent, which is why it can be both the normal shutdown step below and a
+// backstop on `exit`: the ordinary path runs it after the queue drains, and the hook covers the
+// paths that never reach that line — a throw out of the render, or a `process.exit` from anywhere.
+const restoreTerminalTitle = installTerminalTitle()
+process.once('exit', restoreTerminalTitle)
+
 const instance = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
 
 await instance.waitUntilExit()
 await drainAll()
+restoreTerminalTitle()
 
 getTuiRoot().ptyOwner.shutdown()

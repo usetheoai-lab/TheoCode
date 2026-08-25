@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 
@@ -12,7 +14,54 @@ import type {
 } from './command-capabilities.js'
 import { workingDirectory } from '../working-directory.js'
 import { THEME_RESOLUTION } from '../theme.js'
-import { THEME_BASES } from '../theme-base.js'
+import { themeResolutionLine } from './theme-command.js'
+import { sessionThemeBase } from '../theme-session.js'
+import type { WiredCapabilities } from '@theocode/agent'
+import { agentsMdChain } from '@theocode/agent/context'
+
+/** Paths as the user reads them — relative to the directory the session is in. */
+const relative = (paths: readonly string[]): string =>
+  paths.map((p) => p.replace(`${workingDirectory()}/`, '')).join(', ')
+
+/**
+ * One line for the `AGENTS.md` chain: what is steering the agent, or why nothing is.
+ *
+ * Four states, and they are not interchangeable. Suppressed means files EXIST and were refused —
+ * the only state where the panel has to say what was lost. Empty means the walk found nothing,
+ * which is a normal repository.
+ *
+ * The fourth is the one this row is most often read in. `/status` is what a person runs BEFORE the
+ * first turn — that is when you ask which rules the agent is about to follow — and until an agent
+ * has been built there is no wiring record, so the row said `<unknown>` exactly when it was asked.
+ * The walk that produces the record is a pure read of the disk (`agentsMdChain`, the same function
+ * `buildChatAgent` hands to `wiredCapabilities`), so the answer is available without building
+ * anything.
+ *
+ * It is labelled `on disk`, and that word is load-bearing: the trust gate has not run yet, so what
+ * the walk finds is what WOULD be loaded, not what was. Reporting it as though it were already in
+ * the prompt would be the same overstatement `<unknown>` was avoiding — this says the true thing
+ * instead of saying nothing.
+ */
+export function agentsMdRow(
+  wired: WiredCapabilities | undefined,
+  /**
+   * The walk, injectable for the same reason `fittedCwd` takes its directory: with the ambient one
+   * the outcome depends on whether the checkout the suite happens to run in has an `AGENTS.md`, and
+   * both branches would be unassertable on half the machines.
+   */
+  onDiskChain: (cwd: string) => readonly string[] = agentsMdChain,
+): string {
+  if (wired === undefined) {
+    const onDisk = onDiskChain(workingDirectory())
+    return onDisk.length === 0 ? '<none>' : `${relative(onDisk)}  (on disk — not loaded yet)`
+  }
+  const entity = wired.agentsMd
+  if (entity.suppressedByTrust) {
+    return `NOT LOADED — directory untrusted (${entity.requested.length} file(s) ignored)`
+  }
+  if (entity.active.length === 0) return '<none>'
+  return relative(entity.active)
+}
 
 export function sendMessage(
   text: string,
@@ -53,40 +102,104 @@ export function switchModel(
   setToast({ message: `this session's model: ${target}`, variant: 'success' })
 }
 
-export const AGENTS_MD_REQUEST =
+/**
+ * The prompt `/init` sends. Module-local now that `initAgents` lives beside it: the request and
+ * the only function that sends it moved into one file, and an export nobody imports is dead
+ * surface rather than API — the rule `knip.jsonc` enforces for every package here.
+ */
+const AGENTS_MD_REQUEST =
   'Read this repository (structure, manifests, scripts, tests) and write an AGENTS.md at the ' +
   'root describing: what the project is, how to run/test/build it, the code conventions observed ' +
   'in the code itself, and the boundaries that must not be crossed. ' +
   'Base every statement on what you read — do not invent a convention the code does not show.'
+
+/**
+ * `/init` — ask the agent to write an `AGENTS.md`, unless one is already there.
+ *
+ * It lived in `interpret-command.ts`, extracted from the `inspection` switch because it is the only
+ * arm with a branch of its own. It moved HERE when that file crossed its own 400-line cap: the same
+ * answer one level up, and the better home anyway — the request it sends is declared three lines
+ * above, and a function and the constant it exists to send belong in one file.
+ *
+ * It REFUSES rather than overwrites. An `AGENTS.md` is hand-written policy; regenerating one on top
+ * of the rules a team already agreed on is a destructive act that a three-letter command must not
+ * perform silently.
+ */
+export function initAgents(
+  agent: AgentTheInterpreterUses,
+  lastSentMessage: MutableRefObject<string | null>,
+  setToast: Dispatch<SetStateAction<ToastPayload | null>>,
+): void {
+  if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
+    setToast({
+      message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
+      variant: 'info',
+    })
+    return
+  }
+  agent.send({ message: AGENTS_MD_REQUEST })
+  lastSentMessage.current = AGENTS_MD_REQUEST
+}
 
 export function statusPanel(
   SESSION: SessionTheInterpreterUses,
   approvalMode: ApprovalMode,
   currentSessionId: () => string,
   ptyOwner: PtysTheInterpreterUses,
+  /**
+   * What the last build actually wired. Passed in rather than read here for the reason B-071 was
+   * reopened over: a panel that re-reads config can disagree with the agent that is running, and
+   * the disagreement is the bug worth catching.
+   */
+  wired?: WiredCapabilities,
 ): ContentPanel {
   const c = SESSION.cfg()
+  const rows: readonly (readonly [string, string])[] = [
+    ['model', SESSION.sessionModel() ?? c.modelLabel],
+    ['effort', SESSION.effort()],
+    ['approval', approvalMode],
+    // `sandboxDetail`, not `sandboxLabel`: the latter carries a `sandbox:` prefix for the footer's
+    // `·`-joined run, and this panel already supplies the label as a column. Using it here printed
+    // `sandbox:    sandbox:workspace-write`.
+    ['sandbox', c.sandboxDetail],
+    ['cwd', workingDirectory()],
+    // Codex reports the same fact on its own status panel (`Agents.md: <none>`). Until now this
+    // product reported it nowhere, and the case that matters is the silent one: an untrusted
+    // directory drops the file, so the agent runs WITHOUT the rules the repository wrote for it
+    // and nothing on screen says so.
+    ['agents.md', agentsMdRow(wired)],
+    ['session', currentSessionId()],
+    ['shells', `${String(ptyOwner.backend().activeSessionCount())} in background`],
+    // B-073 — the source answers "why is it this colour?", which is the only question anyone
+    // asks about a theme. It is also where an unusable THEOCODE_THEME value surfaces: the
+    // resolver falls back so a typo cannot end the session, and this row is what keeps that from
+    // being a swallowed error. The line is rendered by `theme-command.ts` because `/theme` reports
+    // the same resolution, and the rejected-value clause is exactly what would drift if the two
+    // were written separately.
+    //
+    // The override is passed as a SECOND fact rather than substituted for the first: once `/theme`
+    // can switch, "the frame is light" and "this terminal resolves dark" are different answers, and
+    // a panel that reported only the active base would leave a user unable to tell a switch they
+    // made from an environment they need to go and fix.
+    ['theme', themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())],
+  ]
   return {
     title: 'session status',
-    body: [
-      `model:     ${SESSION.sessionModel() ?? c.modelLabel}`,
-      `effort:     ${SESSION.effort()}`,
-      `approval:   ${approvalMode}`,
-      `sandbox:    ${c.sandboxLabel}`,
-      `cwd:        ${workingDirectory()}`,
-      `session:    ${currentSessionId()}`,
-      `shells:     ${String(ptyOwner.backend().activeSessionCount())} in background`,
-      // B-073 — the source answers "why is it this colour?", which is the only question anyone
-      // asks about a theme. It is also where an unusable THEOCODE_THEME value surfaces: the
-      // resolver falls back so a typo cannot end the session, and reporting it here is what keeps
-      // that from being a swallowed error.
-      `theme:      ${THEME_RESOLUTION.base} (${THEME_RESOLUTION.source})${
-        THEME_RESOLUTION.invalid === undefined
-          ? ''
-          : ` — ignored THEOCODE_THEME=${THEME_RESOLUTION.invalid}, expected ${THEME_BASES.join(' | ')}`
-      }`,
-    ].join('\n'),
+    body: alignedRows(rows),
   }
+}
+
+/**
+ * `label: value` rows with the values in one column.
+ *
+ * The padding used to be typed into each template literal, and it was already wrong: `model:` sat
+ * one column left of the other seven, so the panel read as ragged from the first render. Widths
+ * that are maintained by hand drift the moment a label is added or renamed — computing the column
+ * makes that class of defect unrepresentable rather than merely fixed.
+ */
+function alignedRows(rows: readonly (readonly [string, string])[]): string {
+  const width = Math.max(...rows.map(([label]) => label.length)) + 1
+  return rows.map(([label, value]) => `${`${label}:`.padEnd(width + 3)}${value}`).join('\n')
 }
 
 export function diffPanel(): ContentPanel | undefined {

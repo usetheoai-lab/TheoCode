@@ -39,6 +39,32 @@ function toCodexUsage(u: Record<string, number> | undefined): Record<string, num
   )
 }
 
+/**
+ * What the turn actually COST, with the cached prefix taken out.
+ *
+ * `input_tokens` includes the cached prefix the provider re-read for free, so adding it to
+ * `output_tokens` reports a number the user is not paying. Measured 2026-08-25 on a three-round
+ * turn: the provider reported `cached_tokens: 4608` on every round, and this line reported 19,511
+ * where 5,687 were new.
+ *
+ * The formula is Codex's, deliberately, because that is what makes the two comparable —
+ * `codex-rs/protocol/src/protocol.rs`:
+ *
+ *     pub fn non_cached_input(&self) -> i64 { (self.input_tokens - self.cached_input()).max(0) }
+ *     // blended total = non_cached_input() + output_tokens.max(0)
+ *
+ * Until this matched, every cost comparison between the two agents was measuring a gross figure
+ * against a net one and reading the difference as a defect in this product.
+ *
+ * `Math.max(0, …)` on the subtraction, as Codex has it: a provider that reports more cached tokens
+ * than input tokens is describing something this arithmetic cannot represent, and a negative token
+ * count is worse than a clamped one.
+ */
+function blendedTotal(u: Record<string, number>): number {
+  const nonCachedInput = Math.max(0, (u.input_tokens ?? 0) - (u.cached_input_tokens ?? 0))
+  return nonCachedInput + Math.max(0, u.output_tokens ?? 0)
+}
+
 export interface ExecProcessor {
   process(chunk: ChunkLike): void
   finish(
@@ -53,8 +79,50 @@ function toolLine(chunk: ChunkLike): string {
   return `exec ${name} ${input}`
 }
 
+/**
+ * The assistant's FINAL message, kept apart from the preambles that precede its tool calls.
+ *
+ * A turn emits text more than once. The instructions ask for a preamble before a burst of tool
+ * calls ("Next, I'll patch the config and update the related tests.") and for a closing recap after
+ * the last one — all of it arrives as `text-delta`, with nothing in the stream marking where one
+ * message ends and the next begins.
+ *
+ * Concatenating them was wrong twice over, and `--help` states the contract it broke: "Stdout
+ * carries ONLY the final message". Measured 2026-08-25 on a two-step task, stdout read:
+ *
+ *     I'll read `duration.mjs` and report its contents briefly.`duration.mjs:2` defines …
+ *
+ * — the preamble and the answer with no separator between them, because nothing was ever meant to
+ * join them. `-o/--output-last-message` wrote the same run-on string to a file a script then reads.
+ * Codex, on the same task, prints the closing message alone.
+ *
+ * The boundary is the tool call: text buffered when one STARTS was a preamble by definition, since
+ * the answer cannot precede the tool that establishes it (the instructions say so in as many
+ * words). Whatever is left when the turn ends is the answer. A turn with no tool call has one
+ * message and it is the answer, which falls out of the same rule rather than needing a branch.
+ */
+function finalMessage(): {
+  delta: (d: string) => void
+  /** Close the current message: returns it if it said anything, and starts the next. */
+  cut: () => string | undefined
+  done: () => string
+} {
+  let buffer = ''
+  return {
+    delta: (d) => {
+      buffer += d
+    },
+    cut: () => {
+      const said = buffer.trim()
+      buffer = ''
+      return said.length > 0 ? said : undefined
+    },
+    done: () => buffer.trim(),
+  }
+}
+
 export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcessor {
-  let text = ''
+  const message = finalMessage()
   let errorSeen = false
   let usage: Record<string, number> | undefined
   return {
@@ -64,11 +132,16 @@ export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcess
           usage = chunk.messageMetadata?.usage
           break
         case 'text-delta':
-          text += chunk.delta ?? ''
+          message.delta(chunk.delta ?? '')
           break
-        case 'tool-input-available':
+        case 'tool-input-available': {
+          // The preamble goes out BEFORE the call it announces, which is the order it was written
+          // to be read in — and to stderr, where the rest of the progress already goes.
+          const preamble = message.cut()
+          if (preamble !== undefined) io.err(preamble)
           io.err(toolLine(chunk))
           break
+        }
         case 'tool-output-available':
           io.err(`  done`)
           break
@@ -85,11 +158,11 @@ export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcess
         errorSeen = true
         if (extra?.error !== undefined) io.err(`ERROR: ${extra.error}`)
       }
-      const finalText = text.trim()
+      const finalText = message.done()
       if (finalText.length > 0) io.out(finalText)
       const u = toCodexUsage(extra?.usage ?? usage)
       io.err(
-        `[exec] session=${sessionId} status=${errorSeen ? 'error' : status} tokens=${u.input_tokens + u.output_tokens}`,
+        `[exec] session=${sessionId} status=${errorSeen ? 'error' : status} tokens=${blendedTotal(u)}`,
       )
       return { finalText, errorSeen, usage: u }
     },
@@ -190,7 +263,10 @@ export function createJsonlProcessor(io: ExecIo, threadId: string): ExecProcesso
   }
 
   let usage: Record<string, number> | undefined
-  let finalText = ''
+  // The same rule as the human processor. The JSONL events themselves already arrive separated by
+  // `turn.observe`; it is `finalText` — what `-o/--output-last-message` writes — that ran them
+  // together, so a script reading that file got the preambles glued to the answer.
+  const message = finalMessage()
   let errorSeen = false
 
   const turn = foldTurnLifecycle<unknown>(codexDialect(), threadId)
@@ -202,7 +278,8 @@ export function createJsonlProcessor(io: ExecIo, threadId: string): ExecProcesso
         usage = chunk.messageMetadata?.usage
         return
       }
-      if (chunk.type === 'text-delta') finalText += chunk.delta ?? ''
+      if (chunk.type === 'text-delta') message.delta(chunk.delta ?? '')
+      if (chunk.type === 'tool-input-available') message.cut()
       if (chunk.type === 'error') errorSeen = true
 
       const mapped = toContentChunk(chunk)
@@ -217,7 +294,7 @@ export function createJsonlProcessor(io: ExecIo, threadId: string): ExecProcesso
         : { status: 'ok' as const, usage: raw }
 
       for (const event of turn.finish(outcome)) emit(event)
-      return { finalText: finalText.trim(), errorSeen: failed, usage: toCodexUsage(raw) }
+      return { finalText: message.done(), errorSeen: failed, usage: toCodexUsage(raw) }
     },
   }
 }

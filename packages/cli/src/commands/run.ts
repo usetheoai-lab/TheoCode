@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSessionId } from '../runtime/index.js'
+import { turnErrorText } from '@theocode/shared/turn-error'
 
 function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
@@ -42,9 +43,32 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
 
   const { streamAgentTurnInProcess } = await import('@theokit/agents')
   const { composeRun } = await import('../run-composition.js')
-  const { policy: headlessPolicy, mod } = composeRun({ ...args })
-  const { resolveCredentialForModel } = await import('@theocode/agent/auth')
-  const cred = await resolveCredentialForModel(args.model, { env: process.env, home: homedir() })
+  const { resolveCredentialForModel, routeToCredential } = await import('@theocode/agent/auth')
+
+  // The ORDER here is the fix, and it is the TUI's order: route the model id for the credential
+  // that will serve it, THEN resolve a credential for the routed id, THEN build on that same id.
+  //
+  // Headless used to resolve and build on the configured id directly. With a ChatGPT sign-in that
+  // id is `openai/…`, which selects the API-key provider — and `api.openai.com` refuses an OAuth
+  // token outright (`401 Missing scopes: api.responses.write`, measured 2026-08-25 by posting to
+  // both endpoints with the stored token). So one credential worked in the TUI and failed in the
+  // CLI, on a product whose README calls itself "one agent core, two surfaces". Worse, the failure
+  // did not say `auth`: after the transport's retries it surfaced as `rate_limit (HTTP 429)`, which
+  // reads as a quota problem and sends the user off to check a usage page.
+  //
+  // The first resolution is a PROBE: `routeToCredential` needs to know whether the credential is an
+  // OAuth one before it can decide, and that answer only comes from resolving. It is cheap (a file
+  // read plus, at most, a token refresh) and the second call reuses the refreshed token.
+  const probe = await resolveCredentialForModel(args.model, { env: process.env, home: homedir() })
+  const {
+    policy: headlessPolicy,
+    mod,
+    model,
+  } = composeRun({
+    ...args,
+    routeModel: (id) => routeToCredential(probe, id),
+  })
+  const cred = await resolveCredentialForModel(model, { env: process.env, home: homedir() })
   const sessionId = availableIdOrFork(await resolveSessionId(args), process.cwd())
   const processor = createProcessor(args.json === true, sessionId)
 
@@ -63,6 +87,10 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
         message: prompt,
         sessionId: sessionId,
         awaitApproval: async () => headlessPolicy,
+        // Without this the framework masks every failure to "An error occurred." — the right
+        // default for a public HTTP endpoint and the wrong one here, where the caller IS the
+        // operator. See `@theocode/shared/turn-error`.
+        onError: turnErrorText,
       }) as AsyncIterable<unknown>
     await consumeWithForkIfBusy(
       sessionId,

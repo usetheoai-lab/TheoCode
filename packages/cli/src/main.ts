@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import process from 'node:process'
 
-import { ensureAuthHome } from '@theocode/agent/auth'
+import { installAuthHome } from '@theocode/agent/auth'
 import { createShutdown } from '@theokit/agents/commands'
 import { loadProjectEnv, gitGate, parseExecArgs, USAGE } from './runtime/index.js'
 import { goalCommand } from './commands/goal.js'
@@ -28,7 +28,12 @@ installDiagnosticSink(setDiagnosticsSink)
  */
 function bootstrap(): void {
   loadProjectEnv()
-  ensureAuthHome(process.env, homedir())
+  // `installAuthHome`, not `ensureAuthHome`: this line has to WRITE the variable, and for a while
+  // it did not. B-034 stopped `ensureAuthHome` mutating its argument and this call site — whose
+  // whole purpose is the mutation — kept calling it and threw the answer away. The CLI therefore
+  // never pointed the SDK at this product's credential store, and a ChatGPT sign-in that worked in
+  // the TUI failed here with "no ChatGPT credential found".
+  installAuthHome(process.env, homedir())
 }
 
 async function main(): Promise<void> {

@@ -124,7 +124,9 @@ const migratedMarkerFor = (legacy: string): string => `${legacy}.migrated`
 async function migrateLegacyTrust(store: string = TRUST_STORE): Promise<void> {
   if (!existsSync(store) || existsSync(migratedMarkerFor(store))) return
 
-  let dirs: string[] = []
+  // Declared without an initialiser: the `catch` returns, so the only way past this block is
+  // through the assignment below. An `= []` here would read as a fallback that can never be used.
+  let dirs: string[]
   try {
     const parsed = JSON.parse(readFileSync(store, 'utf8')) as { trusted?: unknown }
     dirs = Array.isArray(parsed.trusted)

@@ -81,3 +81,57 @@ describe('B-024 — the composition seam is real', () => {
     )
   })
 })
+
+/**
+ * The headless surface has to build on the SAME model id it resolves a credential for.
+ *
+ * Measured 2026-08-25: it did not. A ChatGPT sign-in stores an OAuth token that `api.openai.com`
+ * refuses outright (`401 Missing scopes: api.responses.write`), and the configured id is
+ * `openai/…`, which selects exactly that API-key provider. The TUI re-points it at
+ * `openai-chatgpt/…` before anything resolves; headless skipped that step, so one credential worked
+ * on one surface and failed on the other — on a product whose README calls itself "one agent core,
+ * two surfaces".
+ */
+describe('composeRun routes the model for the credential that will serve it', () => {
+  beforeEach(() => {
+    writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
+  })
+
+  it('test_the_routed_id_is_what_the_agent_is_built_on_and_what_the_caller_is_told', () => {
+    // The two have to be the same value. A caller that re-derived the routed id could derive it
+    // differently, which is the divergence this seam exists to close.
+    const composed = composeRun(
+      { overrides: [], model: 'openai/gpt-5.4', routeModel: () => 'openai-chatgpt/gpt-5.4' },
+      { cwd: dir, store },
+    )
+
+    expect(composed.model).toBe('openai-chatgpt/gpt-5.4')
+  })
+
+  it('test_the_route_sees_the_CONFIGURED_id_when_no_model_flag_was_given', () => {
+    // The case that actually shipped broken: no `--model`, so the id came from config and the
+    // rewrite had nothing to look at. A router handed `undefined` cannot route.
+    const seen: string[] = []
+    composeRun(
+      {
+        overrides: [],
+        routeModel: (id) => {
+          seen.push(id)
+          return id
+        },
+      },
+      { cwd: dir, store },
+    )
+
+    expect(seen, 'the router was never called').toHaveLength(1)
+    expect(seen[0], 'the router was handed nothing to route').toBeTruthy()
+    expect(seen[0]).not.toBe('undefined')
+  })
+
+  it('test_without_a_router_the_configured_id_is_used_unchanged', () => {
+    // Anti-vacuity: the seam is additive. A caller that supplies no router gets what it always got.
+    const composed = composeRun({ overrides: [], model: 'anthropic/x' }, { cwd: dir, store })
+
+    expect(composed.model).toBe('anthropic/x')
+  })
+})
