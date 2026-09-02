@@ -55,6 +55,48 @@ So the `BASE_INSTRUCTIONS` change — *an example illustrates a rule and never d
 you write yourself must include cases you did not already know the code handles* — survived a MAJOR
 of the framework and a nine-minor jump of the SDK.
 
+| root-cause a wrong-associativity bug across 3 files | 5/5, **one file touched** | 5/5, **three files touched** | equal result, see below |
+
+### Cost, re-instrumented
+
+| | gross | cached | **blended** |
+|---|---|---|---|
+| TheoCode | 27,682 | 13,824 | **13,858** |
+| Codex | — | — | **12,410** |
+
+Same formula as before, Codex's own: `blended = max(0, input − cached) + max(0, output)`. Roughly
+**12% apart**, TheoCode above — the same order of magnitude, not a benchmark.
+
+Two honesty notes on that pair of numbers. Ours comes from a structured field —
+`{"type":"turn.completed","usage":{...}}` on `--json`, which now carries `cached_input_tokens`;
+Codex's was read out of its log text (`tokens used 12.410`), so the two are not measured with equal
+instrumentation. And it is one run each, against a task whose own earlier measurement showed Codex
+varying 2x between identical runs.
+
+What the gross-versus-blended gap does confirm is that the cache is working from a PUBLISHED package:
+27,682 gross against 13,858 blended means half the traffic was served from cache. On the first
+measurement that came from a local tarball; it now comes from `@theokit/sdk@4.63.3`.
+
+### A divergence in scope, which the earlier run did not surface
+
+Both fixed the bug and both reach 5/5. The fixes differ, and the difference is not stylistic:
+
+```
+seed (the bug):   return (amount + amount) * rate
+
+TheoCode:         return amount + amount * rate      ← tax.mjs only
+Codex:            return amount * (1 + rate)         ← and rewrote discount.mjs too
+```
+
+`discount.mjs` was **correct in the seed**. TheoCode left it alone; Codex rewrote it from
+`amount - amount * pct` to `amount * (1 - pct)` — algebraically identical, with no defect to fix —
+and added rounding to `total.mjs` that the task never asked for.
+
+Neither is wrong by the oracle: both suites pass. But the task was to find the root cause of a
+failing test, and touching a correct file widens the diff for a reviewer with nothing to show for it.
+**On this axis the more restrained behaviour is ours**, which is worth recording precisely because
+every other axis here measures whether we match them.
+
 ### The third task measured nothing, and the seed was mine
 
 A third task was dispatched: a wrong-associativity bug across three files, "the tests fail, find the
@@ -69,9 +111,9 @@ original task 5 in the table below is the real measurement; this re-run does not
 
 ### Not re-measured
 
-**Cost.** This run was not instrumented for tokens, so the 5.6% figure below still stands on the
-older stack. It is the number most likely to have moved, since `prompt_cache_key` is now published
-rather than served from a local tarball.
+Everything the original run left out is still out: interactive TUI behaviour, long-horizon tasks,
+anything needing the network or an MCP server. Three tasks, one model, one afternoon — the direction
+is evidence, the ratios are not a benchmark.
 
 ## Result parity — 6 tasks
 
