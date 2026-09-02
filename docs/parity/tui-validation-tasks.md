@@ -5,15 +5,21 @@ when it was **driven in the running TUI** and the result observed — not when t
 
 Measured 2026-09-02: **46 commands here, 58 in Codex 0.147.0.**
 
-**COMPLETE (2026-09-02) — all 55 rows resolved: 47 PASS, 1 FIXED, 3 FAIL, 1 PARTIAL, 3 n/a.**
+**COMPLETE (2026-09-02) — all 55 rows resolved and EXECUTED: 50 PASS, 1 FIXED, 3 FAIL, 1 PARTIAL, 0 n/a.**
+
+The three destructive rows were driven last, deliberately and with a backup taken first: `/delete`
+against a session created to be deleted, `/quit` in a clean pane so the title could be read back,
+and `/logout` + `/login` on the operator's real account. Marking them `n/a` had been generous to
+the sweep rather than honest about it — `/quit` in particular was executed dozens of times without
+the property it declared ever being measured.
 
 | outcome | rows |
 |---|---|
-| PASS | 47 |
+| PASS | 50 |
 | FIXED in the sweep | 1 — `/memory` reported ON while nothing could be written |
 | FAIL | 3 — skills (#67, two rows) and MCP (#68) |
 | PARTIAL | 1 — `/hooks` cannot answer before the first turn |
-| n/a | 3 — `/delete`, `/quit`, `/logout` are destructive of the operator's own session or credentials |
+| n/a | 0 — every row was executed |
 
 **Every surface a user creates works end to end except skills and MCP**, and both fail the same way:
 listed by their panel, absent from the agent's toolset. Subagents are the proof the bar is reachable
@@ -52,10 +58,10 @@ below is what happens on screen.
 | 4 | `/fork` | branches the session | PASS |
 | 5 | `/sessions` | lists sessions | PASS |
 | 6 | `/archive` | archives current | PASS |
-| 7 | `/delete` | deletes, refuses the live one | n/a |
+| 7 | `/delete` | deletes, refuses the live one | PASS — three behaviours, oracle on disk. Bare `/delete` refuses and explains; the live session raises `LiveSessionDeletionError` naming the remedy; another session's `.jsonl` was gone from `~/.theokit/projects/` after the run. |
 | 8 | `/rename` | renames | PASS |
 | 9 | `/compact` | compacts, reports what was dropped | PASS |
-| 10 | `/quit`, `/exit` | leaves, restores terminal title | n/a |
+| 10 | `/quit`, `/exit` | leaves, restores terminal title | PASS — measured in a clean pane: `paulohenriquevn` → `TheoCode — TheoCode` on boot, back to `paulohenriquevn` after `/quit`. Driving `/quit` dozens of times is not this test; reading the title back is. |
 
 ### A2. Model and turn control
 
@@ -78,7 +84,7 @@ below is what happens on screen.
 | 20 | `/approval` | changes approval policy, footer updates | PASS |
 | 21 | `/permissions` | permission panel | PASS |
 | 22 | `/sandbox` | changes sandbox mode, footer updates | PASS |
-| 23 | `/login`, `/logout` | credential lifecycle | n/a |
+| 23 | `/login`, `/logout` | credential lifecycle | PASS — end to end on the operator's real account. `/logout` removed `~/.theocode/auth.json` and the footer went to `none`; the next turn failed closed listing the four sources it tried, in order. `/login` opened the Codex device flow, and once the code was entered the credential came back with a refresh token and 240h — the agent answered on it. |
 
 ### A4. Context and inspection
 
@@ -147,6 +153,22 @@ decide, per name, whether it should become real.
 `app` `apps` `auto-review` `btw` `cd` `debug-config` `elevate-sandbox` `experimental` `feedback`
 `ide` `import` `keymap` `memories` `memory-drop` `memory-update` `mention` `multi-agents`
 `personality` `pets` `plugins` `rollout` `sandbox-read-root` `side` `test-approval` `vim`
+
+**DECIDED (2026-09-02).** Three of the 25 answered `unknown command` while the feature shipped here
+under another verb — `multi-agents` (we have `/agents` and `/subagents`), `elevate-sandbox` and
+`sandbox-read-root` (we answer two other sandbox verbs already). Those were defects, not decisions,
+and are fixed. The remaining verdicts:
+
+| verdict | names | why |
+|---|---|---|
+| already answered, keep the pointer | `memories` `auto-review` `mention` `side` `btw` `import` `rollout` `keymap` `multi-agents` `elevate-sandbox` `sandbox-read-root` `sandbox-add-read-dir` `setup-default-sandbox` | the capability exists here under our own verb; the pointer is the whole job |
+| never build | `pets` `vim` `personality` `ide` `app` `apps` `plugins` `experimental` | out of scope, or the knob already exists (`/effort` for `personality`, `/mcp` as the one extension point) |
+| never build — another product's debug surface | `debug-config` `memory-drop` `memory-update` `test-approval` | mirroring debug hooks is noise, not parity |
+| decided against, recorded | `cd` | consent state is seeded once; moving the path while leaving the posture behind is worse than no command |
+| open, low priority | `feedback` | today it says "open an issue"; a version that pre-fills version, model and session id would be cheap and genuinely useful — not scheduled |
+
+Nothing in the "never build" rows is a gap. A menu that advertises what a product does not do is worse
+than a shorter menu, which is why those names answer when typed and stay out of the `/` list.
 
 Three are deliberately absent even as pointers — `debug-m-drop`, `debug-m-update` and
 `test-approval` are upstream debug hooks, and mirroring another product's debug surface is noise, not
