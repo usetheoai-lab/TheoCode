@@ -5,6 +5,10 @@ when it was **driven in the running TUI** and the result observed — not when t
 
 Measured 2026-09-02: **46 commands here, 58 in Codex 0.147.0.**
 
+**Run 1 (2026-09-02) — 10 rows driven, 8 PASS, 2 FAIL, 1 PARTIAL.** Findings filed as
+usetheoai-lab/TheoCode#67. The two failures are both `skills`; every other surface a user creates —
+rules, scoped rules, subagents, hooks, blocking hooks — worked end to end.
+
 ## Why this list exists
 
 `/help` listing a command proves the registry, not the command. Several defects this month were
@@ -58,7 +62,7 @@ below is what happens on screen.
 
 | # | command | expected | status |
 |---|---|---|---|
-| 24 | `/status` | model, effort, approval, sandbox, cwd, **agents.md incl. user layer** | untested |
+| 24 | `/status` | model, effort, approval, sandbox, cwd, **agents.md incl. user layer** | PASS |
 | 25 | `/usage` | token usage panel | untested |
 | 26 | `/diff` | shows working-tree diff | untested |
 | 27 | `/ps` | background shells | untested |
@@ -74,10 +78,10 @@ below is what happens on screen.
 
 | # | command | expected | status |
 |---|---|---|---|
-| 35 | `/agents` | **lists subagents from `.theokit/agents/`** | untested |
+| 35 | `/agents` | **lists subagents from `.theokit/agents/`** | PASS |
 | 36 | `/subagents` | same set, other name | untested |
-| 37 | `/skills` | **lists skills from `.theokit/skills/`** | untested |
-| 38 | `/hooks` | **lists hooks, and says which source each came from** | untested |
+| 37 | `/skills` | **lists skills from `.theokit/skills/`** | FAIL |
+| 38 | `/hooks` | **lists hooks, and says which source each came from** | PARTIAL |
 | 39 | `/mcp` | lists MCP servers, names the ones that failed | untested |
 | 40 | `/init` | scaffolds project config | untested |
 
@@ -101,14 +105,14 @@ and checks the agent actually honours it.
 
 | # | artefact | task | status |
 |---|---|---|---|
-| 47 | **rule** | write `.theokit/rules/x.md`, ask something it governs, see it obeyed | untested |
-| 48 | rule, scoped | add `paths:` frontmatter, confirm it applies only to matching files | untested |
+| 47 | **rule** | write `.theokit/rules/x.md`, ask something it governs, see it obeyed | PASS |
+| 48 | rule, scoped | add `paths:` frontmatter, confirm it applies only to matching files | PASS |
 | 49 | **rule, user layer** | `~/.theocode/rules/x.md` obeyed in a project that has none | untested |
 | 50 | **instructions** | `AGENTS.md` obeyed; `~/.theocode/AGENTS.md` obeyed in an untrusted dir | untested |
-| 51 | **skill** | write `.theokit/skills/x/SKILL.md`, confirm `/skills` lists it AND the agent can invoke it | untested |
-| 52 | **subagent** | write `.theokit/agents/x.md`, confirm `/agents` lists it AND it can be delegated to | untested |
-| 53 | **hook** | declare one in `config.toml`, confirm it fires on a tool call | untested |
-| 54 | hook, denial | a hook that blocks — confirm the call is refused and the reason is shown | untested |
+| 51 | **skill** | write `.theokit/skills/x/SKILL.md`, confirm `/skills` lists it AND the agent can invoke it | FAIL |
+| 52 | **subagent** | write `.theokit/agents/x.md`, confirm `/agents` lists it AND it can be delegated to | PASS |
+| 53 | **hook** | declare one in `config.toml`, confirm it fires on a tool call | PASS |
+| 54 | hook, denial | a hook that blocks — confirm the call is refused and the reason is shown | PASS |
 | 55 | **MCP server** | declare one, confirm `/mcp` lists it and its tools are callable | untested |
 
 ---
