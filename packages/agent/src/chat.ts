@@ -16,7 +16,7 @@ import type { CustomTool } from '@theokit/agents'
 import { Provider } from '@theokit/agents'
 import type { InteractiveBackend } from '@theokit/agents/interactive'
 
-import { PtyInteractiveBackend } from '@theokit/agents/pty'
+import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
 import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd } from './context/index.js'
@@ -353,7 +353,7 @@ function withShellAndProjectEntities(
         ),
       )
       // M14 — interactive session as a surface-agnostic built-in from @theokit/agents/tools, backed by the
-      // injected @theokit/agents/pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
+      // injected @theokit/agents-pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
       // `write_stdin` drives it. Both gated below. Replaces the bespoke run_shell-interactive + write_stdin.
       // M101 #188 — OUR `interactive_shell`: the SDK's collapses `MaxSessionsError` into
       // `{"ok":false,"error":"interactive_unavailable"}`, so `max`/`liveSessionIds` — the only

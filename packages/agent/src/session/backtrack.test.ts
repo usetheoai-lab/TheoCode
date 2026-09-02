@@ -13,9 +13,9 @@
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
-import { encodeProjectDir, JsonlParseError } from '@theokit/agents/persistence'
+import { JsonlParseError, transcriptPath } from '@theokit/agents/persistence'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { readUserTurnPreviewsAsync } from './backtrack.js'
@@ -23,10 +23,14 @@ import { readUserTurnPreviewsAsync } from './backtrack.js'
 let base: string
 let cwd: string
 
+// The layout is the SDK's to own, not this fixture's. It used to build
+// `<base>/projects/<encoded-cwd>/<id>.jsonl` by hand, which stopped matching when the SDK moved
+// transcript filenames to UUIDs — and the reader answers a wrong path with an EMPTY LIST rather
+// than an error, so all three cases here failed as "no turns found" with nothing naming the cause.
 function writeTranscript(id: string, lines: string[]): void {
-  const dir = join(base, 'projects', encodeProjectDir(cwd))
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, `${id}.jsonl`), lines.join('\n'))
+  const file = transcriptPath(base, cwd, id)
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, lines.join('\n'))
 }
 
 beforeEach(() => {
