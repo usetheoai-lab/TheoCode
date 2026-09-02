@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
@@ -50,17 +51,42 @@ export function agentsMdRow(
    * both branches would be unassertable on half the machines.
    */
   onDiskChain: (cwd: string) => readonly string[] = agentsMdChain,
+  /**
+   * The operator's own files, injectable for the same reason as the chain above: with the ambient
+   * home the outcome depends on whether the machine running the suite happens to have one.
+   */
+  userChain: (home: string) => readonly string[] = defaultUserChain,
 ): string {
+  const user = userChain(homedir())
+  const userNote = user.length === 0 ? '' : `user: ${relative(user)}`
+
   if (wired === undefined) {
     const onDisk = onDiskChain(workingDirectory())
-    return onDisk.length === 0 ? '<none>' : `${relative(onDisk)}  (on disk — not loaded yet)`
+    const project =
+      onDisk.length === 0 ? '' : `${relative(onDisk)}  (on disk — not loaded yet)`
+    return joinParts(project, userNote)
   }
   const entity = wired.agentsMd
   if (entity.suppressedByTrust) {
-    return `NOT LOADED — directory untrusted (${entity.requested.length} file(s) ignored)`
+    // The user layer is NOT gated (#65), so the old wording — "NOT LOADED" — became a lie by
+    // omission the moment that layer existed: the project chain is ignored and the operator's file
+    // is in the prompt. A status row that overstates in the safe direction is still one nobody can
+    // trust.
+    const ignored = `project NOT LOADED — directory untrusted (${entity.requested.length} file(s) ignored)`
+    return joinParts(ignored, userNote)
   }
-  if (entity.active.length === 0) return '<none>'
-  return relative(entity.active)
+  return joinParts(entity.active.length === 0 ? '' : relative(entity.active), userNote)
+}
+
+/** Both halves, or whichever exists; `<none>` only when there is genuinely nothing. */
+function joinParts(project: string, user: string): string {
+  const parts = [project, user].filter(Boolean)
+  return parts.length === 0 ? '<none>' : parts.join('  ·  ')
+}
+
+function defaultUserChain(home: string): readonly string[] {
+  const path = join(home, '.theocode', 'AGENTS.md')
+  return existsSync(path) ? [path] : []
 }
 
 export function sendMessage(
