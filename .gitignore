@@ -137,3 +137,6 @@ halt-loop-prompts/
 # It is a legitimate thing to have on disk — it is the reference the parity work is measured
 # against. What must not happen is it entering a commit.
 codex/
+
+# One package manager, one lockfile — see pnpm-workspace.yaml.
+package-lock.json

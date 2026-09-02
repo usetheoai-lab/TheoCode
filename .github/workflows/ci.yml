@@ -11,7 +11,13 @@
 # a gate wired in red is a gate everyone learns to ignore.
 #
 # Five jobs rather than one: a single job stops at the first failure and hides the other four.
-# Each pays its own `npm ci`, which is the price of independent red/green.
+# Each pays its own `pnpm install`, which is the price of independent red/green.
+#
+# pnpm rather than npm, since 2026-09-02. npm could not honour the `overrides` in
+# `pnpm-workspace.yaml`'s npm twin: measured with an exact pin and a full install, it resolved
+# `@theokit/sdk@4.55.0`, printed `invalid: "^4.63.3"` in `npm ls`, and exited 0. pnpm resolves the
+# same manifests correctly, so CI was validating a different dependency graph than any developer
+# ran. `package-lock.json` is gitignored now — the full reasoning is in `pnpm-workspace.yaml`.
 #
 # ---------------------------------------------------------------------------------------------
 # B-062: these five checks are not required. Nothing here blocks a merge.
@@ -107,22 +113,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
 
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
       # them — "a guard that passes when it cannot check is worse than no guard, because it is
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
@@ -235,18 +243,19 @@ jobs:
             }
           '
         timeout-minutes: 2
-      - run: npm ci
-      - run: npm test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
 
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
       # them — "a guard that passes when it cannot check is worse than no guard, because it is
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
@@ -339,20 +348,21 @@ jobs:
             }
           '
         timeout-minutes: 2
-      - run: npm ci
-      - run: npm run lint
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
 
   depcruise:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run depcruise
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run depcruise
 
   crossval:
     runs-on: ubuntu-latest
@@ -363,7 +373,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - run: npm run crossval
+      - run: pnpm run crossval
