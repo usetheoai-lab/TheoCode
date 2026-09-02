@@ -5,9 +5,19 @@ when it was **driven in the running TUI** and the result observed — not when t
 
 Measured 2026-09-02: **46 commands here, 58 in Codex 0.147.0.**
 
-**Run 1 (2026-09-02) — 10 rows driven, 8 PASS, 2 FAIL, 1 PARTIAL.** Findings filed as
-usetheoai-lab/TheoCode#67. The two failures are both `skills`; every other surface a user creates —
-rules, scoped rules, subagents, hooks, blocking hooks — worked end to end.
+**Run 1–2 (2026-09-02) — 18 rows driven: 15 PASS, 1 FIXED, 1 FAIL, 1 PARTIAL.** Findings filed as usetheoai-lab/TheoCode#67 (skills). One defect was found AND fixed in the sweep:
+`/memory` reported `Memory ON` while nothing could be written.
+
+Three things the sweep taught about its own method, kept because they cost time to learn:
+
+- **The `/` menu swallows the first Enter** — it selects the suggestion; a second submits. A single
+  Enter leaves the command sitting in the composer, which reads exactly like a command that did
+  nothing.
+- **Toasts vanish faster than a capture.** `/pwd`, `/theme`, `/sandbox` answer with a toast, so a
+  capture two seconds later shows an empty screen and looks like a failure. Sub-second polling, or
+  a side effect like the footer, is the honest oracle.
+- **A side effect can be the oracle.** `/approval` was recorded as CHECK until the footer was seen
+  to have moved from `suggest` to `auto-edit` — the command had worked all along.
 
 ## Why this list exists
 
@@ -40,7 +50,7 @@ below is what happens on screen.
 | # | command | expected | status |
 |---|---|---|---|
 | 11 | `/model` | switches, footer updates | untested |
-| 12 | `/effort` | switches reasoning effort | untested |
+| 12 | `/effort` | switches reasoning effort | PASS |
 | 13 | `/retry` | re-runs last turn | untested |
 | 14 | `/stop` | interrupts a running turn | untested |
 | 15 | `/goal` | sets an objective loop | untested |
@@ -53,9 +63,9 @@ below is what happens on screen.
 
 | # | command | expected | status |
 |---|---|---|---|
-| 20 | `/approval` | changes approval policy, footer updates | untested |
+| 20 | `/approval` | changes approval policy, footer updates | PASS |
 | 21 | `/permissions` | permission panel | untested |
-| 22 | `/sandbox` | changes sandbox mode, footer updates | untested |
+| 22 | `/sandbox` | changes sandbox mode, footer updates | PASS |
 | 23 | `/login`, `/logout` | credential lifecycle | untested |
 
 ### A4. Context and inspection
@@ -63,16 +73,16 @@ below is what happens on screen.
 | # | command | expected | status |
 |---|---|---|---|
 | 24 | `/status` | model, effort, approval, sandbox, cwd, **agents.md incl. user layer** | PASS |
-| 25 | `/usage` | token usage panel | untested |
+| 25 | `/usage` | token usage panel | PASS |
 | 26 | `/diff` | shows working-tree diff | untested |
 | 27 | `/ps` | background shells | untested |
-| 28 | `/memory` | memory panel, `off\|on`, `forget <n>` | untested |
+| 28 | `/memory` | memory panel, `off\|on`, `forget <n>` | FIXED |
 | 29 | `/copy` | copies last reply | untested |
 | 30 | `/export` | writes the conversation | untested |
 | 31 | `/raw`, `/raw all` | prints into scrollback | untested |
 | 32 | `/image <path>` | attaches an image to the next turn | untested |
-| 33 | `/help`, `?` | shortcut panel incl. **ctrl+o** | untested |
-| 34 | `/pwd` | prints the working directory | untested |
+| 33 | `/help`, `?` | shortcut panel incl. **ctrl+o** | PASS |
+| 34 | `/pwd` | prints the working directory | PASS |
 
 ### A5. Extension surfaces — the four things a user creates
 
@@ -89,7 +99,7 @@ below is what happens on screen.
 
 | # | command | expected | status |
 |---|---|---|---|
-| 41 | `/theme` | switches live | untested |
+| 41 | `/theme` | switches live | PASS |
 | 42 | `/title` | sets terminal title; `app dir` default | untested |
 | 43 | `/statusline` | chooses footer fields | untested |
 | 44 | `/review` | review flow | untested |
