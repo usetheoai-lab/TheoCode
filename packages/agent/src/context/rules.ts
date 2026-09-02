@@ -53,11 +53,39 @@ export function loadRules(
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): { text: string; count: number } {
+  return loadRulesFrom(cwd, join('.theokit', 'rules'), warn, budget)
+}
+
+/**
+ * The operator's own rules — `~/.theocode/rules/` (#65).
+ *
+ * `.theocode` and not `.theokit`, and the difference is not cosmetic: `.theokit/` inside a PROJECT
+ * is the framework's directory, but what this product owns in the operator's home is `.theocode/` —
+ * where `config.toml`, `auth.json` and `AGENTS.md` already live. A user rule is the operator's file,
+ * not the framework's.
+ *
+ * Read OUTSIDE the trust gate, for the reason `user-agents-md.ts` sets out at length: that gate asks
+ * whether this repository's code is trusted, and nobody's home directory is the repository.
+ */
+export function loadUserRules(
+  home: string,
+  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
+  budget: TraversalBudget = DEFAULT_BUDGET,
+): { text: string; count: number } {
+  return loadRulesFrom(home, join('.theocode', 'rules'), warn, budget)
+}
+
+function loadRulesFrom(
+  cwd: string,
+  root: string,
+  warn: WarnFn,
+  budget: TraversalBudget,
+): { text: string; count: number } {
   requirePositiveBudget(budget)
 
   const tree = loadInstructionTree({
     cwd,
-    roots: [join('.theokit', 'rules')],
+    roots: [root],
     // See § 3 — the walk is bounded by depth and file count, the ceilings this product declares.
     budget: {
       maxDepth: budget.maxDepth,

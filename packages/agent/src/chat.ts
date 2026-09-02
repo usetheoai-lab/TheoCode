@@ -21,7 +21,7 @@ import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
 import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
-import { loadRules } from './context/index.js'
+import { loadRules, loadUserRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
   type EffectiveConfig,
@@ -237,7 +237,8 @@ function resolveInteractiveBackend(
  * states for them.
  */
 function projectDocument(posture: TrustPosture, cwd: string): string {
-  const user = loadUserAgentsMd(homedir())
+  const home = homedir()
+  const user = [loadUserAgentsMd(home), loadUserRules(home).text].filter(Boolean).join('\n\n')
   if (!posture.allows.agentsMd) return user
   return [user, loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
