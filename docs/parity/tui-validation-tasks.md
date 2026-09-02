@@ -5,7 +5,19 @@ when it was **driven in the running TUI** and the result observed — not when t
 
 Measured 2026-09-02: **46 commands here, 58 in Codex 0.147.0.**
 
-**Run 1–2 (2026-09-02) — 18 rows driven: 15 PASS, 1 FIXED, 1 FAIL, 1 PARTIAL.** Findings filed as usetheoai-lab/TheoCode#67 (skills). One defect was found AND fixed in the sweep:
+**COMPLETE (2026-09-02) — all 55 rows resolved: 47 PASS, 1 FIXED, 3 FAIL, 1 PARTIAL, 3 n/a.**
+
+| outcome | rows |
+|---|---|
+| PASS | 47 |
+| FIXED in the sweep | 1 — `/memory` reported ON while nothing could be written |
+| FAIL | 3 — skills (#67, two rows) and MCP (#68) |
+| PARTIAL | 1 — `/hooks` cannot answer before the first turn |
+| n/a | 3 — `/delete`, `/quit`, `/logout` are destructive of the operator's own session or credentials |
+
+**Every surface a user creates works end to end except skills and MCP**, and both fail the same way:
+listed by their panel, absent from the agent's toolset. Subagents are the proof the bar is reachable
+— created, listed, and delegated to in one sitting. Findings filed as usetheoai-lab/TheoCode#67 (skills). One defect was found AND fixed in the sweep:
 `/memory` reported `Memory ON` while nothing could be written.
 
 Three things the sweep taught about its own method, kept because they cost time to learn:
@@ -34,39 +46,39 @@ below is what happens on screen.
 
 | # | command | expected | status |
 |---|---|---|---|
-| 1 | `/clear` | transcript clears, session kept | untested |
-| 2 | `/new` | new session, banner loses `(resumed)` | untested |
-| 3 | `/resume` | picks a prior session | untested |
-| 4 | `/fork` | branches the session | untested |
-| 5 | `/sessions` | lists sessions | untested |
-| 6 | `/archive` | archives current | untested |
-| 7 | `/delete` | deletes, refuses the live one | untested |
-| 8 | `/rename` | renames | untested |
-| 9 | `/compact` | compacts, reports what was dropped | untested |
-| 10 | `/quit`, `/exit` | leaves, restores terminal title | untested |
+| 1 | `/clear` | transcript clears, session kept | PASS |
+| 2 | `/new` | new session, banner loses `(resumed)` | PASS |
+| 3 | `/resume` | picks a prior session | PASS |
+| 4 | `/fork` | branches the session | PASS |
+| 5 | `/sessions` | lists sessions | PASS |
+| 6 | `/archive` | archives current | PASS |
+| 7 | `/delete` | deletes, refuses the live one | n/a |
+| 8 | `/rename` | renames | PASS |
+| 9 | `/compact` | compacts, reports what was dropped | PASS |
+| 10 | `/quit`, `/exit` | leaves, restores terminal title | n/a |
 
 ### A2. Model and turn control
 
 | # | command | expected | status |
 |---|---|---|---|
-| 11 | `/model` | switches, footer updates | untested |
+| 11 | `/model` | switches, footer updates | PASS |
 | 12 | `/effort` | switches reasoning effort | PASS |
-| 13 | `/retry` | re-runs last turn | untested |
-| 14 | `/stop` | interrupts a running turn | untested |
-| 15 | `/goal` | sets an objective loop | untested |
-| 16 | `/plan` | plan mode | untested |
-| 17 | `/ask` | question prompt | untested |
-| 18 | `/select` | selection prompt | untested |
-| 19 | `/progress` | progress surface | untested |
+| 13 | `/retry` | re-runs last turn | PASS |
+| 14 | `/stop` | interrupts a running turn | PASS |
+| 15 | `/goal` | sets an objective loop | PASS |
+| 16 | `/plan` | plan mode | PASS |
+| 17 | `/ask` | question prompt | PASS |
+| 18 | `/select` | selection prompt | PASS |
+| 19 | `/progress` | progress surface | PASS |
 
 ### A3. Trust, permission and sandbox
 
 | # | command | expected | status |
 |---|---|---|---|
 | 20 | `/approval` | changes approval policy, footer updates | PASS |
-| 21 | `/permissions` | permission panel | untested |
+| 21 | `/permissions` | permission panel | PASS |
 | 22 | `/sandbox` | changes sandbox mode, footer updates | PASS |
-| 23 | `/login`, `/logout` | credential lifecycle | untested |
+| 23 | `/login`, `/logout` | credential lifecycle | n/a |
 
 ### A4. Context and inspection
 
@@ -74,13 +86,13 @@ below is what happens on screen.
 |---|---|---|---|
 | 24 | `/status` | model, effort, approval, sandbox, cwd, **agents.md incl. user layer** | PASS |
 | 25 | `/usage` | token usage panel | PASS |
-| 26 | `/diff` | shows working-tree diff | untested |
-| 27 | `/ps` | background shells | untested |
+| 26 | `/diff` | shows working-tree diff | PASS |
+| 27 | `/ps` | background shells | PASS |
 | 28 | `/memory` | memory panel, `off\|on`, `forget <n>` | FIXED |
-| 29 | `/copy` | copies last reply | untested |
-| 30 | `/export` | writes the conversation | untested |
-| 31 | `/raw`, `/raw all` | prints into scrollback | untested |
-| 32 | `/image <path>` | attaches an image to the next turn | untested |
+| 29 | `/copy` | copies last reply | PASS |
+| 30 | `/export` | writes the conversation | PASS |
+| 31 | `/raw`, `/raw all` | prints into scrollback | PASS |
+| 32 | `/image <path>` | attaches an image to the next turn | PASS |
 | 33 | `/help`, `?` | shortcut panel incl. **ctrl+o** | PASS |
 | 34 | `/pwd` | prints the working directory | PASS |
 
@@ -89,22 +101,22 @@ below is what happens on screen.
 | # | command | expected | status |
 |---|---|---|---|
 | 35 | `/agents` | **lists subagents from `.theokit/agents/`** | PASS |
-| 36 | `/subagents` | same set, other name | untested |
+| 36 | `/subagents` | same set, other name | PASS |
 | 37 | `/skills` | **lists skills from `.theokit/skills/`** | FAIL |
 | 38 | `/hooks` | **lists hooks, and says which source each came from** | PARTIAL |
-| 39 | `/mcp` | lists MCP servers, names the ones that failed | untested |
-| 40 | `/init` | scaffolds project config | untested |
+| 39 | `/mcp` | lists MCP servers, names the ones that failed | PASS |
+| 40 | `/init` | scaffolds project config | PASS |
 
 ### A6. Appearance
 
 | # | command | expected | status |
 |---|---|---|---|
 | 41 | `/theme` | switches live | PASS |
-| 42 | `/title` | sets terminal title; `app dir` default | untested |
-| 43 | `/statusline` | chooses footer fields | untested |
-| 44 | `/review` | review flow | untested |
-| 45 | ctrl+o | **collapsed ↔ detailed transcript** | untested |
-| 46 | esc / esc-esc | interrupt, then backtrack | untested |
+| 42 | `/title` | sets terminal title; `app dir` default | PASS |
+| 43 | `/statusline` | chooses footer fields | PASS |
+| 44 | `/review` | review flow | PASS |
+| 45 | ctrl+o | **collapsed ↔ detailed transcript** | PASS |
+| 46 | esc / esc-esc | interrupt, then backtrack | PASS |
 
 ---
 
@@ -117,13 +129,13 @@ and checks the agent actually honours it.
 |---|---|---|---|
 | 47 | **rule** | write `.theokit/rules/x.md`, ask something it governs, see it obeyed | PASS |
 | 48 | rule, scoped | add `paths:` frontmatter, confirm it applies only to matching files | PASS |
-| 49 | **rule, user layer** | `~/.theocode/rules/x.md` obeyed in a project that has none | untested |
-| 50 | **instructions** | `AGENTS.md` obeyed; `~/.theocode/AGENTS.md` obeyed in an untrusted dir | untested |
+| 49 | **rule, user layer** | `~/.theocode/rules/x.md` obeyed in a project that has none | PASS |
+| 50 | **instructions** | `AGENTS.md` obeyed; `~/.theocode/AGENTS.md` obeyed in an untrusted dir | PASS |
 | 51 | **skill** | write `.theokit/skills/x/SKILL.md`, confirm `/skills` lists it AND the agent can invoke it | FAIL |
 | 52 | **subagent** | write `.theokit/agents/x.md`, confirm `/agents` lists it AND it can be delegated to | PASS |
 | 53 | **hook** | declare one in `config.toml`, confirm it fires on a tool call | PASS |
 | 54 | hook, denial | a hook that blocks — confirm the call is refused and the reason is shown | PASS |
-| 55 | **MCP server** | declare one, confirm `/mcp` lists it and its tools are callable | untested |
+| 55 | **MCP server** | declare one, confirm `/mcp` lists it and its tools are callable | FAIL |
 
 ---
 
