@@ -61,6 +61,32 @@ those two you are in; `/status` reports the resolved model, effort, approval and
 Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. An unknown event name is a
 loud parse failure, not a skipped hook.
 
+## Testing an unreleased theokit fix
+
+The theokit repositories publish a per-commit preview to pkg.pr.new on every push to `workspace`, so
+a fix there can be exercised here before it is released — an install rather than a release cycle.
+
+```yaml
+# pnpm-workspace.yaml
+blockExoticSubdeps: false                      # see below — required, and temporary
+overrides:
+  '@theokit/agents': 'https://pkg.pr.new/usetheokit/theokit/@theokit/agents@<sha>'
+```
+
+`pnpm install`, then check the lockfile records the URL rather than a registry version — that is how
+you know the build under test is the commit and not what npm happens to serve.
+
+**`blockExoticSubdeps: false` is not optional and should not stay.** pnpm 11 defaults it to `true`,
+which refuses a URL-resolved package arriving as a *sub*dependency — and a preview of
+`@theokit/agents` rewrites its sibling `@theokit/presenter` to a preview URL too, so the whole
+install is refused without it. It disables a supply-chain guard for the entire tree, not just for the
+pinned package, so revert both lines once the answer is in. Filed upstream as
+[usetheokit/theokit#632](https://github.com/usetheokit/theokit/issues/632).
+
+Used this way it isolated [theokit#631](https://github.com/usetheokit/theokit/issues/631) to one
+repository in a single install: the fix under test was in `@theokit/agents`, the symptom survived it,
+and that was enough to say the remaining half lived in `@theokit/sdk`.
+
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
