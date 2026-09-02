@@ -16,6 +16,7 @@ export interface KeyCapabilities {
   readonly armExit: () => void
   readonly disarmExit: () => void
   readonly quit: () => void
+  readonly toggleVerbose: () => void
 }
 
 const EXECUTORS: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: KeyAction) => void> =
@@ -40,6 +41,7 @@ const EXECUTORS: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: K
     ['arm-exit', (c) => c.armExit()],
     ['quit', (c) => c.quit()],
     ['disarm-exit', (c) => c.disarmExit()],
+    ['toggle-verbose', (c) => c.toggleVerbose()],
   ])
 
 export function applyKeyActions(actions: readonly KeyAction[], cap: KeyCapabilities): void {

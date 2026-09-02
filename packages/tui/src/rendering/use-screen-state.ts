@@ -10,6 +10,16 @@ export interface ScreenState {
   readonly setComposerText: Dispatch<SetStateAction<string>>
   readonly showHelp: boolean
   readonly setShowHelp: Dispatch<SetStateAction<boolean>>
+  /**
+   * Whether the timeline renders tool CARDS or a dim count line per run of adjacent calls.
+   *
+   * `false` is the default because that is what Claude Code shows, and because the collapsed form
+   * is the one that survives a long turn: twelve cards push the answer off the screen, twelve calls
+   * collapse to `Ran 12 shell commands` above it. ctrl+o flips it — a reading gesture, so a key
+   * rather than a command.
+   */
+  readonly verbose: boolean
+  readonly setVerbose: Dispatch<SetStateAction<boolean>>
   readonly showUsage: boolean
   readonly setShowUsage: Dispatch<SetStateAction<boolean>>
   readonly panel: ContentPanel | undefined
@@ -32,6 +42,7 @@ export function useScreenState(): ScreenState {
   const [clearEpoch, setClearEpoch] = useState(0)
   const [composerText, setComposerText] = useState('')
   const [showHelp, setShowHelp] = useState(false)
+  const [verbose, setVerbose] = useState(false)
   const [showUsage, setShowUsage] = useState(false)
   const [panel, setPanel] = useState<ContentPanel | undefined>(undefined)
   const [exitArmed, setExitArmed] = useState(false)
@@ -47,6 +58,8 @@ export function useScreenState(): ScreenState {
     setComposerText,
     showHelp,
     setShowHelp,
+    verbose,
+    setVerbose,
     showUsage,
     setShowUsage,
     panel,

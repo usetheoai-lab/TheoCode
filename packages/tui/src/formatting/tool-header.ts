@@ -1,3 +1,4 @@
+import { defaultToolHeader } from '@theokit/tui'
 import type { AgentToolEvent } from '@theokit/tui'
 
 function oneLine(value: string, max = 120): string {
@@ -66,12 +67,27 @@ function wasDenied(event: AgentToolEvent): boolean {
   return output === REJECTED_BODY || output.includes(DENIED_MARK)
 }
 
+/**
+ * Ours first, then the toolkit's — the composition its own docblock recommends.
+ *
+ * The two are not interchangeable and the order encodes which is richer where. `defaultToolHeader`
+ * is deliberately tool-agnostic: it answers `run_shell` with `Ran`, full stop, because "guessing
+ * which input key holds the file is exactly the app-specific knowledge the seam exists to keep out".
+ * It also does not inflect — `Ran` whether the call is running or finished. For the seven tools
+ * below, both facts are ours to know, so replacing them with the default would trade `Running echo
+ * hi` for `Ran` and call it an upgrade.
+ *
+ * What it buys is the tail. This product exposes `git_diff`, `grep`, `list_dir` and `read_file`,
+ * and every one of them rendered as its raw snake_case name because our table never grew an entry —
+ * the default answers all four (`Diffed`, `Searched`, `Listed`, `Read`). `view_image` is ours alone
+ * and stays in the table below.
+ */
 export function formatToolHeader(
   event: AgentToolEvent,
 ): { name?: string; summary?: string } | undefined {
   const active = event.status === 'running' || event.status === 'pending'
   const input = (event.input ?? {}) as Record<string, unknown>
-  const header = HEADERS_BY_TOOL.get(String(event.name))?.(input, active)
+  const header = HEADERS_BY_TOOL.get(String(event.name))?.(input, active) ?? defaultToolHeader(event)
   if (header === undefined) return undefined
   if (!wasDenied(event)) return header
 
@@ -137,6 +153,13 @@ const HEADERS_BY_TOOL: ReadonlyMap<
     (input, active) => {
       const path = typeof input.path === 'string' ? input.path : 'file'
       return { name: `${active ? 'Editing' : 'Edited'} ${path}`.trim() }
+    },
+  ],
+  [
+    'view_image',
+    (input, active) => {
+      const path = typeof input.path === 'string' ? input.path : 'image'
+      return { name: `${active ? 'Viewing' : 'Viewed'} ${path}`.trim() }
     },
   ],
   [

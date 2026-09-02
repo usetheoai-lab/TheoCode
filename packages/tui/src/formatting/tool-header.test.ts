@@ -200,3 +200,45 @@ describe('the body of a rejected call', () => {
     expect(result(JSON.stringify({ stdout: 'hi\n', stderr: '', exit_code: 0 }))).toBe('hi')
   })
 })
+
+/**
+ * The composition with the toolkit's default table — usetheokit/theokit-tui#53.
+ *
+ * Both halves are asserted because either one alone is a regression. Dropping ours loses the target
+ * and the tense (`Running echo hi` becomes a bare `Ran`); not adding theirs leaves four tools this
+ * product actually exposes rendering as raw snake_case.
+ */
+describe('the toolkit default fills the tail of our table', () => {
+  it('test_our_richer_header_wins_for_a_tool_we_know', () => {
+    const running = formatToolHeader({
+      name: 'run_shell',
+      status: 'running',
+      input: { command: 'echo hi' },
+    } as never)
+    expect(running?.name, 'the default answers a bare "Ran" for both tenses').toBe('Running echo hi')
+  })
+
+  it('test_a_tool_only_the_toolkit_knows_gets_a_verb_instead_of_its_raw_name', () => {
+    // These four are in the product's registry and were never in our table, so before the
+    // composition they reached the timeline as `git_diff` / `grep` / `list_dir` / `read_file`.
+    const cases: readonly [string, string][] = [
+      ['git_diff', 'Diffed'],
+      ['grep', 'Searched'],
+      ['list_dir', 'Listed'],
+      ['read_file', 'Read'],
+    ]
+    for (const [tool, verb] of cases) {
+      expect(
+        formatToolHeader({ name: tool, status: 'completed', input: {} } as never)?.name,
+        `${tool} still renders as its raw name`,
+      ).toBe(verb)
+    }
+  })
+
+  it('test_a_tool_neither_table_knows_is_left_alone', () => {
+    // Anti-vacuity: the fallback must not invent a header for everything.
+    expect(formatToolHeader({ name: 'mcp__whatever', status: 'completed', input: {} } as never)).toBe(
+      undefined,
+    )
+  })
+})

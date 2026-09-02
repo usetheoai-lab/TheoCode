@@ -7,7 +7,13 @@ and versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **The transcript collapses by default, and ctrl+o expands it** — the resting state Claude Code shows. A run of adjacent tool calls renders as one dim count line (`Used 1 tool`, `Ran 2 shell commands`) instead of a stack of cards, so a long turn no longer pushes the answer off the screen; ctrl+o flips to the full cards and puts `Showing detailed transcript · ctrl+o to toggle` under them. Built on `AgentTimeline`'s `verbose` and `footer` (usetheokit/theokit-tui#61), so the collapsing is the toolkit's and only the key binding is ours — which is the split the toolkit asks for: it exposes the flag and names ctrl+o in its own docblock, the app decides which key flips it. A reading gesture gets a key rather than a slash command because it is reached mid-answer, with the eye on the output. The router puts it after the ctrl+c branch and the surface guards, so it cannot shadow the interrupt or steal a key from a prompt that is waiting for an answer — both pinned by tests, since a shortcut that swallows ctrl+c is worse than no shortcut. It is listed in `?` too: a shortcut absent from the help panel is a shortcut nobody finds.
+
 ### Changed
+
+- **Four tools stopped rendering as their raw snake_case names.** `git_diff`, `grep`, `list_dir` and `read_file` are in this product's registry and were never in its header table, so they reached the timeline as `git_diff` rather than `Diffed`. `defaultToolHeader` (usetheokit/theokit-tui#53) answers all four, and is now composed *after* our own table rather than replacing it. The order is the point: the toolkit's default is deliberately tool-agnostic — it answers `run_shell` with a bare `Ran`, no target and no tense, because "guessing which input key holds the file is exactly the app-specific knowledge the seam exists to keep out". Swapping our seven entries for it would trade `Running echo hi` for `Ran` and call it an upgrade. `view_image` gets an entry of its own, since neither table had one.
 
 - **Dependencies taken to their published latest, across a MAJOR.** `@theokit/agents` 11.0.0 → 12.1.0, `@theokit/tui` 0.78.0 → 0.79.0, and the transitive `@theokit/sdk` to 4.63.3. Two migrations were required and both are behaviour, not types — the type checker was green before and after each one.
 

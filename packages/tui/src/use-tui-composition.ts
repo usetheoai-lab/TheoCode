@@ -301,6 +301,7 @@ function conversationProps(c: {
     contextWindow: c.SESSION.cfg().contextWindow.window,
     backtrack: c.backtrack,
     showHelp: c.screen.showHelp,
+    verbose: c.screen.verbose,
     customCommands: c.customCommands,
     setToast: c.screen.setToast,
   }
