@@ -245,7 +245,7 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
       return true
     case 'memoryInfo':
       // B-077 — inspection, not turn: it renders a panel and starts no turn.
-      handleMemoryInfo(action.arg, setToast, setPanel)
+      handleMemoryInfo(action.arg, setToast, setPanel, cap.SESSION.cfg().memory)
       return true
     case 'showStatus': {
       setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner, currentWiring()))

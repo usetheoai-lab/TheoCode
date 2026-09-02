@@ -25,6 +25,7 @@ function session(over: Partial<ReturnType<SessionTheInterpreterUses['cfg']>> = {
       modelLabel: 'gpt-5.4',
       sandboxLabel: 'sandbox:workspace-write',
       sandboxDetail: 'workspace-write',
+      memory: false,
       ...over,
     }),
     sessionModel: () => undefined,

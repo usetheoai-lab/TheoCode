@@ -296,9 +296,33 @@ function forgetFact(rawIndex: string, setToast: SetToast): void {
   })
 }
 
-function memoryHeader(trusted: boolean): string {
-  if (!trusted) return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
-  if (!memoryEnabledForSession()) {
+/**
+ * What the panel says must be what actually runs.
+ *
+ * Real memory is the AND of THREE facts, and `chat.ts` is where they meet:
+ *
+ *     posture.allows.memory && cfg.memory === true && memoryEnabledForSession()
+ *
+ * This read two of them. With the shipped default `memory: false` it therefore answered `Memory ON`
+ * while nothing could be written — measured in the running TUI: the panel named a `MEMORY.md` path,
+ * a fact was dictated, and no such file was ever created.
+ *
+ * Each `false` keeps its own sentence because the remedy differs: trust the directory, set the config
+ * key, or flip the session switch. Telling someone `/memory on to resume` when the SWITCH is not what
+ * is off sends them to a command that cannot help.
+ */
+export function memoryHeader(state: {
+  trusted: boolean
+  configured: boolean
+  sessionOn: boolean
+}): string {
+  if (!state.trusted) {
+    return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
+  }
+  if (!state.configured) {
+    return 'Memory OFF — not enabled in config (set `memory = true`) — existing facts are still recalled.'
+  }
+  if (!state.sessionOn) {
     return 'Memory OFF for this session (/memory on to resume) — existing facts are still recalled.'
   }
   return `Memory ON — ${memoryStorePath()}`
@@ -310,13 +334,24 @@ function memoryHeader(trusted: boolean): string {
  * It used to report only. A user watching the fact count climb had been told a store exists and
  * where, and given no way to see what was in it or stop it without editing files outside the product.
  */
-export function handleMemoryInfo(arg: string, setToast: SetToast, setPanel: SetPanel): void {
+export function handleMemoryInfo(
+  arg: string,
+  setToast: SetToast,
+  setPanel: SetPanel,
+  /** The config factor. Absent ⇒ treated as ON, so a caller that has not been updated keeps its
+   *  previous wording rather than silently claiming memory is off. */
+  configured = true,
+): void {
   const verb = arg.trim().toLowerCase()
   if (verb === 'off' || verb === 'on') return toggleMemory(verb === 'on', setToast)
   if (verb.startsWith('forget')) return forgetFact(verb.slice('forget'.length).trim(), setToast)
 
   const facts = memoryFacts(readMemoryStore())
-  const header = memoryHeader(resolveTrustPosture(workingDirectory()).allows.memory)
+  const header = memoryHeader({
+    trusted: resolveTrustPosture(workingDirectory()).allows.memory,
+    configured,
+    sessionOn: memoryEnabledForSession(),
+  })
   setPanel({
     title: 'memory',
     body:

@@ -11,7 +11,7 @@ export interface SessionTheInterpreterUses {
   attachImages: (images: AttachedImage[] | undefined) => void
   effort: () => ReasoningEffort
   setEffort: (level: ReasoningEffort) => void
-  cfg: () => { modelLabel: string; sandboxLabel: string; sandboxDetail: string }
+  cfg: () => { modelLabel: string; sandboxLabel: string; sandboxDetail: string; memory: boolean }
   sessionModel: () => string | undefined
   setSessionModel: (model: string) => void
   setModel: (model: string | undefined) => void

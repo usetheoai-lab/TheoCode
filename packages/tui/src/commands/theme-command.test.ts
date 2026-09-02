@@ -38,7 +38,7 @@ function statusThemeRow(): string | undefined {
     attachImages: vi.fn(),
     effort: () => 'medium' as never,
     setEffort: vi.fn(),
-    cfg: () => ({ modelLabel: 'm', sandboxLabel: 's', sandboxDetail: 'read-only' }),
+    cfg: () => ({ modelLabel: 'm', sandboxLabel: 's', sandboxDetail: 'read-only', memory: false }),
     sessionModel: () => undefined,
     setSessionModel: vi.fn(),
     setModel: vi.fn(),
