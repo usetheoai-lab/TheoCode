@@ -1,4 +1,3 @@
-import { defaultToolHeader } from '@theokit/tui'
 import type { AgentToolEvent } from '@theokit/tui'
 
 function oneLine(value: string, max = 120): string {
@@ -68,26 +67,34 @@ function wasDenied(event: AgentToolEvent): boolean {
 }
 
 /**
- * Ours first, then the toolkit's — the composition its own docblock recommends.
+ * Ours only. `defaultToolHeader` was composed in as a fallback and then REMOVED, measured.
  *
- * The two are not interchangeable and the order encodes which is richer where. `defaultToolHeader`
- * is deliberately tool-agnostic: it answers `run_shell` with `Ran`, full stop, because "guessing
- * which input key holds the file is exactly the app-specific knowledge the seam exists to keep out".
- * It also does not inflect — `Ran` whether the call is running or finished. For the seven tools
- * below, both facts are ours to know, so replacing them with the default would trade `Running echo
- * hi` for `Ran` and call it an upgrade.
+ * The reasoning that added it was sound and the measurement killed it. This product exposes
+ * `git_diff`, `grep`, `list_dir` and `read_file` with no entry below, so they rendered as raw
+ * snake_case names, and the toolkit's default answers all four. What that missed is the sentence in
+ * `ToolHeaderFormatter`'s own docblock: *explored grouping matches on the (possibly overridden)
+ * `name`, so returning a name for a tool listed in `exploreTools` opts that call OUT of the
+ * collapse*. All four are in `DEFAULT_EXPLORE_TOOLS`.
  *
- * What it buys is the tail. This product exposes `git_diff`, `grep`, `list_dir` and `read_file`,
- * and every one of them rendered as its raw snake_case name because our table never grew an entry —
- * the default answers all four (`Diffed`, `Searched`, `Listed`, `Read`). `view_image` is ours alone
- * and stays in the table below.
+ * Measured on three consecutive `read_file` calls:
+ *
+ *     without a header   ->  explored                              (one block)
+ *     with the default   ->  tool/Read | tool/Read | tool/Read     (three cards)
+ *
+ * So the fallback bought a verb on a card and paid for it with the grouping — and the grouping is
+ * the Claude Code shape this product is chasing. Every tool the default could have helped is in the
+ * explore set, which makes the trade a pure loss rather than a balance.
+ *
+ * A tool that is NOT explored and has no entry below still renders its raw name. That is the honest
+ * cost of this decision, and the fix for it is an entry here — where the verb can carry the target
+ * and the tense, which the tool-agnostic default cannot.
  */
 export function formatToolHeader(
   event: AgentToolEvent,
 ): { name?: string; summary?: string } | undefined {
   const active = event.status === 'running' || event.status === 'pending'
   const input = (event.input ?? {}) as Record<string, unknown>
-  const header = HEADERS_BY_TOOL.get(String(event.name))?.(input, active) ?? defaultToolHeader(event)
+  const header = HEADERS_BY_TOOL.get(String(event.name))?.(input, active)
   if (header === undefined) return undefined
   if (!wasDenied(event)) return header
 

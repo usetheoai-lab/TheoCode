@@ -202,43 +202,40 @@ describe('the body of a rejected call', () => {
 })
 
 /**
- * The composition with the toolkit's default table — usetheokit/theokit-tui#53.
+ * The toolkit's default table is NOT composed in — measured, then reverted.
  *
- * Both halves are asserted because either one alone is a regression. Dropping ours loses the target
- * and the tense (`Running echo hi` becomes a bare `Ran`); not adding theirs leaves four tools this
- * product actually exposes rendering as raw snake_case.
+ * It was added as a fallback so `git_diff`, `grep`, `list_dir` and `read_file` would stop rendering
+ * as raw snake_case names. All four are in `DEFAULT_EXPLORE_TOOLS`, and `ToolHeaderFormatter`'s
+ * docblock says returning a name for such a tool opts it OUT of the explored collapse. Measured on
+ * three consecutive `read_file` calls: `explored` (one block) became three separate cards.
+ *
+ * The grouping is the Claude Code shape this product is chasing, so the fallback was a pure loss.
+ * These tests pin the trade in both directions, because the argument for adding it back is
+ * persuasive and the cost is invisible from the call site.
  */
-describe('the toolkit default fills the tail of our table', () => {
-  it('test_our_richer_header_wins_for_a_tool_we_know', () => {
-    const running = formatToolHeader({
-      name: 'run_shell',
-      status: 'running',
-      input: { command: 'echo hi' },
-    } as never)
-    expect(running?.name, 'the default answers a bare "Ran" for both tenses').toBe('Running echo hi')
-  })
-
-  it('test_a_tool_only_the_toolkit_knows_gets_a_verb_instead_of_its_raw_name', () => {
-    // These four are in the product's registry and were never in our table, so before the
-    // composition they reached the timeline as `git_diff` / `grep` / `list_dir` / `read_file`.
-    const cases: readonly [string, string][] = [
-      ['git_diff', 'Diffed'],
-      ['grep', 'Searched'],
-      ['list_dir', 'Listed'],
-      ['read_file', 'Read'],
-    ]
-    for (const [tool, verb] of cases) {
+describe('the explored grouping is worth more than a verb on a card', () => {
+  it('test_an_explored_tool_is_left_unnamed_so_its_run_can_collapse', () => {
+    for (const tool of ['read_file', 'list_dir', 'grep', 'git_diff']) {
       expect(
-        formatToolHeader({ name: tool, status: 'completed', input: {} } as never)?.name,
-        `${tool} still renders as its raw name`,
-      ).toBe(verb)
+        formatToolHeader({ name: tool, status: 'completed', input: {} } as never),
+        `${tool} is in DEFAULT_EXPLORE_TOOLS — naming it breaks the collapse`,
+      ).toBe(undefined)
     }
   })
 
-  it('test_a_tool_neither_table_knows_is_left_alone', () => {
-    // Anti-vacuity: the fallback must not invent a header for everything.
-    expect(formatToolHeader({ name: 'mcp__whatever', status: 'completed', input: {} } as never)).toBe(
-      undefined,
-    )
+  it('test_our_own_table_still_names_what_it_knows', () => {
+    // Anti-vacuity: a formatter that returned `undefined` for everything would satisfy the case
+    // above and delete every header in the product.
+    expect(
+      formatToolHeader({
+        name: 'run_shell',
+        status: 'running',
+        input: { command: 'echo hi' },
+      } as never)?.name,
+    ).toBe('Running echo hi')
+    expect(
+      formatToolHeader({ name: 'view_image', status: 'completed', input: { path: 'a.png' } } as never)
+        ?.name,
+    ).toBe('Viewed a.png')
   })
 })
