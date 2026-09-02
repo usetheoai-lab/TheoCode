@@ -25,6 +25,54 @@ one real divergence.
 Codex CLI v0.147.0. Model output is stochastic: token counts vary between runs of the same task, so
 treat a single figure as an order of magnitude and the direction as the finding.
 
+## Re-measured on the current stack, 2026-09-02
+
+The figures below were taken with `@theokit/agents@11.0.0`, `@theokit/tui@0.78.0` and an SDK tarball.
+The stack has since moved across a MAJOR — `agents@12.1.0`, `tui@0.79.0`, `sdk@4.63.3` — which
+changed real behaviour: transcript replay reads structure instead of prose, the PTY moved to its own
+package, and `prompt_cache_key` is now published rather than local. So the run was repeated.
+
+Seeds rebuilt from scratch and proved byte-identical by hash before dispatch (`t1 9b7725a8…`,
+`t3 0b04ed5b…`), each side getting its own copy under `git init`. Same provider, model
+(`gpt-5.6-terra`) and effort (`medium`), run side by side in tmux.
+
+| task | TheoCode | Codex | verdict |
+|---|---|---|---|
+| duration parser from failing tests | 10/10, test file untouched | 10/10, test file untouched | equal |
+| money-ledger spec, agent writes its own tests | 5/5 **+ probe 4/4** | 5/5 **+ probe 4/4** | equal |
+
+**The divergence did not return, which was the question this re-run existed to answer.** The probe
+is the same one that caught it the first time — it tests PAST the illustration the spec gives:
+
+| case | before the prompt fix | now, both sides |
+|---|---|---|
+| `0.1 + 0.2` (the spec's example) | 0.3 ✓ | 0.3 ✓ |
+| `0.001 + 0.002` | **0** ✗ | 0.003 ✓ |
+| `0.005 + 0.005` | **0.02** ✗ | 0.01 ✓ |
+| `0.0001 × 3` | **0** ✗ | 0.0003 ✓ |
+
+So the `BASE_INSTRUCTIONS` change — *an example illustrates a rule and never defines it*, and *tests
+you write yourself must include cases you did not already know the code handles* — survived a MAJOR
+of the framework and a nine-minor jump of the SDK.
+
+### The third task measured nothing, and the seed was mine
+
+A third task was dispatched: a wrong-associativity bug across three files, "the tests fail, find the
+root cause". **The tests did not fail.** The seed passes 5/5 untouched — `applyTax(applyDiscount(100,
+0.1), 0.1)` is 99, which is what the test asserts. I wrote a broken task and only found out by
+diffing the result against the seed.
+
+Neither agent changed a byte, and both reported honestly. That is the correct behaviour in the face
+of a prompt asserting something false, and it is worth recording — but it is **not** the root-cause
+parity the task was meant to measure, and counting it as such would be inventing a result. The
+original task 5 in the table below is the real measurement; this re-run does not replace it.
+
+### Not re-measured
+
+**Cost.** This run was not instrumented for tokens, so the 5.6% figure below still stands on the
+older stack. It is the number most likely to have moved, since `prompt_cache_key` is now published
+rather than served from a local tarball.
+
 ## Result parity — 6 tasks
 
 | # | Task | Verified outcome | Agreement |
