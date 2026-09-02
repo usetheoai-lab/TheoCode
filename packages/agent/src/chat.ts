@@ -1,3 +1,4 @@
+import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
 import { memoryEnabledForSession } from './memory-switch.js'
@@ -19,7 +20,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd } from './context/index.js'
+import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
 import { loadRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
@@ -222,9 +223,23 @@ function resolveInteractiveBackend(
   )
 }
 
+/**
+ * The instruction document, in precedence order: the operator's, then the repository's.
+ *
+ * The USER layer is outside the trust gate on purpose (#65). That gate is the defence against a
+ * repository hijacking the agent through instructions, and it answers "do I trust the code in this
+ * directory?" — a question about `~/.theocode/AGENTS.md` that has no meaning, since nobody's home
+ * directory is the directory in question. `settingSourcesFor` already keeps `user: true` through an
+ * untrusted cwd for exactly this reason.
+ *
+ * Project LAST, so it wins: the two are concatenated, and the closer instruction is the one the
+ * model reads last. Same order the config layers already resolve in, and the same one the README
+ * states for them.
+ */
 function projectDocument(posture: TrustPosture, cwd: string): string {
-  if (!posture.allows.agentsMd) return ''
-  return [loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
+  const user = loadUserAgentsMd(homedir())
+  if (!posture.allows.agentsMd) return user
+  return [user, loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
 
 function resolveProviderPlugins(

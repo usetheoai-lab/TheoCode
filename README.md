@@ -51,6 +51,7 @@ no error, and a hook is arbitrary command execution on every tool call (B-086).
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
 | `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `skills`, `[[hooks]]`, profiles |
 | `~/.theocode/config.toml`         | this product       | the same keys, as your defaults; the project layer wins                                         |
+| `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's `AGENTS.md` is read after it   |
 | `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/`                              |
 | `<project>/.mcp.json`             | the SDK            | MCP servers, spawned when the directory is trusted                                              |
 
