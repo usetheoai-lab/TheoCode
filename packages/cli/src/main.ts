@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import process from 'node:process'
 
 import { installAuthHome } from '@theocode/agent/auth'
+import { installClaudeProjectDir } from '@theocode/agent/hooks'
 import { createShutdown } from '@theokit/agents/commands'
 import { loadProjectEnv, gitGate, parseExecArgs, USAGE } from './runtime/index.js'
 import { goalCommand } from './commands/goal.js'
@@ -34,6 +35,8 @@ function bootstrap(): void {
   // never pointed the SDK at this product's credential store, and a ChatGPT sign-in that worked in
   // the TUI failed here with "no ChatGPT credential found".
   installAuthHome(process.env, homedir())
+  // Headless runs the same hooks and fails the same way — see `claude-project-dir.ts`.
+  installClaudeProjectDir(process.env, process.cwd())
 }
 
 async function main(): Promise<void> {

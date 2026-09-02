@@ -24,6 +24,7 @@ import { workingDirectory } from './working-directory.js'
 
 import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { installAuthHome } from '@theocode/agent/auth'
+import { installClaudeProjectDir } from '@theocode/agent/hooks'
 
 import { useBacktrack } from './backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
@@ -31,6 +32,10 @@ import type { ReasoningEffort } from '@theocode/agent/config'
 // The same call the CLI's bootstrap makes. It used to be a hand-rolled `??=` here and a function
 // call there, which is how the two surfaces came to disagree about whether the variable got set.
 installAuthHome(process.env, homedir())
+// Beside it for the same reason: a variable the SDK's hook runner will need, supplied before the
+// first turn rather than discovered as a denial. See `claude-project-dir.ts` for why it is needed
+// at all (usetheokit/theokit-sdk#522).
+installClaudeProjectDir(process.env, process.cwd())
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
