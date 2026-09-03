@@ -131,7 +131,7 @@ what an SLO should replace once there is production measurement to build it from
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
-**116 files, 890 cases** (measured 2026-09-03 — `npm test`'s own count, which is the only one that is right: a glob over `*.test.ts` finds 114 because one suite is a `.test.mjs` under `tools/`, and counting `it(` finds 823 because `it.each` expands). The following were left out by an explicit decision —
+**116 files, 892 cases** (measured 2026-09-03 — `npm test`'s own count, which is the only one that is right: a glob over `*.test.ts` finds 114 because one suite is a `.test.mjs` under `tools/`, and counting `it(` finds 823 because `it.each` expands). The following were left out by an explicit decision —
 stated here so nobody assumes they were forgotten:
 
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
