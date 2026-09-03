@@ -1873,8 +1873,8 @@ dod_verified:
     the reporting surface available from here. U-11 is `open`, not `reported` — a human with access to
     that repository still has to carry it across, and the row says so
 
-domain: theocode
-repo: TheoCode
+domain: theokit
+repo: theokit
 suggested_mode: review
 source: human
 evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). In `@theokit/agents@7.4.0` source, 13 error classes are declared and only 2 extend `TheokitAgentError` (`McpFileError` at `bridge/mcp-file.ts:86`, `ToolsetError` at `capability/toolset.ts:58`). The other ten extend plain `Error`: `CapabilityConflictError:38`, `UnknownCapabilityError:9`, `AgentDefinitionError:26`, `ApprovalAbortedError:85`, `DelegationError:74`, `DelegationBudgetExceededError:52`, `RefreshFailure:49`, `GuardrailViolationError:40`, `CostBudgetExceededError:52`, `InProcessApprovalRequiredError:82`. Bare `throw new Error` accounts for 18 of 69 throw sites (26%). This repository, by comparison: 11 of 12 domain error classes extend `TheokitAgentError`, 3 bare throws in 56 (5.4%).
@@ -1886,6 +1886,10 @@ dod:
   - OR: recorded as declined with the reason, if the owner judges the breaking-change cost too high — an unanswered upstream report is worse than a refused one
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `upstream-error-hierarchy-ten-classes`).
+> CORRECTED 2026-09-03: `repo` said `TheoCode` and the item's own title opens with `Upstream:`,
+> its evidence measures `@theokit/agents@7.4.0`, and its DoD names `errors.ts` — a file this
+> repository does not have. Routing reads `repo`, so it pointed the theocode specialist at work
+> that is not theirs. The id, status and history are untouched; only the field that was false.
 
 ## B-064 — The canonical knowledge-base is the gitignored one, and it has already diverged   [x]
 
@@ -2004,8 +2008,8 @@ dod_verified:
     literally would be talking to nothing. That third criterion turned out to name a real defect in
     the document, independent of language
 
-domain: theocode
-repo: TheoCode
+domain: theokit
+repo: theokit-gateways
 suggested_mode: review
 source: human
 evidence: measured 2026-08-10 while installing the English-only guard across the framework (B-065). `theokit-framework/theokit-gateways/examples/telegram-pro/TEST-PLAN.md` is 418 tracked lines, written entirely in Portuguese — a step-by-step production runbook ("Roteiro de Teste", "Manda / Espera / Sucesso / Log" per step). It is the ONLY exemption in the nine new guards that exists for cost rather than for correctness: every other one protects something that would break if translated (few-shot prompts, Unicode fixtures, a quoted word, released changelog entries, the historical wiki).
@@ -2019,6 +2023,10 @@ dod:
 > Registered 2026-08-10 by `/backlog-item` (slug: `telegram-pro-runbook-translation`).
 
 ---
+> CORRECTED 2026-09-03: `repo` said `TheoCode`. The evidence names
+> `theokit-framework/theokit-gateways/examples/telegram-pro/`, which is a different repository —
+> present on disk beside this one. Found by checking every closed item's DoD for a path that
+> does not resolve here, which is how a misfiled item becomes visible at all.
 
 ## B-067 — The footer advertises an agents panel that was never built   [x]
 
