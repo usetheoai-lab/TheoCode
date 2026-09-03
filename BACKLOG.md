@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-145 items — **Open** 1 · **In flight** 0 · **Closed** 144
+147 items — **Open** 1 · **In flight** 0 · **Closed** 146
 
 ### Open (1)
 
@@ -79,11 +79,10 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (144)
+### Closed (146)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | BLOCKER |
 | [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | Wrong identity exposed to the end user | `shipped` | HIGH (4 HIGH findings) |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
 | [`B-004`](#b-004--ask-bridge-promise-abandoned-without-settling-typed-error-escaping---x) | Ask-bridge: promise abandoned without settling, typed error escaping | `shipped` | HIGH (2 HIGH findings) |
@@ -221,7 +220,10 @@ _None._
 | [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
 | [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
 | [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
+| [`B-140`](#b-140--keeplast-was-spent-on-entries-that-could-never-be-collected---x) | `keepLast` was spent on entries that could never be collected | `shipped` | major |
+| [`B-141`](#b-141--the-credential-routing-order-the-source-calls-the-fix-had-no-test---x) | The credential-routing order the source calls "the fix" had no test | `shipped` | major |
 | [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
+| [`B-143`](#b-143--one-unreadable-pointer-stopped-collection-for-the-whole-tree---x) | One unreadable pointer stopped collection for the whole tree | `shipped` | major |
 | [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
 | [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
 | [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
@@ -234,8 +236,7 @@ _None._
 
 Next free id: **B-058**
 
----
-## B-001 — The ACP surface registers a tool it cannot answer   [x]
+---## B-001 — The ACP surface registers a tool it cannot answer   [x]
 
 fixed_in: abd9bf7
 
@@ -6376,6 +6377,83 @@ dod:
 > Registered 2026-09-03. Found in my own change, by comparing the automatic path against the manual
 > one it automates instead of only checking that it worked.
 
+## B-140 — `keepLast` was spent on entries that could never be collected   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an independent adversarial review, and reproduced with a test here before
+  being believed.
+
+  The quota protects the N most recent transcripts of a DEAD project. The sort feeding it reads an
+  unknown mtime as `Infinity` (`all-sessions.ts`, `(b.mtimeMs ?? Infinity) - ...`), so an entry the
+  collector could not `stat` sorts as the NEWEST thing in the project and takes a slot. Those entries
+  are already safe — `collectableAge` returns undefined without an mtime and the planner skips them —
+  so the quota was spent on files that were never at risk while the stale transcripts it exists to
+  protect fell through to deletion.
+
+  Measured: 10 unstattable entries beside 5 stale ones planned ALL 5 for removal, at the default
+  quota of 10.
+why_now: |
+  It is the mirror of the bug B-020 fixed one line above: `mtimeMs` used to be `0`, which sorted LAST
+  and dated the file to 1970. That fix reasons about sort position and concludes `keepLast` "could
+  not protect it either" — and moving the entry to the front protected it twice while unprotecting
+  its neighbours. Reachability changed in this release: until `session_gc` defaulted to true, this
+  needed someone to type `sessions gc --apply`.
+shipped: |
+  SHIPPED 2026-09-03. The quota is computed over DATABLE entries only. The most-recent guard for
+  ALIVE projects had the same hole and is fixed with it. Four tests, including that an unstattable
+  entry is still never collected itself (the pre-B-020 behaviour, which must not come back) and that
+  the quota still runs out for real transcripts.
+status: shipped
+fixed_in: ba00c03
+severity: major
+dod:
+  - an entry the collector cannot stat does not consume a slot in the quota
+  - such an entry is still never collected itself
+  - the quota still runs out for real transcripts
+
+> Registered 2026-09-03. REGISTERED LATE, and that is the finding's own footnote: it shipped with a
+> CHANGELOG entry and a commit message but no block here for hours, so the registry that is supposed
+> to answer "what happened to B-140" answered nothing.
+
+## B-141 — The credential-routing order the source calls "the fix" had no test   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while checking whether extracting `resolveRunTarget` had changed behaviour. It had
+  not — the sequence is byte-identical to `333cb7e` — but `grep -rl routeToCredential packages | grep
+  test` returned nothing.
+
+  `run.ts` states the order plainly: route the model id for the credential that will serve it, THEN
+  resolve a credential for the routed id, THEN build on that id. Getting it wrong is not theoretical.
+  It shipped, and was measured 2026-08-25: with a ChatGPT sign-in the configured id is `openai/…`,
+  which selects the API-key provider, and `api.openai.com` refuses an OAuth token with a 401 — which,
+  after the transport's retries, reached the user as `rate_limit (HTTP 429)`, sending them to check a
+  quota page for an auth problem.
+why_now: |
+  The order survived only as a comment over dynamic imports no test could reach, on a path where a
+  previous version cost a user their turn AND their diagnosis. A refactor over an untested guarantee
+  is a coin-flip that happened to land right.
+shipped: |
+  SHIPPED 2026-09-03. The three seams are injectable and four tests pin the sequence, including that
+  the second resolution uses the ROUTED id — which is the bug itself, stated as an assertion — and
+  that `routeToCredential` receives the credential the probe produced rather than a fresh one.
+status: shipped
+fixed_in: ba00c03
+severity: major
+dod:
+  - the probe resolves before the route is decided
+  - the second resolution uses the routed id, not the configured one
+  - a mutation that resolves on the configured id turns the suite red
+
+> Registered 2026-09-03, late, for the same reason as B-140.
+
 ## B-142 — The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not   [x]
 
 domain: theocode
@@ -6453,6 +6531,41 @@ dod:
 
 > Registered 2026-09-03 from an independent adversarial review — the check the originating audit
 > declared missing four times and never performed.
+
+## B-143 — One unreadable pointer stopped collection for the whole tree   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an independent adversarial review; verified here before being believed.
+
+  `readPointerId` fails fast on any errno but ENOENT, and its reason is sound: what it returns is a
+  deletion decision, so swallowing an EACCES would drop a live session from the protected set.
+  "Refusing to GC is the safe direction" — correct, and an argument about THAT PROJECT.
+
+  The call sat outside every `try` in `resolveGuards`, between the catch that wraps `listProject` and
+  the one that wraps `listRegistry`, so the throw unwound past both, out of `planOneProject`, and out
+  of `planSessionGCAllProjects` itself. Measured: the whole plan rejects.
+why_now: |
+  One project with a permissions problem meant no project anywhere was collected — and under the
+  automatic trigger the parent has already written its stamp, so it would not retry for 24 hours.
+  Every day, forever, reported once a day into a log.
+shipped: |
+  SHIPPED 2026-09-03. The pointer read is inside the same guard as the registry read, which the
+  caller already handles by skipping the project and reporting it. The safe direction stays where it
+  belongs and stops being contagious. Five tests, including that the healthy project is still
+  collected and that a healthy tree still collects everything.
+status: shipped
+fixed_in: be5e840
+severity: major
+dod:
+  - a failing pointer read skips its own project instead of rejecting the sweep
+  - the reason is reported rather than silently skipped
+  - a healthy tree still collects everything
+
+> Registered 2026-09-03, late, for the same reason as B-140.
 
 ## B-144 — The fix for an unbounded subprocess introduced an unbounded subprocess   [x]
 
