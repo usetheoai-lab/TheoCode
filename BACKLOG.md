@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-142 items — **Open** 1 · **In flight** 0 · **Closed** 141
+143 items — **Open** 1 · **In flight** 0 · **Closed** 142
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (141)
+### Closed (142)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -224,6 +224,7 @@ _None._
 | [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
 | [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
 | [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
+| [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6553,3 +6554,46 @@ dod:
   - the diff bound matches the one the review path already uses
 
 > Registered 2026-09-03. Found by sweeping for a pattern that had already appeared three times.
+
+## B-146 — A second false claim about process behaviour, written while fixing the first   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03, by spawning a child without `detached`, exiting the parent immediately, and
+  checking whether the child completed its work:
+
+      spawned child pid 1086488 — parent exiting now
+      -> the child outlived the parent
+
+  `auto-runtime.ts` claimed the opposite: "NOT detached. The child is bound to this process's
+  lifetime". That is false. A child spawned without `detached` is ORPHANED and reparented when the
+  parent exits, not killed. What `detached` changes is the process GROUP — without it the child
+  stays in the parent's, so closing the terminal window sends SIGHUP to both.
+
+  The claim was load-bearing. The CLI's decision not to collect rested on it: "a one-shot process
+  exits before the child finishes and would kill it halfway". The premise was wrong, so the
+  conclusion had no support — the CLI could have spawned one.
+why_now: |
+  B-142 fixed a comment in this same file that asserted the sweep could not block the operator, which
+  an independent review falsified by measuring. This is the second false claim about runtime
+  behaviour in the same file, written WHILE fixing the first, and by the same reasoning-instead-of-
+  measuring that produced it.
+shipped: |
+  SHIPPED 2026-09-03. The comment states what was measured, and names the distinction it had wrong:
+  orphaning is not killing, and `detached` governs the process group rather than survival.
+
+  The CLI's decision was re-derived rather than kept on a false premise. The real reason it does not
+  collect is that `onReport` fires on the child's `close` event and a one-shot CLI is gone by then —
+  the sweep would run completely unobserved, which is precisely the "it ran and removed nothing" vs
+  "it never ran" ambiguity B-132 exists to remove.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - the comment states process behaviour that was measured, not deduced
+  - no decision in the file rests on the corrected claim without being re-derived
+
+> Registered 2026-09-03. Found by testing a claim I had written rather than re-reading it.

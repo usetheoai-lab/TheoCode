@@ -54,10 +54,21 @@ function writeLastRun(root: string, at: Date): void {
  * The parent keeps the decision and the stamp; the child runs `sessions gc --all-projects`, the
  * command that already exists, so the delete path has exactly one implementation.
  *
- * NOT detached. The child is bound to this process's lifetime, which is right for the TUI — a
- * long-lived session outlives the sweep — and is why the CLI does not use this: a one-shot process
- * exits before the child finishes and would kill it halfway. The CLI keeps `sessions gc` as the
- * explicit command it always was.
+ * NOT detached, and what that actually means was MEASURED rather than reasoned about (2026-09-03):
+ * a child spawned without `detached` SURVIVES the parent's normal exit — it is orphaned and
+ * reparented, not killed. What `detached` changes is the process GROUP: without it the child stays
+ * in the parent's group, so closing the terminal window sends SIGHUP to both.
+ *
+ * An earlier version of this comment claimed the child was "bound to this process's lifetime", and
+ * that was simply false. It is recorded here because the same file already carried one false claim
+ * about asynchrony (B-142), and a second one written while fixing the first is worth naming.
+ *
+ * The CLI still does not use this, and the reason had to be replaced along with the claim it rested
+ * on. It is not that the child would be killed — it would not. It is that `onReport` fires on the
+ * child's `close` event, and a one-shot CLI is gone by then: the sweep would run completely
+ * unobserved, and B-132's requirement is that what the collector did is visible. A sweep nobody can
+ * see is the "it ran and removed nothing" / "it never ran" ambiguity this design exists to remove.
+ * `sessions gc` remains the explicit command it always was.
  */
 export function startSessionSweepInBackground(opts: {
   readonly enabled: boolean
