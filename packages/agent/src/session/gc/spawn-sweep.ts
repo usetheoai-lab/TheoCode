@@ -50,7 +50,7 @@ interface SweepSpawnOptions {
   /** Milliseconds before the child is signalled. See `SWEEP_TIMEOUT_MS`. */
   readonly timeout: number
   readonly killSignal: 'SIGTERM'
-  readonly stdio: 'ignore'
+  readonly stdio: ['ignore', 'pipe', 'ignore']
 }
 
 /**
@@ -88,11 +88,18 @@ export function buildSweepCommand(input: SweepCommandInput): SweepCommand {
     throw new Error('session gc: refusing to spawn a sweep with no script to run')
   }
   return {
-    // `stdio: 'ignore'` because the TUI owns the screen: `installStderrGuard` protects THIS
-    // process's stderr, not a child's, so anything the child printed would land on the frame.
+    // stdout is PIPED, not inherited and not ignored (B-150).
+    //
+    // `'ignore'` was chosen because the TUI owns the screen — a correct concern, and the wrong
+    // instrument for it. Inheriting would put the child's output on the frame; PIPING captures it
+    // without displaying anything. Ignoring threw away the counts, which two Definitions of Done
+    // already required: B-132 ("what the automation did is visible") and B-139 ("the first sweep
+    // says what it WOULD have removed"). Both regressed silently when the sweep moved to a child.
+    //
+    // stderr stays ignored: the child's warnings are its own, and the summary is on stdout.
     // SIGTERM rather than the default, so a sweep caught mid-`unlink` can finish the syscall it is
     // in — SIGKILL cannot be caught and is not what a delete path should meet first.
-    options: { timeout: SWEEP_TIMEOUT_MS, killSignal: 'SIGTERM', stdio: 'ignore' },
+    options: { timeout: SWEEP_TIMEOUT_MS, killSignal: 'SIGTERM', stdio: ['ignore', 'pipe', 'ignore'] },
     command: input.execPath,
     args: [
       input.script,

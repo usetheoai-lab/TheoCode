@@ -78,6 +78,7 @@ export function startSessionSweepInBackground(opts: {
   readonly intervalHours?: number
   readonly spawnSweep?: (cmd: SweepCommand) => {
     on: (event: 'close', cb: (code: number | null) => void) => void
+    stdout?: { on: (event: 'data', cb: (chunk: unknown) => void) => void } | null
   }
 }): { readonly started: boolean; readonly reason: string } {
   const root = opts.projectsRootOverride ?? projectsRoot()
@@ -110,9 +111,15 @@ export function startSessionSweepInBackground(opts: {
   try {
     const child =
       opts.spawnSweep?.(command) ??
-      spawn(command.command, [...command.args], { ...command.options })
+      spawn(command.command, [...command.args], { ...command.options, stdio: [...command.options.stdio] })
+    // B-150 — the child's own summary line is what carries the counts two DoDs require. Collected
+    // rather than displayed: piping captures it, and the parent decides where it goes.
+    let said = ''
+    child.stdout?.on('data', (chunk) => {
+      said += String(chunk)
+    })
     child.on('close', (code) => {
-      opts.onReport(sweepFinishedLine(decision.firstRun, code))
+      opts.onReport(sweepFinishedLine(decision.firstRun, code, said))
     })
     return { started: true, reason: decision.firstRun ? 'first-run-dry' : 'applying' }
   } catch (err) {
@@ -141,11 +148,19 @@ function reasonOf(err: unknown): string {
  * first-run sentence is the one that has to tell someone how to opt out — burying it in a nested
  * ternary is how that sentence gets lost in the next edit.
  */
-function sweepFinishedLine(firstRun: boolean, code: number | null): string {
+function sweepFinishedLine(firstRun: boolean, code: number | null, said: string): string {
   const exit = code === 0 || code === null ? '' : ` with exit ${String(code)}`
-  if (!firstRun) return `[sessions gc] background sweep finished${exit}`
+  // The child's verdict line — `DRY-RUN — …` or `APPLIED — N artifact(s) removed`. A silent child
+  // still produces a report: reporting only when there is output would make a broken child
+  // indistinguishable from a collector that never ran.
+  const summary = said
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.startsWith('DRY-RUN') || l.startsWith('APPLIED'))
+  const detail = summary === undefined ? '' : ` — ${summary}`
+  if (!firstRun) return `[sessions gc] background sweep finished${exit}${detail}`
   return (
-    `[sessions gc] first background sweep finished${exit} — DRY RUN, nothing was removed. ` +
+    `[sessions gc] first background sweep finished${exit}${detail} — DRY RUN by design. ` +
     'The next one will apply; set `session_gc = false` to keep collection manual.'
   )
 }

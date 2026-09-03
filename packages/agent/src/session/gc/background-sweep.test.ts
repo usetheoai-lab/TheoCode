@@ -177,7 +177,6 @@ describe('what the operator is told when the child finishes', () => {
     const text = reportFor({}).join(' ')
 
     expect(text).toContain('DRY RUN')
-    expect(text).toContain('nothing was removed')
     expect(text, 'the operator was not told how to turn it off').toContain('session_gc = false')
   })
 
@@ -203,5 +202,84 @@ describe('what the operator is told when the child finishes', () => {
     })
 
     expect(reports.join(' ')).toContain('exit 1')
+  })
+})
+
+/**
+ * B-150 — moving the sweep to a child process threw away what it did.
+ *
+ * B-132's DoD says "what the automation did is visible, so 'it ran and removed nothing' is
+ * distinguishable from 'it never ran'". B-139's says "the first automatic sweep removes nothing and
+ * SAYS WHAT IT WOULD HAVE REMOVED". Both were met by the in-process form, which reported counts.
+ *
+ * B-142 moved the sweep into a child spawned with `stdio: 'ignore'` and the counts went with it. The
+ * parent said "background sweep finished" and nothing else — so two Definitions of Done regressed
+ * silently, in items already marked shipped, by a fix for a third.
+ *
+ * The instrument was wrong for the concern. `'ignore'` was chosen because "the TUI owns the screen",
+ * which is an argument against INHERITING the child's streams. Piping captures them without
+ * displaying anything, which is what was wanted all along.
+ */
+describe('what the child did reaches the operator', () => {
+  const childSaying = (line: string) => ({
+    stdout: {
+      on: (_e: 'data', cb: (chunk: unknown) => void) => {
+        cb(line)
+      },
+    },
+    on: (_event: 'close', cb: (code: number | null) => void) => {
+      cb(0)
+    },
+  })
+
+  it('test_the_first_sweep_reports_what_it_WOULD_have_removed', () => {
+    // B-139's bullet. "Nothing was removed" without "and here is what would have been" tells the
+    // operator the collector is harmless, not what it is about to do to them tomorrow.
+    const root = scratchRoot()
+    const reports: string[] = []
+
+    startSessionSweepInBackground({
+      enabled: true,
+      onReport: (l) => reports.push(l),
+      projectsRootOverride: root,
+      spawnSweep: () => childSaying('DRY-RUN — nothing was removed; use --apply to execute\n'),
+    })
+
+    expect(reports.join(' ')).toContain('DRY-RUN')
+  })
+
+  it('test_an_applying_sweep_reports_its_counts', () => {
+    // B-132's bullet. "Finished" is not "removed 12", and the difference is the whole point of the
+    // requirement.
+    const root = scratchRoot()
+    writeFileSync(stampOf(root), new Date('2026-09-01T00:00:00Z').toISOString())
+    const reports: string[] = []
+
+    startSessionSweepInBackground({
+      enabled: true,
+      now: new Date('2026-09-05T00:00:00Z'),
+      onReport: (l) => reports.push(l),
+      projectsRootOverride: root,
+      spawnSweep: () => childSaying('APPLIED — 12 artifact(s) removed\n'),
+    })
+
+    expect(reports.join(' ')).toContain('12')
+  })
+
+  it('test_a_silent_child_still_produces_a_report', () => {
+    // Anti-vacuity in the direction that matters: if the child says nothing, the parent must still
+    // say the sweep happened. Reporting only when there is output would make a broken child
+    // indistinguishable from a collector that never ran.
+    const root = scratchRoot()
+    const reports: string[] = []
+
+    startSessionSweepInBackground({
+      enabled: true,
+      onReport: (l) => reports.push(l),
+      projectsRootOverride: root,
+      spawnSweep: () => ({ on: (_e, cb) => cb(0) }),
+    })
+
+    expect(reports.join(' ')).toContain('sweep')
   })
 })

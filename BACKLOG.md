@@ -84,7 +84,6 @@ _None._
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | Wrong identity exposed to the end user | `shipped` | HIGH (4 HIGH findings) |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
 | [`B-004`](#b-004--ask-bridge-promise-abandoned-without-settling-typed-error-escaping---x) | Ask-bridge: promise abandoned without settling, typed error escaping | `shipped` | HIGH (2 HIGH findings) |
 | [`B-005`](#b-005--consent-store-held-to-a-weaker-permission-standard-than-the-credential-store---x) | Consent store held to a weaker permission standard than the credential store | `shipped` | HIGH |
@@ -230,6 +229,7 @@ _None._
 | [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
 | [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
 | [`B-148`](#b-148--a-hand-maintained-count-in-the-readme-went-stale-twice-in-one-session-both-times-by-my-hand---x) | A hand-maintained count in the README went stale twice in one session, both times by my hand | `shipped` | minor |
+| [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -252,8 +252,7 @@ severity: BLOCKER
 dod:
   - `chat-acp.ts:25` passes `surface: 'headless'`, the same value `run-composition.ts:57` uses
   - a test covers that the headless profile does NOT register `request_user_input`
-  - the ACP surface is exercised and no tool call is left pending
-## B-002 — Wrong identity exposed to the end user   [x]
+  - the ACP surface is exercised and no tool call is left pending## B-002 — Wrong identity exposed to the end user   [x]
 
 fixed_in: c237f5a
 
@@ -6886,3 +6885,51 @@ dod:
 
 > Registered 2026-09-03, splitting the undelivered half of B-130 rather than leaving it inside an
 > item marked shipped.
+
+## B-150 — Moving the sweep to a child process silently regressed two shipped DoDs   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by auditing whether the items closed in this release actually met the Definition
+  of Done written on them — the same check that produced B-149.
+
+  Two bullets, in two items already marked `shipped`, were met by the in-process collector and lost
+  when B-142 moved it into a child spawned with `stdio: 'ignore'`:
+
+    B-132  "what the automation did is visible, so 'it ran and removed nothing' is distinguishable
+            from 'it never ran'"
+    B-139  "the first automatic sweep removes nothing and SAYS WHAT IT WOULD HAVE REMOVED"
+
+  The parent reported `[sessions gc] background sweep finished` and nothing else. No counts, no
+  verdict — the child's entire output went to /dev/null.
+
+  THE INSTRUMENT WAS WRONG FOR THE CONCERN. `'ignore'` was chosen because "the TUI owns the screen",
+  which is an argument against INHERITING the child's streams. Piping captures them without
+  displaying anything. Ignoring was the only one of the three that also threw away the information.
+why_now: |
+  A fix regressed two Definitions of Done in items already marked shipped, and nothing detected it —
+  no test covered the counts, so the suite stayed green. That is the same shape as B-138, one level
+  up: the guarantee was in a DoD rather than in a test, and a DoD is not a gate.
+shipped: |
+  SHIPPED 2026-09-03. stdout is PIPED and collected; stderr stays ignored. The parent finds the
+  child's verdict line — `DRY-RUN — …` or `APPLIED — N artifact(s) removed` — and appends it to its
+  own report, so the counts reach the operator through the diagnostics channel without anything
+  being written to the frame.
+
+  A silent child still produces a report, and that is deliberate: reporting only when there is output
+  would make a broken child indistinguishable from a collector that never ran, which is the exact
+  ambiguity B-132 exists to remove.
+
+  Three tests now cover what two DoDs had been carrying alone.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - the first sweep reports what it WOULD have removed, not merely that nothing was
+  - an applying sweep reports its counts
+  - a child that says nothing still produces a report
+
+> Registered 2026-09-03, by checking my own "done" claims against the criteria I wrote for them.

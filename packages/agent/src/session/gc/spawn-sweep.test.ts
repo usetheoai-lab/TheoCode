@@ -92,9 +92,13 @@ describe('the child process is bounded', () => {
   })
 
   it('test_the_child_inherits_no_stream_it_could_write_over_the_frame_with', () => {
-    // The TUI owns the screen. `installStderrGuard` protects THIS process's stderr, not a child's.
+    // The TUI owns the screen, so nothing is INHERITED. stdout is piped — captured, not displayed —
+    // because ignoring it threw away the counts two DoDs require (B-150); stderr stays ignored.
     const cmd = buildSweepCommand({ apply: true, execPath: 'node', script: 'cli.mjs' })
 
-    expect(cmd.options.stdio).toBe('ignore')
+    expect(cmd.options.stdio).toEqual(['ignore', 'pipe', 'ignore'])
+    expect(cmd.options.stdio, 'a stream is inherited and would land on the frame').not.toContain(
+      'inherit',
+    )
   })
 })
