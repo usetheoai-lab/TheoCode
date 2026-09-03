@@ -20,7 +20,7 @@
  */
 
 /** The `rate_limit` member of the SDK's `RunEvent` union, as much of it as this module reads. */
-interface RateLimitLike {
+export interface RateLimitLike {
   readonly type?: unknown
   readonly attempt?: unknown
 }

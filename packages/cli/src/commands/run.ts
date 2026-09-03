@@ -14,8 +14,7 @@ import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSessionId } from '../runtime/index.js'
 import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
-import { createRetryRecord } from '@theocode/shared/retry-record'
-import { turnErrorText } from '@theocode/shared/turn-error'
+import { turnFailureReporting } from '@theocode/shared/turn-failure-reporting'
 
 function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
@@ -124,7 +123,7 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
     // B-130 — the transport's retries were invisible: after three attempts an auth failure reached
     // the user as `rate_limit (HTTP 429)` (see the ORDER note above, which fixed that specific
     // case). The count comes from the SDK's own `rate_limit` event, not from anything invented here.
-    const retries = createRetryRecord()
+    const failure = turnFailureReporting({ diagnosticsEnabled })
     const openStream = (sessionId: string): AsyncIterable<unknown> =>
       streamAgentTurnInProcess(mod, apiKey, {
         message: prompt,
@@ -133,14 +132,10 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
         // Without this the framework masks every failure to "An error occurred." — the right
         // default for a public HTTP endpoint and the wrong one here, where the caller IS the
         // operator. See `@theocode/shared/turn-error`.
-        onError: (error) =>
-          turnErrorText(error, {
-            attempts: retries.attempts(),
-            diagnosticsEnabled: diagnosticsEnabled(),
-          }),
+        onError: failure.onError,
         // The only member read is `rate_limit`; every other event is ignored, the same discipline
         // the TUI's MCP sink applies to the same stream.
-        onRunEvent: retries.sink,
+        onRunEvent: failure.onRunEvent,
       }) as AsyncIterable<unknown>
     await consumeWithForkIfBusy(
       sessionId,
