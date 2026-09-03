@@ -67,15 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-134 items — **Open** 7 · **In flight** 0 · **Closed** 127
+134 items — **Open** 5 · **In flight** 0 · **Closed** 129
 
-### Open (7)
+### Open (5)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
-| [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on----) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `triaged` | minor |
-| [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here----) | The retry policy on the critical path is inherited from the transport and is invisible here | `triaged` | minor |
 | [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc----) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `triaged` | minor |
 | [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling----) | The recurring manual collection is unmeasured toil with no declared ceiling | `triaged` | minor |
 | [`B-133`](#b-133--no-reliability-target-is-declared-anywhere----) | No reliability target is declared anywhere | `triaged` | minor |
@@ -85,7 +83,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (127)
+### Closed (129)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -216,6 +214,8 @@ _None._
 | [`B-126`](#b-126--sonarcloud-analysis-has-failed-on-every-theokit-tui-pr-not-the-quality-gate---x) | SonarCloud analysis has failed on every theokit-tui PR, not the quality gate | `shipped` | minor |
 | [`B-127`](#b-127--a-discovery-specs-priority-only-means-position-among-the-sdks-own-seven---x) | A discovery spec's `priority` only means "position among the SDK's own seven" | `shipped` | minor |
 | [`B-128`](#b-128--an-arbitrary-operator-shell-command-is-killed-at-a-hard-coded-10-s-while-the-hook-beside-it-is-configurable---x) | An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable | `shipped` | minor |
+| [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on---x) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `shipped` | minor |
+| [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here---x) | The retry policy on the critical path is inherited from the transport and is invisible here | `shipped` | minor |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -5788,7 +5788,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-129 — Diagnostics are off by default and the failure text does not name the switch that turns them on   [ ]
+## B-129 — Diagnostics are off by default and the failure text does not name the switch that turns them on   [x]
 
 domain: theocode
 repo: TheoCode
@@ -5807,7 +5807,17 @@ evidence: |
 why_now: |
   The operator has to already know the variable exists to see why a turn failed. The card admits no
   exclusion — "Inadequado: nada" — because absence of observability is always a gap.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03. A failed turn now ends with `set THEOCODE_DIAGNOSTICS=stderr to see the retry
+  sequence and the underlying error` — but ONLY when diagnostics are off.
+
+  That condition is the whole design. Telling an operator to enable what they already enabled is the
+  noise that gets a message skipped, so `installDiagnosticSink` stopped discarding the answer it had
+  always computed (`result.kind !== 'off'`, thrown away by all three entry points) and
+  `diagnosticsEnabled()` reads it. Absent context means UNKNOWN rather than `false`, so a surface
+  nobody wired keeps the old text instead of advertising a state nobody checked.
+status: shipped
+fixed_in: (this change)
 severity: minor
 dod:
   - a failed turn names the way to see more, without the operator having to know it in advance
@@ -5815,7 +5825,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-130 — The retry policy on the critical path is inherited from the transport and is invisible here   [ ]
+## B-130 — The retry policy on the critical path is inherited from the transport and is invisible here   [x]
 
 domain: theocode
 repo: TheoCode
@@ -5836,7 +5846,26 @@ why_now: |
   A retry policy that rewrites the error CLASS before it reaches the product is a policy the product
   should be able to see. The specific 401-as-429 case was fixed by reordering; the mechanism that
   produced it was not touched.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03. A turn that retried now says so: `… — after 3 attempts`.
+
+  The number is NOT invented and NOT counted here. `RunRateLimitEvent` carries a 1-based `attempt`,
+  delivered on the same `onRunEvent` stream the MCP sink already consumed, and
+  `@theocode/shared/retry-record` remembers the highest one seen. Counting events instead would
+  inflate the figure the moment one were re-delivered, and a wrong number shown to a user is worse
+  than no number — so the shape is validated at the package boundary and a non-integer is ignored
+  rather than rendered as `after NaN attempts`.
+
+  0 and 1 report nothing: a single attempt IS the turn, and "after 1 attempt" on every ordinary
+  failure is noise. The count resets at the turn boundary beside `startMcpFailureTurn`, because a
+  count carried over is a number that is WRONG rather than missing.
+
+  What this does NOT do is claim a retry policy. The policy is still the transport's and is still not
+  configurable here; this makes it visible, which is what the finding asked for.
+
+  The CLI had no `onRunEvent` subscription at all before this and now has one.
+status: shipped
+fixed_in: (this change)
 severity: minor
 dod:
   - when a turn fails after retrying, the failure says so and how many attempts were spent

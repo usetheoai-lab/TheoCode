@@ -8,6 +8,7 @@
     "./agent": "./src/agent.ts",
     "./diagnostic-sink": "./src/diagnostic-sink.ts",
     "./git-runner": "./src/git-runner.ts",
+    "./retry-record": "./src/retry-record.ts",
     "./turn-error": "./src/turn-error.ts"
   },
   "dependencies": {

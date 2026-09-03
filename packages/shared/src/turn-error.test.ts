@@ -79,3 +79,88 @@ describe('the hints point at the next step, not at the diagnosis', () => {
     expect(hint('request failed', 'rate_limit_exceeded')).toContain('rate-limiting')
   })
 })
+
+/**
+ * What the failure says about the retries it spent, and about how to see more.
+ *
+ * Two findings from the 2026-09-03 system-design sweep meet here, because they are the same surface:
+ *
+ *   B-130 — the transport retried three times and the product never said so, so a 401 that surfaced
+ *           as a 429 read as a quota problem.
+ *   B-129 — `THEOCODE_DIAGNOSTICS` is the only way to see the retry sequence, and the failure text
+ *           did not mention it. `turn-error.ts:13` said so about itself.
+ *
+ * Both are additions to the text and neither replaces the message or the hint: a failure must still
+ * say what happened first.
+ */
+describe('the failure accounts for the attempts it spent', () => {
+  it('test_a_turn_that_retried_says_how_many_attempts_were_spent', () => {
+    const text = turnErrorText(
+      { message: 'openai API error: rate_limit (HTTP 429)' },
+      { attempts: 3 },
+    )
+
+    expect(text).toContain('3 attempts')
+  })
+
+  it('test_a_turn_that_never_retried_says_nothing_about_attempts', () => {
+    // The count is only interesting when retrying happened. "after 0 attempts" on every ordinary
+    // failure is the noise that gets a message ignored.
+    const text = turnErrorText({ message: 'boom' }, { attempts: 0 })
+
+    expect(text).not.toContain('attempt')
+  })
+
+  it('test_one_attempt_is_not_reported_as_a_retry', () => {
+    // A single attempt IS the turn. Calling it a retry would be false.
+    expect(turnErrorText({ message: 'boom' }, { attempts: 1 })).not.toContain('attempt')
+  })
+
+  it('test_the_message_and_the_hint_still_come_first', () => {
+    // The attempt count is context, not the headline. Regression guard on the original defect.
+    const text = turnErrorText(
+      { message: 'openai API error: rate_limit (HTTP 429)' },
+      { attempts: 3 },
+    )
+
+    expect(text.indexOf('rate_limit')).toBeLessThan(text.indexOf('3 attempts'))
+    expect(text).toContain('/model')
+  })
+})
+
+describe('the failure names the switch that shows more', () => {
+  it('test_it_names_the_diagnostics_variable_when_diagnostics_are_off', () => {
+    // The finding, verbatim from the module's own docblock: the variable is "an environment variable
+    // the failure message does not mention".
+    const text = turnErrorText({ message: 'boom' }, { diagnosticsEnabled: false })
+
+    expect(text).toContain('THEOCODE_DIAGNOSTICS')
+  })
+
+  it('test_it_stays_quiet_when_diagnostics_are_already_on', () => {
+    // Telling an operator to turn on what they already turned on is the noise this hint has to
+    // avoid to remain worth reading.
+    const text = turnErrorText({ message: 'boom' }, { diagnosticsEnabled: true })
+
+    expect(text).not.toContain('THEOCODE_DIAGNOSTICS')
+  })
+
+  it('test_it_stays_quiet_when_the_surface_did_not_say_either_way', () => {
+    // Absent context must not be read as "off". A surface that has not been wired yet should keep
+    // the old text rather than advertise a variable whose state nobody checked.
+    expect(turnErrorText({ message: 'boom' })).not.toContain('THEOCODE_DIAGNOSTICS')
+    expect(turnErrorText({ message: 'boom' }, {})).not.toContain('THEOCODE_DIAGNOSTICS')
+  })
+
+  it('test_both_additions_can_appear_together_without_losing_the_message', () => {
+    const text = turnErrorText(
+      { message: 'openai API error: rate_limit (HTTP 429)', code: 'AGENT_ERROR' },
+      { attempts: 3, diagnosticsEnabled: false },
+    )
+
+    expect(text).toContain('rate_limit')
+    expect(text).toContain('[AGENT_ERROR]')
+    expect(text).toContain('3 attempts')
+    expect(text).toContain('THEOCODE_DIAGNOSTICS')
+  })
+})

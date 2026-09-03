@@ -97,7 +97,9 @@ describe('every schema key survives pickScalars', () => {
       .filter(([key, value]) => JSON.stringify(resolved[key]) !== JSON.stringify(value))
       .map(([key]) => key)
 
-    expect(dropped, 'a key parsed and validated, then never reached the resolved config').toEqual([])
+    expect(dropped, 'a key parsed and validated, then never reached the resolved config').toEqual(
+      [],
+    )
   })
 
   it('test_the_sample_set_covers_the_whole_schema', () => {

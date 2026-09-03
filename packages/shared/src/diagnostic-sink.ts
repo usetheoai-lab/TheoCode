@@ -13,6 +13,22 @@ import { installDiagnosticSink as installFrameworkSink } from '@theokit/agents/d
  * So this is the adapter the deletion ledger anticipated: the file survives, ~28 lines lighter, and
  * now states exactly which part of the old module was worth keeping.
  */
+/**
+ * Whether the last install actually turned diagnostics on.
+ *
+ * The answer was already computed on every install and every caller threw it away, so the failure
+ * text could not tell an operator who had enabled diagnostics from one who had never heard of the
+ * variable — and therefore could not name it without nagging the first group. Held at module scope
+ * for the same reason `mcp-failure-record.ts` holds its sink there: there is one process, the value
+ * changes at boot, and threading a boot fact through every call site would be ceremony.
+ */
+let enabled = false
+
+/** Reads the state the last `installDiagnosticSink` produced. See `TurnErrorContext`. */
+export function diagnosticsEnabled(): boolean {
+  return enabled
+}
+
 export function installDiagnosticSink(
   install: (sink: ((m: string) => void) | undefined) => void,
   env: NodeJS.ProcessEnv = process.env,
@@ -25,5 +41,6 @@ export function installDiagnosticSink(
     onWarn: (message) => process.stderr.write(`diagnostics: ${message}\n`),
   })
 
-  return result.kind !== 'off'
+  enabled = result.kind !== 'off'
+  return enabled
 }

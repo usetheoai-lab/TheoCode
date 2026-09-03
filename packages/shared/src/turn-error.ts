@@ -64,7 +64,36 @@ const HINTS: readonly { readonly matches: (probe: string) => boolean; readonly h
  * Never empty. A blank line where the reason should be is the same defect as the fixed string it
  * replaces — the user still learns nothing, and now nothing looks wrong either.
  */
-export function turnErrorText(error: { message: string; code?: string }): string {
+/**
+ * What the surface knows about the turn that the error object does not carry.
+ *
+ * Both fields are optional and absent means UNKNOWN, never `false`. A surface that has not been
+ * wired yet keeps the old text rather than advertising a state nobody checked.
+ */
+export interface TurnErrorContext {
+  /**
+   * The highest attempt the provider reached, from `@theocode/shared/retry-record`.
+   *
+   * `0` or `1` is not a retry and is not reported: a single attempt IS the turn, and "after 1
+   * attempt" on every ordinary failure is the noise that gets a message skipped.
+   */
+  readonly attempts?: number
+  /**
+   * Whether the diagnostics sink is installed, from `installDiagnosticSink`'s return value.
+   *
+   * When it is OFF the failure names the variable; when it is already ON, saying so would tell the
+   * operator to turn on what they turned on.
+   */
+  readonly diagnosticsEnabled?: boolean
+}
+
+const DIAGNOSTICS_HINT =
+  'set THEOCODE_DIAGNOSTICS=stderr to see the retry sequence and the underlying error'
+
+export function turnErrorText(
+  error: { message: string; code?: string },
+  context: TurnErrorContext = {},
+): string {
   const message = error.message.trim()
   const named = message.length > 0 ? message : 'the turn failed with no message'
   const labelled = error.code === undefined ? named : `${named} [${error.code}]`
@@ -72,5 +101,14 @@ export function turnErrorText(error: { message: string; code?: string }): string
   const probe = `${error.code ?? ''} ${message}`.toLowerCase()
   const hint = HINTS.find((h) => h.matches(probe))?.hint
 
-  return hint === undefined ? labelled : `${labelled} — ${hint}`
+  // Order is deliberate and pinned by a test: what happened, then what to do, then the context. The
+  // original defect was a user left with nothing to act on, so nothing may push the message down.
+  const parts = [hint === undefined ? labelled : `${labelled} — ${hint}`]
+
+  const attempts = context.attempts ?? 0
+  if (attempts > 1) parts.push(`after ${String(attempts)} attempts`)
+
+  if (context.diagnosticsEnabled === false) parts.push(DIAGNOSTICS_HINT)
+
+  return parts.join(' — ')
 }

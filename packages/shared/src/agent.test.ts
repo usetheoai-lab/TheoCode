@@ -38,9 +38,9 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
 
 describe('the version the product shows is the version it IS', () => {
   it('test_the_declared_version_matches_the_root_manifest', () => {
-    const manifest = JSON.parse(
-      readFileSync(join(PACKAGES, '..', 'package.json'), 'utf8'),
-    ) as { version: string }
+    const manifest = JSON.parse(readFileSync(join(PACKAGES, '..', 'package.json'), 'utf8')) as {
+      version: string
+    }
 
     expect(
       AGENT.version,
