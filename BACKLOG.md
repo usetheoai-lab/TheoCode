@@ -6891,7 +6891,12 @@ severity: minor
 dod:
   - a failure that the transport retried reports the class of the FIRST failure, not of the last
     attempt — or the product can configure the policy so it does
-  - the 401-as-429 case specifically is covered by a test
+  - the 401-as-429 case specifically is covered by a test — PARTIALLY MET, and the scope is the
+    point. `packages/cli/src/commands/run-target.test.ts:50` pins that the second credential
+    resolution uses the ROUTED id, which is the fix that prevents the measured occurrence from
+    recurring through that path. It does NOT prove a retried 401 keeps its class: that is the first
+    bullet, and it is the half blocked upstream. Recording this as plainly "covered" would repeat the
+    imprecision that created this item.
 
 > Registered 2026-09-03, splitting the undelivered half of B-130 rather than leaving it inside an
 > item marked shipped.
