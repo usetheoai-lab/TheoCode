@@ -114,6 +114,14 @@ the contract: if one stops holding, that is a bug rather than a change of ambiti
 because the alternative — choosing by omission — is still a choice, and an unstated one cannot be
 argued with.
 
+**What was rejected, so the choice can be argued with.** The obvious alternative is a real SLO: an
+availability percentage, an error budget, and burn-rate alerting. It was considered and refused,
+because every input it needs is missing — there is no external commitment to breach, no on-call to
+page, and no sustained measurement to compute a budget from. Declaring one anyway produces a number
+nobody can act on, which is worse than the absence: it reads as a guarantee and functions as
+decoration. The bullets above are the cheaper form that survives having no telemetry, and they are
+what an SLO should replace once there is production measurement to build it from.
+
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
