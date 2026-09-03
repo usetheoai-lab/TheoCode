@@ -6248,6 +6248,14 @@ shipped: |
 
   Four tests, including that the gate runs NO subprocess when `--skip-git-repo-check` is passed, and
   that the timeout actually reaches the call — a bound the test cannot see is a bound nobody asserts.
+
+  A FIFTH was added after the mutation sweep, covering the gap those four left. They inject `run` and
+  `reason`, which proves the rendering and proves nothing about the WIRING: in production `reason` is
+  filled by a closure handed to `createGitRunner`'s `onWarn`, and that assignment has to land before
+  the message is composed. It does — the seam calls `onWarn` synchronously in its `catch` — but that
+  is an argument, and an argument is not a test. The fifth runs the default path in a real non-git
+  directory, and two mutations confirm it bites: restoring the seam's silent swallow fails it, and
+  clearing `reason` after the call fails it.
 status: shipped
 fixed_in: 80a516f
 severity: major

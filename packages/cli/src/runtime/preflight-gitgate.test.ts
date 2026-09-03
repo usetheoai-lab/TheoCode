@@ -14,6 +14,10 @@
  * been fixed: the original sweep counted three hard-coded call sites and never saw this one, which
  * had no timeout to count.
  */
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { gitGate } from './preflight.js'
@@ -73,5 +77,47 @@ describe('gitGate', () => {
 
     expect(seenTimeout, 'the git call was made with no timeout').toBeTypeOf('number')
     expect(seenTimeout).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * The DEFAULT path, with no stubs — the one production actually runs.
+ *
+ * The tests above inject `run` and `reason`, which proves the rendering and proves nothing about the
+ * wiring: in production `reason` is filled by a closure handed to `createGitRunner`'s `onWarn`, and
+ * that assignment has to happen before the message is composed. It does, because the seam calls
+ * `onWarn` synchronously inside its `catch` — but "it does" is an argument, and an argument is not a
+ * test. Reverting the seam to a silent swallow would leave every test above green.
+ *
+ * This one changes the working directory, which is process-global. It is restored in `finally`, and
+ * vitest runs the tests of one file sequentially in one worker, so the blast radius is this file.
+ */
+describe('gitGate on the real path', () => {
+  it('test_outside_a_repository_the_warning_carries_what_git_actually_said', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'theocode-gitgate-'))
+    const original = process.cwd()
+    const reported: string[] = []
+    let exited: number | undefined
+
+    try {
+      process.chdir(scratch)
+      // No `run`, no `reason`: the closure inside gitGate is what must populate the message.
+      gitGate(false, {
+        onWarn: (m) => reported.push(m),
+        onRefuse: (code) => {
+          exited = code
+        },
+      })
+    } finally {
+      process.chdir(original)
+    }
+
+    expect(exited, 'the gate did not refuse outside a repository').toBe(1)
+    const message = reported.join(' ')
+    expect(message).toContain('Not inside a git repository')
+    // The half that only the real closure can produce: git's own words, not our guess at them.
+    expect(message, 'the reason git gave never reached the message').toMatch(
+      /not a git repository|rev-parse/i,
+    )
   })
 })
