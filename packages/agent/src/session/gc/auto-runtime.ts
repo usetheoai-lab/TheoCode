@@ -83,6 +83,16 @@ export function startSessionSweepInBackground(opts: {
   const command = commandOrUndefined(!decision.firstRun, opts.onReport)
   if (command === undefined) return { started: false, reason: 'unspawnable' }
 
+  // Stamped BEFORE the spawn, which is also what narrows the concurrency window to the microseconds
+  // between the read above and this write. Two TUIs started in the same instant can both decide to
+  // run and both spawn.
+  //
+  // NO LOCK, deliberately. The consequence of two concurrent sweeps is bounded: a concurrent
+  // `unlink` counts ENOENT as removed, and `rmdir` on a directory another sweep has repopulated
+  // fails ENOTEMPTY, which is the safe direction. A lock file would add a failure mode strictly
+  // worse than the one it prevents — a stale lock disables collection permanently, which is exactly
+  // the shape B-143 had to fix in the pointer read. Rung 1 of the parsimony ladder: not until
+  // someone observes harm.
   stampTolerantly(root, now, opts.onReport)
 
   try {
