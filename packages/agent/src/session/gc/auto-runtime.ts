@@ -64,6 +64,16 @@ export async function collectSessionsAutomatically(
     writeLastRun: (at) => {
       writeLastRun(root, at)
     },
+    // `planAllProjectsOnDisk` and NOT `planSessionGCAllProjects` directly, which matters more than
+    // it looks: the former is what supplies `hasLiveWriter: (t) => sessionHasWriter(t)`
+    // (`filesystem.ts:122`), and `all-sessions.ts:284` refuses any transcript with a live writer as
+    // a candidate. The TUI fires this UNAWAITED at startup, so that guard is what makes the race
+    // with the session the operator is about to start safe. Two more cover it: the plan enumerates
+    // once up front, so a session created afterwards is not in it, and a brand-new session is the
+    // most-recent, which is protected regardless.
+    //
+    // Verified by READING those three paths, not by a test — a live-writer race needs a real lock
+    // held by a real second process, and a test that faked it would assert the fake.
     plan: () => planAllProjectsOnDisk({ projectsRoot: root }),
     // `apply` is the whole difference between collecting and reporting: `runAllProjectsOnDisk` is a
     // DRY RUN unless told otherwise, so hard-coding false would produce a sweep that reports
