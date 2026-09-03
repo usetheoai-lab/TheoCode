@@ -78,10 +78,24 @@ describe('shell_timeout_ms is reachable', () => {
     )
   })
 
-  it('test_an_empty_environment_value_is_refused_rather_than_read_as_zero', () => {
-    // `Number('')` is 0, and 0 means "no timeout" to execFile. The guard is the length check in
-    // `numberFromEnv`; without it an exported-but-empty variable would remove the bound.
+  it('test_an_empty_environment_value_is_diagnosed_as_empty_not_as_a_bad_number', () => {
+    // The message, not just the refusal — and the distinction is what the length check in
+    // `numberFromEnv` actually buys. MEASURED both ways 2026-09-03:
+    //
+    //   with the guard:    "Invalid input: expected number, received string [shell_timeout_ms]"
+    //   without it:        "shell_timeout_ms: must be positive — execFile reads 0 as no timeout"
+    //
+    // `Number('')` is 0, so without the guard an exported-but-EMPTY variable is diagnosed as a
+    // non-positive NUMBER. The operator is told to fix a value they never set, which is the same
+    // misdiagnosis B-137 removed from the git gate one package over.
+    //
+    // Asserting only `toThrow(ConfigError)` here would pass either way: zod refuses both. The
+    // refusal was never the risk; the wrong explanation was.
     expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: '' } })).toThrow(ConfigError)
+    expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: '' } })).toThrow(/received string/)
+    expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: '' } })).not.toThrow(
+      /must be positive/,
+    )
   })
 
   it('test_a_fractional_timeout_is_refused', () => {
