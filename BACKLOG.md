@@ -67,22 +67,20 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-136 items — **Open** 4 · **In flight** 0 · **Closed** 132
+136 items — **Open** 2 · **In flight** 0 · **Closed** 134
 
-### Open (4)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
-| [`B-133`](#b-133--no-reliability-target-is-declared-anywhere----) | No reliability target is declared anywhere | `triaged` | minor |
-| [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository----) | `README.md` defers to an ADR file that does not exist in the repository | `triaged` | minor |
 | [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run----) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `triaged` | major |
 
 ### In flight (0)
 
 _None._
 
-### Closed (132)
+### Closed (134)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -217,6 +215,8 @@ _None._
 | [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here---x) | The retry policy on the critical path is inherited from the transport and is invisible here | `shipped` | minor |
 | [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc---x) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `shipped` | minor |
 | [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling---x) | The recurring manual collection is unmeasured toil with no declared ceiling | `shipped` | minor |
+| [`B-133`](#b-133--no-reliability-target-is-declared-anywhere---x) | No reliability target is declared anywhere | `shipped` | minor |
+| [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository---x) | `README.md` defers to an ADR file that does not exist in the repository | `shipped` | minor |
 | [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
@@ -5969,7 +5969,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-133 — No reliability target is declared anywhere   [ ]
+## B-133 — No reliability target is declared anywhere   [x]
 
 domain: theocode
 repo: TheoCode
@@ -5985,7 +5985,23 @@ why_now: |
   An agent that fails one turn in twenty is a different product from one that fails one in a
   thousand, and nobody has written down which this is meant to be. Without it, the retry question in
   B-130 has no criterion — only a preference.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03 as `README.md` § "What a failure is allowed to cost".
+
+  It states no availability number, deliberately: there is no sustained production measurement to
+  back one, and publishing a figure without it is what `rules/public-copy.md` § 5 forbids. What it
+  targets instead is the SHAPE of a failure — five properties that are reviewable without a metrics
+  pipeline and falsifiable by a test.
+
+  The section claims every bullet is covered by a test, and that claim was CHECKED rather than
+  asserted. Checking it is what found that the retention floor — a guard on the only path that
+  deletes user data, which refuses a window below one day rather than normalising it — had no test at
+  all; a comment in `liveness-seam.test.ts` mentioned it, which is documentation, not a gate. Four
+  tests now cover it, including that the floor value itself is still accepted, so refusing everything
+  would not satisfy them. One bullet was reworded rather than kept, because its second half ("a start
+  does not wait for it") is a wiring property of `main.tsx` and no test backed it.
+status: shipped
+fixed_in: (this change)
 severity: minor
 dod:
   - what a failed turn is allowed to cost is stated in a versioned file, in a form that can be
@@ -5995,7 +6011,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-134 — `README.md` defers to an ADR file that does not exist in the repository   [ ]
+## B-134 — `README.md` defers to an ADR file that does not exist in the repository   [x]
 
 domain: theocode
 repo: TheoCode
@@ -6017,7 +6033,21 @@ why_now: |
   A reader who clones and asks why the toolchain is absent is sent to a document they cannot open,
   and it is precisely the explanation a new reader needs. A citation that resolves to nothing is
   worse than no citation, because it reads as a record that exists.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03. The citation is replaced by the two sentences it was standing in for: the
+  directory is the maintainer's process rather than the product, and it is an installed plugin with a
+  repository of its own, so versioning it here would commit a dependency's source into its consumer.
+
+  Inlining rather than tracking the ADR, because the README already carries every other decision
+  inline and the reasoning is two sentences; adding a `docs/adr/` directory whose only occupant is
+  this one file would be the heavier answer. Tracking it stays the reasonable alternative if a second
+  ADR ever follows.
+
+  Two other stale claims in the same file were corrected while there, both invalidated by this work
+  rather than found separately: the measured test count (71 files / 487 cases, measured 2026-08-11)
+  and the config table, which did not list `memory`, `shell_timeout_ms` or `session_gc`.
+status: shipped
+fixed_in: (this change)
 severity: minor
 dod:
   - the reasoning the citation stood for is readable by someone who clones the repository

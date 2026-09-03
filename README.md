@@ -49,7 +49,7 @@ no error, and a hook is arbitrary command execution on every tool call (B-086).
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `skills`, `[[hooks]]`, profiles |
+| `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `skills`, `[[hooks]]`, profiles |
 | `~/.theocode/config.toml`         | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's `AGENTS.md` is read after it   |
 | `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's `.theokit/rules/` is read after them               |
@@ -89,16 +89,40 @@ Used this way it isolated [theokit#631](https://github.com/usetheokit/theokit/is
 repository in a single install: the fix under test was in `@theokit/agents`, the symptom survived it,
 and that was enough to say the remaining half lived in `@theokit/sdk`.
 
+## What a failure is allowed to cost
+
+**No availability number is claimed here, and that is deliberate.** This product has no sustained
+production measurement to back one, and publishing a figure without it is the thing
+`rules/public-copy.md` § 5 forbids. What it does have is a target for the SHAPE of a failure, which
+is reviewable without a metrics pipeline and falsifiable by a test:
+
+- **A failed turn says what failed.** Never `An error occurred.`: the provider's message, the error
+  code when the framework supplies one, and a next step for the classes common enough to have one.
+- **A failure that cost retries says so.** The transport retries; a turn that spent three attempts
+  reports three, so a refused credential cannot read as a quota problem.
+- **A failure names the way to see more**, when there is more to see and diagnostics are off.
+- **Housekeeping never takes the agent down.** The session collector reports its failures instead of
+  raising them, and sweeps at most once a day.
+- **The delete path fails towards keeping.** What the collector cannot classify is kept, and a
+  retention window below the floor is refused rather than honoured.
+
+Each bullet is covered by a test, and that was checked rather than asserted — writing this section is
+what revealed that the retention floor, a guard on the delete path, had no test at all. The list is
+the contract: if one stops holding, that is a bug rather than a change of ambition. It is written down
+because the alternative — choosing by omission — is still a choice, and an unstated one cannot be
+argued with.
+
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
-**71 files, 487 cases** (measured 2026-08-11). The following were left out by an explicit decision —
+**107 files, 837 cases** (measured 2026-09-03). The following were left out by an explicit decision —
 stated here so nobody assumes they were forgotten:
 
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
-  `.gitignore` keeps all of `.claude/` local by design (`docs/adr/0002-cycle-artifacts-are-promoted-to-docs.md`),
-  so someone who clones this repository gets the agent, not the maintenance scaffolding of the people
-  who write it.
+  `.gitignore` keeps all of `.claude/` local by design: that directory is the maintainer's process,
+  not the product, and it is an installed plugin with a repository of its own — versioning it here
+  would commit a dependency's source into its consumer. So someone who clones this gets the agent,
+  not the maintenance scaffolding of the people who write it.
 - **The reference documentation** written against a different layout (journey map, parity register,
   configuration reference), whose paths no longer resolve.
 
