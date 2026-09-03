@@ -6684,7 +6684,7 @@ shipped: |
   old: a stale figure carries its date and says so, while a wrong gate is green and confident. The
   honest instrument here is the date the claim already carries.
 status: shipped
-fixed_in: PENDING
+fixed_in: b7b0343
 severity: minor
 dod:
   - the count matches what `npm test` reports
