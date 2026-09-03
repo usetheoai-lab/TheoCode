@@ -6301,7 +6301,7 @@ shipped: |
   once-a-day interval, the retention floor's refusal, `pickScalars` dropping a key, the retry counter,
   and the diagnostics state.
 status: shipped
-fixed_in: PENDING
+fixed_in: 563fe3e
 severity: major
 dod:
   - reverting `apply: true` turns the suite red
