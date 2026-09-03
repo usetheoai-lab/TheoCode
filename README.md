@@ -164,12 +164,13 @@ shaped what shipped:
   modes and the three sandbox modes carry Codex's semantics.
 
 Beyond what shipped, Codex was the **measuring stick**. The question "do we have parity?" only had
-an honest answer because there was a real implementation to read: 58 slash commands
-(`codex-rs/tui/src/slash_command.rs`), 30 CLI subcommands (`codex-rs/cli/src/main.rs`), the approval
-and sandbox postures, the keymap. Both counts name their file because the figures that stood here
-before — 55 and 27 — matched no source: the study clone is pinned at the commit the parity run read
-(`d52478c`, 2026-08-25), and counting its enums gives 58 and 30, with no hidden or feature-gated
-variant to explain the gap. Two capability gaps we would not have
+an honest answer because there was a real implementation to read: 58 slash commands, 30 CLI
+subcommands, the approval and sandbox postures, the keymap. The two counts are the variants of
+Codex's own `SlashCommand` and `Subcommand` enums, at the commit the parity run read (`d52478c`,
+2026-08-25). They are stated without a path on purpose — the study clone is gitignored, so any path
+into it is one a reader who clones this repository cannot open, and pointing at an unopenable file is
+the defect B-134 was. The figures that stood here before, 55 and 27, matched no source at all; no
+hidden or feature-gated variant explains the gap. Two capability gaps we would not have
 noticed on our own — listing and stopping background PTYs — were found by comparing against it.
 
 **Nothing was copied.** The study clone lived outside the tree, gitignored, read-only, and every

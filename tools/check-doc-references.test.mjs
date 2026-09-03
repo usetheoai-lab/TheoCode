@@ -44,12 +44,17 @@ describe('danglingReferences', () => {
     expect(danglingReferences(['README.md'], { exists: always, ignored: never })).toEqual([])
   })
 
-  it('test_a_deliberately_ignored_path_is_not_dangling', () => {
-    // `.claude/` is local by design. Citing it is a choice about what the reader can see, which is
-    // different from a citation that resolves to nothing.
+  it('test_a_deliberately_ignored_path_is_dangling_too', () => {
+    // REVERSED 2026-09-03, and the reversal is the finding. This assertion used to expect `[]`, on
+    // the reasoning that "`.claude/` is local by design, so citing it is a choice about what the
+    // reader can see". The repository's own practice contradicted that twice in one session: B-134
+    // was a citation to `rules/public-copy.md` and B-151 found the same file cited again, and BOTH
+    // were fixed by deleting the citation and inlining the reasoning — because a reader who clones
+    // cannot open it. A guard whose test says one thing while every fix says the other is protecting
+    // the wrong behaviour.
     expect(
       danglingReferences(['.claude/rules/public-copy.md'], { exists: never, ignored: always }),
-    ).toEqual([])
+    ).toEqual(['.claude/rules/public-copy.md'])
   })
 
   it('test_a_path_the_README_describes_rather_than_cites_is_exempt', () => {
@@ -64,5 +69,33 @@ describe('danglingReferences', () => {
     expect(
       danglingReferences(['AGENTS.md', 'docs/invented.md'], { exists: never, ignored: never }),
     ).toEqual(['docs/invented.md'])
+  })
+})
+
+describe('the two holes measured 2026-09-03', () => {
+  // Hole 1 — the extension list covered only what THIS repository writes, so a citation into a
+  // foreign project sailed through. Found by citing a Rust path in the README while fixing a
+  // different citation defect, in the same session that built this guard.
+  it('test_a_path_into_a_foreign_language_is_still_a_citation', () => {
+    expect(citedPaths('read `codex-rs/tui/src/slash_command.rs` for the enum')).toEqual([
+      'codex-rs/tui/src/slash_command.rs',
+    ])
+  })
+
+  // Hole 2 — `ignored` was an ESCAPE, and a gitignored path is the one case guaranteed unopenable
+  // for everyone who clones. That is precisely the B-134 defect this guard exists to catch, admitted
+  // through the back door.
+  it('test_a_gitignored_path_is_dangling_even_when_it_exists_here', () => {
+    expect(
+      danglingReferences(['.claude/rules/public-copy.md'], {
+        exists: () => true,
+        ignored: () => true,
+      }),
+    ).toEqual(['.claude/rules/public-copy.md'])
+  })
+
+  it('test_a_tracked_file_that_exists_is_still_fine', () => {
+    // Anti-vacuity: flagging everything would satisfy both assertions above.
+    expect(danglingReferences(['README.md'], { exists: () => true, ignored: () => false })).toEqual([])
   })
 })

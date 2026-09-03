@@ -33,7 +33,12 @@ const DESCRIBED_NOT_CITED = new Map([
 ])
 
 /** Backticked paths that look like repository files, not URLs, globs or shell fragments. */
-const PATH_RE = /`([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:md|ts|tsx|mjs|cjs|json|yaml|yml|toml))`/g
+// Foreign extensions (`rs`, `go`, `py`, `rb`, `java`, `sh`) are here deliberately. The list used to
+// hold only what THIS repository writes, so a citation INTO a peer project — the exact thing a
+// parity or provenance note contains — was invisible to the guard. Measured 2026-09-03: a Rust path
+// into the gitignored study clone passed clean.
+const PATH_RE =
+  /`([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:md|ts|tsx|mjs|cjs|json|yaml|yml|toml|rs|go|py|rb|java|sh))`/g
 
 export function citedPaths(markdown) {
   return [...new Set([...markdown.matchAll(PATH_RE)].map((m) => m[1]))]
@@ -49,13 +54,20 @@ export function isIgnored(path, runGit = (args) => execFileSync('git', args, { e
 }
 
 /**
- * A cited path is dangling when it neither exists on disk nor is deliberately ignored.
+ * A cited path is dangling when a person who CLONES this repository cannot open it.
+ *
+ * That is two conditions, and the second was originally written backwards. Absent from disk is the
+ * obvious one. Present but GITIGNORED is the other, and it is worse rather than exempt: the file is
+ * guaranteed missing for every reader who is not sitting at this checkout, permanently. `ignored`
+ * was an escape here until 2026-09-03, which admitted precisely the defect the guard was built for
+ * — B-134 was a citation to `rules/public-copy.md`, and writing it as `.claude/rules/public-copy.md`
+ * would have passed.
  *
  * `exists` and `ignored` are injected so the rule can be tested without a filesystem — the guard
  * that has no test is the one that reports clean over anything.
  */
 export function danglingReferences(paths, { exists = existsSync, ignored = isIgnored } = {}) {
-  return paths.filter((p) => !DESCRIBED_NOT_CITED.has(p) && !exists(p) && !ignored(p))
+  return paths.filter((p) => !DESCRIBED_NOT_CITED.has(p) && (!exists(p) || ignored(p)))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -64,11 +76,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const dangling = danglingReferences(citedPaths(readFileSync(file, 'utf8')))
   if (dangling.length > 0) {
     process.stderr.write(
-      `${file} cites ${String(dangling.length)} path(s) that neither exist nor are ignored:\n` +
+      `${file} cites ${String(dangling.length)} path(s) a reader who clones cannot open:\n` +
         dangling.map((p) => `  ${p}\n`).join('') +
         'A citation that resolves to nothing reads as a record that exists (B-134).\n',
     )
     process.exit(1)
   }
-  if (!quiet) process.stdout.write(`${file}: every cited path resolves or is deliberately ignored\n`)
+  if (!quiet) process.stdout.write(`${file}: every cited path resolves in a fresh clone\n`)
 }
