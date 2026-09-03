@@ -266,6 +266,16 @@ interface ProjectState {
  *
  * B-020 — an entry with no mtime has NO AGE, and the window is the primary guard on this path. It
  * used to arrive here as `mtimeMs = 0`, which computed to ~20 000 days and cleared every window.
+ *
+ * DO NOT delete this line because a mutation test survives it. Measured 2026-09-03: removing it
+ * leaves every case green, because `now() - undefined` is NaN and `NaN > maxAgeDays` is false, so
+ * the entry is spared anyway. The OUTCOME is covered — `fail-open.test.ts` asserts an unreadable
+ * mtime produces no candidate — and what this line adds is that the sparing is INTENDED rather than
+ * a property of NaN comparison that a later refactor could remove without noticing.
+ *
+ * This shape recurred three times in this release (here, `readLastRun`'s NaN branch, and the env
+ * coercion guard) and only one of the three was independently observable. A surviving mutant is
+ * evidence about the test, not about the code.
  */
 function collectableAge(e: ProjectEntry, window: CollectionWindow): number | undefined {
   if (e.mtimeMs === undefined) return undefined
