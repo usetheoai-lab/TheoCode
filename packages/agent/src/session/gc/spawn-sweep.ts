@@ -12,7 +12,21 @@
  * is the mechanism, and it is the only one.
  *
  * What the child runs is the command that ALREADY EXISTS — `sessions gc --all-projects` — not a
- * second implementation of the path that deletes a user's data. The parent keeps the decision: is it
+ * second implementation of the path that deletes a user's data.
+ *
+ * VERIFIED BY RUNNING IT, 2026-09-03, rather than by asserting the string. The tests below pin the
+ * shape of the argv, which proves nothing about whether the CLI accepts it — and a rejected flag
+ * would fail inside a child with `stdio: 'ignore'`, so the collector would silently never collect
+ * while reporting a finished sweep:
+ *
+ *     node dist/theocode.mjs sessions gc --all-projects
+ *       -> DRY-RUN — nothing was removed; 56 projects kept whole; exit 0
+ *     THEOKIT_HOME=<scratch> node dist/theocode.mjs sessions gc --all-projects --apply
+ *       -> APPLIED — 0 artifact(s) removed; exit 0
+ *
+ * The `--apply` form ran against a scratch root rather than the operator's tree. "The dry run
+ * reported zero candidates, so applying is safe" is a deduction, and the two runs enumerate
+ * separately. The parent keeps the decision: is it
  * enabled, is it due, and is this the first sweep (which must not apply, B-139). The child only
  * works.
  */
