@@ -6360,7 +6360,7 @@ shipped: |
   fails 2 tests, forcing every sweep to dry-run fails 6, and dropping the `apply` argument on the way
   to the SDK fails 6.
 status: shipped
-fixed_in: PENDING
+fixed_in: 9ad468d
 severity: major
 dod:
   - the first automatic sweep removes nothing and says what it would have removed
