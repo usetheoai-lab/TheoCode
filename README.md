@@ -49,7 +49,7 @@ no error, and a hook is arbitrary command execution on every tool call (B-086).
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `skills`, `[[hooks]]`, profiles |
+| `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `skills`, `[[hooks]]`, profiles |
 | `~/.theocode/config.toml`         | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's `AGENTS.md` is read after it   |
 | `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's `.theokit/rules/` is read after them               |
