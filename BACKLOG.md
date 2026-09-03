@@ -6590,7 +6590,7 @@ shipped: |
   the sweep would run completely unobserved, which is precisely the "it ran and removed nothing" vs
   "it never ran" ambiguity B-132 exists to remove.
 status: shipped
-fixed_in: PENDING
+fixed_in: 6ca5d71
 severity: major
 dod:
   - the comment states process behaviour that was measured, not deduced
