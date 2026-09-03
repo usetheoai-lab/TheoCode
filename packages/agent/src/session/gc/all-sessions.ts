@@ -118,12 +118,28 @@ async function resolveGuards(
   // from. Returning an empty set here made `KEEP_PER_PROJECT` and the `--keep-last` flag apply
   // exclusively to the projects that were being spared anyway. Neither existing test could see it:
   // both force ALIVE or pass `keepLast: 0`.
-  for (const t of transcripts.slice(0, keepLast)) protectedIds.add(transcriptId(t.name))
+  // B-140 — the quota is spent on DATABLE entries only.
+  //
+  // An entry the collector could not `stat` has `mtimeMs: undefined`, and the sort above reads that
+  // as `Infinity` — so it lands at the FRONT, where `slice(0, keepLast)` spends a slot on it. Those
+  // entries are already safe: `collectableAge` returns undefined without an mtime and the planner
+  // skips them. So the quota was being spent on files that were never at risk, and the stale
+  // transcripts it exists to protect fell through to deletion. Measured: 10 unstattable entries
+  // beside 5 stale ones planned all 5 for removal, at the default quota of 10.
+  //
+  // This is the mirror of the bug B-020 fixed on the line above. `mtimeMs` used to be `0`, which
+  // sorted LAST and dated the file to 1970, so it was collected every window; that comment reasons
+  // about sort position and concludes `keepLast` "could not protect it either". Moving the entry to
+  // the front protected it twice and unprotected its neighbours.
+  const datable = transcripts.filter((t) => t.mtimeMs !== undefined)
+  for (const t of datable.slice(0, keepLast)) protectedIds.add(transcriptId(t.name))
 
   // The registry and pointer guards need a live cwd to consult, so they stay ALIVE-only.
   if (liveness.state === 'DEAD') return { protectedIds, registry: [] }
 
-  if (transcripts[0] !== undefined) protectedIds.add(transcriptId(transcripts[0].name))
+  // Same reason as the quota: an unstattable entry must not consume the most-recent slot either, or
+  // the genuinely newest transcript of a live project loses its guard to a file nobody could read.
+  if (datable[0] !== undefined) protectedIds.add(transcriptId(datable[0].name))
   const pointer = opts.readPointer(liveness.cwd)
   if (pointer !== undefined) protectedIds.add(pointer)
   let registry: RegistryEntry[]

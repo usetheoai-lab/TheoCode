@@ -49,9 +49,31 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
  * because that reason is about CREDENTIAL ROUTING rather than about running a turn — keeping it
  * inline made the caller read as if the routing order were part of the turn loop.
  */
-async function resolveRunTarget(args: ExecRun) {
-  const { composeRun } = await import('../run-composition.js')
-  const { resolveCredentialForModel, routeToCredential } = await import('@theocode/agent/auth')
+/**
+ * The three seams the ordering below depends on, injectable so the order can be ASSERTED.
+ *
+ * B-141 — the order is what `run.ts` calls "the fix", it cost a real user a misdiagnosed turn, and
+ * nothing tested it: it survived as a comment over dynamic imports no test could reach. Production
+ * passes nothing and gets the real modules.
+ */
+export interface RunTargetDeps {
+  readonly resolveCredentialForModel: typeof import('@theocode/agent/auth').resolveCredentialForModel
+  readonly routeToCredential: typeof import('@theocode/agent/auth').routeToCredential
+  readonly composeRun: typeof import('../run-composition.js').composeRun
+}
+
+export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) {
+  const { composeRun, resolveCredentialForModel, routeToCredential } =
+    injected ??
+    (await (async () => {
+      const auth = await import('@theocode/agent/auth')
+      const composition = await import('../run-composition.js')
+      return {
+        composeRun: composition.composeRun,
+        resolveCredentialForModel: auth.resolveCredentialForModel,
+        routeToCredential: auth.routeToCredential,
+      }
+    })())
 
   // The ORDER here is the fix, and it is the TUI's order: route the model id for the credential
   // that will serve it, THEN resolve a credential for the routed id, THEN build on that same id.
