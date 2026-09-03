@@ -5,6 +5,15 @@ All notable changes to this project are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versioning follows [Semantic Versioning](https://semver.org/).
 
+**Work done in an upstream repository is named as such.** This product is built on `@theokit/*`, and
+some entries record a fix that landed there rather than here. Those carry the repository — `theokit`,
+`theokit-sdk`, `theokit-tui` — or say the change moved upstream. Measured 2026-09-03: 31 of the 131
+backlog ids cited in this file belong to an upstream repo, and two entries under `[0.2.1] § Security`
+describe an upstream release workflow as "the release path" with no such marker, which reads as this
+product's own. Those entries are released and stay as written, per the rule against editing published
+history; the convention is stated here so the next one does not repeat it. A reader who goes looking
+for `release.yml` in this repository will not find it, and should not have been sent.
+
 ## [Unreleased]
 
 ### Added
