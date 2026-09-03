@@ -355,3 +355,43 @@ describe('the sweep reports what it could not do instead of failing', () => {
     expect(said.join(' ')).not.toContain('no script')
   })
 })
+
+describe('a stamp that cannot be understood is not a stamp', () => {
+  it('test_a_corrupt_stamp_lets_the_sweep_run_rather_than_blocking_it_forever', () => {
+    // `readLastRun` parses the file into a Date and returns undefined when it is NaN. Only the
+    // valid side had a test, and the branch matters on the path that DELETES user data in both
+    // directions: honouring a garbage date could park the interval in the future and stop
+    // collection permanently, while treating it as absent means the retention policy keeps being
+    // applied. The second is the safe direction, and it is the one asserted here.
+    const root = scratchRoot()
+    mkdirSync(dirname(root), { recursive: true })
+    writeFileSync(join(dirname(root), '.last-session-gc'), 'not a date at all\n')
+
+    const outcome = startSessionSweepInBackground({
+      enabled: true,
+      onReport: () => {},
+      projectsRootOverride: root,
+      spawnSweep: fakeChild,
+    })
+
+    expect(outcome.started, 'a corrupt stamp stopped the collector').toBe(true)
+    expect(outcome.reason, 'a corrupt stamp was read as a real previous run').toBe('first-run-dry')
+  })
+
+  it('test_a_stamp_from_an_hour_ago_still_holds_the_sweep_back', () => {
+    // Anti-vacuity: a reader that discarded every stamp would satisfy the assertion above.
+    const root = scratchRoot()
+    mkdirSync(dirname(root), { recursive: true })
+    writeFileSync(join(dirname(root), '.last-session-gc'), new Date().toISOString())
+
+    const outcome = startSessionSweepInBackground({
+      enabled: true,
+      onReport: () => {},
+      projectsRootOverride: root,
+      spawnSweep: fakeChild,
+    })
+
+    expect(outcome.started).toBe(false)
+    expect(outcome.reason).toBe('too-soon')
+  })
+})

@@ -121,3 +121,39 @@ describe('gitGate on the real path', () => {
     )
   })
 })
+
+describe('a failure git did not explain', () => {
+  it('test_the_message_does_not_trail_an_empty_dash_when_there_is_no_reason', () => {
+    // The other side of the branch that carries B-137's whole point. When git DID say something the
+    // message appends it; when it said nothing — a runner that fails without writing to stderr — the
+    // separator must not be printed with nothing after it. A line ending in " — " reads as truncated
+    // output, which is a second false signal on top of the failure being reported.
+    const warnings: string[] = []
+
+    gitGate(false, {
+      onWarn: (m) => warnings.push(m),
+      onRefuse: () => {},
+      run: () => ({ ok: false, stdout: '' }),
+      reason: '',
+    })
+
+    expect(warnings.join('')).not.toContain(' — ')
+    expect(warnings.join(''), 'the verdict itself went missing').toContain('Not inside a git repository')
+  })
+
+  it('test_the_gate_still_refuses_when_git_gave_no_reason', () => {
+    // Anti-vacuity: a gate that stopped refusing would satisfy the assertion above.
+    let refused: number | undefined
+
+    gitGate(false, {
+      onWarn: () => {},
+      onRefuse: (code) => {
+        refused = code
+      },
+      run: () => ({ ok: false, stdout: '' }),
+      reason: '',
+    })
+
+    expect(refused).toBe(1)
+  })
+})
