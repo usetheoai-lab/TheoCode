@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-139 items — **Open** 1 · **In flight** 0 · **Closed** 138
+140 items — **Open** 1 · **In flight** 0 · **Closed** 139
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (138)
+### Closed (139)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -221,6 +221,7 @@ _None._
 | [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
 | [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
 | [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
+| [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6369,3 +6370,81 @@ dod:
 
 > Registered 2026-09-03. Found in my own change, by comparing the automatic path against the manual
 > one it automates instead of only checking that it worked.
+
+## B-142 — The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an INDEPENDENT adversarial review of this release — the one every phase gate of
+  the originating audit was capped below 0.9 for lacking. It built the tree this repository itself
+  cites as measured (13 269 projects, `filesystem.ts:31-38`) and ran the exact shape of `main.tsx`,
+  with an event-loop lag monitor:
+
+      cold : control returned to the event loop after 37 100 ms
+      warm : 13 213 ms / 9 309 ms / 4 861 ms
+
+  `planAllProjectsOnDisk` is declared `async`, but its body runs synchronously until the first
+  `await`, and `classifyProjects` is invoked EAGERLY while the argument object is built
+  (`filesystem.ts:143`). So `void collectSessionsAutomatically(...)` deferred the tail of a function
+  whose tail was empty.
+
+  This falsified a claim written into the source by B-131 — `main.tsx`: "housekeeping must never be
+  something the operator waits for ... the `void` is the point rather than an oversight" — and the
+  commit message of `daced38`, which argued the unawaited sweep was safe. The CLI was worse-shaped
+  than its own comment admitted: it AWAITED, so `theocode run` printed its answer and then sat for
+  5-37 s before exiting, invisible in a script except as a stall.
+
+  Two more findings from the same review, both mine, both fixed here:
+
+  - `resolveEffectiveConfig` was evaluated while the ARGUMENT object was built, so it threw OUTSIDE
+    the `.catch` the comment beside it called "the belt to its braces". A typo in
+    `~/.theocode/config.toml` — always read, no trust posture required — killed the TUI with an
+    unhandled throw AFTER `render()` had claimed the terminal. Reproduced: `ESCAPED the .catch —
+    synchronous throw`.
+  - `daced38` recorded three guards on the startup race and the third was wrong as written: "a
+    brand-new session is the most-recent, which is protected regardless". `all-sessions.ts:124`
+    returns before the most-recent guard on a DEAD project, so it is ALIVE-only. "Regardless" was
+    false and the comment now says so.
+
+  One of the review's findings was REFUTED and is recorded as such: it reported that the collector's
+  report paints over the Ink frame. `installStderrGuard` (`main.tsx:31`, B-104) redirects
+  `process.stderr.write` to `.theokit/tui-stderr.log` precisely so a warning cannot corrupt the
+  frame, and it is installed before the call.
+why_now: |
+  B-131 turned this on by default in the same release. A 5-37 second freeze at every start, once a
+  day, on the tree size this repository measured, is not a cost anyone opted into.
+shipped: |
+  SHIPPED 2026-09-03. The sweep runs in a CHILD PROCESS and the parent returns immediately. There is
+  no in-process fix: the work is synchronous JavaScript inside a dependency, and no scheduling makes
+  a synchronous block yield.
+
+  The child runs `sessions gc --all-projects`, the command that already exists, so the path that
+  deletes user data still has exactly one implementation. The parent keeps the DECISION — enabled,
+  due, and first-sweep-must-not-apply — extracted into `sweepDecision` so the two could not drift.
+
+  NOT detached, and the CLI no longer triggers at all. A one-shot process exits before the child
+  finishes and would kill it halfway, so collection belongs to the long-lived surface; `sessions gc`
+  remains the explicit command it always was.
+
+  Deletions the change forced, and taken rather than suppressed: with the CLI trigger gone and the
+  TUI spawning, `maybeCollectSessions` and `collectSessionsAutomatically` had no caller. knip said
+  so. Dead code with tests is still dead code, so both went, and `sweepDecision` kept its own tests
+  because it carries the look-first property.
+
+  Found while writing those: an unusable stamp read as "a previous run happened", so a corrupted file
+  would skip the look-first dry run and apply straight away. It is treated as NO stamp in both
+  answers now.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - the trigger returns without doing the sweep, and a test measures that it returns
+  - the first sweep still does not apply, through the child
+  - a malformed config file cannot take the TUI down
+  - the delete path still has one implementation
+
+> Registered 2026-09-03 from an independent adversarial review — the check the originating audit
+> declared missing four times and never performed.

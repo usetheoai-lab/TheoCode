@@ -11,7 +11,7 @@ import { setDiagnosticsSink } from '@theokit/agents'
 
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 import { setWorkingDirectory, workingDirectory } from './working-directory.js'
-import { collectSessionsAutomatically } from '@theocode/agent/session'
+import { startSessionSweepInBackground } from '@theocode/agent/session'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
 
 installDiagnosticSink(setDiagnosticsSink)
@@ -41,24 +41,34 @@ process.once('exit', restoreTerminalTitle)
 
 const instance = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
 
-// B-131 / B-132 — AFTER the render call and deliberately NOT awaited: the retention policy already
-// declared 30-day transcripts collectable and nothing applied it, but housekeeping must never be
-// something the operator waits for. `collectSessionsAutomatically` runs at most once a day, never
-// throws, and reports through the diagnostics sink; the `void` is the point rather than an
-// oversight, and the `.catch` is the belt to its braces.
-void collectSessionsAutomatically({
-  enabled: resolveEffectiveConfig({ cwd: workingDirectory() }).session_gc,
-  onReport: (line) => {
-    process.stderr.write(`${line}\n`)
-  },
-}).catch((err: unknown) => {
-  // `maybeCollectSessions` converts every failure into a report and is tested for it, so reaching
-  // here means that contract broke. Reporting it is the point: an empty handler would turn a broken
-  // invariant into silence, which is the shape this whole change exists to remove.
+// B-131 / B-132 / B-139 / B-142 — collection runs in a CHILD PROCESS, after the first frame.
+//
+// It used to run in this process behind a `void`, and that was measured as a 4.9-37.1 s freeze on
+// the 13 269-project tree this repository cites: the sweep is synchronous JavaScript inside a
+// dependency, so `void` deferred the tail of a function whose tail was empty. A child is the only
+// mechanism that makes "housekeeping never delays a start" true rather than asserted.
+//
+// The whole call is wrapped, because `resolveEffectiveConfig` THROWS on a malformed `~/.theocode/
+// config.toml` and it is evaluated while the argument object is built — before any promise exists,
+// so a `.catch` could never have seen it. A typo in a config file must not take the terminal down
+// after `render()` has already claimed it.
+try {
+  const outcome = startSessionSweepInBackground({
+    enabled: resolveEffectiveConfig({ cwd: workingDirectory() }).session_gc,
+    // stderr is redirected to `.theokit/tui-stderr.log` by `installStderrGuard` above (B-104), so
+    // this is the diagnostics channel rather than a write over the Ink frame.
+    onReport: (line) => {
+      process.stderr.write(`${line}\n`)
+    },
+  })
+  if (!outcome.started && outcome.reason !== 'too-soon' && outcome.reason !== 'disabled') {
+    process.stderr.write(`[sessions gc] not started: ${outcome.reason}\n`)
+  }
+} catch (err) {
   process.stderr.write(
-    `[sessions gc] collector broke its no-throw contract: ${err instanceof Error ? err.message : String(err)}\n`,
+    `[sessions gc] skipped — ${err instanceof Error ? err.message : String(err)}\n`,
   )
-})
+}
 
 await instance.waitUntilExit()
 await drainAll()

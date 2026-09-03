@@ -1,10 +1,11 @@
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { projectsRoot } from '@theokit/agents/session'
 
-import { maybeCollectSessions, type AutoGcOutcome } from './auto.js'
-import { planAllProjectsOnDisk, runAllProjectsOnDisk } from './filesystem.js'
+import { sweepDecision } from './auto.js'
+import { buildSweepCommand } from './spawn-sweep.js'
 
 /**
  * The real wiring for B-131 / B-132: a stamp on disk, and the collector that already existed.
@@ -41,47 +42,120 @@ function writeLastRun(root: string, at: Date): void {
   writeFileSync(path, `${at.toISOString()}\n`)
 }
 
-export interface AutoCollectOptions {
-  /** `session_gc` from the resolved config. */
+/**
+ * Start the sweep in a CHILD PROCESS and return immediately (B-142).
+ *
+ * The in-process form above blocks the event loop for as long as the sweep takes — measured at 37.1 s
+ * cold and 4.9-13.2 s warm on the 13 269-project tree this repository cites — because the work is
+ * synchronous JavaScript inside a dependency and `void` defers only the tail of a function whose tail
+ * is empty. A child process is the only mechanism that makes "housekeeping never delays a start"
+ * true rather than asserted.
+ *
+ * The parent keeps the decision and the stamp; the child runs `sessions gc --all-projects`, the
+ * command that already exists, so the delete path has exactly one implementation.
+ *
+ * NOT detached. The child is bound to this process's lifetime, which is right for the TUI — a
+ * long-lived session outlives the sweep — and is why the CLI does not use this: a one-shot process
+ * exits before the child finishes and would kill it halfway. The CLI keeps `sessions gc` as the
+ * explicit command it always was.
+ */
+export function startSessionSweepInBackground(opts: {
   readonly enabled: boolean
   readonly onReport: (line: string) => void
-  /** Tests override these; production does not. */
   readonly now?: Date
   readonly projectsRootOverride?: string
   readonly intervalHours?: number
+  readonly spawnSweep?: (cmd: { command: string; args: readonly string[] }) => {
+    on: (event: 'close', cb: (code: number | null) => void) => void
+  }
+}): { readonly started: boolean; readonly reason: string } {
+  const root = opts.projectsRootOverride ?? projectsRoot()
+  const now = opts.now ?? new Date()
+
+  const decision = sweepDecision({
+    enabled: opts.enabled,
+    now,
+    intervalHours: opts.intervalHours ?? DEFAULT_INTERVAL_HOURS,
+    lastRun: readLastRunSafely(root),
+  })
+  if (!decision.run) return { started: false, reason: decision.reason }
+
+  const command = commandOrUndefined(!decision.firstRun, opts.onReport)
+  if (command === undefined) return { started: false, reason: 'unspawnable' }
+
+  stampTolerantly(root, now, opts.onReport)
+
+  try {
+    const child =
+      opts.spawnSweep?.(command) ??
+      spawn(command.command, [...command.args], { stdio: 'ignore' })
+    child.on('close', (code) => {
+      opts.onReport(sweepFinishedLine(decision.firstRun, code))
+    })
+    return { started: true, reason: decision.firstRun ? 'first-run-dry' : 'applying' }
+  } catch (err) {
+    opts.onReport(`[sessions gc] could not start the background sweep: ${reasonOf(err)}`)
+    return { started: false, reason: 'spawn-failed' }
+  }
 }
 
-export async function collectSessionsAutomatically(
-  opts: AutoCollectOptions,
-): Promise<AutoGcOutcome> {
-  const root = opts.projectsRootOverride ?? projectsRoot()
+/** A stamp that cannot be read is the same as no stamp: sweep, rather than refuse to. */
+function readLastRunSafely(root: string): Date | undefined {
+  try {
+    return readLastRun(root)
+  } catch {
+    return undefined
+  }
+}
 
-  return maybeCollectSessions({
-    enabled: opts.enabled,
-    now: opts.now ?? new Date(),
-    intervalHours: opts.intervalHours ?? DEFAULT_INTERVAL_HOURS,
-    readLastRun: () => readLastRun(root),
-    writeLastRun: (at) => {
-      writeLastRun(root, at)
-    },
-    // `planAllProjectsOnDisk` and NOT `planSessionGCAllProjects` directly, which matters more than
-    // it looks: the former is what supplies `hasLiveWriter: (t) => sessionHasWriter(t)`
-    // (`filesystem.ts:122`), and `all-sessions.ts:284` refuses any transcript with a live writer as
-    // a candidate. The TUI fires this UNAWAITED at startup, so that guard is what makes the race
-    // with the session the operator is about to start safe. Two more cover it: the plan enumerates
-    // once up front, so a session created afterwards is not in it, and a brand-new session is the
-    // most-recent, which is protected regardless.
-    //
-    // Verified by READING those three paths, not by a test — a live-writer race needs a real lock
-    // held by a real second process, and a test that faked it would assert the fake.
-    plan: () => planAllProjectsOnDisk({ projectsRoot: root }),
-    // `apply` is the whole difference between collecting and reporting: `runAllProjectsOnDisk` is a
-    // DRY RUN unless told otherwise, so hard-coding false would produce a sweep that reports
-    // removals every day and never removes anything — green, silent and useless (B-138).
-    //
-    // It comes from `maybeCollectSessions`, which passes false for the FIRST sweep only, so the
-    // operator sees what the policy would take before it takes it (B-139).
-    run: (plan, apply) => runAllProjectsOnDisk(plan, { apply, projectsRoot: root }),
-    onReport: opts.onReport,
-  })
+function reasonOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * What the operator reads when the child finishes.
+ *
+ * Extracted because composing it inline pushed the caller past the complexity gate, and because the
+ * first-run sentence is the one that has to tell someone how to opt out — burying it in a nested
+ * ternary is how that sentence gets lost in the next edit.
+ */
+function sweepFinishedLine(firstRun: boolean, code: number | null): string {
+  const exit = code === 0 || code === null ? '' : ` with exit ${String(code)}`
+  if (!firstRun) return `[sessions gc] background sweep finished${exit}`
+  return (
+    `[sessions gc] first background sweep finished${exit} — DRY RUN, nothing was removed. ` +
+    'The next one will apply; set `session_gc = false` to keep collection manual.'
+  )
+}
+
+/**
+ * The command, or `undefined` with the reason reported.
+ *
+ * Refusing to spawn is the safe direction: the alternative is an idle Node REPL that never exits,
+ * one leaked process per launch, doing nothing.
+ */
+function commandOrUndefined(
+  apply: boolean,
+  onReport: (line: string) => void,
+): { command: string; args: readonly string[] } | undefined {
+  try {
+    return buildSweepCommand({ apply, execPath: process.execPath, script: process.argv[1] })
+  } catch (err) {
+    onReport(`[sessions gc] ${reasonOf(err)}`)
+    return undefined
+  }
+}
+
+/**
+ * Record the attempt, and carry on if the state directory will not take it.
+ *
+ * A read-only home must not mean the retention policy stops being applied; it means the interval is
+ * not remembered, which is the smaller of the two problems.
+ */
+function stampTolerantly(root: string, now: Date, onReport: (line: string) => void): void {
+  try {
+    writeLastRun(root, now)
+  } catch (err) {
+    onReport(`[sessions gc] could not record the run time: ${reasonOf(err)}`)
+  }
 }
