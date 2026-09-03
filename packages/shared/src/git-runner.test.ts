@@ -51,6 +51,27 @@ describe('createGitRunner', () => {
     expect(warnings[0], 'the warning does not say which command failed').toContain('rev-parse')
   })
 
+  it('test_the_warning_carries_what_git_said_and_not_the_wrapper_around_it', () => {
+    // The half the assertions above could not see. MEASURED 2026-09-03: mutating `failureReason` to
+    // return `err.message` instead of the captured stderr left every case here green, because both
+    // strings contain `fatal: Needed a single revision` — Node appends stderr to the message.
+    //
+    // What differs is the noise in front of it. `err.message` opens with
+    // "Command failed: git rev-parse --verify …", which repeats the command this warning ALREADY
+    // names, so the operator reads the invocation twice before reaching the one line that explains
+    // anything. That duplication is what the docblock means by swapping one uninformative string for
+    // another, and it is the only observable difference between the two branches.
+    const warnings: string[] = []
+    const git = createGitRunner({ timeoutMs: 10_000, onWarn: (m) => warnings.push(m) })
+
+    git(['rev-parse', '--verify', 'refs/heads/branch-that-does-not-exist-4f2a'])
+
+    expect(warnings[0], "git's own words did not reach the operator").toContain('fatal:')
+    expect(warnings[0], 'the generic wrapper was reported instead of what git said').not.toContain(
+      'Command failed:',
+    )
+  })
+
   it('test_the_timeout_is_the_callers_to_choose', () => {
     // The duplicated 10_000 was the other half of the finding. A caller that needs a different bound
     // must be able to say so without editing a constant in a third file.

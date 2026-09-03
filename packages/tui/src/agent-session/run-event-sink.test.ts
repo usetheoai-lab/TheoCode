@@ -13,12 +13,19 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import {
+  currentMcpFailures,
+  resetMcpFailures,
+  startMcpFailureTurn,
+} from './mcp-failure-record.js'
 import { currentAttempts, resetRetryRecord, startRetryTurn } from './retry-record.js'
 import { runEventSink } from './run-event-sink.js'
 
 beforeEach(() => {
   resetRetryRecord()
   startRetryTurn()
+  resetMcpFailures()
+  startMcpFailureTurn()
 })
 
 describe('runEventSink', () => {
@@ -35,9 +42,21 @@ describe('runEventSink', () => {
     expect(currentAttempts()).toBe(0)
   })
 
+  it('test_an_mcp_failure_event_reaches_the_mcp_record', () => {
+    // The half this file was written to protect and did NOT. Measured 2026-09-03: replacing the
+    // mcpFailureSink call with a no-op left every case here green, because the only MCP assertion
+    // was a NEGATIVE one about the retry count. Half a fan-out asserted is not a fan-out asserted.
+    runEventSink({ type: 'mcp_server_failed', serverName: 'x', error: 'y' } as never)
+
+    expect(
+      currentMcpFailures().map((f) => f.serverName),
+      'the MCP half of the fan-out was not wired',
+    ).toContain('x')
+  })
+
   it('test_an_mcp_failure_event_does_not_disturb_the_retry_count', () => {
     // The two records read different members of one stream; feeding one must not move the other.
-    runEventSink({ type: 'mcp_server_failed', server: 'x', error: 'y' } as never)
+    runEventSink({ type: 'mcp_server_failed', serverName: 'x', error: 'y' } as never)
 
     expect(currentAttempts()).toBe(0)
   })
