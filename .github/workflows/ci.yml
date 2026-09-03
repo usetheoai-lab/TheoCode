@@ -364,6 +364,35 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run depcruise
 
+  # B-136 — the build had been broken and nothing noticed, because no job ran it. `npm run build`
+  # could not resolve `@theokit/sdk`, so `dist/theocode.mjs` could not be produced and the smoke test
+  # the README offers as the check that "touches neither the network nor a credential" was
+  # unrunnable by anyone who cloned. Declaring the dependency fixed the day; this job is what stops
+  # it recurring, and it runs the README's own command rather than a proxy for it.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      # The artifacts, asserted rather than assumed: esbuild exits 0 while writing nothing if its
+      # entry point resolves to an empty module, and `provider-catalog.json` is a COPY step whose
+      # failure would silently disable auto-compaction in every model mode.
+      - name: The build produced the artifacts it claims
+        run: |
+          set -euo pipefail
+          for f in dist/theocode.mjs dist/provider-catalog.json dist/acp-entry.mjs; do
+            test -s "$f" || { echo "missing or empty: $f" >&2; exit 1; }
+          done
+      # The README's smoke test, verbatim. It touches neither the network nor a credential.
+      - run: node dist/theocode.mjs sessions gc
+
   crossval:
     runs-on: ubuntu-latest
     timeout-minutes: 15

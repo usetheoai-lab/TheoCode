@@ -67,20 +67,19 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-136 items — **Open** 2 · **In flight** 0 · **Closed** 134
+136 items — **Open** 1 · **In flight** 0 · **Closed** 135
 
-### Open (2)
+### Open (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
-| [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run----) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `triaged` | major |
 
 ### In flight (0)
 
 _None._
 
-### Closed (134)
+### Closed (135)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -218,6 +217,7 @@ _None._
 | [`B-133`](#b-133--no-reliability-target-is-declared-anywhere---x) | No reliability target is declared anywhere | `shipped` | minor |
 | [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository---x) | `README.md` defers to an ADR file that does not exist in the repository | `shipped` | minor |
 | [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
+| [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run---x) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6104,7 +6104,7 @@ dod:
 
 > Registered 2026-09-03, found while fixing B-128 rather than by the audit that produced it.
 
-## B-136 — `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run   [ ]
+## B-136 — `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run   [x]
 
 domain: theocode
 repo: TheoCode
@@ -6136,7 +6136,38 @@ why_now: |
   Found while validating B-131's wiring, not by the audit that produced the other items. It is
   registered rather than fixed in the same pass because it is unrelated to those findings and its
   remedy touches dependency resolution, which deserves its own change and its own verification.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03, in its own change as this block said it should be.
+
+  The cause was a declaration, not a resolution trick. `tools/build-cli.mjs` reads
+  `provider-catalog.json` out of `@theokit/sdk`, and the root package never declared that dependency
+  — it was relying on the SDK being hoisted into the root `node_modules` as a transitive of
+  `@theokit/agents`. pnpm does not hoist it, and pnpm is RIGHT: you may not resolve what you did not
+  declare. Neither `@theokit/agents` nor `@theokit/sdk` resolves from `tools/`, and the ESM-only
+  conditional exports mean `createRequire` cannot reach them through the workspace packages either.
+
+  So the fix is one line — `@theokit/sdk` as a root devDependency, pinned to `5.0.0-next.1`, the same
+  exact version `pnpm-workspace.yaml` already overrides to. The installed tree does not change; what
+  changes is that the build's real use is written down. `packages/*/src` still imports nothing from
+  the SDK, so the greeting test that asserts the product does not claim an SDK it never imports is
+  untouched.
+
+  THE ACTUAL FIX IS THE GATE. This broke and nobody noticed because CI ran typecheck, test, lint,
+  depcruise and crossval — and no build. A `build` job now runs `pnpm run build`, asserts the three
+  artifacts are present and non-empty (esbuild exits 0 while writing nothing if its entry resolves to
+  an empty module, and the catalog is a COPY step whose failure silently disables auto-compaction),
+  and then runs the README's smoke test verbatim rather than a proxy for it.
+
+  knip reports the dependency as unused because the reference is
+  `createRequire(...).resolve('@theokit/sdk/package.json')` — the runtime-computed specifier its own
+  config warns about. Recorded in `knip.jsonc` with the reason, which is what that file prescribes,
+  rather than left as a standing warning: a gate that always prints something is a gate people stop
+  reading.
+
+  Verified end to end: build produces all three artifacts, `node dist/theocode.mjs sessions gc` exits
+  0, lint fully clean with no remaining knip output.
+status: shipped
+fixed_in: (this change)
 severity: major
 dod:
   - `npm run build` produces `dist/theocode.mjs` in a clean checkout

@@ -56,6 +56,18 @@
     ".": {
       "entry": ["tools/**/*.test.mjs"],
       "project": ["tools/**/*.mjs", "*.ts", "*.mjs"],
+      // B-136 — `@theokit/sdk` IS used, by `tools/build-cli.mjs`, and knip cannot see it: the
+      // reference is `createRequire(import.meta.url).resolve('@theokit/sdk/package.json')`, which is
+      // the runtime-computed specifier the note at the top of this file warns about. The build copies
+      // `provider-catalog.json` out of that package, and without the copy auto-compaction is silently
+      // disabled in every model mode.
+      //
+      // It is declared at the root because the root is what uses it. Nothing in `packages/*/src`
+      // imports the SDK — it arrives under `@theokit/agents` as the pinned override — and the build
+      // tool relying on that hoisting is what left `npm run build` unable to resolve it at all.
+      // Recorded here rather than left as a standing warning, because a gate that always prints
+      // something is a gate people stop reading.
+      "ignoreDependencies": ["@theokit/sdk"],
     },
     "packages/agent": {
       "entry": ["src/**/*.test.ts"],
