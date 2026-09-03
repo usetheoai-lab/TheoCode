@@ -103,12 +103,23 @@ function empty(): Record<CollectableKind, number> {
   return { transcript: 0, 'lock-file': 0, 'lock-directory': 0, tmp: 0, registry: 0 }
 }
 
+/**
+ * Either the guards, or WHICH read failed.
+ *
+ * B-143 moved the pointer read inside the guard that already wrapped the registry read, and left the
+ * caller reporting `registry unavailable` for both. A widened catch with an unwidened message sends
+ * the operator to the wrong file, so the failure carries its own name.
+ */
+type GuardResult =
+  | { protectedIds: Set<string>; registry: RegistryEntry[] }
+  | { failedRead: 'pointer' | 'registry' }
+
 async function resolveGuards(
   liveness: ReturnType<PlanAllOptions['classify']>,
   transcripts: readonly ProjectEntry[],
   keepLast: number,
   opts: PlanAllOptions,
-): Promise<{ protectedIds: Set<string>; registry: RegistryEntry[] } | undefined> {
+): Promise<GuardResult> {
   const protectedIds = new Set<string>()
   if (liveness.state !== 'ALIVE' && liveness.state !== 'DEAD') {
     return { protectedIds, registry: [] }
@@ -153,12 +164,14 @@ async function resolveGuards(
   // Returning undefined skips THIS project and reports it, which is what the caller already does for
   // an unavailable registry. The safe direction is kept where it belongs and stops being contagious.
   let registry: RegistryEntry[]
+  let reading: 'pointer' | 'registry' = 'pointer'
   try {
     const pointer = opts.readPointer(liveness.cwd)
     if (pointer !== undefined) protectedIds.add(pointer)
+    reading = 'registry'
     registry = await opts.listRegistry(liveness.cwd)
   } catch {
-    return undefined
+    return { failedRead: reading }
   }
   for (const e of registry) if (e.archived !== true) protectedIds.add(e.agentId)
   return { protectedIds, registry }
@@ -204,8 +217,8 @@ async function planOneProject(
   const idsOnDisk = new Set(transcripts.map((t) => transcriptId(t.name)))
 
   const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
-  if (guards === undefined) {
-    errors.push(`${project}: registry unavailable — project skipped`)
+  if ('failedRead' in guards) {
+    errors.push(`${project}: ${guards.failedRead} unavailable — project skipped`)
     return
   }
   const { protectedIds, registry } = guards

@@ -82,6 +82,37 @@ describe('a failing pointer read is isolated to its project', () => {
     expect(plan.errors.join(' ')).toContain('broken')
   })
 
+  // The message names the READ that failed, not just the project.
+  //
+  // B-143 widened what this catch covers — the pointer read moved inside the guard that already
+  // wrapped the registry read — and the message it reports was left saying `registry unavailable`.
+  // An operator whose pointer file is unreadable is then sent to look at the registry. Widening a
+  // catch without widening its message is how a diagnostic starts pointing at the wrong file.
+  it('test_a_failing_pointer_read_is_not_reported_as_a_registry_problem', async () => {
+    const plan = await planWith((cwd) => (cwd === '/cwd/broken' ? eacces() : undefined))
+
+    expect(plan.errors.join(' '), 'the pointer failed and the message blamed the registry').toContain(
+      'pointer',
+    )
+  })
+
+  it('test_a_failing_registry_read_still_names_the_registry', async () => {
+    // The other half, so the fix cannot be "rename it to pointer and move on".
+    const plan = await planSessionGCAllProjects({
+      projectsRoot: '/s',
+      now: () => NOW,
+      listProjects: () => ['broken'],
+      listProject: () => stale,
+      classify: (p: string) => ({ state: 'ALIVE', cwd: `/cwd/${p}` }),
+      listRegistry: async () => eacces(),
+      hasLiveWriter: () => false,
+      readPointer: () => undefined,
+      keepLast: 0,
+    } as never)
+
+    expect(plan.errors.join(' ')).toContain('registry')
+  })
+
   it('test_a_healthy_tree_still_collects_everything', async () => {
     // Anti-vacuity: skipping every project would satisfy the assertions above.
     const plan = await planWith(() => undefined)
