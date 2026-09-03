@@ -188,6 +188,14 @@ async function planOneProject(
   }
 
   const dir = `${opts.projectsRoot}/${project}`
+  // Newest first, BY MTIME rather than by id — and the reason is a decision nobody wrote down until
+  // an audit named it (SD-07.2). Session ids are random UUIDs handed out by the SDK
+  // (`session-ops.ts:52`), so they carry no order at all: sorting by name would produce an arbitrary
+  // permutation that LOOKS deterministic. The filesystem timestamp is the only ordering signal this
+  // layer has, which is why `keepLast` has to reason about entries that cannot be `stat`ed — the
+  // whole class of bug B-140 fixed below exists downstream of this choice.
+  //
+  // `localeCompare` is the tiebreaker so equal mtimes still yield a stable order.
   const transcripts = entries
     .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
     .sort(
