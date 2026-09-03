@@ -3792,6 +3792,32 @@ why_now: |
   The 9-of-10 result is the measured proof that a first-class tool family collapses a product's
   cost. The costing showed the agent core and both surfaces transfer at 1-2/5 to an SRE product;
   the tools are where the work actually is, and they are absent.
+re_measured: |
+  RE-MEASURED 2026-09-03, because the evidence above was three weeks old and this item is `triaged` —
+  a status that says "measured", which stops being true as the measurement ages.
+
+  THE SUPPORTING NUMBERS DECAYED, in both figures and in the example they rest on:
+
+    "9 of 10 tools come from `@theokit/agents/tools`"  -> the product now wires 18 framework tool
+                                                          factories, not 9
+    "only `view_image` is local"                       -> `view_image` is no longer local. The local
+                                                          53-line implementation was deleted this
+                                                          release and replaced by the framework's
+                                                          `createViewImageTool`
+
+  So the sentence that carried the argument is now false in its own terms: there is no "1 of 10"
+  local tool left to point at.
+
+  THE CORE CLAIM SURVIVES, and is stronger than when it was filed. `@theokit/agents@12.1.0` exports
+  22 tool factories — apply_patch, current_time, delegate, edit_file, git_diff, git_status, glob,
+  interactive_shell, list_dir, plan_mode, question, read_file, run_vitest, search_text, shell,
+  todolist, update_plan, view_image, web_fetch, web_search, write_file, write_stdin — and NONE is
+  infrastructure-shaped. A grep for cluster / metric / log / trace / alert / incident / kube / prom
+  across its declarations returns nothing.
+
+  The item stays `triaged`: the premise holds on a fresh measurement. What changed is that its
+  rhetorical hook ("9 of 10") is gone, and the honest form of the argument is the 22-of-22 absence
+  rather than the ratio.
 progress_2026_08_11: |
   BULLET 2 SHIPPED — the load-bearing one. `withBlastRadius` / `describeAction` let any tool declare
   the scope it reaches and the reversibility of its action, and `evaluateBlastRadius` (B-101) gates
