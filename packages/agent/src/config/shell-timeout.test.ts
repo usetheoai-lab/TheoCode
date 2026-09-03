@@ -55,8 +55,33 @@ describe('shell_timeout_ms is reachable', () => {
   it('test_a_non_positive_timeout_fails_loud_instead_of_disabling_the_kill', () => {
     // Zero and negative are the dangerous values: `execFile` treats 0 as "no timeout", so a typo
     // would silently remove the bound on an arbitrary user command rather than shorten it.
+    //
+    // The MESSAGE is asserted, not only the type. `rules/testing.md` § 4.1 asks a negative case to
+    // pin the specific typed error AND its message, and the reason bites here: a ConfigError naming
+    // some other key would satisfy `toThrow(ConfigError)` while sending the operator to the wrong
+    // line of their config.
     expect(() => resolveConfig({ user: { shell_timeout_ms: 0 } })).toThrow(ConfigError)
-    expect(() => resolveConfig({ user: { shell_timeout_ms: -1 } })).toThrow(ConfigError)
+    expect(() => resolveConfig({ user: { shell_timeout_ms: 0 } })).toThrow(/shell_timeout_ms/)
+    expect(() => resolveConfig({ user: { shell_timeout_ms: -1 } })).toThrow(/shell_timeout_ms/)
+  })
+
+  it('test_a_non_numeric_environment_value_is_refused_by_name', () => {
+    // The uncovered half of `numberFromEnv`: anything that is not a finite number is passed THROUGH
+    // as the raw string, so the schema rejects it by name instead of the knob resolving to NaN. A
+    // NaN timeout is the same hazard as 0 — execFile would not bound the command — reached by a typo
+    // rather than by a wrong number.
+    expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: 'ten seconds' } })).toThrow(
+      ConfigError,
+    )
+    expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: 'ten seconds' } })).toThrow(
+      /shell_timeout_ms/,
+    )
+  })
+
+  it('test_an_empty_environment_value_is_refused_rather_than_read_as_zero', () => {
+    // `Number('')` is 0, and 0 means "no timeout" to execFile. The guard is the length check in
+    // `numberFromEnv`; without it an exported-but-empty variable would remove the bound.
+    expect(() => resolveConfig({ env: { [ENV_SHELL_TIMEOUT_MS]: '' } })).toThrow(ConfigError)
   })
 
   it('test_a_fractional_timeout_is_refused', () => {
