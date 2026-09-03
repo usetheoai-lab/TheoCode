@@ -19,13 +19,20 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { CLIPBOARD_TIMEOUT_MS, copyToClipboard } from './clipboard.js'
+import { CLIPBOARD_TIMEOUT_MS, clipboardSpawnOptions, copyToClipboard } from './clipboard.js'
 import { ClipboardWriteError } from './clipboard-write-error.js'
-import { DIFF_TIMEOUT_MS } from './commands/command-content.js'
+import { DIFF_TIMEOUT_MS, diffSpawnOptions } from './commands/command-content.js'
 
 describe('the clipboard write is bounded', () => {
   it('test_it_declares_a_timeout', () => {
     expect(CLIPBOARD_TIMEOUT_MS).toBeGreaterThan(0)
+  })
+
+  it('test_the_bound_actually_REACHES_spawnSync', () => {
+    // A mutation check found this missing: the test suite asserted the constant existed and never
+    // that it was passed, so deleting `timeout:` from the call left everything green. That is the
+    // same defect as the collector's `apply: true`, twice in one release.
+    expect(clipboardSpawnOptions('x').timeout).toBe(CLIPBOARD_TIMEOUT_MS)
   })
 
   it('test_the_bound_is_generous_enough_for_a_real_clipboard', () => {
@@ -58,6 +65,10 @@ describe('the clipboard write is bounded', () => {
 describe('the diff panel subprocesses are bounded', () => {
   it('test_it_declares_a_timeout', () => {
     expect(DIFF_TIMEOUT_MS).toBeGreaterThan(0)
+  })
+
+  it('test_the_bound_actually_REACHES_spawnSync', () => {
+    expect(diffSpawnOptions().timeout).toBe(DIFF_TIMEOUT_MS)
   })
 
   it('test_the_bound_matches_the_one_the_review_path_already_uses', () => {

@@ -240,20 +240,22 @@ function alignedRows(rows: readonly (readonly [string, string])[]): string {
  */
 export const DIFF_TIMEOUT_MS = 10_000
 
+/**
+ * The options both `git diff` calls are made with, as a value a test can read.
+ *
+ * Same reason as the clipboard's: a constant that never reaches the call is the same as no bound,
+ * and asserting the constant alone is how that goes unnoticed.
+ */
+export function diffSpawnOptions(): { cwd: string; encoding: 'utf8'; timeout: number } {
+  return { cwd: workingDirectory(), encoding: 'utf8', timeout: DIFF_TIMEOUT_MS }
+}
+
 export function diffPanel(): ContentPanel | undefined {
-  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], {
-    cwd: workingDirectory(),
-    encoding: 'utf8',
-    timeout: DIFF_TIMEOUT_MS,
-  })
+  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], diffSpawnOptions())
   // A timeout leaves `status` null, which is not 0 — so a killed diff renders no panel rather than
   // an empty one claiming a clean tree.
   if (r.status !== 0) return undefined
-  const detail = spawnSync('git', ['diff', 'HEAD'], {
-    cwd: workingDirectory(),
-    encoding: 'utf8',
-    timeout: DIFF_TIMEOUT_MS,
-  })
+  const detail = spawnSync('git', ['diff', 'HEAD'], diffSpawnOptions())
   const stat = r.stdout.trim()
   const patch = detail.stdout
   if (stat.length === 0 && patch.trim().length === 0) {
