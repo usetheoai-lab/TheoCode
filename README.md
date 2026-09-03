@@ -107,6 +107,12 @@ without a metrics pipeline and falsifiable by a test:
   raising them, and sweeps at most once a day.
 - **The delete path fails towards keeping.** What the collector cannot classify is kept, and a
   retention window below the floor is refused rather than honoured.
+- **Deletion is permanent, and that is why the guards above are the whole safety net.** Collection
+  calls `unlink`; there is no trash, no quarantine and no restore procedure for the transcript tree.
+  A trash directory was rejected rather than overlooked — it would grow without a bound of its own,
+  trading a failure mode the guards already cover for one nothing does. What the automation buys
+  instead is a first run that is always a dry run, so the first thing it ever does is tell you what
+  it would have removed.
 
 Each bullet is covered by a test, and that was checked rather than asserted — writing this section is
 what revealed that the retention floor, a guard on the delete path, had no test at all. The list is
