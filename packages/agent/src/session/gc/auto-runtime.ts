@@ -112,15 +112,7 @@ export function startSessionSweepInBackground(opts: {
     const child =
       opts.spawnSweep?.(command) ??
       spawn(command.command, [...command.args], { ...command.options, stdio: [...command.options.stdio] })
-    // B-150 — the child's own summary line is what carries the counts two DoDs require. Collected
-    // rather than displayed: piping captures it, and the parent decides where it goes.
-    let said = ''
-    child.stdout?.on('data', (chunk) => {
-      said += String(chunk)
-    })
-    child.on('close', (code) => {
-      opts.onReport(sweepFinishedLine(decision.firstRun, code, said))
-    })
+    reportWhenFinished(child, decision.firstRun, opts.onReport)
     return { started: true, reason: decision.firstRun ? 'first-run-dry' : 'applying' }
   } catch (err) {
     opts.onReport(`[sessions gc] could not start the background sweep: ${reasonOf(err)}`)
@@ -198,4 +190,30 @@ function stampTolerantly(root: string, now: Date, onReport: (line: string) => vo
   } catch (err) {
     onReport(`[sessions gc] could not record the run time: ${reasonOf(err)}`)
   }
+}
+
+/**
+ * Wire the child's reporting: collect what it says, and report once it is done.
+ *
+ * B-150 — the child's own summary line is what carries the counts two Definitions of Done require.
+ * Collected rather than displayed: piping captures it, and the parent decides where it goes.
+ *
+ * Extracted because it pushed the caller past the complexity gate, and because "what the operator is
+ * told" is a concern of its own — the same reason `sweepFinishedLine` is separate.
+ */
+function reportWhenFinished(
+  child: {
+    on: (event: 'close', cb: (code: number | null) => void) => void
+    stdout?: { on: (event: 'data', cb: (chunk: unknown) => void) => void } | null
+  },
+  firstRun: boolean,
+  onReport: (line: string) => void,
+): void {
+  let said = ''
+  child.stdout?.on('data', (chunk) => {
+    said += String(chunk)
+  })
+  child.on('close', (code) => {
+    onReport(sweepFinishedLine(firstRun, code, said))
+  })
 }

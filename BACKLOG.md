@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-148 items — **Open** 2 · **In flight** 0 · **Closed** 146
+149 items — **Open** 2 · **In flight** 0 · **Closed** 147
 
 ### Open (2)
 
@@ -80,7 +80,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (146)
+### Closed (147)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -230,6 +230,7 @@ _None._
 | [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
 | [`B-148`](#b-148--a-hand-maintained-count-in-the-readme-went-stale-twice-in-one-session-both-times-by-my-hand---x) | A hand-maintained count in the README went stale twice in one session, both times by my hand | `shipped` | minor |
 | [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
+| [`B-151`](#b-151--b-134s-guarantee-had-no-gate-and-the-next-dangling-citation-was-already-there---x) | B-134's guarantee had no gate, and the next dangling citation was already there | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -269,7 +270,6 @@ dod:
   - no product or SDK string is hard-coded outside `shared/agent.ts`
   - the banner's model id stops being a divergent copy and reads the single source
   - comments citing `@theokit/sdk-pty`, `@theokit/sdk@>=4.2.10` and non-existent paths are corrected or removed
-
 ## B-003 — Session-GC deletion guards fail open, with no test at all   [x]
 
 fixed_in: 21d315b
@@ -6943,3 +6943,51 @@ dod:
   - a child that says nothing still produces a report
 
 > Registered 2026-09-03, by checking my own "done" claims against the criteria I wrote for them.
+
+## B-151 — B-134's guarantee had no gate, and the next dangling citation was already there   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by sweeping the class B-150 named: a guarantee that lives only in a Definition of
+  Done is not a gate. Every DoD bullet closed in this release was checked for something that would
+  fail if it stopped holding.
+
+  B-134's second bullet — "no reference in `README.md` points at a path that is neither tracked nor
+  ignored" — had nothing. It was verified by hand, once, and nothing stopped the next one.
+
+  The next one was ALREADY THERE, and it was mine. The reliability-target section written for B-133
+  cites `rules/public-copy.md`. That file lives at `.claude/rules/public-copy.md`, which `.gitignore`
+  excludes — so a reader who clones cannot open it. The same defect as B-134, reintroduced within the
+  hour, in the section written to fix a sibling finding.
+why_now: |
+  A defect class fixed by hand recurs by hand. The gate is what makes the difference, and B-150 had
+  just finished demonstrating that a criterion nobody can run is a criterion nobody holds.
+shipped: |
+  SHIPPED 2026-09-03. `tools/check-doc-references.mjs` runs in `lint`: every backticked repository
+  path in `README.md` must exist on disk or be deliberately gitignored.
+
+  IGNORED PASSES, deliberately. `.claude/` is local by design, and citing it is a choice about what
+  the reader can see — different in kind from a citation that resolves to nothing.
+
+  My own citation was fixed the way B-134 was: the reasoning is inline now, with the path dropped,
+  because a citation a reader cannot open is the thing being prevented.
+
+  One exemption exists and carries its reason in the source: `AGENTS.md` is DESCRIBED in the
+  configuration table — the file an operator may put in their own project — rather than cited as a
+  record here. The gate cannot tell description from citation, so the exemption is explicit, and a
+  test asserts the allowlist does not swallow anything else.
+
+  Eight tests, including two anti-vacuity floors: a matcher that returned everything and a guard that
+  flagged nothing would otherwise both pass.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - a README citation that neither exists nor is ignored fails `lint`
+  - a deliberately gitignored path does not fail it
+  - the exemption list cannot grow to match everything, and each entry carries its reason
+
+> Registered 2026-09-03, by gating a guarantee that had been living in a DoD.
