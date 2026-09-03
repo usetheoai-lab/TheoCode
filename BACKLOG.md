@@ -6983,7 +6983,7 @@ shipped: |
   Eight tests, including two anti-vacuity floors: a matcher that returned everything and a guard that
   flagged nothing would otherwise both pass.
 status: shipped
-fixed_in: PENDING
+fixed_in: 7affc85
 severity: major
 dod:
   - a README citation that neither exists nor is ignored fails `lint`
