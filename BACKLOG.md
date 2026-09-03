@@ -6438,7 +6438,7 @@ shipped: |
   would skip the look-first dry run and apply straight away. It is treated as NO stamp in both
   answers now.
 status: shipped
-fixed_in: PENDING
+fixed_in: aae33ff
 severity: major
 dod:
   - the trigger returns without doing the sweep, and a test measures that it returns
