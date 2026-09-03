@@ -29,7 +29,31 @@ export interface SweepCommandInput {
 export interface SweepCommand {
   readonly command: string
   readonly args: readonly string[]
+  readonly options: SweepSpawnOptions
 }
+
+interface SweepSpawnOptions {
+  /** Milliseconds before the child is signalled. See `SWEEP_TIMEOUT_MS`. */
+  readonly timeout: number
+  readonly killSignal: 'SIGTERM'
+  readonly stdio: 'ignore'
+}
+
+/**
+ * B-144 — the bound on the child, generous on purpose.
+ *
+ * 37.1 s was MEASURED for one sweep on a 13 269-project tree, so a limit anywhere near it would kill
+ * legitimate work on a large disk — and a collector that always dies is worse than the hang it
+ * prevents, because it stops working silently. Ten minutes is an order of magnitude past the worst
+ * measurement and still finite, which is the only property that matters: a sweep blocked on a dead
+ * network mount would otherwise live as long as the TUI, and the next day's stamp would spawn
+ * another beside it.
+ *
+ * This release fixed a timeout the operator could not reach (B-128) and a `git` call with no timeout
+ * at all (B-137), and then introduced a third unbounded subprocess while fixing the second. The
+ * pattern is the point of writing the number down here rather than inline.
+ */
+const SWEEP_TIMEOUT_MS = 10 * 60 * 1000
 
 export function buildSweepCommand(input: SweepCommandInput): SweepCommand {
   if (input.execPath.trim() === '') {
@@ -41,6 +65,11 @@ export function buildSweepCommand(input: SweepCommandInput): SweepCommand {
     throw new Error('session gc: refusing to spawn a sweep with no script to run')
   }
   return {
+    // `stdio: 'ignore'` because the TUI owns the screen: `installStderrGuard` protects THIS
+    // process's stderr, not a child's, so anything the child printed would land on the frame.
+    // SIGTERM rather than the default, so a sweep caught mid-`unlink` can finish the syscall it is
+    // in — SIGKILL cannot be caught and is not what a delete path should meet first.
+    options: { timeout: SWEEP_TIMEOUT_MS, killSignal: 'SIGTERM', stdio: 'ignore' },
     command: input.execPath,
     args: [
       input.script,

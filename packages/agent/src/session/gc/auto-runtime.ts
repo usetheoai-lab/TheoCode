@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { projectsRoot } from '@theokit/agents/session'
 
 import { sweepDecision } from './auto.js'
-import { buildSweepCommand } from './spawn-sweep.js'
+import { buildSweepCommand, type SweepCommand } from './spawn-sweep.js'
 
 /**
  * The real wiring for B-131 / B-132: a stamp on disk, and the collector that already existed.
@@ -65,7 +65,7 @@ export function startSessionSweepInBackground(opts: {
   readonly now?: Date
   readonly projectsRootOverride?: string
   readonly intervalHours?: number
-  readonly spawnSweep?: (cmd: { command: string; args: readonly string[] }) => {
+  readonly spawnSweep?: (cmd: SweepCommand) => {
     on: (event: 'close', cb: (code: number | null) => void) => void
   }
 }): { readonly started: boolean; readonly reason: string } {
@@ -98,7 +98,7 @@ export function startSessionSweepInBackground(opts: {
   try {
     const child =
       opts.spawnSweep?.(command) ??
-      spawn(command.command, [...command.args], { stdio: 'ignore' })
+      spawn(command.command, [...command.args], { ...command.options })
     child.on('close', (code) => {
       opts.onReport(sweepFinishedLine(decision.firstRun, code))
     })
@@ -147,7 +147,7 @@ function sweepFinishedLine(firstRun: boolean, code: number | null): string {
 function commandOrUndefined(
   apply: boolean,
   onReport: (line: string) => void,
-): { command: string; args: readonly string[] } | undefined {
+): SweepCommand | undefined {
   try {
     return buildSweepCommand({ apply, execPath: process.execPath, script: process.argv[1] })
   } catch (err) {

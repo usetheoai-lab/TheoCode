@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-140 items — **Open** 1 · **In flight** 0 · **Closed** 139
+141 items — **Open** 1 · **In flight** 0 · **Closed** 140
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (139)
+### Closed (140)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -222,6 +222,7 @@ _None._
 | [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
 | [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
 | [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
+| [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6448,3 +6449,53 @@ dod:
 
 > Registered 2026-09-03 from an independent adversarial review — the check the originating audit
 > declared missing four times and never performed.
+
+## B-144 — The fix for an unbounded subprocess introduced an unbounded subprocess   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by asking whether my own changes would trip the catalog I had just swept the
+  repository with. They would.
+
+  This release fixed a timeout the operator could not reach (B-128) and a `git` call on the CLI's
+  first line with no timeout at all (B-137). Then B-142 moved the session sweep into a child process
+  to stop it blocking the event loop — and spawned it with NO BOUND:
+
+      spawn(command.command, [...command.args], { stdio: 'ignore' })
+
+  No `timeout`, no `killSignal`. `grep -cE "timeout|killSignal|AbortSignal"` over the file returned 0.
+
+  The failure mode is specific and it ACCUMULATES, which is what makes it worse than the two it
+  followed. A sweep blocked on a dead network mount lives as long as the TUI does; the next day the
+  stamp is due again and another is spawned beside it. Nothing reaps them.
+why_now: |
+  It is the third instance of one defect in one release, and the third was introduced by the fix for
+  the second. That is worth recording as a pattern rather than as three unrelated tickets: a change
+  that moves work somewhere else inherits none of the bounds the old place had, and nothing in the
+  review of B-142 asked about them.
+shipped: |
+  SHIPPED 2026-09-03. `SWEEP_TIMEOUT_MS = 10 * 60 * 1000`, with `killSignal: 'SIGTERM'` and
+  `stdio: 'ignore'` moved into the command builder so all three are testable rather than inline
+  arguments nobody asserts.
+
+  The bound is generous ON PURPOSE. 37.1 s was MEASURED for one sweep on a 13 269-project tree, so a
+  limit anywhere near that would kill legitimate work on a large disk — and a collector that always
+  dies is worse than the hang it prevents, because it stops working silently. Ten minutes is an order
+  of magnitude past the worst measurement and still finite, which is the only property that matters.
+
+  SIGTERM rather than the default, so a sweep caught mid-`unlink` can finish the syscall it is in;
+  SIGKILL cannot be caught and is not what a delete path should meet first. `stdio: 'ignore'` because
+  the TUI owns the screen and `installStderrGuard` protects this process's stderr, not a child's.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - the child carries a timeout, and a test reads the number rather than trusting the call site
+  - the bound is far enough past the worst measured sweep that it cannot kill legitimate work
+  - the signal is named rather than left to the default
+
+> Registered 2026-09-03. Found in my own change, by asking whether it would trip the catalog I had
+> just swept the repository with.
