@@ -3,16 +3,30 @@
  *
  * The whole point is the return, so the assertions are about what happens BEFORE the child finishes.
  */
-import { mkdtempSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
+
+/**
+ * Scratch roots, removed when the file finishes.
+ *
+ * MEASURED 2026-09-03: /tmp held 2 773 leaked `theocode-*` directories from suites that create one
+ * per case and never remove it. Sixteen other test files here already clean up, so this follows the
+ * convention rather than inventing one, and the cost of skipping it is paid once per test on every
+ * machine that ever runs the suite.
+ */
+const roots: string[] = []
+afterAll(() => {
+  for (const r of roots) rmSync(r, { recursive: true, force: true })
+})
 
 import { startSessionSweepInBackground } from './auto-runtime.js'
 
 function scratchRoot(): string {
   const base = mkdtempSync(join(tmpdir(), 'theocode-bgsweep-'))
+  roots.push(base)
   const root = join(base, 'projects')
   mkdirSync(root, { recursive: true })
   return root

@@ -15,16 +15,30 @@
  * `mkdtempSync` in this run, and the plan is hand-built so the only candidate is that file. Nothing
  * discovers paths, and `projectsRoot` is overridden so no real projects tree is reachable.
  */
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { runAllProjectsOnDisk } from './filesystem.js'
 
+/**
+ * Scratch roots, removed when the file finishes.
+ *
+ * MEASURED 2026-09-03: /tmp held 2 773 leaked `theocode-*` directories from suites that create one
+ * per case and never remove it — 1 546 from one file alone. Sixteen other test files here already
+ * clean up, so this follows the convention rather than inventing one, and the cost of not doing it
+ * is paid once per test on every machine that ever runs the suite.
+ */
+const roots: string[] = []
+afterAll(() => {
+  for (const r of roots) rmSync(r, { recursive: true, force: true })
+})
+
 function scratch(): { root: string; project: string; transcript: string } {
   const root = mkdtempSync(join(tmpdir(), 'theocode-gc-wiring-'))
+  roots.push(root)
   const project = join(root, 'a-project')
   mkdirSync(project, { recursive: true })
   const transcript = join(project, 'sess-old.jsonl')
