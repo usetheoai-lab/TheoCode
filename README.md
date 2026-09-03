@@ -92,10 +92,11 @@ and that was enough to say the remaining half lived in `@theokit/sdk`.
 ## What a failure is allowed to cost
 
 **No availability number is claimed here, and that is deliberate.** This product has no sustained
-production measurement to back one, and this project's copy rules forbid publishing an availability
-figure without one — stated here rather than cited, because the rule lives in the local toolchain
-that `.gitignore` keeps out of a clone, and a citation a reader cannot open is what B-134 was. What it does have is a target for the SHAPE of a failure, which
-is reviewable without a metrics pipeline and falsifiable by a test:
+production measurement to back one, and this project's copy rules forbid publishing an
+availability figure without one — stated here rather than cited, because the rule lives in the
+local toolchain that `.gitignore` keeps out of a clone, and a citation a reader cannot open is
+what B-134 was. What it does have is a target for the SHAPE of a failure, which is reviewable
+without a metrics pipeline and falsifiable by a test:
 
 - **A failed turn says what failed.** Never `An error occurred.`: the provider's message, the error
   code when the framework supplies one, and a next step for the classes common enough to have one.
