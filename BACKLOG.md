@@ -67,13 +67,14 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-147 items — **Open** 1 · **In flight** 0 · **Closed** 146
+148 items — **Open** 2 · **In flight** 0 · **Closed** 146
 
-### Open (1)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `triaged` | major |
+| [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class----) | A retried failure still reaches the user as the wrong error class | `triaged` | minor |
 
 ### In flight (0)
 
@@ -252,7 +253,6 @@ dod:
   - `chat-acp.ts:25` passes `surface: 'headless'`, the same value `run-composition.ts:57` uses
   - a test covers that the headless profile does NOT register `request_user_input`
   - the ACP surface is exercised and no tool call is left pending
-
 ## B-002 — Wrong identity exposed to the end user   [x]
 
 fixed_in: c237f5a
@@ -5918,6 +5918,21 @@ shipped: |
   configurable here; this makes it visible, which is what the finding asked for.
 
   The CLI had no `onRunEvent` subscription at all before this and now has one.
+
+  HALF OF THE DoD WAS NOT MET, and marking this `shipped` without saying so was wrong. The second
+  bullet — "the final error class survives to the user rather than being reported as whatever the
+  last attempt returned" — is NOT delivered. A 401 retried by the transport still reaches the user as
+  `rate_limit (HTTP 429)`; what changed is that it now says `after 3 attempts` beside it, which is a
+  hint rather than the class.
+
+  It is not deliverable from this repository, and `docs/parity/2026-08-25-codex-parity.md:246`
+  already recorded why: `streamAgentTurnInProcess` declares no `retry`, though
+  `AgentRunnerRunOptions` has it — filed upstream as usetheokit/theokit#474. The product cannot see
+  or configure the policy that rewrites the class, so preserving it has to happen in the transport.
+
+  The remainder is tracked as B-149 rather than folded away, and this item is NOT re-marked: what
+  shipped, shipped. Amending the DoD to match what was delivered would be moving the goalposts, which
+  is the defect the audit that produced this item exists to catch.
 status: shipped
 fixed_in: 0418f11
 severity: minor
@@ -6831,3 +6846,43 @@ dod:
   - the rejected alternative is recorded with the measurement that rejected it
 
 > Registered 2026-09-03, by sweeping the fourth repeated pattern of this release.
+
+## B-149 — A retried failure still reaches the user as the wrong error class   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while checking whether B-130's own Definition of Done had been met. It had not,
+  and the item was marked `shipped` anyway — this is the half that was left.
+
+  B-130 made the retry VISIBLE: a turn that spent three attempts says so. It did not make the error
+  CLASS survive. The case that motivated it, measured 2026-08-25 and recorded at
+  `packages/cli/src/commands/run.ts:56`, is a 401 (`Missing scopes: api.responses.write`) that after
+  the transport's retries reached the user as `rate_limit (HTTP 429)` — which reads as a quota
+  problem and sends them to check a usage page. Today that user sees the same 429, now with
+  `after 3 attempts` beside it. Better, and still the wrong class.
+
+  IT IS NOT DELIVERABLE FROM THIS REPOSITORY, and the reason was already written down in a file
+  nobody had connected to this item: `docs/parity/2026-08-25-codex-parity.md:246` records that
+  `streamAgentTurnInProcess` declares no `retry`, though `AgentRunnerRunOptions` has it — filed
+  upstream as usetheokit/theokit#474. The product cannot see, configure, or intercept the policy that
+  rewrites the class.
+why_now: |
+  B-130 shipped with this bullet unmet and nothing said so. An item marked `shipped` whose DoD is
+  half-delivered is the exact rot the registry exists to prevent: the next reader takes `shipped` to
+  mean the problem is gone, and the 401-as-429 misdiagnosis is not gone.
+blocked_by: |
+  usetheokit/theokit#474 — `streamAgentTurnInProcess` must expose the retry policy (or the error it
+  preserves) before a consumer can keep the class. Per the issue-lifecycle rule, this stays OPEN with
+  the dependency named rather than being closed as "not ours".
+status: triaged
+severity: minor
+dod:
+  - a failure that the transport retried reports the class of the FIRST failure, not of the last
+    attempt — or the product can configure the policy so it does
+  - the 401-as-429 case specifically is covered by a test
+
+> Registered 2026-09-03, splitting the undelivered half of B-130 rather than leaving it inside an
+> item marked shipped.
