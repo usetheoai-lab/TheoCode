@@ -17,5 +17,6 @@ export { listAgents, CursorNotDrainedError } from './agent-list.js'
 export { planAllProjectsOnDisk, runAllProjectsOnDisk, formatReport } from './gc/filesystem.js'
 
 export { startSessionSweepInBackground } from './gc/auto-runtime.js'
+export { startupNoticeFor } from './gc/auto-runtime.js'
 
 export { readUserTurnPreviewsAsync } from './backtrack.js'

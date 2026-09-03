@@ -120,6 +120,27 @@ export function startSessionSweepInBackground(opts: {
   }
 }
 
+/**
+ * What to tell the operator when the sweep did NOT start, or `undefined` for the normal cases.
+ *
+ * `too-soon` and `disabled` are the two states the design intends: the sweep runs at most once a
+ * day, and it can be switched off. Reporting them would put a line in the log on nearly every
+ * launch, and a diagnostics channel that always says something is one nobody reads.
+ *
+ * Everything else means collection will not happen and nothing else will say so — the silent
+ * non-collection B-138 was about. It lived inline in `tui/src/main.tsx` as a three-clause condition
+ * in a file at 0% coverage; it lives here because "what the operator is told about the sweep" is one
+ * concern, and `sweepFinishedLine` is the other half of it.
+ */
+export function startupNoticeFor(outcome: {
+  readonly started: boolean
+  readonly reason: string
+}): string | undefined {
+  if (outcome.started) return undefined
+  if (outcome.reason === 'too-soon' || outcome.reason === 'disabled') return undefined
+  return `[sessions gc] not started: ${outcome.reason}`
+}
+
 /** A stamp that cannot be read is the same as no stamp: sweep, rather than refuse to. */
 function readLastRunSafely(root: string): Date | undefined {
   try {

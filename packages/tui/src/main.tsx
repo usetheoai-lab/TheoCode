@@ -11,7 +11,7 @@ import { setDiagnosticsSink } from '@theokit/agents'
 
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 import { setWorkingDirectory, workingDirectory } from './working-directory.js'
-import { startSessionSweepInBackground } from '@theocode/agent/session'
+import { startSessionSweepInBackground, startupNoticeFor } from '@theocode/agent/session'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
 
 installDiagnosticSink(setDiagnosticsSink)
@@ -61,9 +61,8 @@ try {
       process.stderr.write(`${line}\n`)
     },
   })
-  if (!outcome.started && outcome.reason !== 'too-soon' && outcome.reason !== 'disabled') {
-    process.stderr.write(`[sessions gc] not started: ${outcome.reason}\n`)
-  }
+  const notice = startupNoticeFor(outcome)
+  if (notice !== undefined) process.stderr.write(`${notice}\n`)
 } catch (err) {
   process.stderr.write(
     `[sessions gc] skipped — ${err instanceof Error ? err.message : String(err)}\n`,
