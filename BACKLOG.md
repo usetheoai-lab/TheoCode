@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
+| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `triaged` | major |
 
 ### In flight (0)
 
@@ -83,7 +83,6 @@ _None._
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-018`](#b-018--nineteen-touched-files-still-have-no-sibling-test---x) | Nineteen touched files still have no sibling test | `shipped` | MEDIUM |
 | [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | BLOCKER |
 | [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | Wrong identity exposed to the end user | `shipped` | HIGH (4 HIGH findings) |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
@@ -101,6 +100,7 @@ _None._
 | [`B-015`](#b-015--structural-debt-in-chatts-and-in-surface-composition---x) | Structural debt in `chat.ts` and in surface composition | `shipped` | MEDIUM |
 | [`B-016`](#b-016--dead-surface-and-orphan-test-affordances---x) | Dead surface and orphan test affordances | `shipped` | MEDIUM |
 | [`B-017`](#b-017--repository-hygiene---x) | Repository hygiene | `shipped` | MEDIUM |
+| [`B-018`](#b-018--nineteen-touched-files-still-have-no-sibling-test---x) | Nineteen touched files still have no sibling test | `shipped` | MEDIUM |
 | [`B-019`](#b-019--hook-approval-store-is-read-without-the-permission-gate-b-005-installed---x) | Hook-approval store is read without the permission gate B-005 installed | `shipped` | CRITICAL |
 | [`B-020`](#b-020--the-session-collector-resolves-every-unknown-toward-delete---x) | The session collector resolves every unknown toward 'delete' | `shipped` | HIGH |
 | [`B-021`](#b-021--three-security-gates-are-optional-parameters-whose-default-is-fully-open---x) | Three security gates are optional parameters whose default is fully open | `shipped` | HIGH |
@@ -226,31 +226,6 @@ _None._
 Next free id: **B-058**
 
 ---
-
-## B-018 — Nineteen touched files still have no sibling test   [x]
-
-fixed_in: 33e5e6e
-dod_verified:
-  - every entry the gate lists is now either covered or carries an explicit note — `packages/tui/TEST-EXEMPTIONS.md`, split into genuinely exempt and simply owed
-  - two entries gained tests: `turn-error.ts` (decides whether /retry is offered) and `tools/registry.ts` (a name contract three layers depend on)
-  - the gate was NOT lowered — the note re-derives its list with the gate's own rule
-  - HONEST LIMIT: the registry test pins the invariant, not the constructor's guard. Disabling the guard leaves it green. Measured by mutation and written into the file rather than left implied
-
-domain: theocode
-repo: TheoCode
-suggested_mode: evolve
-source: human
-evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
-why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
-status: shipped
-severity: MEDIUM
-dod:
-  - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
-  - the hook gate's list is empty, or its remaining entries are ones a human decided to exempt
-  - no entry is silenced by lowering the gate
-
----
-
 ## B-001 — The ACP surface registers a tool it cannot answer   [x]
 
 fixed_in: abd9bf7
@@ -601,6 +576,30 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 **AC-13 — no guardrails wired** (`chat.ts:311`, SDK at `agents/index.d.ts:229`). The SDK offers `promptInjectionDetector`, `piiDetector`, `runInputGuards`, `outputModeration` and `costGuard`; TheoCode uses none. The reviewer measured and concluded that **for three of the five detectors, not wiring them is the correct call** in a local terminal agent — the user is the operator, not an untrusted third party.
 
 It does not become a `B-NNN` because there is no defect to fix, and it does not become an upstream issue because the SDK ships what it should. It becomes an **ADR**: the choice is made in fact and unrecorded, so the next maintainer cannot tell decision from oversight. The ADR should name which two detectors were left out without a measured justification.
+
+---
+
+## B-018 — Nineteen touched files still have no sibling test   [x]
+
+fixed_in: 33e5e6e
+dod_verified:
+  - every entry the gate lists is now either covered or carries an explicit note — `packages/tui/TEST-EXEMPTIONS.md`, split into genuinely exempt and simply owed
+  - two entries gained tests: `turn-error.ts` (decides whether /retry is offered) and `tools/registry.ts` (a name contract three layers depend on)
+  - the gate was NOT lowered — the note re-derives its list with the gate's own rule
+  - HONEST LIMIT: the registry test pins the invariant, not the constructor's guard. Disabling the guard leaves it green. Measured by mutation and written into the file rather than left implied
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
+why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
+status: shipped
+severity: MEDIUM
+dod:
+  - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
+  - the hook gate's list is empty, or its remaining entries are ones a human decided to exempt
+  - no entry is silenced by lowering the gate
 
 ---
 
@@ -1168,7 +1167,9 @@ severity: MEDIUM
 dod:
   - an unparseable response produces a typed error, not an empty finding list — covered by a failing-first test
   - a failed dispose leaves the reviewer disposable again
-  - a cleanup failure does not replace the delegation's own result
+  - a member whose disposal REJECTS does not replace the value the delegation already produced, and
+    the other members are still disposed — asserted directly against the `try`/`finally` shape in
+    `delegation/squad-disposal.test.ts`, not merely by the absence of a throw
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
@@ -2501,6 +2502,14 @@ domain: theocode
 repo: TheoCode
 suggested_mode: evolve
 source: human
+why_now: |
+  Reconstructed 2026-09-03 from this item's own evidence and kill_reason, which both quote the
+  premise it was filed on; the field was simply absent, and `check_backlog_structure.py` reported it
+  as `missing_field`.
+
+  At the time of filing: combined with B-078, there was no `/delete`, so every aside made with
+  `/fork` was permanent — a throwaway question left a session on disk forever. The item was killed
+  rather than built because B-078 shipped `/delete` and removed the premise.
 evidence: measured 2026-08-10 against the shipped B-078, exactly as this item's own DoD required
   before planning it. `/delete <id>` now exists (`registry.ts:75`) and removes the transcript from
   disk, not just the listing. The premise this item rested on — "combined with B-078, no delete,
@@ -3788,7 +3797,14 @@ progress_2026_08_11: |
   against ZERO measured consumers — the mistake B-104 recorded and its resolution avoided. Building
   four of them now would produce an interface the first real SRE consumer routes around. What ships
   is the seam they declare through; the tools themselves want a consumer with a cluster.
-status: raw
+status: triaged
+triaged_note: |
+  Advanced 2026-09-03. The status said `raw` — "a hypothesis nobody has measured" — while the
+  evidence block carried a measurement taken 2026-08-10: 9 of TheoCode's 10 tools come from
+  `@theokit/agents/tools`, and the SRE inventory of that same layer is empty. `raw -> triaged` is
+  what a measurement is for, and leaving it `raw` misreported the item as unexamined, which is the
+  registry rot the whole flow exists to prevent. Nothing about the finding changed; only the status
+  caught up with the evidence already in the block.
 severity: major
 dod:
   - a `sdk-tools`-shaped family exists for infrastructure reads: cluster resource query, metrics
@@ -5778,7 +5794,7 @@ shipped: |
   failure mode where a new key parses, validates and is then dropped — a test pins that every schema
   key survives the copy and that the sample set covers the whole schema.
 status: shipped
-fixed_in: (this change)
+fixed_in: 653c23b
 severity: minor
 dod:
   - the shell timeout is a config key with the current constant as its default, reachable from the
@@ -5819,7 +5835,7 @@ shipped: |
   `diagnosticsEnabled()` reads it. Absent context means UNKNOWN rather than `false`, so a surface
   nobody wired keeps the old text instead of advertising a state nobody checked.
 status: shipped
-fixed_in: (this change)
+fixed_in: 0418f11
 severity: minor
 dod:
   - a failed turn names the way to see more, without the operator having to know it in advance
@@ -5867,7 +5883,7 @@ shipped: |
 
   The CLI had no `onRunEvent` subscription at all before this and now has one.
 status: shipped
-fixed_in: (this change)
+fixed_in: 0418f11
 severity: minor
 dod:
   - when a turn fails after retrying, the failure says so and how many attempts were spent
@@ -5923,8 +5939,17 @@ shipped: |
   `apply: true` is passed explicitly and has its own test: `runAllProjectsOnDisk` is a DRY RUN by
   default, so omitting it would have produced a collector that reports removals every day and removes
   nothing — green, silent and useless.
+
+  WHERE THE FIX LANDED, and why it is not where the evidence points. The evidence above cites
+  `packages/agent/src/session/gc/all-sessions.ts` and `packages/cli/src/commands/sessions.ts` because
+  that is where the POLICY and the manual gate live — and the fix deliberately did not touch either.
+  It is new code: `packages/agent/src/session/gc/auto.ts` (the decision, pure),
+  `packages/agent/src/session/gc/auto-runtime.ts` (the stamp and the real plan/apply), and the two
+  callers, `packages/tui/src/main.tsx` and `packages/cli/src/commands/run.ts`, plus the `session_gc`
+  key in `packages/agent/src/config/config.ts`. Modifying the collector would have been the wrong
+  shape: it works.
 status: shipped
-fixed_in: (this change)
+fixed_in: 2049001
 severity: minor
 dod:
   - collection happens without the operator remembering, bounded so it cannot delay a session start
@@ -5958,8 +5983,14 @@ shipped: |
   and the outcome type distinguishes `disabled`, `too-soon`, `ran` (with counts) and `failed`. In a
   silent system "it ran and removed nothing" and "it never ran" look identical, and only one of them
   means the retention policy is being applied.
+
+  The evidence names `packages/cli/src/commands/sessions.ts` as where the manual action is gated; the
+  fix touched none of it, deliberately. The toil is removed by new code —
+  `packages/agent/src/session/gc/auto.ts` and `packages/agent/src/session/gc/auto-runtime.ts`, wired
+  from `packages/tui/src/main.tsx` and `packages/cli/src/commands/run.ts` — so the manual command
+  keeps working exactly as it did for anyone who wants to run it by hand.
 status: shipped
-fixed_in: (this change) — closed by the same trigger as B-131
+fixed_in: 2049001 — closed by the same trigger as B-131
 severity: minor
 dod:
   - the recurring manual step is no longer required for the system to stay within its own retention
@@ -6001,7 +6032,7 @@ shipped: |
   would not satisfy them. One bullet was reworded rather than kept, because its second half ("a start
   does not wait for it") is a wiring property of `main.tsx` and no test backed it.
 status: shipped
-fixed_in: (this change)
+fixed_in: 0756a56
 severity: minor
 dod:
   - what a failed turn is allowed to cost is stated in a versioned file, in a form that can be
@@ -6047,7 +6078,7 @@ shipped: |
   rather than found separately: the measured test count (71 files / 487 cases, measured 2026-08-11)
   and the config table, which did not list `memory`, `shell_timeout_ms` or `session_gc`.
 status: shipped
-fixed_in: (this change)
+fixed_in: 0756a56
 severity: minor
 dod:
   - the reasoning the citation stood for is readable by someone who clones the repository
@@ -6094,7 +6125,7 @@ shipped: |
   direction matters here more than most: memory-off is what a determinism-sensitive benchmark run
   asks for, and a typo that quietly means "off" would tell the operator they got what they wanted.
 status: shipped
-fixed_in: (this change)
+fixed_in: ca536b0
 severity: major
 dod:
   - the detector's key list is derived from the schema rather than retyped, and a test fails if that
@@ -6167,7 +6198,7 @@ shipped: |
   Verified end to end: build produces all three artifacts, `node dist/theocode.mjs sessions gc` exits
   0, lint fully clean with no remaining knip output.
 status: shipped
-fixed_in: (this change)
+fixed_in: dafb1df
 severity: major
 dod:
   - `npm run build` produces `dist/theocode.mjs` in a clean checkout
