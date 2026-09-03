@@ -11,7 +11,7 @@ import { setDiagnosticsSink } from '@theokit/agents'
 
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 import { setWorkingDirectory, workingDirectory } from './working-directory.js'
-import { startSessionSweepInBackground, startupNoticeFor } from '@theocode/agent/session'
+import { guardedSweepStart } from '@theocode/agent/session'
 import { resolveEffectiveConfig } from '@theocode/agent/config'
 
 installDiagnosticSink(setDiagnosticsSink)
@@ -52,22 +52,16 @@ const instance = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
 // config.toml` and it is evaluated while the argument object is built — before any promise exists,
 // so a `.catch` could never have seen it. A typo in a config file must not take the terminal down
 // after `render()` has already claimed it.
-try {
-  const outcome = startSessionSweepInBackground({
-    enabled: resolveEffectiveConfig({ cwd: workingDirectory() }).session_gc,
-    // stderr is redirected to `.theokit/tui-stderr.log` by `installStderrGuard` above (B-104), so
-    // this is the diagnostics channel rather than a write over the Ink frame.
-    onReport: (line) => {
-      process.stderr.write(`${line}\n`)
-    },
-  })
-  const notice = startupNoticeFor(outcome)
-  if (notice !== undefined) process.stderr.write(`${notice}\n`)
-} catch (err) {
-  process.stderr.write(
-    `[sessions gc] skipped — ${err instanceof Error ? err.message : String(err)}\n`,
-  )
-}
+guardedSweepStart({
+  // A function, not a value: `resolveEffectiveConfig` throws on a malformed config.toml and must be
+  // read INSIDE the guard. See `guardedSweepStart`.
+  enabled: () => resolveEffectiveConfig({ cwd: workingDirectory() }).session_gc,
+  // stderr is redirected to `.theokit/tui-stderr.log` by `installStderrGuard` above (B-104), so this
+  // is the diagnostics channel rather than a write over the Ink frame.
+  onReport: (line) => {
+    process.stderr.write(`${line}\n`)
+  },
+})
 
 await instance.waitUntilExit()
 await drainAll()
