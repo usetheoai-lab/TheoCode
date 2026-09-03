@@ -6544,7 +6544,7 @@ shipped: |
   reported were prose inside comments — checked by opening them rather than reported as findings,
   which is the same discipline the rest of this release was about.
 status: shipped
-fixed_in: PENDING
+fixed_in: 43efd9f
 severity: major
 dod:
   - every subprocess in production source carries a bound, verified by enumerating them rather than
