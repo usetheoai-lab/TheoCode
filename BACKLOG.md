@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-137 items — **Open** 1 · **In flight** 0 · **Closed** 136
+138 items — **Open** 1 · **In flight** 0 · **Closed** 137
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (136)
+### Closed (137)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -219,6 +219,7 @@ _None._
 | [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
 | [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run---x) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `shipped` | major |
 | [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
+| [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6256,3 +6257,55 @@ dod:
   - skipping the gate runs no subprocess at all
 
 > Registered 2026-09-03, found by re-measuring B-128 rather than by the audit that produced it.
+
+## B-138 — The test guarding B-131's central promise could not fail   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by MUTATION-CHECKING the fixes rather than trusting a green suite: revert each
+  change, and confirm the test that claims to protect it turns red.
+
+  Nine of ten mutations were detected. One was not:
+
+      mutation : `runAllProjectsOnDisk(plan, { apply: true, ... })` -> drop `apply: true`
+      effect   : the automatic collector becomes a PERMANENT DRY RUN — it plans removals every day,
+                 removes nothing, and reports success
+      suite    : 6 passed, 0 failed
+
+  The test named `test_the_sweep_applies_rather_than_dry_running` asserted that the report string did
+  NOT contain `DRY-RUN`. `auto.ts` builds that string as
+  `[sessions gc] automatic sweep — N removed, M error(s)` and never contained the word in either
+  case, so the assertion was true whatever the code did. It was a test that could not fail, guarding
+  the one promise B-131 exists to make.
+
+  Written by the same person who wrote the fix, in the same change, and it passed review by being
+  green — which is exactly the failure mode the audit that started this work exists to name.
+why_now: |
+  B-131 turns on deletion of the operator's transcripts by default. The single guarantee that makes
+  that acceptable is that the collector actually collects rather than reporting forever, and that
+  guarantee was unprotected.
+shipped: |
+  SHIPPED 2026-09-03. `AutoGcOutcome`'s `ran` case carries `dryRun`, read from the flag the SDK sets
+  on its own result, and the assertion reads that instead of a string that never varied. The report
+  line also says `(DRY-RUN — nothing was removed)` when it applies, because "0 removed because there
+  was nothing" and "0 removed because I did not remove" are different facts and must not read alike.
+
+  Verified the only way that means anything: the same mutation now fails 2 of 7 tests, and reverting
+  the mutation returns 7 of 7 green.
+
+  The other nine mutations were checked in the same sweep and all were already detected — the git
+  seam's swallow, the gitGate bound, the shell timeout reaching execFile, `allSettled` vs `all`, the
+  once-a-day interval, the retention floor's refusal, `pickScalars` dropping a key, the retry counter,
+  and the diagnostics state.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - reverting `apply: true` turns the suite red
+  - a dry run is distinguishable from a sweep that had nothing to remove, in the outcome and in the
+    report
+
+> Registered 2026-09-03. Found in my own work, by mutation-checking instead of trusting green.

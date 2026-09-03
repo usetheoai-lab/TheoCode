@@ -30,7 +30,22 @@ import type { AllPlan, AllResult } from './all-sessions.js'
 export type AutoGcOutcome =
   | { readonly kind: 'disabled' }
   | { readonly kind: 'too-soon'; readonly lastRun: Date }
-  | { readonly kind: 'ran'; readonly removed: number; readonly errors: number }
+  | {
+      readonly kind: 'ran'
+      readonly removed: number
+      readonly errors: number
+      /**
+       * Whether the sweep was a DRY RUN — it planned removals and performed none.
+       *
+       * Surfaced because it is the difference between collecting and reporting collection forever,
+       * and because without it that difference was UNOBSERVABLE: `runAllProjectsOnDisk` dry-runs
+       * unless told `apply: true`, and a caller that forgot would produce a collector reporting
+       * "0 removed" every day, green and useless. A mutation check proved the gap — deleting
+       * `apply: true` from `auto-runtime.ts` left the entire suite passing, because the only test
+       * watching for it read a report string that never contained the word in either case.
+       */
+      readonly dryRun: boolean
+    }
   | { readonly kind: 'failed'; readonly reason: string }
 
 export interface AutoGcDeps {
@@ -76,10 +91,15 @@ export async function maybeCollectSessions(deps: AutoGcDeps): Promise<AutoGcOutc
     const plan = await deps.plan()
     const result = await deps.run(plan)
     deps.onReport(
-      `[sessions gc] automatic sweep — ${String(result.removed.length)} removed, ` +
-        `${String(result.errors.length)} error(s)`,
+      `[sessions gc] automatic sweep${result.dryRun ? ' (DRY-RUN — nothing was removed)' : ''} — ` +
+        `${String(result.removed.length)} removed, ${String(result.errors.length)} error(s)`,
     )
-    return { kind: 'ran', removed: result.removed.length, errors: result.errors.length }
+    return {
+      kind: 'ran',
+      removed: result.removed.length,
+      errors: result.errors.length,
+      dryRun: result.dryRun,
+    }
   } catch (err) {
     const reason = reasonOf(err)
     deps.onReport(`[sessions gc] automatic sweep failed: ${reason}`)

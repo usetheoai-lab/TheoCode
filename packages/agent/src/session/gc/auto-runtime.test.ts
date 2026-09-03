@@ -106,19 +106,40 @@ describe('collectSessionsAutomatically', () => {
   })
 
   it('test_the_sweep_applies_rather_than_dry_running', async () => {
-    // `runAllProjectsOnDisk` is a DRY RUN unless told otherwise, so a missing `apply: true` would
-    // produce a collector that reports every day and removes nothing — green, silent and useless.
-    // The outcome carries the dry-run flag through, so this asserts the wiring rather than a mock.
+    // `runAllProjectsOnDisk` is a DRY RUN unless told `apply: true`, so a caller that forgets
+    // produces a collector that reports every day and removes nothing — green, silent and useless.
+    //
+    // THE FIRST VERSION OF THIS TEST COULD NOT FAIL. It asserted the report string did not contain
+    // "DRY-RUN", and the report never contained that word in either case; a mutation check that
+    // deleted `apply: true` left the whole suite green. The assertion now reads the flag the SDK
+    // itself sets on the result, which is the only thing that distinguishes the two.
+    const root = scratchRoot()
+
+    const outcome = await collectSessionsAutomatically({
+      enabled: true,
+      onReport: () => {},
+      projectsRootOverride: root,
+    })
+
+    expect(outcome.kind).toBe('ran')
+    expect(
+      outcome.kind === 'ran' && outcome.dryRun,
+      'the automatic sweep ran as a DRY RUN — it would report removals forever and remove nothing',
+    ).toBe(false)
+  })
+
+  it('test_a_dry_run_says_so_in_the_report', async () => {
+    // B-132's bullet, extended: "0 removed because there was nothing" and "0 removed because I did
+    // not actually remove" are different facts and must not read identically.
     const root = scratchRoot()
     const reports: string[] = []
 
-    const outcome = await collectSessionsAutomatically({
+    await collectSessionsAutomatically({
       enabled: true,
       onReport: (line) => reports.push(line),
       projectsRootOverride: root,
     })
 
-    expect(outcome.kind).toBe('ran')
-    expect(reports.join(' '), 'the automatic sweep reported a dry run').not.toContain('DRY-RUN')
+    expect(reports.join(' ')).not.toContain('DRY-RUN')
   })
 })
