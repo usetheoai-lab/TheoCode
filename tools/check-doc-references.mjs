@@ -70,6 +70,21 @@ export function danglingReferences(paths, { exists = existsSync, ignored = isIgn
   return paths.filter((p) => !DESCRIBED_NOT_CITED.has(p) && (!exists(p) || ignored(p)))
 }
 
+/**
+ * CHANGELOG.md is deliberately NOT checked, and the reason is worth writing down because the
+ * omission looks like one.
+ *
+ * It was tried on 2026-09-03 — the CHANGELOG had been found citing a path into the gitignored study
+ * clone, the same defect this guard exists for — and the extension produced 72 findings, 34 of them
+ * still unresolvable after matching by filename suffix. Reading them is what settled it: the
+ * CHANGELOG legitimately names `config.toml` and `auth.json` (files the USER has, not this repo),
+ * `package-lock.json` (a file an entry describes DELETING), several under the gitignored `.claude/`,
+ * and `docs/adr/0002-…` inside the very entry that records B-134 as a defect.
+ *
+ * A changelog is a historical narrative. "Must resolve in a fresh clone TODAY" is a category error
+ * against a document whose job is to describe what was true then, and a gate that fires 34 times on
+ * correct prose is a gate someone turns off — taking the README check with it.
+ */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const quiet = process.argv.includes('--quiet')
   const file = 'README.md'
