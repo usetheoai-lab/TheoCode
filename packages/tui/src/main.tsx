@@ -11,6 +11,8 @@ import { setDiagnosticsSink } from '@theokit/agents'
 
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 import { setWorkingDirectory, workingDirectory } from './working-directory.js'
+import { collectSessionsAutomatically } from '@theocode/agent/session'
+import { resolveEffectiveConfig } from '@theocode/agent/config'
 
 installDiagnosticSink(setDiagnosticsSink)
 
@@ -38,6 +40,25 @@ const restoreTerminalTitle = installTerminalTitle()
 process.once('exit', restoreTerminalTitle)
 
 const instance = render(<App />, { exitOnCtrlC: false, maxFps: TUI_MAX_FPS })
+
+// B-131 / B-132 — AFTER the render call and deliberately NOT awaited: the retention policy already
+// declared 30-day transcripts collectable and nothing applied it, but housekeeping must never be
+// something the operator waits for. `collectSessionsAutomatically` runs at most once a day, never
+// throws, and reports through the diagnostics sink; the `void` is the point rather than an
+// oversight, and the `.catch` is the belt to its braces.
+void collectSessionsAutomatically({
+  enabled: resolveEffectiveConfig({ cwd: workingDirectory() }).session_gc,
+  onReport: (line) => {
+    process.stderr.write(`${line}\n`)
+  },
+}).catch((err: unknown) => {
+  // `maybeCollectSessions` converts every failure into a report and is tested for it, so reaching
+  // here means that contract broke. Reporting it is the point: an empty handler would turn a broken
+  // invariant into silence, which is the shape this whole change exists to remove.
+  process.stderr.write(
+    `[sessions gc] collector broke its no-throw contract: ${err instanceof Error ? err.message : String(err)}\n`,
+  )
+})
 
 await instance.waitUntilExit()
 await drainAll()

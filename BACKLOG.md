@@ -67,23 +67,22 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-135 items — **Open** 5 · **In flight** 0 · **Closed** 130
+136 items — **Open** 4 · **In flight** 0 · **Closed** 132
 
-### Open (5)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
-| [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc----) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `triaged` | minor |
-| [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling----) | The recurring manual collection is unmeasured toil with no declared ceiling | `triaged` | minor |
 | [`B-133`](#b-133--no-reliability-target-is-declared-anywhere----) | No reliability target is declared anywhere | `triaged` | minor |
 | [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository----) | `README.md` defers to an ADR file that does not exist in the repository | `triaged` | minor |
+| [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run----) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `triaged` | major |
 
 ### In flight (0)
 
 _None._
 
-### Closed (130)
+### Closed (132)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -216,6 +215,8 @@ _None._
 | [`B-128`](#b-128--an-arbitrary-operator-shell-command-is-killed-at-a-hard-coded-10-s-while-the-hook-beside-it-is-configurable---x) | An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable | `shipped` | minor |
 | [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on---x) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `shipped` | minor |
 | [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here---x) | The retry policy on the critical path is inherited from the transport and is invisible here | `shipped` | minor |
+| [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc---x) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `shipped` | minor |
+| [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling---x) | The recurring manual collection is unmeasured toil with no declared ceiling | `shipped` | minor |
 | [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
@@ -5875,7 +5876,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-131 — Transcript storage grows without bound until the operator remembers to run `sessions gc`   [ ]
+## B-131 — Transcript storage grows without bound until the operator remembers to run `sessions gc`   [x]
 
 domain: theocode
 repo: TheoCode
@@ -5897,7 +5898,33 @@ evidence: |
 why_now: |
   The population is real rather than hypothetical — 13 269 projects were measured on a real disk while
   sizing the sweep budget. Every part of the collector except its trigger is already written.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03. `session_gc` is a config key, ON by default, and the default is the decision
+  rather than an oversight: the retention policy already DECLARED 30-day transcripts collectable and
+  nothing applied it, so the declared policy and the behaviour disagreed. Turning it on makes them
+  agree. The key exists so an operator who wants the old behaviour has a decision they can find and
+  record, instead of discovering it from a CHANGELOG.
+
+  Nothing about WHAT is collected changed. `auto.ts` is the trigger and nothing else — the window,
+  the floor, the 200000-operation budget and the KEEP-what-cannot-be-classified fail-safe are
+  INJECTED, and the tests assert delegation rather than reproducing behaviour that would then exist
+  twice on the one path that deletes a user's data.
+
+  Two orderings are load-bearing and both are pinned by tests. It NEVER THROWS: this runs beside a
+  user's session, and housekeeping that can take the agent down is worse than housekeeping that does
+  not happen. And it stamps the attempt BEFORE sweeping, so a sweep that fails every time does not
+  re-run at every launch.
+
+  The trigger differs per surface for a stated reason. The TUI fires it unawaited after `render`, so
+  it can never delay a start. The CLI awaits it after the answer has been delivered and before the
+  process leaves, because a one-shot process that backgrounds a sweep either delays its own exit or
+  has it killed halfway. Both are at most once a day.
+
+  `apply: true` is passed explicitly and has its own test: `runAllProjectsOnDisk` is a DRY RUN by
+  default, so omitting it would have produced a collector that reports removals every day and removes
+  nothing — green, silent and useless.
+status: shipped
+fixed_in: (this change)
 severity: minor
 dod:
   - collection happens without the operator remembering, bounded so it cannot delay a session start
@@ -5906,7 +5933,7 @@ dod:
 
 > Registered 2026-09-03 from the system-design audit sweep.
 
-## B-132 — The recurring manual collection is unmeasured toil with no declared ceiling   [ ]
+## B-132 — The recurring manual collection is unmeasured toil with no declared ceiling   [x]
 
 domain: theocode
 repo: TheoCode
@@ -5923,7 +5950,16 @@ why_now: |
   This is B-131 seen from the operator's side rather than the disk's: one says the data grows, this
   one says a human is the scheduler. The SRE source prefers removing toil to measuring it, so the
   same trigger closes both.
-status: triaged
+shipped: |
+  SHIPPED 2026-09-03 by B-131's trigger — the toil is REMOVED rather than measured, which is what the
+  SRE source asks for when the procedure's steps never change.
+
+  The second bullet needed its own work: every outcome is reported through the diagnostics channel,
+  and the outcome type distinguishes `disabled`, `too-soon`, `ran` (with counts) and `failed`. In a
+  silent system "it ran and removed nothing" and "it never ran" look identical, and only one of them
+  means the retention policy is being applied.
+status: shipped
+fixed_in: (this change) — closed by the same trigger as B-131
 severity: minor
 dod:
   - the recurring manual step is no longer required for the system to stay within its own retention
@@ -6037,3 +6073,44 @@ dod:
     exemption
 
 > Registered 2026-09-03, found while fixing B-128 rather than by the audit that produced it.
+
+## B-136 — `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 while validating an unrelated change:
+
+      $ npm run build
+      Error: Cannot find module '@theokit/sdk/package.json'
+      Require stack:
+      - tools/build-cli.mjs
+          at file://…/tools/build-cli.mjs:46:56
+
+  PRE-EXISTING, and verified as such rather than assumed: the same failure reproduces at `333cb7e`,
+  the commit before any of B-128..B-135 was written. Confirmed by checking that commit out and
+  running the build there.
+
+  The consequence is stated in the README itself, which offers this as the check that "touches
+  neither the network nor a credential":
+
+      node dist/theocode.mjs sessions gc
+
+  `dist/theocode.mjs` cannot be produced, so the documented smoke test cannot be run by anyone who
+  clones. `tools/build-cli.mjs:46` resolves `@theokit/sdk/package.json` directly, and the CHANGELOG
+  records that nothing here imports the SDK directly — it arrives under `@theokit/agents` as a pnpm
+  override, which does not put it on this package's own resolution path.
+why_now: |
+  Found while validating B-131's wiring, not by the audit that produced the other items. It is
+  registered rather than fixed in the same pass because it is unrelated to those findings and its
+  remedy touches dependency resolution, which deserves its own change and its own verification.
+status: triaged
+severity: major
+dod:
+  - `npm run build` produces `dist/theocode.mjs` in a clean checkout
+  - the README's documented smoke test runs end to end from that artifact
+  - whatever makes the SDK resolvable is recorded, since the override arrangement is deliberate
+
+> Registered 2026-09-03, found while fixing B-131 and deliberately not fixed in the same change.

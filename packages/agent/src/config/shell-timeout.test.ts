@@ -87,6 +87,7 @@ describe('every schema key survives pickScalars', () => {
     hooks: [{ event: 'Stop', command: 'true' }],
     memory: true,
     shell_timeout_ms: 33_000,
+    session_gc: false,
     context_window: 12_345,
   }
 

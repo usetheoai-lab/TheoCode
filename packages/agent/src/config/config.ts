@@ -15,6 +15,7 @@ import {
   ENV_REASONING_EFFORT,
   ENV_SANDBOX_MODE,
   ENV_MEMORY,
+  ENV_SESSION_GC,
   ENV_SHELL_TIMEOUT_MS,
 } from './env-knobs.js'
 import { LAYERS, foldLayers, type Layer } from './layers.js'
@@ -82,6 +83,19 @@ export interface AgentConfig {
    * operator's to bound.
    */
   shell_timeout_ms: number
+  /**
+   * Whether the session collector runs on its own (B-131 / B-132).
+   *
+   * ON by default, and that is the point of the key rather than an oversight: the retention policy
+   * already DECLARED that transcripts older than 30 days are collectable, and nothing applied it, so
+   * the declared policy and the behaviour disagreed. Turning it on makes them agree; the key exists
+   * so an operator who wants the old behaviour has a decision they can find and record, rather than
+   * discovering it from a CHANGELOG.
+   *
+   * It changes nothing about WHAT is collected: the window, the floor, the budget and the
+   * KEEP-what-cannot-be-classified fail-safe are the same ones `sessions gc` has always used.
+   */
+  session_gc: boolean
   context_window?: number
   profile?: string
 }
@@ -96,6 +110,7 @@ export const CONFIG_SCHEMA_KEYS = [
   'hooks',
   'memory',
   'shell_timeout_ms',
+  'session_gc',
   'context_window',
 ] as const
 
@@ -135,6 +150,7 @@ export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
   context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
   shell_timeout_ms: { knob: ENV_SHELL_TIMEOUT_MS, coerce: numberFromEnv },
   memory: { knob: ENV_MEMORY, coerce: booleanFromEnv },
+  session_gc: { knob: ENV_SESSION_GC, coerce: booleanFromEnv },
 }
 
 interface EnvOptOut {
@@ -212,6 +228,7 @@ const DEFAULTS: AgentConfig = {
   // Off, matching Codex's `memories` feature. See `AgentConfig.memory` for the measurement.
   memory: false,
   shell_timeout_ms: DEFAULT_SHELL_TIMEOUT_MS,
+  session_gc: true,
   skills: ['daily-briefing'],
   hooks: [],
 }
@@ -251,6 +268,7 @@ const scalarSchema = z
       .int('shell_timeout_ms: milliseconds are whole numbers')
       .positive('shell_timeout_ms: must be positive — execFile reads 0 as "no timeout"')
       .optional(),
+    session_gc: z.boolean().optional(),
     context_window: z.number().int().positive().optional(),
   })
   .strict()

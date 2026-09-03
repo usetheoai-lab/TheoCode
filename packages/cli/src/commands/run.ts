@@ -13,6 +13,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSessionId } from '../runtime/index.js'
+import { collectSessionsAutomatically } from '@theocode/agent/session'
+import { resolveEffectiveConfig } from '@theocode/agent/config'
 import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
 import { createRetryRecord } from '@theocode/shared/retry-record'
 import { turnErrorText } from '@theocode/shared/turn-error'
@@ -144,6 +146,14 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
       )
     }
   }
+  // B-131 / B-132 — after the answer has been delivered and before the process leaves. AWAITED
+  // here, unlike the TUI: a one-shot process that backgrounds this either delays its own exit or
+  // has the sweep killed halfway. It runs at most once a day, so the cost lands on one invocation
+  // in twenty-four hours and never on the path to the user's output.
+  await collectSessionsAutomatically({
+    enabled: resolveEffectiveConfig({ cwd: process.cwd() }).session_gc,
+    onReport: (line) => process.stderr.write(`${line}\n`),
+  })
   const drainedExit = createDrainedProcessOutput(DEFAULT_WATCHDOG_MS)
   drainedExit(result.errorSeen || emptyTurn !== undefined ? 1 : 0)
 }

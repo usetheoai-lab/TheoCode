@@ -28,6 +28,8 @@ export class EffectiveConfig {
   readonly memory: boolean
   /** Milliseconds before an operator-supplied shell command is killed. See `AgentConfig`. */
   readonly shell_timeout_ms: number
+  /** Whether the session collector runs on its own. See `AgentConfig.session_gc`. */
+  readonly session_gc: boolean
   readonly profile: string | undefined
 
   readonly #contextWindow: number | undefined
@@ -40,6 +42,7 @@ export class EffectiveConfig {
     this.goal_oracle = cfg.goal_oracle
     this.memory = cfg.memory
     this.shell_timeout_ms = cfg.shell_timeout_ms
+    this.session_gc = cfg.session_gc
     this.profile = cfg.profile
     this.#contextWindow = cfg.context_window
 
