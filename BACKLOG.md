@@ -6836,6 +6836,16 @@ shipped: |
   A gate built on either would assert a number that is wrong, which is worse than one that is merely
   old: a stale figure carries its date and says so, while a wrong gate is green and confident. The
   honest instrument here is the date the claim already carries.
+
+  IT DECAYED A THIRD TIME BEFORE THIS ITEM WAS AN HOUR OLD. The count was corrected to 879, and B-150
+  then added three tests — so the very item whose DoD says "the count matches what `npm test`
+  reports" was violated by the next fix. That is not a failure of attention; it is what a
+  hand-maintained number in a document DOES while work continues, demonstrated three times in one
+  session.
+
+  The rule that follows, and the only one that would have held: update the count as the LAST step
+  before finishing, never in the middle. A number touched mid-work is stale by the time it is
+  committed.
 status: shipped
 fixed_in: b7b0343
 severity: minor
