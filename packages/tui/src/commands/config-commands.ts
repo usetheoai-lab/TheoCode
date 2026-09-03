@@ -9,7 +9,12 @@ import { join, resolve } from 'node:path'
 
 import type { Dispatch, SetStateAction } from 'react'
 
-import { EFFORT_LEVELS, parseEffort, type ReasoningEffort } from '@theocode/agent/config'
+import {
+  EFFORT_LEVELS,
+  parseEffort,
+  resolveEffectiveConfig,
+  type ReasoningEffort,
+} from '@theocode/agent/config'
 import { type AttachedImage, ImageAttachError, readImageAttachment } from '@theocode/agent/context'
 import type { ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
@@ -108,14 +113,24 @@ export interface CustomCommandDeps {
   setToast: SetToast
 }
 
-function expansionDeps(warn: (m: string) => void): Parameters<typeof expandTemplate>[2] {
+/**
+ * Exported for the wiring test: that `shell_timeout_ms` reaches `execFile` is a claim about a real
+ * child process, and the only honest way to assert it is to run one.
+ *
+ * `shellTimeoutMs` is a parameter rather than a read inside, so the caller decides when config is
+ * resolved and the test can drive both sides of the bound without writing a `config.toml`.
+ */
+export function expansionDeps(
+  warn: (m: string) => void,
+  shellTimeoutMs: number,
+): Parameters<typeof expandTemplate>[2] {
   return {
     shell: (cmd) =>
       new Promise((resolveShell) => {
         execFile(
           process.env.SHELL ?? '/bin/sh',
           ['-c', cmd],
-          { timeout: 10_000, maxBuffer: 1024 * 1024 },
+          { timeout: shellTimeoutMs, maxBuffer: 1024 * 1024 },
           (err, stdout, stderr) =>
             resolveShell({ text: `${stdout ?? ''}${stderr ?? ''}`, ok: err === null }),
         )
@@ -177,9 +192,15 @@ export function handleCustomCommand(
       const expanded = await expandTemplate(
         command.template,
         arg,
-        expansionDeps((m) => {
-          setToast({ message: m, variant: 'info' })
-        }),
+        expansionDeps(
+          (m) => {
+            setToast({ message: m, variant: 'info' })
+          },
+          // Resolved per invocation, like `/review` does. A custom command is a keystroke, not a hot
+          // path, and reading here is what makes an edit to `config.toml` take effect without a
+          // restart — which was half of what the hard-coded constant cost the operator.
+          resolveEffectiveConfig({ cwd: workingDirectory() }).shell_timeout_ms,
+        ),
       )
       const message = withDelegationInstruction(name, command, expanded, setToast)
       if (command.model !== undefined) setPendingModel(command.model)

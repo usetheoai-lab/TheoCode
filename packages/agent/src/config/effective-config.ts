@@ -26,6 +26,8 @@ export class EffectiveConfig {
   readonly hooks: readonly unknown[]
   /** Durable memory — off unless asked for. See `AgentConfig.memory` for why the default is off. */
   readonly memory: boolean
+  /** Milliseconds before an operator-supplied shell command is killed. See `AgentConfig`. */
+  readonly shell_timeout_ms: number
   readonly profile: string | undefined
 
   readonly #contextWindow: number | undefined
@@ -37,6 +39,7 @@ export class EffectiveConfig {
     this.approval_policy = cfg.approval_policy
     this.goal_oracle = cfg.goal_oracle
     this.memory = cfg.memory
+    this.shell_timeout_ms = cfg.shell_timeout_ms
     this.profile = cfg.profile
     this.#contextWindow = cfg.context_window
 

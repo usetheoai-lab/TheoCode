@@ -30,6 +30,7 @@ const SCHEMA_KEYS = [
   'approval_policy',
   'goal_oracle',
   'context_window',
+  'shell_timeout_ms',
   'skills',
   'hooks',
   'profile',

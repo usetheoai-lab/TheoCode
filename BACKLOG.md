@@ -67,19 +67,25 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-127 items — **Open** 1 · **In flight** 0 · **Closed** 126
+134 items — **Open** 7 · **In flight** 0 · **Closed** 127
 
-### Open (1)
+### Open (7)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
+| [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on----) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `triaged` | minor |
+| [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here----) | The retry policy on the critical path is inherited from the transport and is invisible here | `triaged` | minor |
+| [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc----) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `triaged` | minor |
+| [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling----) | The recurring manual collection is unmeasured toil with no declared ceiling | `triaged` | minor |
+| [`B-133`](#b-133--no-reliability-target-is-declared-anywhere----) | No reliability target is declared anywhere | `triaged` | minor |
+| [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository----) | `README.md` defers to an ADR file that does not exist in the repository | `triaged` | minor |
 
 ### In flight (0)
 
 _None._
 
-### Closed (126)
+### Closed (127)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -209,6 +215,7 @@ _None._
 | [`B-125`](#b-125--a-rendering-test-in-theokit-tui-fails-about-one-run-in-four---x) | A rendering test in theokit-tui fails about one run in four | `shipped` | minor |
 | [`B-126`](#b-126--sonarcloud-analysis-has-failed-on-every-theokit-tui-pr-not-the-quality-gate---x) | SonarCloud analysis has failed on every theokit-tui PR, not the quality gate | `shipped` | minor |
 | [`B-127`](#b-127--a-discovery-specs-priority-only-means-position-among-the-sdks-own-seven---x) | A discovery spec's `priority` only means "position among the SDK's own seven" | `shipped` | minor |
+| [`B-128`](#b-128--an-arbitrary-operator-shell-command-is-killed-at-a-hard-coded-10-s-while-the-hook-beside-it-is-configurable---x) | An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable | `shipped` | minor |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -5718,3 +5725,236 @@ dod:
     public API against a single example
 
 > Registered 2026-08-11, inherited from B-103's kill.
+
+## B-128 — An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 by a system-design sweep of the runtime configuration (catalog card `SD-04.10`,
+  externalised limit rules).
+
+  Three call sites hard-coded `timeout: 10_000` with no config key and no reload path:
+
+  | Site | What it bounds |
+  |---|---|
+  | `packages/tui/src/commands/config-commands.ts:118` | an ARBITRARY user command — `process.env.SHELL -c cmd`, maxBuffer 1 MiB |
+  | `packages/cli/src/commands/review.ts:36` | `git`, duplicated verbatim |
+  | `packages/tui/src/commands/review.ts:86` | `git`, the same eight lines again |
+
+  The number is not the finding; the INCONSISTENCY is. The hook engine directly beside them has
+  accepted a per-hook `timeout_ms` override since it shipped (`packages/agent/src/hooks/hooks.ts:23`,
+  `DEFAULT_TIMEOUT_MS = 5_000`, with `timeout_ms` in `hookSchema`). Two sibling features execute
+  commands the operator wrote; one is theirs to bound and one is not.
+
+  The two `git` blocks also shared a `catch {}` that discarded the reason. Because `buildReviewTarget`
+  branches on `ok` to decide what it is reviewing, a swallowed failure did not surface as an error —
+  it silently changed the SCOPE of the review.
+why_now: |
+  A custom command that legitimately takes longer than 10 s (a slow `git log`, a build, a remote
+  query) is truncated, and the operator has no knob to raise it. `rules/error-handling.md` § 5 names
+  the empty catch as an anti-pattern for exactly the shape the git seam had.
+shipped: |
+  SHIPPED 2026-09-03. `shell_timeout_ms` is a config key with `DEFAULT_SHELL_TIMEOUT_MS = 10_000` —
+  the constant it replaces, unchanged on purpose: moving the default while adding the knob would have
+  changed behaviour for every operator under cover of a fix. Reachable as
+  `THEOCODE_SHELL_TIMEOUT_MS`, validated as a positive integer because `execFile` reads 0 as "no
+  timeout", so a typo would have REMOVED the bound on an arbitrary command rather than shortened it.
+  Resolved per invocation like `/review` already does, which is what makes an edit to `config.toml`
+  take effect without a restart.
+
+  The git seam is now `@theocode/shared/git-runner` — one copy instead of two, `timeoutMs` as a
+  parameter rather than a shared constant (a constant would have moved the literal, not removed it),
+  and `onWarn` REQUIRED so no future caller can rebuild the silent swallow by omitting an optional
+  argument. stderr is captured rather than inherited, so `fatal: Needed a single revision` becomes the
+  warning instead of painting over the TUI.
+
+  Found on the way: `pickScalars` was ten `if (raw.x !== undefined)` lines and adding the eleventh
+  tripped the complexity gate. It is now driven by `CONFIG_SCHEMA_KEYS`, which removes the silent
+  failure mode where a new key parses, validates and is then dropped — a test pins that every schema
+  key survives the copy and that the sample set covers the whole schema.
+status: shipped
+fixed_in: (this change)
+severity: minor
+dod:
+  - the shell timeout is a config key with the current constant as its default, reachable from the
+    environment like every other scalar, and validated as a positive integer
+  - an operator can raise it without restarting, and a test proves the same command dies under a
+    short bound and survives under a long one
+  - the duplicated git seam exists once, and a failed git call reports its reason instead of
+    discarding it
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-129 — Diagnostics are off by default and the failure text does not name the switch that turns them on   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-01.13`, logs/metrics/automation). The source states the gap
+  itself — `packages/shared/src/turn-error.ts:13` records that `THEOCODE_DIAGNOSTICS` is
+  "an environment variable the failure message does not mention", beside the measured 2026-08-25 run:
+
+      ERROR: An error occurred.                    # default
+      retry 1/3 in 20ms — RateLimitError           # THEOCODE_DIAGNOSTICS=stderr
+      retry 2/3 in 403ms — RateLimitError
+
+  `packages/shared/src/diagnostic-sink.ts:16` confirms the sink is opt-in via that variable.
+why_now: |
+  The operator has to already know the variable exists to see why a turn failed. The card admits no
+  exclusion — "Inadequado: nada" — because absence of observability is always a gap.
+status: triaged
+severity: minor
+dod:
+  - a failed turn names the way to see more, without the operator having to know it in advance
+  - the hint appears when it would help and not on every failure, so it does not become noise
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-130 — The retry policy on the critical path is inherited from the transport and is invisible here   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-10.5`, retry with backoff, deadline and DLQ).
+
+  A policy DOES exist — three attempts with a growing delay (20 ms then 403 ms, so exponential with
+  jitter) — and it belongs to the SDK transport. Nothing in this repository declares the attempt
+  count, the ceiling or the deadline, and the operator cannot change them. `grep` for
+  `backoff|retries|circuitBreaker` across `packages/` returns exactly one comment.
+
+  The cost is already recorded at `packages/cli/src/commands/run.ts:56`: after the transport's
+  retries, an auth failure surfaced as `rate_limit (HTTP 429)`, "which reads as a quota problem and
+  sends the user off to check a usage page".
+why_now: |
+  A retry policy that rewrites the error CLASS before it reaches the product is a policy the product
+  should be able to see. The specific 401-as-429 case was fixed by reordering; the mechanism that
+  produced it was not touched.
+status: triaged
+severity: minor
+dod:
+  - when a turn fails after retrying, the failure says so and how many attempts were spent
+  - the final error class survives to the user rather than being reported as whatever the last
+    attempt returned
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-131 — Transcript storage grows without bound until the operator remembers to run `sessions gc`   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-02.2`, storage projection with retention — a card that admits
+  no exclusion).
+
+  The retention policy is present and good: `DEFAULT_WINDOW_DAYS = 30` with `FLOOR_DAYS = 1`
+  (`packages/agent/src/session/gc/all-sessions.ts:21,17`), a refusal when the window is below the
+  floor (`:319-321`), a 200 000-operation sweep budget sized from a MEASURED ~2.54 operations per
+  project over a MEASURED 13 269-project tree (`gc/filesystem.ts:30-40`), and a fail-safe that KEEPS
+  anything it cannot classify (`:37`).
+
+  What is missing is the TRIGGER. `packages/cli/src/commands/sessions.ts:151` gates collection behind
+  an explicit action (`if (args.action !== 'gc')`); nothing schedules it, and nothing runs it on start
+  or exit. Between two manual runs the tree only grows.
+why_now: |
+  The population is real rather than hypothetical — 13 269 projects were measured on a real disk while
+  sizing the sweep budget. Every part of the collector except its trigger is already written.
+status: triaged
+severity: minor
+dod:
+  - collection happens without the operator remembering, bounded so it cannot delay a session start
+  - the existing plan/apply, budget, floor and fail-safe are reused rather than reimplemented
+  - the operator can turn it off, and turning it off is a decision they can find
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-132 — The recurring manual collection is unmeasured toil with no declared ceiling   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-03.1`, toil measured with a declared ceiling — "Inadequado:
+  nada — a ausência de medida é a lacuna").
+
+  `sessions gc` is a recurring manual procedure whose steps are identical every time, which is the
+  shape the SRE source calls toil. Nothing records how often it is needed, how long it takes, or what
+  would be too much. `packages/cli/src/commands/sessions.ts:151`.
+why_now: |
+  This is B-131 seen from the operator's side rather than the disk's: one says the data grows, this
+  one says a human is the scheduler. The SRE source prefers removing toil to measuring it, so the
+  same trigger closes both.
+status: triaged
+severity: minor
+dod:
+  - the recurring manual step is no longer required for the system to stay within its own retention
+    policy
+  - what the automation did is visible, so "it ran and removed nothing" is distinguishable from "it
+    never ran"
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-133 — No reliability target is declared anywhere   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-01.1`, reliability target chosen rather than aspirational —
+  "Inadequado: nada — não escolher é escolher por omissão").
+
+  There is no SLO, no SLA and no reliability figure in `README.md`, `docs/` or `package.json`.
+why_now: |
+  This is the one absence the system-design audit did NOT excuse by the product being a local tool.
+  An agent that fails one turn in twenty is a different product from one that fails one in a
+  thousand, and nobody has written down which this is meant to be. Without it, the retry question in
+  B-130 has no criterion — only a preference.
+status: triaged
+severity: minor
+dod:
+  - what a failed turn is allowed to cost is stated in a versioned file, in a form that can be
+    contradicted by evidence later
+  - the statement does not claim a measured availability number, which `rules/public-copy.md` § 5
+    forbids without sustained measurement
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-134 — `README.md` defers to an ADR file that does not exist in the repository   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-02.3`, standardised indicator definition — the failure mode
+  is a definition the person relying on it cannot reproduce).
+
+  `README.md:99` explains what is deliberately absent from the repository and cites the record:
+
+      `.gitignore` keeps all of `.claude/` local by design
+      (`docs/adr/0002-cycle-artifacts-are-promoted-to-docs.md`)
+
+  That file does not exist in the working tree, `git ls-files docs` returns only the two files under
+  `docs/parity/`, and `.gitignore` contains no `adr` or `docs` entry — so it is MISSING rather than
+  deliberately local.
+why_now: |
+  A reader who clones and asks why the toolchain is absent is sent to a document they cannot open,
+  and it is precisely the explanation a new reader needs. A citation that resolves to nothing is
+  worse than no citation, because it reads as a record that exists.
+status: triaged
+severity: minor
+dod:
+  - the reasoning the citation stood for is readable by someone who clones the repository
+  - no reference in `README.md` points at a path that is neither tracked nor ignored
+
+> Registered 2026-09-03 from the system-design audit sweep.

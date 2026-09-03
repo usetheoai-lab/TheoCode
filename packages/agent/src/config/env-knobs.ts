@@ -13,6 +13,7 @@ export const ENV_SANDBOX_MODE = `${AB}SANDBOX_MODE`
 export const ENV_APPROVAL_POLICY = `${AB}APPROVAL_POLICY`
 export const ENV_GOAL_ORACLE = `${AB}GOAL_ORACLE`
 export const ENV_CONTEXT_WINDOW = `${AB}CONTEXT_WINDOW`
+export const ENV_SHELL_TIMEOUT_MS = `${AB}SHELL_TIMEOUT_MS`
 const ENV_PROVIDER = `${AB}PROVIDER`
 export const ENV_HOME = `${AB}HOME`
 const ENV_THEOKIT_HOME = 'THEOKIT_HOME'
@@ -68,6 +69,13 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: '—',
     effect:
       'The model context window, in tokens. A positive integer; absent ⇒ the window comes from the model catalogue, with the conservative floor when the catalogue does not know it.',
+  },
+  {
+    name: ENV_SHELL_TIMEOUT_MS,
+    reader: CONFIG,
+    default: '10000',
+    effect:
+      'Milliseconds before an operator-supplied shell command (`/…` custom command expansion) is killed. A positive integer; the hook engine has always had the equivalent per-hook `timeout_ms`.',
   },
   {
     name: ENV_PROVIDER,

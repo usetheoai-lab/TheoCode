@@ -14,10 +14,21 @@ import {
   ENV_MODEL,
   ENV_REASONING_EFFORT,
   ENV_SANDBOX_MODE,
+  ENV_SHELL_TIMEOUT_MS,
 } from './env-knobs.js'
 import { LAYERS, foldLayers, type Layer } from './layers.js'
 import type { TrustPosture } from './trust-posture.js'
 import { applySecurityFloor } from './security-floor.js'
+
+/**
+ * How long an operator-supplied shell command may run before it is killed.
+ *
+ * Unchanged from the constant this key replaced, deliberately: the defect was that a hard-coded
+ * bound governed an ARBITRARY user command with no way to raise it, not that 10 s was the wrong
+ * number. Moving the default at the same time would have changed behaviour for everyone under
+ * cover of adding a knob.
+ */
+export const DEFAULT_SHELL_TIMEOUT_MS = 10_000
 
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
 const SANDBOXES = ['read-only', 'workspace-write', 'danger-full-access'] as const
@@ -62,11 +73,19 @@ export interface AgentConfig {
    * a tool that runs inside someone else's repository.
    */
   memory: boolean
+  /**
+   * Milliseconds before an operator-supplied shell command is killed (`/…` custom commands).
+   *
+   * Its sibling — the hook engine — has taken a per-hook `timeout_ms` since it shipped. This key
+   * closes the inconsistency: both features execute commands the operator wrote, so both are the
+   * operator's to bound.
+   */
+  shell_timeout_ms: number
   context_window?: number
   profile?: string
 }
 
-const CONFIG_SCHEMA_KEYS = [
+export const CONFIG_SCHEMA_KEYS = [
   'model',
   'reasoning_effort',
   'sandbox_mode',
@@ -75,6 +94,7 @@ const CONFIG_SCHEMA_KEYS = [
   'skills',
   'hooks',
   'memory',
+  'shell_timeout_ms',
   'context_window',
 ] as const
 
@@ -97,6 +117,7 @@ export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
   approval_policy: { knob: ENV_APPROVAL_POLICY, coerce: (s) => s },
   goal_oracle: { knob: ENV_GOAL_ORACLE, coerce: (s) => s },
   context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
+  shell_timeout_ms: { knob: ENV_SHELL_TIMEOUT_MS, coerce: numberFromEnv },
 }
 
 interface EnvOptOut {
@@ -173,6 +194,7 @@ const DEFAULTS: AgentConfig = {
   goal_oracle: 'judge',
   // Off, matching Codex's `memories` feature. See `AgentConfig.memory` for the measurement.
   memory: false,
+  shell_timeout_ms: DEFAULT_SHELL_TIMEOUT_MS,
   skills: ['daily-briefing'],
   hooks: [],
 }
@@ -207,6 +229,11 @@ const scalarSchema = z
     skills: z.array(z.string()).optional(),
     hooks: z.array(z.unknown()).optional(),
     memory: z.boolean().optional(),
+    shell_timeout_ms: z
+      .number()
+      .int('shell_timeout_ms: milliseconds are whole numbers')
+      .positive('shell_timeout_ms: must be positive — execFile reads 0 as "no timeout"')
+      .optional(),
     context_window: z.number().int().positive().optional(),
   })
   .strict()
@@ -232,17 +259,25 @@ function toConfigError(err: unknown, where: string): ConfigError {
   return new ConfigError(`${where}: ${err instanceof Error ? err.message : String(err)}`)
 }
 
+/**
+ * Copy every schema key the layer defined, driven by `CONFIG_SCHEMA_KEYS` rather than by a line per
+ * key.
+ *
+ * The previous shape was ten `if (raw.x !== undefined) out.x = raw.x` statements, and it carried a
+ * silent failure mode: add a key to the schema, forget the line, and the key parses, validates, then
+ * never reaches the resolved config — settable in `config.toml` and inert at runtime, with nothing
+ * raised anywhere. That is the same drift `keysWithoutEnvPath` exists to catch on the environment
+ * side, and it deserved a mechanism rather than vigilance.
+ *
+ * `shell-timeout.test.ts` pins it from the other direction: every key in the schema must survive
+ * this copy, and the sample set must cover the whole schema.
+ */
 function pickScalars(raw: RawScalars): Partial<AgentConfig> {
   const out: Partial<AgentConfig> = {}
-  if (raw.model !== undefined) out.model = raw.model
-  if (raw.reasoning_effort !== undefined) out.reasoning_effort = raw.reasoning_effort
-  if (raw.sandbox_mode !== undefined) out.sandbox_mode = raw.sandbox_mode
-  if (raw.approval_policy !== undefined) out.approval_policy = raw.approval_policy
-  if (raw.goal_oracle !== undefined) out.goal_oracle = raw.goal_oracle
-  if (raw.skills !== undefined) out.skills = raw.skills
-  if (raw.hooks !== undefined) out.hooks = raw.hooks
-  if (raw.memory !== undefined) out.memory = raw.memory
-  if (raw.context_window !== undefined) out.context_window = raw.context_window
+  for (const key of CONFIG_SCHEMA_KEYS) {
+    const value = raw[key]
+    if (value !== undefined) Object.assign(out, { [key]: value })
+  }
   return out
 }
 
