@@ -39,8 +39,17 @@ describe('buildSweepCommand', () => {
   })
 
   it('test_it_refuses_to_build_a_command_with_no_script_to_run', () => {
-    // `process.argv[1]` is undefined in some embeddings. Spawning `node` with no script would start
-    // an idle REPL that never exits — a leaked process per launch, forever.
+    // `process.argv[1]` is undefined in some embeddings.
+    //
+    // This comment used to say such a child "starts an idle REPL that never exits — a leaked process
+    // per launch, forever". MEASURED 2026-09-03 and false: with `stdio: 'ignore'` the child's stdin
+    // is /dev/null, so node reads EOF and exits 0 immediately. B-147 corrected that claim in
+    // `spawn-sweep.ts` and left THIS copy of it standing — a correction applied to one instance
+    // while the class stayed, which is the shape B-134 had.
+    //
+    // The guard is still right, for a smaller and more precise reason: the child would exit 0 having
+    // swept nothing, and `sweepFinishedLine` would report a finished sweep — the collector announcing
+    // success every day while collecting nothing (B-138). Refusing to spawn reports it instead.
     expect(() => buildSweepCommand({ apply: true, execPath: 'node', script: undefined })).toThrow(
       /script/i,
     )
