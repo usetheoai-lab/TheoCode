@@ -6248,7 +6248,7 @@ shipped: |
   Four tests, including that the gate runs NO subprocess when `--skip-git-repo-check` is passed, and
   that the timeout actually reaches the call — a bound the test cannot see is a bound nobody asserts.
 status: shipped
-fixed_in: 87ff6b1
+fixed_in: 80a516f
 severity: major
 dod:
   - the git call at preflight is bounded, and a test observes the bound rather than its absence
