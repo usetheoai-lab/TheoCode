@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { recordMcpWarning, startMcpFailureTurn } from './mcp-failure-record.js'
-import { currentAttempts, sinkRetryEvent, startRetryTurn } from './retry-record.js'
-import { mcpFailureSink } from './mcp-failure-sink.js'
+import { currentAttempts, startRetryTurn } from './retry-record.js'
+import { runEventSink } from './run-event-sink.js'
 import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
@@ -96,10 +96,7 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
             // is deliberately ignored: `mcp_server_failed` (see `mcpFailureSink`) so an MCP panel
             // never fills with unrelated runtime noise, and `rate_limit` (see `sinkRetryEvent`) so a
             // failure can say how many attempts it cost.
-            onRunEvent: (event) => {
-              mcpFailureSink(event)
-              sinkRetryEvent(event)
-            },
+            onRunEvent: runEventSink,
             ...(images !== undefined ? { images } : {}),
           },
         )
