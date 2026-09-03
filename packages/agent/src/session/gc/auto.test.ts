@@ -84,7 +84,9 @@ describe('maybeCollectSessions', () => {
     await maybeCollectSessions(deps({ plan, run }))
 
     expect(plan).toHaveBeenCalledOnce()
-    expect(run).toHaveBeenCalledWith(planned)
+    // The plan object is passed through untouched; the second argument is the apply decision, which
+    // is false on this first run (B-139).
+    expect(run).toHaveBeenCalledWith(planned, false)
   })
 
   it('test_a_run_that_removed_nothing_is_distinguishable_from_one_that_never_happened', async () => {
@@ -158,5 +160,83 @@ describe('maybeCollectSessions', () => {
     )
 
     expect(reports.join(' ')).toContain('3')
+  })
+})
+
+/**
+ * B-139 — the FIRST automatic sweep looks before it deletes.
+ *
+ * `sessions gc` is dry-run by default (`args.ts:120`, `apply: { default: false }`) and prints
+ * "re-run with --apply to delete". That flag is a design decision, not an accident: deletion is
+ * significant enough that the author made the operator ask for it.
+ *
+ * Turning collection on by default removed that property for everyone — and removed it at the worst
+ * moment, the first run, when the backlog of old transcripts is at its largest and the operator has
+ * had no chance to see what the policy would take. Someone with two years of sessions would have
+ * met the change as a large silent deletion.
+ *
+ * So the first sweep — the one with no stamp on disk — reports what WOULD go and takes nothing. The
+ * next one applies. The cost is one interval of delay; what it buys is the look-first property the
+ * manual command already had.
+ */
+describe('the first automatic sweep is a dry run', () => {
+  it('test_with_no_stamp_it_plans_but_does_not_apply', async () => {
+    let appliedWith: unknown
+    const outcome = await maybeCollectSessions(
+      deps({
+        readLastRun: () => undefined,
+        run: async (plan) => {
+          appliedWith = plan
+          return { dryRun: true, removed: [], errors: [] } as never
+        },
+      }),
+    )
+
+    expect(outcome).toMatchObject({ kind: 'ran', firstRun: true })
+    expect(appliedWith, 'the first run skipped planning entirely').toBeDefined()
+  })
+
+  it('test_the_first_run_says_what_it_would_have_removed', async () => {
+    // A silent first run buys nothing: the whole point is that the operator gets to see it.
+    const reports: string[] = []
+    await maybeCollectSessions(
+      deps({
+        readLastRun: () => undefined,
+        run: async () => ({ dryRun: true, removed: ['a', 'b'], errors: [] }) as never,
+        onReport: (l) => reports.push(l),
+      }),
+    )
+
+    const text = reports.join(' ')
+    expect(text).toContain('2')
+    expect(text.toLowerCase()).toContain('dry')
+  })
+
+  it('test_the_second_run_applies', async () => {
+    // Anti-vacuity: a collector that dry-runs forever is the useless one B-138 was about.
+    const outcome = await maybeCollectSessions(
+      deps({
+        readLastRun: () => new Date(NOW.getTime() - 48 * 60 * 60 * 1000),
+        run: async () => ({ dryRun: false, removed: ['a'], errors: [] }) as never,
+      }),
+    )
+
+    expect(outcome).toMatchObject({ kind: 'ran', firstRun: false, dryRun: false })
+  })
+
+  it('test_the_first_run_still_records_its_stamp_so_the_second_can_apply', async () => {
+    // Without the stamp the collector would dry-run forever, which is the failure this must not
+    // trade itself into.
+    let stamped = false
+    await maybeCollectSessions(
+      deps({
+        readLastRun: () => undefined,
+        writeLastRun: () => {
+          stamped = true
+        },
+      }),
+    )
+
+    expect(stamped).toBe(true)
   })
 })

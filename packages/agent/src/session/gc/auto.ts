@@ -45,6 +45,16 @@ export type AutoGcOutcome =
        * watching for it read a report string that never contained the word in either case.
        */
       readonly dryRun: boolean
+      /**
+       * Whether this was the FIRST sweep — the one with no stamp on disk.
+       *
+       * The first is deliberately a dry run. `sessions gc` is dry-run by default
+       * (`cli/src/runtime/args.ts:120`) and tells the operator to "re-run with --apply to delete";
+       * that flag is a decision, not an accident. Turning collection on by default removed the
+       * look-first property at the worst moment — the first run, when the backlog of old transcripts
+       * is largest and nobody has yet seen what the policy would take.
+       */
+      readonly firstRun: boolean
     }
   | { readonly kind: 'failed'; readonly reason: string }
 
@@ -57,7 +67,8 @@ export interface AutoGcDeps {
   readonly readLastRun: () => Date | undefined
   readonly writeLastRun: (at: Date) => void
   readonly plan: () => Promise<AllPlan>
-  readonly run: (plan: AllPlan) => Promise<AllResult>
+  /** `apply` is false on the first sweep — see `firstRun` on the outcome. */
+  readonly run: (plan: AllPlan, apply: boolean) => Promise<AllResult>
   /**
    * Where the outcome goes.
    *
@@ -73,6 +84,7 @@ export async function maybeCollectSessions(deps: AutoGcDeps): Promise<AutoGcOutc
   if (!deps.enabled) return { kind: 'disabled' }
 
   const lastRun = readLastRunSafely(deps)
+  const firstRun = lastRun === undefined
   if (lastRun !== undefined) {
     const elapsedMs = deps.now.getTime() - lastRun.getTime()
     if (elapsedMs < deps.intervalHours * HOUR_MS) return { kind: 'too-soon', lastRun }
@@ -89,16 +101,22 @@ export async function maybeCollectSessions(deps: AutoGcDeps): Promise<AutoGcOutc
 
   try {
     const plan = await deps.plan()
-    const result = await deps.run(plan)
+    const result = await deps.run(plan, !firstRun)
+    const verb = result.dryRun ? 'would remove' : 'removed'
+    const preface = firstRun
+      ? '[sessions gc] first automatic sweep — DRY RUN, nothing was removed. ' +
+        'The next one will apply; set `session_gc = false` to keep collection manual.'
+      : '[sessions gc] automatic sweep'
     deps.onReport(
-      `[sessions gc] automatic sweep${result.dryRun ? ' (DRY-RUN — nothing was removed)' : ''} — ` +
-        `${String(result.removed.length)} removed, ${String(result.errors.length)} error(s)`,
+      `${preface} — ${String(result.removed.length)} ${verb}, ` +
+        `${String(result.errors.length)} error(s)`,
     )
     return {
       kind: 'ran',
       removed: result.removed.length,
       errors: result.errors.length,
       dryRun: result.dryRun,
+      firstRun,
     }
   } catch (err) {
     const reason = reasonOf(err)

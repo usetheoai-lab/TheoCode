@@ -105,6 +105,20 @@ describe('collectSessionsAutomatically', () => {
     expect(outcome.kind).toBe('ran')
   })
 
+  it('test_the_first_sweep_on_a_fresh_tree_is_a_dry_run', async () => {
+    // B-139 — the look-first property `sessions gc --apply` already had. On a scratch root there is
+    // no stamp, so this is the first sweep.
+    const root = scratchRoot()
+
+    const outcome = await collectSessionsAutomatically({
+      enabled: true,
+      onReport: () => {},
+      projectsRootOverride: root,
+    })
+
+    expect(outcome).toMatchObject({ kind: 'ran', firstRun: true, dryRun: true })
+  })
+
   it('test_the_sweep_applies_rather_than_dry_running', async () => {
     // `runAllProjectsOnDisk` is a DRY RUN unless told `apply: true`, so a caller that forgets
     // produces a collector that reports every day and removes nothing — green, silent and useless.
@@ -115,8 +129,16 @@ describe('collectSessionsAutomatically', () => {
     // itself sets on the result, which is the only thing that distinguishes the two.
     const root = scratchRoot()
 
+    // First sweep: the deliberate dry run (B-139). Second: the one that must actually apply.
+    await collectSessionsAutomatically({
+      enabled: true,
+      now: new Date('2026-09-03T12:00:00Z'),
+      onReport: () => {},
+      projectsRootOverride: root,
+    })
     const outcome = await collectSessionsAutomatically({
       enabled: true,
+      now: new Date('2026-09-05T12:00:00Z'),
       onReport: () => {},
       projectsRootOverride: root,
     })
@@ -128,18 +150,26 @@ describe('collectSessionsAutomatically', () => {
     ).toBe(false)
   })
 
-  it('test_a_dry_run_says_so_in_the_report', async () => {
+  it('test_an_applying_sweep_does_not_announce_itself_as_a_dry_run', async () => {
     // B-132's bullet, extended: "0 removed because there was nothing" and "0 removed because I did
-    // not actually remove" are different facts and must not read identically.
+    // not actually remove" are different facts and must not read identically. Checked on the SECOND
+    // sweep, since the first says DRY RUN on purpose.
     const root = scratchRoot()
     const reports: string[] = []
 
     await collectSessionsAutomatically({
       enabled: true,
+      now: new Date('2026-09-03T12:00:00Z'),
+      onReport: () => {},
+      projectsRootOverride: root,
+    })
+    await collectSessionsAutomatically({
+      enabled: true,
+      now: new Date('2026-09-05T12:00:00Z'),
       onReport: (line) => reports.push(line),
       projectsRootOverride: root,
     })
 
-    expect(reports.join(' ')).not.toContain('DRY-RUN')
+    expect(reports.join(' ').toLowerCase()).not.toContain('dry')
   })
 })

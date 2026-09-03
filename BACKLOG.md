@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-138 items — **Open** 1 · **In flight** 0 · **Closed** 137
+139 items — **Open** 1 · **In flight** 0 · **Closed** 138
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (137)
+### Closed (138)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -220,6 +220,7 @@ _None._
 | [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run---x) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `shipped` | major |
 | [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
 | [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
+| [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6317,3 +6318,54 @@ dod:
     report
 
 > Registered 2026-09-03. Found in my own work, by mutation-checking instead of trusting green.
+
+## B-139 — Turning collection on by default removed the look-first step the manual command has   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by asking whether the AUTOMATIC path matches the MANUAL one it automates, rather
+  than only whether it works.
+
+  It matches on the window, the floor, `keepLast` and the operation budget — all inherited, all
+  verified. It does NOT match on one thing, and that one is the safety step:
+
+      packages/cli/src/runtime/args.ts:120   apply: { type: 'boolean', default: false }
+      packages/agent/src/session/gc/filesystem.ts:211
+        'DRY-RUN — nothing was removed; use --apply to execute'
+      packages/cli/src/commands/sessions.ts:47
+        '  -> re-run with --apply to delete'
+
+  `sessions gc` is dry-run BY DEFAULT and makes the operator ask for the deletion. That flag is a
+  design decision about how significant deletion is, and B-131 removed it for everyone — at the
+  worst possible moment. The first automatic sweep is the one where the backlog of old transcripts
+  is largest and nobody has yet seen what a 30-day policy would take from them. Someone with two
+  years of sessions would have met the change as a large silent deletion.
+why_now: |
+  B-131 shipped `session_gc` defaulting to true in this same release. The finding is against my own
+  change, and the window to fix it is before anyone runs it.
+shipped: |
+  SHIPPED 2026-09-03. The FIRST sweep — the one with no stamp on disk — plans and reports what it
+  WOULD remove, and removes nothing. The next one applies. The stamp is still written, so the
+  collector cannot dry-run forever, which is the failure it must not trade itself into (B-138).
+
+  The report on that first run names the choice rather than burying it: "first automatic sweep —
+  DRY RUN, nothing was removed. The next one will apply; set `session_gc = false` to keep collection
+  manual." The cost is one interval of delay; what it buys is the look-first property the manual
+  command already had.
+
+  Both guarantees are mutation-checked and independently protected: forcing the first sweep to apply
+  fails 2 tests, forcing every sweep to dry-run fails 6, and dropping the `apply` argument on the way
+  to the SDK fails 6.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - the first automatic sweep removes nothing and says what it would have removed
+  - the second applies, and a mutation that makes every sweep a dry run turns the suite red
+  - the operator is told, in that first report, how to keep collection manual
+
+> Registered 2026-09-03. Found in my own change, by comparing the automatic path against the manual
+> one it automates instead of only checking that it worked.

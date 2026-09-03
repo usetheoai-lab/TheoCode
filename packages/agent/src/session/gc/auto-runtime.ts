@@ -65,10 +65,13 @@ export async function collectSessionsAutomatically(
       writeLastRun(root, at)
     },
     plan: () => planAllProjectsOnDisk({ projectsRoot: root }),
-    // `apply: true` is the whole difference between collecting and reporting: `runAllProjectsOnDisk`
-    // is a DRY RUN unless told otherwise, so omitting this would produce a sweep that reports
-    // removals every day and never removes anything — green, silent, and useless.
-    run: (plan) => runAllProjectsOnDisk(plan, { apply: true, projectsRoot: root }),
+    // `apply` is the whole difference between collecting and reporting: `runAllProjectsOnDisk` is a
+    // DRY RUN unless told otherwise, so hard-coding false would produce a sweep that reports
+    // removals every day and never removes anything — green, silent and useless (B-138).
+    //
+    // It comes from `maybeCollectSessions`, which passes false for the FIRST sweep only, so the
+    // operator sees what the policy would take before it takes it (B-139).
+    run: (plan, apply) => runAllProjectsOnDisk(plan, { apply, projectsRoot: root }),
     onReport: opts.onReport,
   })
 }
