@@ -5,7 +5,7 @@
  */
 import { mkdtempSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -281,5 +281,77 @@ describe('what the child did reaches the operator', () => {
     })
 
     expect(reports.join(' ')).toContain('sweep')
+  })
+})
+
+/**
+ * The three tolerant helpers, on the branch that makes them tolerant.
+ *
+ * Each one catches and carries on, and each catch is a DECISION with a consequence — measured
+ * 2026-09-03 as the only uncovered lines this release added to the file. `rules/error-handling.md`
+ * puts negative cases where the handling is proven; a swallow whose report is untested is
+ * indistinguishable from a swallow.
+ */
+describe('the sweep reports what it could not do instead of failing', () => {
+  it('test_a_missing_entry_point_is_reported_rather_than_silently_not_swept', () => {
+    // The sharpest of the three. `buildSweepCommand` refuses to spawn without a script, because a
+    // child with none exits 0 having swept nothing and the collector would announce a finished sweep
+    // every day while collecting nothing — B-138. Refusing is only half the fix; saying so is the
+    // other half, and it is this line.
+    const root = scratchRoot()
+    const said: string[] = []
+    const argv = process.argv
+    process.argv = [argv[0] ?? 'node']
+
+    try {
+      const outcome = startSessionSweepInBackground({
+        enabled: true,
+        onReport: (l) => said.push(l),
+        projectsRootOverride: root,
+        spawnSweep: fakeChild,
+      })
+
+      expect(outcome.started).toBe(false)
+      expect(outcome.reason).toBe('unspawnable')
+      expect(said.join(' '), 'the sweep refused to start and said nothing').toContain('no script')
+    } finally {
+      process.argv = argv
+    }
+  })
+
+  it('test_an_unwritable_state_directory_does_not_stop_the_sweep', () => {
+    // A read-only home must not mean the retention policy stops being applied; it means the interval
+    // is not remembered, which is the smaller of the two problems. The stamp lives one level ABOVE
+    // the projects root, so a root nested under a FILE makes the write fail without touching the
+    // caller's disk.
+    const blocker = join(scratchRoot(), 'a-file')
+    mkdirSync(dirname(blocker), { recursive: true })
+    writeFileSync(blocker, 'not a directory\n')
+    const said: string[] = []
+
+    const outcome = startSessionSweepInBackground({
+      enabled: true,
+      onReport: (l) => said.push(l),
+      projectsRootOverride: join(blocker, 'nested', 'projects'),
+      spawnSweep: fakeChild,
+    })
+
+    expect(outcome.started, 'a stamp that could not be written stopped the collection').toBe(true)
+    expect(said.join(' ')).toContain('could not record the run time')
+  })
+
+  it('test_a_healthy_run_reports_neither_of_those', () => {
+    // Anti-vacuity: a helper that reported unconditionally would satisfy both assertions above.
+    const said: string[] = []
+
+    startSessionSweepInBackground({
+      enabled: true,
+      onReport: (l) => said.push(l),
+      projectsRootOverride: scratchRoot(),
+      spawnSweep: fakeChild,
+    })
+
+    expect(said.join(' ')).not.toContain('could not')
+    expect(said.join(' ')).not.toContain('no script')
   })
 })
