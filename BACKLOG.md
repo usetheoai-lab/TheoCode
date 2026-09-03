@@ -6641,7 +6641,7 @@ shipped: |
   The two claims that turned out TRUE now carry the measurement that establishes them, so the next
   reader does not have to re-derive them from POSIX.
 status: shipped
-fixed_in: PENDING
+fixed_in: a4fdb30
 severity: major
 dod:
   - every behavioural claim written in this release is either measured or removed
