@@ -39,7 +39,7 @@ node dist/theocode.mjs sessions gc
 | `@theocode/agent`  | The composition of the SDK with this product's policy. Not a library of agents — the SDK is `@theokit/agents`; this is what decides how it behaves. | `@theocode/agent/config`, `/auth`, `/session`, `/hooks`, … |
 | `@theocode/shared` | Shutdown, the diagnostic sink, the agent seam.                                                                                                      | `@theocode/shared/shutdown`, `/diagnostic-sink`, `/agent`  |
 | `@theocode/tui`    | Ink + React. Owns nothing about the agent beyond driving it.                                                                                        | `npm run dev`                                              |
-| `@theocode/cli`    | Headless. Five modes: `run`, `resume`, `review`, `goal`, `sessions gc`.                                                                             | `npm run exec`                                             |
+| `@theocode/cli`    | Headless. Six modes: `run`, `resume`, `review`, `goal`, `sessions gc`, `doctor` (prints the RESOLVED state for a support session; exits non-zero on a failure, never prints a credential).                                                                             | `npm run exec`                                             |
 
 ## Where configuration lives
 

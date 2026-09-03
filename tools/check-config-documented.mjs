@@ -18,12 +18,35 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const SCHEMA = 'packages/agent/src/config/config.ts'
 const README = 'README.md'
+const CLI = 'packages/cli/src/main.ts'
 
 /** The keys the config schema declares, read from its source rather than by importing it. */
 export function schemaKeys(source) {
   const block = /CONFIG_SCHEMA_KEYS[^=]*=\s*\[(.*?)\]/s.exec(source)
   if (block === null) return []
   return [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
+}
+
+/**
+ * The modes the CLI dispatches on, from both forms its entry point uses.
+ *
+ * Two forms because the dispatch grew two: an early-return chain for the modes that own a
+ * subcommand tree (`sessions`, `doctor`) and a switch for the rest. A parser that knew only the
+ * switch would have missed exactly the mode that was undocumented.
+ */
+/**
+ * What the ARGUMENT PARSER returns rather than what a user types.
+ *
+ * `error` is "you made a mistake" and `help` is `--help`. Neither is a subcommand, and demanding the
+ * README document them would force it to name two words nobody can invoke. This is the one place
+ * the guard subtracts, so it says why.
+ */
+const PARSER_OUTCOMES = new Set(['error', 'help'])
+
+export function cliModes(source) {
+  const guard = [...source.matchAll(/mode === '([a-z-]+)'/g)].map((m) => m[1])
+  const cases = [...source.matchAll(/case '([a-z-]+)':/g)].map((m) => m[1])
+  return [...new Set([...guard, ...cases])].filter((m) => !PARSER_OUTCOMES.has(m))
 }
 
 /**
@@ -34,7 +57,15 @@ export function schemaKeys(source) {
  * report the one key whose documented spelling is the honest one.
  */
 export function undocumentedKeys(keys, readme) {
-  return keys.filter((k) => !readme.includes(`\`${k}\``) && !readme.includes(`[[${k}]]`))
+  return keys.filter(
+    (k) =>
+      !readme.includes(`\`${k}\``) &&
+      !readme.includes(`[[${k}]]`) &&
+      // A name documented inside a longer backticked command counts: `sessions` is written
+      // `sessions gc` wherever a reader meets it, because the bare word runs nothing. Demanding the
+      // bare form would push the README towards being less accurate to satisfy the guard.
+      !readme.includes(`\`${k} `),
+  )
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -47,13 +78,25 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.stderr.write(`${SCHEMA}: CONFIG_SCHEMA_KEYS not found — the guard could not read it\n`)
     process.exit(1)
   }
-  const missing = undocumentedKeys(keys, readFileSync(README, 'utf8'))
-  if (missing.length > 0) {
+  const readme = readFileSync(README, 'utf8')
+  const modes = existsSync(CLI) ? cliModes(readFileSync(CLI, 'utf8')) : []
+  const surfaces = [
+    { label: 'config keys', names: keys },
+    { label: 'CLI modes', names: modes },
+  ]
+
+  let failed = false
+  for (const { label, names } of surfaces) {
+    const missing = undocumentedKeys(names, readme)
+    if (missing.length === 0) {
+      if (!quiet) process.stdout.write(`${README}: all ${String(names.length)} ${label} are documented\n`)
+      continue
+    }
+    failed = true
     process.stderr.write(
-      `${README} documents ${String(keys.length - missing.length)}/${String(keys.length)} config keys. ` +
-        `An operator cannot discover: ${missing.join(', ')}\n`,
+      `${README} documents ${String(names.length - missing.length)}/${String(names.length)} ${label}. ` +
+        `A user cannot discover: ${missing.join(', ')}\n`,
     )
-    process.exit(1)
   }
-  if (!quiet) process.stdout.write(`${README}: all ${String(keys.length)} config keys are documented\n`)
+  if (failed) process.exit(1)
 }
