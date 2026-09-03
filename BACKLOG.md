@@ -6490,7 +6490,7 @@ shipped: |
   SIGKILL cannot be caught and is not what a delete path should meet first. `stdio: 'ignore'` because
   the TUI owns the screen and `installStderrGuard` protects this process's stderr, not a child's.
 status: shipped
-fixed_in: PENDING
+fixed_in: a0d7a77
 severity: major
 dod:
   - the child carries a timeout, and a test reads the number rather than trusting the call site
