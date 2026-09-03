@@ -14,6 +14,7 @@ import {
   ENV_MODEL,
   ENV_REASONING_EFFORT,
   ENV_SANDBOX_MODE,
+  ENV_MEMORY,
   ENV_SHELL_TIMEOUT_MS,
 } from './env-knobs.js'
 import { LAYERS, foldLayers, type Layer } from './layers.js'
@@ -105,6 +106,21 @@ interface EnvPath {
   readonly coerce: (raw: string) => unknown
 }
 
+/**
+ * `1`/`true`/`yes`/`on` and their negatives, case-insensitively; anything else is returned VERBATIM.
+ *
+ * Returning the raw string on a value it does not recognise is deliberate and matches
+ * `numberFromEnv`: the scalar schema then rejects it by name, so `THEOCODE_MEMORY=maybe` fails loud
+ * instead of being silently read as `false`. A boolean knob that quietly treats every typo as "off"
+ * is the shape where an operator believes a capability is on and it is not.
+ */
+function booleanFromEnv(raw: string): unknown {
+  const v = raw.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(v)) return true
+  if (['0', 'false', 'no', 'off'].includes(v)) return false
+  return raw
+}
+
 function numberFromEnv(raw: string): unknown {
   const n = Number(raw)
   return raw.trim().length > 0 && Number.isFinite(n) ? n : raw
@@ -118,6 +134,7 @@ export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
   goal_oracle: { knob: ENV_GOAL_ORACLE, coerce: (s) => s },
   context_window: { knob: ENV_CONTEXT_WINDOW, coerce: numberFromEnv },
   shell_timeout_ms: { knob: ENV_SHELL_TIMEOUT_MS, coerce: numberFromEnv },
+  memory: { knob: ENV_MEMORY, coerce: booleanFromEnv },
 }
 
 interface EnvOptOut {

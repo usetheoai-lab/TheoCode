@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-134 items — **Open** 5 · **In flight** 0 · **Closed** 129
+135 items — **Open** 5 · **In flight** 0 · **Closed** 130
 
 ### Open (5)
 
@@ -83,7 +83,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (129)
+### Closed (130)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -216,6 +216,7 @@ _None._
 | [`B-128`](#b-128--an-arbitrary-operator-shell-command-is-killed-at-a-hard-coded-10-s-while-the-hook-beside-it-is-configurable---x) | An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable | `shipped` | minor |
 | [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on---x) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `shipped` | minor |
 | [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here---x) | The retry policy on the critical path is inherited from the transport and is invisible here | `shipped` | minor |
+| [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -5987,3 +5988,52 @@ dod:
   - no reference in `README.md` points at a path that is neither tracked nor ignored
 
 > Registered 2026-09-03 from the system-design audit sweep.
+
+## B-135 — The config-reachability detector reported green about a key it never read   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while adding `shell_timeout_ms` for B-128, by comparing the detector's input
+  against the schema it claims to cover.
+
+  `packages/agent/src/config/env-knobs.test.ts` states the invariant plainly — "every config key is
+  either reachable from the environment or explicitly exempt" — and B-041's own docblock argues that
+  a detector nobody runs is not a detector. But its `SCHEMA_KEYS` was a hand-retyped copy of the
+  schema, and it had drifted:
+
+      schema keys : approval_policy context_window goal_oracle hooks MEMORY model
+                    reasoning_effort sandbox_mode skills
+      detector    : approval_policy context_window goal_oracle hooks       model
+                    reasoning_effort sandbox_mode skills profile profiles
+
+  `memory` became a config key and was never added to the list. It is settable in `config.toml`, is
+  in no `ENV_OPT_OUTS` entry, and has no environment path — precisely the state the detector exists
+  to refuse — and the suite was green because the detector was never shown the key.
+why_now: |
+  This is the failure mode the detector was written to prevent, reproduced one level up: a gate whose
+  input is a COPY of the thing it checks stops being a gate the moment somebody forgets to update the
+  copy. It fails in the reassuring direction — reporting green about what it never read — which is
+  the worst direction for a gate to fail in.
+shipped: |
+  SHIPPED 2026-09-03. `SCHEMA_KEYS` is now `[...CONFIG_SCHEMA_KEYS, 'profile', 'profiles']`, so the
+  list cannot drift from the schema again, plus an assertion that every schema key is covered — the
+  anti-drift guard, since a derivation can always be undone by a later edit.
+
+  Deriving it turned the suite red on `memory`, which is the point. `THEOCODE_MEMORY` closes it, with
+  a boolean coercion that accepts `1/true/yes/on` and their negatives and returns anything else
+  VERBATIM, so `THEOCODE_MEMORY=maybe` is rejected by name rather than silently read as `false`. That
+  direction matters here more than most: memory-off is what a determinism-sensitive benchmark run
+  asks for, and a typo that quietly means "off" would tell the operator they got what they wanted.
+status: shipped
+fixed_in: (this change)
+severity: major
+dod:
+  - the detector's key list is derived from the schema rather than retyped, and a test fails if that
+    derivation is ever undone
+  - every key the derivation exposes is either reachable from the environment or carries a recorded
+    exemption
+
+> Registered 2026-09-03, found while fixing B-128 rather than by the audit that produced it.
