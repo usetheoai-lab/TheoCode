@@ -3,12 +3,28 @@
 
   // The dead-export gate `npm run lint` enforces.
   //
-  // `includeEntryExports` is the setting that carries this file. Without it an export declared IN an
-  // entry file is exempt, and in a barrel-per-package layout that is exactly where dead surface
-  // accumulates — every `index.ts` here is an entry. Measured on this tree before the cleanup: knip
-  // under its defaults reported 1 issue, this configuration reported 28. A green run under the
-  // defaults would have meant nothing, which is why this file is committed rather than left to the
-  // tool's inference.
+  // `includeEntryExports` is kept, and it is NOT doing what this comment used to claim. Measured
+  // against knip 6.32.2 on 2026-09-03 by appending a plainly dead `export const X = 1` to one file
+  // at a time and re-running:
+  //
+  //   packages/tui/src/theme.ts            not an entry   -> REPORTED
+  //   packages/agent/src/config/config.ts  not an entry   -> REPORTED
+  //   packages/agent/src/index.ts          not an entry   -> REPORTED
+  //   packages/tui/src/main.tsx            entry          -> not reported
+  //   packages/cli/src/main.ts             entry          -> not reported
+  //   packages/agent/src/chat-acp.ts       entry          -> not reported
+  //   packages/tui/tools/render-banner.tsx entry          -> not reported
+  //
+  // Four for four: an export declared in an entry file is exempt anyway. Setting it here, setting it
+  // inside a workspace block, and passing `--include-entry-exports` on the command line all produce
+  // the same result. So the gate covers non-entry files — which is most of the tree, and includes
+  // every barrel — and does not cover the four entry files.
+  //
+  // The claim this replaces was wrong twice over, and the second half is why it went unnoticed: it
+  // said "every `index.ts` here is an entry", and no `index.ts` is in any entry list. The barrels are
+  // covered precisely BECAUSE they are not entries. The "1 issue vs 28" measurement it cited was real
+  // when written; what changed is knip, not this tree. The setting stays because it costs nothing and
+  // becomes correct again the day the tool honours it.
   //
   // Every package here is `private: true` and never published, so an export nobody imports has no
   // downstream consumer to protect: it is dead surface, not API. If a survivor must be kept, add it
@@ -30,29 +46,27 @@
   "ignoreBinaries": ["view"],
 
   "workspaces": {
+    // Only the test globs are listed. The other ten patterns this block used to carry were reported
+    // by knip itself as `Remove redundant entry pattern` — it already reaches each of them without
+    // being told: the four `tools/*.mjs` scripts and `.dependency-cruiser.cjs` through the
+    // `package.json` scripts that run them, `vitest.config.ts` and `eslint.config.mjs` as tool
+    // configs, and `src/main.ts` / `src/main.tsx` / `src/chat-acp.ts` through its default entry
+    // patterns and the `build:acp` script. Verified by deleting them and re-running: still 0 issues,
+    // and the same four files still resolve as entries.
     ".": {
-      "entry": [
-        "tools/build-cli.mjs",
-        "tools/check-english-only.mjs",
-        "tools/check-artifact-promotion.mjs",
-        "tools/check-theokit-updates.mjs",
-        "tools/**/*.test.mjs",
-        "vitest.config.ts",
-        "eslint.config.mjs",
-        ".dependency-cruiser.cjs",
-      ],
+      "entry": ["tools/**/*.test.mjs"],
       "project": ["tools/**/*.mjs", "*.ts", "*.mjs"],
     },
     "packages/agent": {
-      "entry": ["src/chat-acp.ts", "src/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts"],
       "project": ["src/**/*.ts"],
     },
     "packages/cli": {
-      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "entry": ["src/**/*.test.ts"],
       "project": ["src/**/*.ts"],
     },
     "packages/tui": {
-      "entry": ["src/main.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"],
+      "entry": ["src/**/*.test.ts", "src/**/*.test.tsx"],
       "project": ["src/**/*.ts", "src/**/*.tsx"],
     },
     "packages/shared": {
