@@ -1,17 +1,22 @@
-# The five gates this repository declares, run on every pull request.
+# The six gates this repository declares, run on every pull request.
 #
 # B-015: `.github` had never existed across 383 commits. Five gates were declared in
 # `package.json` and every one of them passed only when a human remembered to run it. A gate
 # nobody runs is documentation.
 #
-# One workflow, five jobs, and every one of them blocking — deliberately. No job is allowed to
+# One workflow, six jobs, and every one of them blocking — deliberately. No job is allowed to
 # report a failure as a pass; a job that cannot fail is the gate that motivated this file, one
 # layer down. `crossval` was RED when this work
 # started (31 closed items with no `fixed_in`); it was made green BEFORE this file landed, because
 # a gate wired in red is a gate everyone learns to ignore.
 #
-# Five jobs rather than one: a single job stops at the first failure and hides the other four.
+# Six jobs rather than one: a single job stops at the first failure and hides the other five.
 # Each pays its own `pnpm install`, which is the price of independent red/green.
+#
+# The count was five until 2026-09-03, when `build` was added (B-136): every other gate reads the
+# SOURCE, so a repository whose bundle no longer builds passed all five. These header lines said
+# five for the hour between adding the job and noticing — the same decay B-148 recorded about the
+# README's test count, in the file that documents itself.
 #
 # pnpm rather than npm, since 2026-09-02. npm could not honour the `overrides` in
 # `pnpm-workspace.yaml`'s npm twin: measured with an exact pin and a full install, it resolved
@@ -20,7 +25,7 @@
 # ran. `package-lock.json` is gitignored now — the full reasoning is in `pnpm-workspace.yaml`.
 #
 # ---------------------------------------------------------------------------------------------
-# B-062: these five checks are not required. Nothing here blocks a merge.
+# B-062: these six checks are not required. Nothing here blocks a merge.
 #
 # Read "blocking" above in its narrow sense: no job reports a failure as a pass. It does NOT mean
 # GitHub refuses the merge. It does not, and cannot at this tier. Measured 2026-08-19 with a token
@@ -40,7 +45,7 @@
 # not a permission we lack and not a file we forgot to write — `main` is as unprotected as
 # `develop`.
 #
-# What holds the line today is a person waiting for five green ticks — usually. Surveyed at the
+# What holds the line today is a person waiting for six green ticks — usually. Surveyed at the
 # same time: 25 merged PRs (#25 through #49, every integer in that range), none of which merged
 # with a red rollup, and the six most recent merged 20-49 seconds after the last check completed.
 #
