@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-144 items — **Open** 1 · **In flight** 0 · **Closed** 143
+145 items — **Open** 1 · **In flight** 0 · **Closed** 144
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (143)
+### Closed (144)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -226,6 +226,7 @@ _None._
 | [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
 | [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
 | [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
+| [`B-148`](#b-148--a-hand-maintained-count-in-the-readme-went-stale-twice-in-one-session-both-times-by-my-hand---x) | A hand-maintained count in the README went stale twice in one session, both times by my hand | `shipped` | minor |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6648,3 +6649,46 @@ dod:
   - a claim that survives measurement records the measurement, so it is not re-deduced later
 
 > Registered 2026-09-03, by sweeping the third pattern instead of fixing a third instance.
+
+## B-148 — A hand-maintained count in the README went stale twice in one session, both times by my hand   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by sweeping the last class this release repeated: a number in a document that
+  decays because a human maintains it.
+
+  `README.md` claimed the suite was "71 files, 487 cases (measured 2026-08-11)". That was invalidated
+  by this release's work, updated to "107 files, 837 cases", and invalidated AGAIN by the tests added
+  after the update — it read 107/837 while `npm test` reported 115/879. Stale twice in one session,
+  both times by the same hand that was fixing staleness elsewhere.
+why_now: |
+  The same defect class as B-135, where a hand-retyped copy of the schema drifted from the schema. It
+  is worth recording because the obvious remedy — derive the number and gate it — was tried and
+  REJECTED on measurement, and a rejected alternative left unrecorded is one the next person
+  re-litigates from scratch.
+shipped: |
+  SHIPPED 2026-09-03. The number is corrected, and it now names the two ways of counting that are
+  WRONG, so the next reader does not reach for either.
+
+  A DERIVED GATE WAS CONSIDERED AND REJECTED, on measurement rather than on taste. Neither cheap
+  derivation agrees with the suite:
+
+      glob over `*.test.ts` / `*.test.tsx`  -> 114   (vitest: 115; one suite is a `.test.mjs`
+                                                      under `tools/`)
+      grep for `it(` / `test(`              -> 823   (vitest: 879; `it.each` expands at runtime)
+
+  A gate built on either would assert a number that is wrong, which is worse than one that is merely
+  old: a stale figure carries its date and says so, while a wrong gate is green and confident. The
+  honest instrument here is the date the claim already carries.
+status: shipped
+fixed_in: PENDING
+severity: minor
+dod:
+  - the count matches what `npm test` reports
+  - the two derivations that do NOT match are named, so nobody builds a gate on them
+  - the rejected alternative is recorded with the measurement that rejected it
+
+> Registered 2026-09-03, by sweeping the fourth repeated pattern of this release.

@@ -115,7 +115,7 @@ argued with.
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
-**107 files, 837 cases** (measured 2026-09-03). The following were left out by an explicit decision —
+**115 files, 879 cases** (measured 2026-09-03 — `npm test`'s own count, which is the only one that is right: a glob over `*.test.ts` finds 114 because one suite is a `.test.mjs` under `tools/`, and counting `it(` finds 823 because `it.each` expands). The following were left out by an explicit decision —
 stated here so nobody assumes they were forgotten:
 
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.
