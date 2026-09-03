@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-136 items — **Open** 1 · **In flight** 0 · **Closed** 135
+137 items — **Open** 1 · **In flight** 0 · **Closed** 136
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (135)
+### Closed (136)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -218,6 +218,7 @@ _None._
 | [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository---x) | `README.md` defers to an ADR file that does not exist in the repository | `shipped` | minor |
 | [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
 | [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run---x) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `shipped` | major |
+| [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6206,3 +6207,52 @@ dod:
   - whatever makes the SDK resolvable is recorded, since the override arrangement is deliberate
 
 > Registered 2026-09-03, found while fixing B-131 and deliberately not fixed in the same change.
+
+## B-137 — The first thing the CLI does was an unbounded subprocess that misreported its own failure   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by RE-MEASURING B-128 instead of trusting it had been fixed. The original sweep
+  counted three call sites hard-coding `timeout: 10_000`; re-running the measurement after the fix
+  turned up a FOURTH git subprocess it had never seen, because it had no timeout to count:
+
+      packages/cli/src/runtime/preflight.ts:11
+        execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
+
+  `gitGate` is the FIRST thing `theocode run` does. With no timeout, a git that hangs — a
+  network-backed working tree, a stale `index.lock`, a credential helper waiting on a prompt — hangs
+  the CLI forever, before it has printed anything a user could act on. B-128 was about a bound being
+  unreachable; this was about no bound at all, on the earliest path in the process.
+
+  The second half is diagnosis. Every failure took one branch and printed
+  `Not inside a git repository`, so a hang, a missing binary and a genuinely non-git directory were
+  reported identically and only one of them was true — the shape B-130 fixed one layer up, where the
+  transport's retries turned a 401 into a 429.
+why_now: |
+  It was invisible to the audit that produced B-128 precisely because it lacked the thing that sweep
+  was counting. That is worth recording as a method note: a search for "the constant is wrong" cannot
+  find "there is no constant".
+shipped: |
+  SHIPPED 2026-09-03. `gitGate` uses the shared `createGitRunner` seam bounded by
+  `DEFAULT_SHELL_TIMEOUT_MS`, and the reason git actually gave now reaches the user beside the
+  verdict, which is unchanged: the gate still refuses.
+
+  The bound is the CONSTANT and deliberately not `shell_timeout_ms` from config. This runs before any
+  config is resolved, and reading a file here would add a failure mode to the earliest path in the
+  process — the one place a failure has no friendlier path to fall back to. A local `rev-parse` that
+  needs more than ten seconds is the hang the bound exists for.
+
+  Four tests, including that the gate runs NO subprocess when `--skip-git-repo-check` is passed, and
+  that the timeout actually reaches the call — a bound the test cannot see is a bound nobody asserts.
+status: shipped
+fixed_in: 87ff6b1
+severity: major
+dod:
+  - the git call at preflight is bounded, and a test observes the bound rather than its absence
+  - a failure says which of the several possible causes it was, instead of naming one for all of them
+  - skipping the gate runs no subprocess at all
+
+> Registered 2026-09-03, found by re-measuring B-128 rather than by the audit that produced it.

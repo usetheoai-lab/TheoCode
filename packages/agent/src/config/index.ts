@@ -2,6 +2,7 @@ export {
   EFFORT_LEVELS,
   parseEffort,
   SANDBOX_MODES,
+  DEFAULT_SHELL_TIMEOUT_MS,
   type AgentConfig,
   type ReasoningEffort,
   type SandboxMode,

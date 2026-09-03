@@ -21,7 +21,7 @@ import {
   resolveConfig,
   ConfigError,
 } from './config.js'
-import { ENV_SHELL_TIMEOUT_MS } from './env-knobs.js'
+import { ENV_MEMORY, ENV_SESSION_GC, ENV_SHELL_TIMEOUT_MS } from './env-knobs.js'
 
 describe('shell_timeout_ms is reachable', () => {
   it('test_it_defaults_to_the_documented_constant_when_nobody_configured_it', () => {
@@ -107,5 +107,44 @@ describe('every schema key survives pickScalars', () => {
     // Anti-vacuity: the test above proves nothing about a key the sample set forgot. If a key is
     // added to the schema, this fails until it is exercised above.
     expect(Object.keys(SAMPLES).sort()).toEqual([...CONFIG_SCHEMA_KEYS].sort())
+  })
+})
+
+/**
+ * The three boolean/numeric knobs resolve end to end, under their real names.
+ *
+ * Added 2026-09-03 while RE-MEASURING the findings rather than trusting they were fixed. Grepping
+ * for `THEOCODE_SHELL_TIMEOUT_MS` in the source returns nothing — the names are built by template
+ * (`${AB}SHELL_TIMEOUT_MS`) — so a check by text says "absent" about a knob that works. The only
+ * honest verification is to resolve one.
+ */
+describe('the environment knobs resolve under their real names', () => {
+  it('test_the_names_are_what_an_operator_would_type', () => {
+    expect(ENV_SHELL_TIMEOUT_MS).toBe('THEOCODE_SHELL_TIMEOUT_MS')
+    expect(ENV_SESSION_GC).toBe('THEOCODE_SESSION_GC')
+    expect(ENV_MEMORY).toBe('THEOCODE_MEMORY')
+  })
+
+  it('test_each_one_reaches_the_resolved_config', () => {
+    const resolved = resolveConfig({
+      env: {
+        [ENV_SHELL_TIMEOUT_MS]: '45000',
+        [ENV_SESSION_GC]: 'off',
+        [ENV_MEMORY]: 'yes',
+      },
+    })
+
+    expect([resolved.shell_timeout_ms, resolved.session_gc, resolved.memory]).toEqual([
+      45_000,
+      false,
+      true,
+    ])
+  })
+
+  it('test_the_defaults_are_what_the_documentation_claims', () => {
+    // README and `env-knobs.ts` both state these; a default that drifts from its own documentation
+    // is the stale-measurement defect in miniature.
+    const d = resolveConfig({})
+    expect([d.shell_timeout_ms, d.session_gc, d.memory]).toEqual([10_000, true, false])
   })
 })
