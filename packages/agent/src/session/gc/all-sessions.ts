@@ -140,10 +140,22 @@ async function resolveGuards(
   // Same reason as the quota: an unstattable entry must not consume the most-recent slot either, or
   // the genuinely newest transcript of a live project loses its guard to a file nobody could read.
   if (datable[0] !== undefined) protectedIds.add(transcriptId(datable[0].name))
-  const pointer = opts.readPointer(liveness.cwd)
-  if (pointer !== undefined) protectedIds.add(pointer)
+  // B-143 — the pointer read is inside the same guard as the registry read, and for the same reason.
+  //
+  // `readPointerId` fails fast on any errno but ENOENT because what it returns is a deletion
+  // decision: swallowing an EACCES would drop a live session from the protected set. That argument
+  // is about THIS PROJECT. The call used to sit outside every `try` here, so the throw unwound past
+  // both catches, out of `planOneProject` and out of `planSessionGCAllProjects` — measured: the
+  // whole plan rejected. One project with a permissions problem meant nothing anywhere was
+  // collected, and under the automatic trigger the stamp was already written, so it would not retry
+  // for a day. Every day.
+  //
+  // Returning undefined skips THIS project and reports it, which is what the caller already does for
+  // an unavailable registry. The safe direction is kept where it belongs and stops being contagious.
   let registry: RegistryEntry[]
   try {
+    const pointer = opts.readPointer(liveness.cwd)
+    if (pointer !== undefined) protectedIds.add(pointer)
     registry = await opts.listRegistry(liveness.cwd)
   } catch {
     return undefined

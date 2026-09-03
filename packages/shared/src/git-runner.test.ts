@@ -75,8 +75,10 @@ describe('the reason is what git said, not what Node said about it', () => {
 
     git(['rev-parse', '--verify', 'refs/heads/branch-that-does-not-exist-4f2a'])
 
+    // Matched on the ref name rather than on git's English sentence: `Needed a single revision` is
+    // localised, so asserting it would fail for anyone running a translated git.
     expect(warnings[0], 'the generic Node message was reported instead of git stderr').toContain(
-      'Needed a single revision',
+      'branch-that-does-not-exist-4f2a',
     )
   })
 })

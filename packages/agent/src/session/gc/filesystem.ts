@@ -33,7 +33,8 @@ const FIRST_LINE_CAP = 64 * 1024
  * Counts filesystem OPERATIONS now, not DFS nodes: the depth and per-project node ceilings went with
  * the oracle, because `classifyProjects` resolves a project by reading a transcript's recorded cwd
  * rather than by walking the disk. The measured cost is ~2.54 operations per project, so 200 000
- * covers a tree an order of magnitude past the 13 269 that motivated the ticket. What the sweep
+ * covers ~78 700 projects at that rate — 5.9x the 13 269 that motivated the ticket, not the
+ * order of magnitude an earlier version of this sentence claimed. What the sweep
  * cannot classify within it is UNDETERMINED and therefore KEPT (B-020) — the safe direction on the
  * only path that deletes user data.
  */
