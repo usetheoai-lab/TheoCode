@@ -253,7 +253,8 @@ export function diffSpawnOptions(): { cwd: string; encoding: 'utf8'; timeout: nu
 export function diffPanel(): ContentPanel | undefined {
   const r = spawnSync('git', ['diff', '--stat', 'HEAD'], diffSpawnOptions())
   // A timeout leaves `status` null, which is not 0 — so a killed diff renders no panel rather than
-  // an empty one claiming a clean tree.
+  // an empty one claiming a clean tree. Measured 2026-09-03: `spawnSync('sleep', ['5'], {timeout:200})`
+  // returns `status: null, signal: 'SIGTERM', error.code: 'ETIMEDOUT'`.
   if (r.status !== 0) return undefined
   const detail = spawnSync('git', ['diff', 'HEAD'], diffSpawnOptions())
   const stat = r.stdout.trim()

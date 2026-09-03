@@ -74,8 +74,17 @@ export function buildSweepCommand(input: SweepCommandInput): SweepCommand {
     throw new Error('session gc: refusing to spawn a sweep with an empty executable')
   }
   if (input.script === undefined || input.script.trim() === '') {
-    // `process.argv[1]` is undefined in some embeddings. Spawning the Node binary with no script
-    // starts an idle REPL that never exits — one leaked process per launch, forever, doing nothing.
+    // `process.argv[1]` is undefined in some embeddings.
+    //
+    // MEASURED 2026-09-03, because an earlier version of this comment guessed and guessed wrong. It
+    // claimed spawning the Node binary with no script "starts an idle REPL that never exits — one
+    // leaked process per launch". It does not: with `stdio: 'ignore'` the child's stdin is
+    // /dev/null, so node reads EOF and exits 0 immediately.
+    //
+    // The guard is still right, for a smaller and more precise reason. That child would exit 0
+    // having swept nothing, and `sweepFinishedLine` would report a finished sweep — so the collector
+    // would announce success every day while collecting nothing, which is the failure B-138 was
+    // about. Refusing to spawn reports the problem instead.
     throw new Error('session gc: refusing to spawn a sweep with no script to run')
   }
   return {

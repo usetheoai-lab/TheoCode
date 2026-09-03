@@ -100,7 +100,8 @@ export function startSessionSweepInBackground(opts: {
   //
   // NO LOCK, deliberately. The consequence of two concurrent sweeps is bounded: a concurrent
   // `unlink` counts ENOENT as removed, and `rmdir` on a directory another sweep has repopulated
-  // fails ENOTEMPTY, which is the safe direction. A lock file would add a failure mode strictly
+  // fails ENOTEMPTY, which is the safe direction. The second half was measured 2026-09-03 rather
+  // than assumed from POSIX: `fs.rmdirSync` on a non-empty directory throws `ENOTEMPTY`. A lock file would add a failure mode strictly
   // worse than the one it prevents — a stale lock disables collection permanently, which is exactly
   // the shape B-143 had to fix in the pointer read. Rung 1 of the parsimony ladder: not until
   // someone observes harm.

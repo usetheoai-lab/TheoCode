@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-143 items — **Open** 1 · **In flight** 0 · **Closed** 142
+144 items — **Open** 1 · **In flight** 0 · **Closed** 143
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (142)
+### Closed (143)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -225,6 +225,7 @@ _None._
 | [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
 | [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
 | [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
+| [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6597,3 +6598,53 @@ dod:
   - no decision in the file rests on the corrected claim without being re-derived
 
 > Registered 2026-09-03. Found by testing a claim I had written rather than re-reading it.
+
+## B-147 — Sweeping the third repeated pattern: runtime claims written as fact   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by applying this release's own lesson to itself. Two classes had already been
+  swept after appearing three times each — unbounded subprocesses (B-145) and tests that cannot fail
+  (B-145's second half). A THIRD had appeared twice: a claim about runtime behaviour, written into a
+  comment as fact, that nobody had measured.
+
+      B-142  "housekeeping must never be something the operator waits for ... the `void` is the
+             point" — falsified by an independent review measuring 4.9-37.1 s of blocking.
+      B-146  "NOT detached. The child is bound to this process's lifetime" — falsified by spawning
+             one and exiting the parent; the child outlived it.
+
+  So every behavioural claim written in this release was enumerated and the deducible ones measured.
+  Three were deductions rather than observations, and ONE of the three was false:
+
+      "node with no script starts an idle REPL that never exits, one leaked process per launch"
+        -> FALSE. With `stdio: 'ignore'` the child's stdin is /dev/null, so node reads EOF and
+           exits 0 immediately. Measured: `timeout 3 node < /dev/null` -> exit 0.
+
+      "a spawnSync timeout leaves `status` null"
+        -> TRUE. status null, signal SIGTERM, error.code ETIMEDOUT.
+
+      "rmdir on a non-empty directory fails ENOTEMPTY"
+        -> TRUE.
+why_now: |
+  Three false runtime claims in one release, two of them written while fixing the other. The instance
+  fixes were not converging, so the class was swept — the same move that found two more unbounded
+  subprocesses and two more blind tests.
+shipped: |
+  SHIPPED 2026-09-03. The false claim is replaced by the measurement AND by the smaller, precise
+  reason the guard still matters: a child spawned with no script exits 0 having swept nothing, and
+  `sweepFinishedLine` would report a finished sweep — so the collector would announce success daily
+  while collecting nothing, which is the B-138 failure. Refusing to spawn reports it instead.
+
+  The two claims that turned out TRUE now carry the measurement that establishes them, so the next
+  reader does not have to re-derive them from POSIX.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - every behavioural claim written in this release is either measured or removed
+  - a claim that survives measurement records the measurement, so it is not re-deduced later
+
+> Registered 2026-09-03, by sweeping the third pattern instead of fixing a third instance.
