@@ -153,8 +153,11 @@ function sweepFinishedLine(firstRun: boolean, code: number | null): string {
 /**
  * The command, or `undefined` with the reason reported.
  *
- * Refusing to spawn is the safe direction: the alternative is an idle Node REPL that never exits,
- * one leaked process per launch, doing nothing.
+ * Refusing to spawn is the safe direction, and `buildSweepCommand` carries the measured reason — a
+ * child with no script exits 0 having swept nothing, so the collector would report a finished sweep
+ * every day while collecting nothing. Not repeated here: this docblock held a COPY of that reason,
+ * the copy said "an idle Node REPL that never exits" (measured false, B-147), and the correction
+ * landed on the original while the copy went on shipping it.
  */
 function commandOrUndefined(
   apply: boolean,
