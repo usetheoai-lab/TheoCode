@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-149 items — **Open** 2 · **In flight** 0 · **Closed** 147
+151 items — **Open** 2 · **In flight** 0 · **Closed** 149
 
 ### Open (2)
 
@@ -80,10 +80,12 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (147)
+### Closed (149)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | — |
+| [`B-002`](#b-002--the-usage-panel-is-a-local-copy-of-a-composition-the-library-publishes---x) | The usage panel is a local copy of a composition the library publishes | `shipped` | — |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
 | [`B-004`](#b-004--ask-bridge-promise-abandoned-without-settling-typed-error-escaping---x) | Ask-bridge: promise abandoned without settling, typed error escaping | `shipped` | HIGH (2 HIGH findings) |
 | [`B-005`](#b-005--consent-store-held-to-a-weaker-permission-standard-than-the-credential-store---x) | Consent store held to a weaker permission standard than the credential store | `shipped` | HIGH |
@@ -270,6 +272,63 @@ dod:
   - no product or SDK string is hard-coded outside `shared/agent.ts`
   - the banner's model id stops being a divergent copy and reads the single source
   - comments citing `@theokit/sdk-pty`, `@theokit/sdk@>=4.2.10` and non-existent paths are corrected or removed
+## B-001 — The ACP surface registers a tool it cannot answer   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: |
+  RECONSTRUCTED 2026-09-03 from the two records that survived — this block was absent from the
+  registry while the id was cited in production source and in the public CHANGELOG. Nothing here is
+  inferred: every claim below is quoted from one of those two.
+
+  `packages/agent/src/chat-acp.ts:23` — "the ACP client owns the prompt, so there is no TUI
+  subscribed to the `AskBridge`". `packages/agent/src/composition.test.ts:415` — "`request_user_input`
+  resolves through a bridge only the TUI subscribes to".
+
+  CHANGELOG: "every such call used to stall for five minutes waiting on a bridge only the terminal UI
+  listens to".
+why_now: |
+  The block is being restored rather than written. `rules/cycle-backlog.md` states that an id is the
+  audit trail and survives forever; two ids did not, and a reader following `B-001` from
+  `chat-acp.ts:23` reached nothing — the same shape as a citation that resolves to no file (B-134),
+  one registry over.
+status: shipped
+fixed_in: abd9bf7
+dod:
+  - the headless surface does not register a tool whose answer requires a TUI subscriber
+  - a call that cannot be answered fails instead of waiting out a five-minute timeout
+
+> Reconstructed 2026-09-03. The original intake is lost; what is recorded above is only what the
+> CHANGELOG and the source comments already asserted. No date, evidence pointer or field was invented
+> to fill the shape.
+
+## B-002 — The usage panel is a local copy of a composition the library publishes   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: |
+  RECONSTRUCTED 2026-09-03, same reason as B-001. Quoted from the CHANGELOG entry that closed it:
+  the 31-line `components/UsagePanel.tsx` "composed three primitives it already imported from the
+  library — which is exactly the composition the library extracted and published".
+
+  The shared agent module cites this item as the precedent for its own shape. Its path is left out
+  deliberately: `tools/check-backlog-crossval.py` reads every `packages/**` path in a block as code
+  the fix should have touched, and that file CITES the item rather than being changed by it. The
+  script's own docstring records that counting such references produced 36 false findings.
+why_now: |
+  Restored for the reason given in B-001: the id was cited in tracked files and resolved to nothing.
+status: shipped
+fixed_in: c7a678d
+dod:
+  - the local component is deleted and the published one is consumed in its place
+  - no primitive is composed locally that the library already composes
+
+> Reconstructed 2026-09-03, on the same terms as B-001.
+
 ## B-003 — Session-GC deletion guards fail open, with no test at all   [x]
 
 fixed_in: 21d315b
