@@ -6925,7 +6925,7 @@ shipped: |
 
   Three tests now cover what two DoDs had been carrying alone.
 status: shipped
-fixed_in: PENDING
+fixed_in: 24e6ed0
 severity: major
 dod:
   - the first sweep reports what it WOULD have removed, not merely that nothing was
