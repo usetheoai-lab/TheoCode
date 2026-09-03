@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-141 items — **Open** 1 · **In flight** 0 · **Closed** 140
+142 items — **Open** 1 · **In flight** 0 · **Closed** 141
 
 ### Open (1)
 
@@ -79,7 +79,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (140)
+### Closed (141)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -223,6 +223,7 @@ _None._
 | [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
 | [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
 | [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
+| [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -6499,3 +6500,56 @@ dod:
 
 > Registered 2026-09-03. Found in my own change, by asking whether it would trip the catalog I had
 > just swept the repository with.
+
+## B-145 — Two more unbounded subprocesses, both synchronous, both freezing the TUI   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by SWEEPING for the pattern instead of waiting to trip over it a fourth time.
+
+  This release fixed the same defect three times — a timeout the operator could not reach (B-128), a
+  `git` call with none at all on the CLI's first line (B-137), and a child process spawned with no
+  bound by the fix for the second (B-144). Three instances is a pattern, so every subprocess in
+  production source was enumerated and checked. Two more had no bound:
+
+      packages/tui/src/clipboard.ts:16         spawnSync(bin, args, { input, encoding })
+      packages/tui/src/commands/command-content.ts:232,237
+                                               spawnSync('git', ['diff', ...], { cwd, encoding })
+
+  Both are `spawnSync`, which does not merely take time — it blocks the event loop, and in the TUI
+  that is the Ink render loop. A frozen frame with no cursor is indistinguishable from a crash.
+
+  The clipboard is the sharper of the two: the candidates are `wl-copy`, `xclip`, `xsel` and
+  `pbcopy`, which are exactly the programs that hang when a display variable is set and the
+  compositor or X server is not answering.
+why_now: |
+  Three instances of one defect in one release, the third introduced by the fix for the second. At
+  that point the honest move is to look for the rest rather than to keep finding them one at a time.
+shipped: |
+  SHIPPED 2026-09-03. `CLIPBOARD_TIMEOUT_MS = 5_000` and `DIFF_TIMEOUT_MS = 10_000`, both named and
+  both asserted by tests rather than left as call-site arguments nobody reads.
+
+  The diff bound is 10 s because `/review` already bounds its git calls at 10 s — two different
+  answers to "how long may git take" inside one product is the inconsistency B-128 was about.
+
+  The clipboard needed no error-handling change: `spawnSync` reports a kill through `result.error`,
+  and the existing loop already turns any non-ENOENT error into a `ClipboardWriteError`. So a timeout
+  surfaces as a real failure of an installed clipboard rather than skipping to the next candidate or
+  returning as though the text had been copied. A test drives exactly that.
+
+  The sweep was then re-run: 9 subprocess call sites, 7 real and all bounded. The two the sweep still
+  reported were prose inside comments — checked by opening them rather than reported as findings,
+  which is the same discipline the rest of this release was about.
+status: shipped
+fixed_in: PENDING
+severity: major
+dod:
+  - every subprocess in production source carries a bound, verified by enumerating them rather than
+    by recalling which ones were touched
+  - a timed-out clipboard is reported as a write failure, not as a success or a missing binary
+  - the diff bound matches the one the review path already uses
+
+> Registered 2026-09-03. Found by sweeping for a pattern that had already appeared three times.

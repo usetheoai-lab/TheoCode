@@ -12,8 +12,23 @@ import { ClipboardWriteError } from './clipboard-write-error.js'
 
 type Runner = (bin: string, args: readonly string[], input: string) => SpawnSyncReturns<string>
 
+/**
+ * B-145 — the bound on a clipboard binary that is installed but not answering.
+ *
+ * `wl-copy`, `xclip` and `xsel` are exactly the programs that hang when `DISPLAY`/`WAYLAND_DISPLAY`
+ * is set and the compositor is not responding. `spawnSync` does not merely take time, it blocks the
+ * event loop — which here is the Ink render loop, so a frozen frame with no cursor is what the user
+ * sees, indistinguishable from a crash.
+ *
+ * Five seconds: copying text is instant on a working desktop, and a bound much tighter would start
+ * failing a slow-but-working clipboard. `spawnSync` reports the kill through `result.error`, which
+ * the loop below already turns into a `ClipboardWriteError` — so a timeout surfaces as a real
+ * failure of an installed clipboard rather than as a silent success.
+ */
+export const CLIPBOARD_TIMEOUT_MS = 5_000
+
 const defaultRunner: Runner = (bin, args, input) =>
-  spawnSync(bin, [...args], { input, encoding: 'utf8' })
+  spawnSync(bin, [...args], { input, encoding: 'utf8', timeout: CLIPBOARD_TIMEOUT_MS })
 
 /**
  * Copy `text` to the system clipboard.

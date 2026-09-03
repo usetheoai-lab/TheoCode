@@ -228,13 +228,32 @@ function alignedRows(rows: readonly (readonly [string, string])[]): string {
   return rows.map(([label, value]) => `${`${label}:`.padEnd(width + 3)}${value}`).join('\n')
 }
 
+/**
+ * B-145 — the bound on `/diff`'s two git calls.
+ *
+ * `spawnSync` blocks the event loop, and in the TUI that is the Ink render loop: a `git diff` on a
+ * large working tree, or against a slow filesystem, freezes the frame with no cursor and no way to
+ * tell it apart from a crash.
+ *
+ * 10 s is the same number `/review` already bounds its git calls with. Two different answers to "how
+ * long may git take" inside one product is the inconsistency B-128 was about, one file over.
+ */
+export const DIFF_TIMEOUT_MS = 10_000
+
 export function diffPanel(): ContentPanel | undefined {
   const r = spawnSync('git', ['diff', '--stat', 'HEAD'], {
     cwd: workingDirectory(),
     encoding: 'utf8',
+    timeout: DIFF_TIMEOUT_MS,
   })
+  // A timeout leaves `status` null, which is not 0 — so a killed diff renders no panel rather than
+  // an empty one claiming a clean tree.
   if (r.status !== 0) return undefined
-  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
+  const detail = spawnSync('git', ['diff', 'HEAD'], {
+    cwd: workingDirectory(),
+    encoding: 'utf8',
+    timeout: DIFF_TIMEOUT_MS,
+  })
   const stat = r.stdout.trim()
   const patch = detail.stdout
   if (stat.length === 0 && patch.trim().length === 0) {
