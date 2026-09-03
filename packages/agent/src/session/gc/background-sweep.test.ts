@@ -358,11 +358,17 @@ describe('the sweep reports what it could not do instead of failing', () => {
 
 describe('a stamp that cannot be understood is not a stamp', () => {
   it('test_a_corrupt_stamp_lets_the_sweep_run_rather_than_blocking_it_forever', () => {
-    // `readLastRun` parses the file into a Date and returns undefined when it is NaN. Only the
-    // valid side had a test, and the branch matters on the path that DELETES user data in both
-    // directions: honouring a garbage date could park the interval in the future and stop
-    // collection permanently, while treating it as absent means the retention policy keeps being
-    // applied. The second is the safe direction, and it is the one asserted here.
+    // What this proves, stated precisely, because the first version of this comment overclaimed.
+    //
+    // It asserts the OUTCOME — a stamp that does not parse must not stop collection, because a
+    // garbage date honoured as real could park the interval in the future and disable the collector
+    // permanently. It does NOT pin `readLastRun`'s NaN branch, and a mutation check is what showed
+    // the difference: replacing that branch with `return at` leaves this test green, because
+    // `sweepDecision` guards NaN a second time (`auto.ts:51`).
+    //
+    // The redundancy is deliberate and worth keeping — the two functions are separately reachable —
+    // but it means the first guard is not observable through this seam. Claiming otherwise would
+    // make this one of the blind tests this session spent its time removing.
     const root = scratchRoot()
     mkdirSync(dirname(root), { recursive: true })
     writeFileSync(join(dirname(root), '.last-session-gc'), 'not a date at all\n')
