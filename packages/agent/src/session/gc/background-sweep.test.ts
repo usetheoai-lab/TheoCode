@@ -19,9 +19,24 @@ function scratchRoot(): string {
 }
 const stampOf = (root: string): string => join(root, '..', '.last-session-gc')
 
-/** A child that never runs: the test asserts what the parent did, not what a sweep found. */
+/**
+ * A child that never runs: the test asserts what the parent did, not what a sweep found.
+ *
+ * `closingWith` is the variant that FIRES the close handler, because the parent's only user-visible
+ * output happens there — and a mutation check proved that branch was unprotected: deleting the
+ * entire first-run sentence, the one that tells the operator how to turn deletion off, left the
+ * suite green.
+ */
 const fakeChild = (): { on: (e: 'close', cb: (c: number | null) => void) => void } => ({
   on: () => {},
+})
+
+const closingWith = (
+  code: number | null,
+): { on: (e: 'close', cb: (c: number | null) => void) => void } => ({
+  on: (_event, cb) => {
+    cb(code)
+  },
 })
 
 describe('startSessionSweepInBackground', () => {
@@ -138,5 +153,55 @@ describe('startSessionSweepInBackground', () => {
 
     expect(outcome).toMatchObject({ started: false, reason: 'spawn-failed' })
     expect(reports.join(' ')).toContain('EAGAIN')
+  })
+})
+
+describe('what the operator is told when the child finishes', () => {
+  const reportFor = (opts: { stamped?: string }): string[] => {
+    const root = scratchRoot()
+    if (opts.stamped !== undefined) writeFileSync(stampOf(root), opts.stamped)
+    const reports: string[] = []
+    startSessionSweepInBackground({
+      enabled: true,
+      now: new Date('2026-09-05T00:00:00Z'),
+      onReport: (l) => reports.push(l),
+      projectsRootOverride: root,
+      spawnSweep: () => closingWith(0),
+    })
+    return reports
+  }
+
+  it('test_the_first_sweep_says_it_removed_nothing_and_how_to_keep_collection_manual', () => {
+    // This sentence is the entire consent story for a default that deletes an operator's
+    // transcripts. Losing it is not a cosmetic regression.
+    const text = reportFor({}).join(' ')
+
+    expect(text).toContain('DRY RUN')
+    expect(text).toContain('nothing was removed')
+    expect(text, 'the operator was not told how to turn it off').toContain('session_gc = false')
+  })
+
+  it('test_a_later_sweep_does_not_repeat_the_first_run_sentence', () => {
+    // Anti-vacuity: printing it every time would satisfy the test above and turn the one message
+    // that matters into noise the operator learns to skip.
+    const text = reportFor({ stamped: new Date('2026-09-01T00:00:00Z').toISOString() }).join(' ')
+
+    expect(text).toContain('background sweep finished')
+    expect(text).not.toContain('DRY RUN')
+  })
+
+  it('test_a_non_zero_exit_is_reported_rather_than_read_as_success', () => {
+    // A child that died is not a sweep that ran. Reporting "finished" for both is the shape that
+    // makes a broken collector look healthy for as long as nobody checks.
+    const root = scratchRoot()
+    const reports: string[] = []
+    startSessionSweepInBackground({
+      enabled: true,
+      onReport: (l) => reports.push(l),
+      projectsRootOverride: root,
+      spawnSweep: () => closingWith(1),
+    })
+
+    expect(reports.join(' ')).toContain('exit 1')
   })
 })
