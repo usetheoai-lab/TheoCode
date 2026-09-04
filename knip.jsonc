@@ -20,11 +20,25 @@
   // the same result. So the gate covers non-entry files — which is most of the tree, and includes
   // every barrel — and does not cover the four entry files.
   //
+  // WHY, narrowed 2026-09-04 and filed as webpro-nl/knip#2011. It is not a knip 6.x regression and not
+  // auto-discovery: `includeEntryExports` reports a dead entry export in a single package, with an
+  // auto-discovered entry, and in a workspace — all three verified on 6.32.2. The trigger is a ROOT
+  // `package.json` script naming a file inside a workspace. Two arms differing by one line:
+  //
+  //   "scripts": { "dev": "node packages/app/src/main.ts" }   present -> dead export NOT reported
+  //                                                            absent -> dead export reported
+  //
+  // Which is exactly this tree: `"dev": "tsx packages/tui/src/main.tsx"`, `"exec": "tsx
+  // packages/cli/src/main.ts"`, and `tools/build-cli.mjs`'s `entryPoints`. The workspace blocks below
+  // declare `entry` as the TEST globs, so nothing else makes those files entries. knip also emits
+  // `Remove redundant entry pattern` for the declaration that would have covered them, which is how
+  // this stays invisible.
+  //
   // The claim this replaces was wrong twice over, and the second half is why it went unnoticed: it
   // said "every `index.ts` here is an entry", and no `index.ts` is in any entry list. The barrels are
   // covered precisely BECAUSE they are not entries. The "1 issue vs 28" measurement it cited was real
   // when written; what changed is knip, not this tree. The setting stays because it costs nothing and
-  // becomes correct again the day the tool honours it.
+  // becomes correct again the day the interaction is fixed upstream.
   //
   // Every package here is `private: true` and never published, so an export nobody imports has no
   // downstream consumer to protect: it is dead surface, not API. If a survivor must be kept, add it
