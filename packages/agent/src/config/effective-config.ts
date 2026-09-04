@@ -13,7 +13,6 @@ import {
   type SandboxMode,
 } from './config.js'
 import { approvalModeFor } from './sandbox-policy.js'
-import { TRUST_STORE } from './trust-store.js'
 import { resolveTrustPosture } from './trust-posture.js'
 
 export class EffectiveConfig {
@@ -123,7 +122,7 @@ export function resolveEffectiveConfig(
     loadConfig({
       ...withCliLayer(opts),
       projectDir: opts.projectDir ?? cwd,
-      posture: resolveTrustPosture(cwd, opts.store ?? TRUST_STORE),
+      posture: resolveTrustPosture(cwd, opts.store),
     }),
   )
 }

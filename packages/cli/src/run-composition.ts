@@ -4,7 +4,7 @@ import type { CliOverrides } from './runtime/index.js'
 
 import { buildChatAgent } from '@theocode/agent'
 import {
-  TRUST_STORE,
+  trustStorePath,
   resolveEffectiveConfig,
   resolveHeadlessApproval,
   resolveTrustPosture,
@@ -63,11 +63,13 @@ export function composeRun(
   seams: CompositionSeams = {},
 ): RunComposition {
   const cwd = seams.cwd ?? process.cwd()
-  const store = seams.store ?? TRUST_STORE
 
   // B-033 — the same environment that feeds config resolution below. These used to be two
   // sources in one run: the posture from the ambient environment, the config from `seams.env`.
   const env = seams.env ?? process.env
+  // After `env`, and derived FROM it: the store is part of the same one-source answer B-033
+  // established, and reading it from the ambient environment would put the split back.
+  const store = seams.store ?? trustStorePath(env)
   const posture = resolveTrustPosture(cwd, store, env)
   const cfg = resolveEffectiveConfig({
     cwd,

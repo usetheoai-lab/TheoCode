@@ -11,7 +11,7 @@ export {
 export { EffectiveConfig, resolveEffectiveConfig } from './effective-config.js'
 export { installConfiguredHome } from './install-home.js'
 
-export { TRUST_STORE, trustDir } from './trust-store.js'
+export { trustStorePath, trustDir } from './trust-store.js'
 
 export { resolveTrustPosture, type TrustPosture } from './trust-posture.js'
 

@@ -1,10 +1,32 @@
 import { TrustStore } from '@theokit/agents/config'
 
+import { DEFAULT_HOME_DIR } from './home-dir.js'
+
 import { existsSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
-export const TRUST_STORE = join(homedir(), '.theokit', 'trusted-dirs.json')
+/**
+ * The consent record, under whatever root `home_dir` resolved to.
+ *
+ * A function rather than the module-level const this replaced. That const called `homedir()` at
+ * IMPORT time and pinned `.theokit`, so `home_dir` — documented as "the directory this product keeps
+ * its state in" — moved the transcripts, the projects root and the collector, and left the record of
+ * which directories may run code sitting in a directory the product otherwise stopped using.
+ *
+ * `THEOKIT_HOME` is read rather than the config key, because both surfaces install it at bootstrap
+ * from that key (`installTheokitHome`) and the SDK reads the same variable. One resolved answer, not
+ * a second resolution that can disagree with the first.
+ */
+export function trustStorePath(
+  env: Record<string, string | undefined> = process.env,
+  home: string = homedir(),
+): string {
+  return join(env.THEOKIT_HOME ?? join(home, DEFAULT_HOME_DIR), 'trusted-dirs.json')
+}
+
+/** The root every installation had before `home_dir` existed, read but never written. */
+const legacyRootStore = (home: string): string => join(home, DEFAULT_HOME_DIR, 'trusted-dirs.json')
 
 /**
  * B-005 — the one canonical form for a directory used as a consent key.
@@ -121,7 +143,7 @@ const migratedMarkerFor = (legacy: string): string => `${legacy}.migrated`
  * needs to trigger the migration by hand. An exported entry point nobody calls is surface that
  * suggests a step someone must remember — and the whole point of the dual read is that they do not.
  */
-async function migrateLegacyTrust(store: string = TRUST_STORE): Promise<void> {
+async function migrateLegacyTrust(store: string): Promise<void> {
   if (!existsSync(store) || existsSync(migratedMarkerFor(store))) return
 
   // Declared without an initialiser: the `catch` returns, so the only way past this block is
@@ -165,9 +187,24 @@ async function migrateLegacyTrust(store: string = TRUST_STORE): Promise<void> {
  * The legacy read goes through `readDocument`, which keeps the private-mode gate: a store any local
  * user can write is refused rather than believed.
  */
-export function isTrusted(dir: string, store: string = TRUST_STORE): boolean {
+export function isTrusted(
+  dir: string,
+  store: string = trustStorePath(),
+  home: string = homedir(),
+): boolean {
   if (new TrustStore(frameworkPathFor(store)).isTrusted(dir)) return true
-  return legacyTrusted(store).includes(canonical(dir))
+  if (legacyTrusted(store).includes(canonical(dir))) return true
+
+  // The root the operator had before `home_dir` existed. Read only when the configured root is not
+  // it, and only for reading: moving the root must not re-ask about directories already decided,
+  // because being asked again about a settled question is how a person learns to approve without
+  // reading — the reasoning below, applied to the root instead of the document shape.
+  const legacy = legacyRootStore(home)
+  if (legacy === store) return false
+  return (
+    new TrustStore(frameworkPathFor(legacy)).isTrusted(dir) ||
+    legacyTrusted(legacy).includes(canonical(dir))
+  )
 }
 
 /** The legacy `{ trusted: [...] }` list, or empty when there is none. */
@@ -178,7 +215,7 @@ function legacyTrusted(store: string): string[] {
     : []
 }
 
-export async function trustDir(dir: string, store: string = TRUST_STORE): Promise<void> {
+export async function trustDir(dir: string, store: string = trustStorePath()): Promise<void> {
   await migrateLegacyTrust(store)
   await new TrustStore(frameworkPathFor(store)).trust({
     path: dir,
