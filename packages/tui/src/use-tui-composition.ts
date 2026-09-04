@@ -230,13 +230,13 @@ function buildComposerDeps(args: {
 export function useTuiComposition() {
   const s = useTuiSession()
   const { agent, currentSessionId, stdout, streaming } = s
-  const screen = useScreenState()
+  const screen = useScreenState(s.ROOT.resumeOnStartup)
 
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
-  const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
+  const { events, lastUsage } = useTimeline(agent, screen.resumed)
   useSessionToasts(s, screen.setToast, lastUsage?.inputTokens)
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)

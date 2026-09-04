@@ -2,10 +2,10 @@ import { useMemo } from 'react'
 
 import { readTurnUsage, useCoalesced, type UIMessageLike } from '@theokit/tui'
 
-import { AGENT } from '@theocode/shared/agent'
 import { formatToolHeader, formatToolResult } from '../formatting/index.js'
 import { latestUsage } from '../formatting/index.js'
 import { TUI_MAX_FPS, coalesceWindowMs } from './frame-budget.js'
+import { greetingFor } from './resumed-banner.js'
 import { deriveTimeline, prepareThread } from './timeline-memo.js'
 
 interface AgentWithThread {
@@ -24,9 +24,7 @@ export function useTimeline(agent: AgentWithThread, resumed: boolean): TuiTimeli
     parts: [
       {
         type: 'text',
-        text: resumed
-          ? `${AGENT.greeting} (resumed — I remember our last conversation; /new to start fresh)`
-          : AGENT.greeting,
+        text: greetingFor(resumed),
       },
     ],
   }

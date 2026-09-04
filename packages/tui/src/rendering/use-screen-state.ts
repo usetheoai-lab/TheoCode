@@ -36,10 +36,20 @@ export interface ScreenState {
   readonly setGoalFeed: Dispatch<SetStateAction<string | null>>
   readonly loginProvider: string | undefined
   readonly setLoginProvider: Dispatch<SetStateAction<string | undefined>>
+  /**
+   * Whether the conversation on screen continues an earlier one (#70).
+   *
+   * State rather than a derivation, because it changes for two reasons that have nothing else in
+   * common: `/resume` sets it, `/new` clears it. Seeded from whether the process STARTED on a
+   * session pointer, which is the only case that used to reach the greeting.
+   */
+  readonly resumed: boolean
+  readonly setResumed: Dispatch<SetStateAction<boolean>>
 }
 
-export function useScreenState(): ScreenState {
+export function useScreenState(resumedAtStartup = false): ScreenState {
   const [clearEpoch, setClearEpoch] = useState(0)
+  const [resumed, setResumed] = useState(resumedAtStartup)
   const [composerText, setComposerText] = useState('')
   const [showHelp, setShowHelp] = useState(false)
   const [verbose, setVerbose] = useState(false)
@@ -52,6 +62,8 @@ export function useScreenState(): ScreenState {
   const [goalFeed, setGoalFeed] = useState<string | null>(null)
   const [loginProvider, setLoginProvider] = useState<string | undefined>(undefined)
   return {
+    resumed,
+    setResumed,
     clearEpoch,
     setClearEpoch,
     composerText,

@@ -74,6 +74,8 @@ export interface CommandCapabilities {
   readonly setShowHelp: Dispatch<SetStateAction<boolean>>
   readonly setShowUsage: Dispatch<SetStateAction<boolean>>
   readonly setClearEpoch: Dispatch<SetStateAction<number>>
+  /** #70 — whether the conversation on screen continues an earlier one. `/resume` sets it, `/new` clears it. */
+  readonly setResumed: Dispatch<SetStateAction<boolean>>
   readonly setEffort: Dispatch<SetStateAction<ReasoningEffort>>
   readonly setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
   readonly setGoalRun: Dispatch<SetStateAction<GoalRunState | null>>
@@ -111,6 +113,8 @@ export type IdentityCapabilities = Pick<
   // B-087 — /resume lives with the other session verbs and needs the repointing seam.
   | 'setSessionAndPersist'
   | 'setClearEpoch'
+  // #70 — and the flag that makes the resumed state visible, which is the half that was missing.
+  | 'setResumed'
   | 'streaming'
 >
 

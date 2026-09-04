@@ -397,11 +397,29 @@ export function handleResume(
     streaming: boolean
     setSessionAndPersist: (id: string) => void
     setClearEpoch: Dispatch<SetStateAction<number>>
+    /**
+     * #70 — the screen must SAY the session was resumed.
+     *
+     * `clearEpoch` empties the transcript and the thread is not repopulated, so what the user sees
+     * afterwards is the welcome banner and nothing else — identical to a command that did nothing,
+     * while the model demonstrably has the earlier turns. This is the one signal that tells the two
+     * apart, and it already existed: it was bound to whether the PROCESS started on a session
+     * pointer, so a mid-session `/resume` never reached it.
+     */
+    setResumed: Dispatch<SetStateAction<boolean>>
     setToast: SetToast
+    /**
+     * Injected so the SUCCESS path has a test.
+     *
+     * Without it the only reachable cases are the refusals, and a test suite that covers only the
+     * refusals proves nothing about the thing #70 is: whether a real resume tells the user it
+     * happened. Mutating the flag away would have left every case green.
+     */
+    listKnownSessions?: () => Promise<{ agentId: string }[]>
   },
 ): void {
   void (async () => {
-    const known = (await listSessions()).map((s) => s.agentId)
+    const known = (await (deps.listKnownSessions ?? listSessions)()).map((s) => s.agentId)
     const plan = planResume({
       arg,
       current: deps.currentSessionId(),
@@ -414,6 +432,7 @@ export function handleResume(
     }
     const leaving = deps.currentSessionId()
     deps.setSessionAndPersist(plan.id)
+    deps.setResumed(true)
     deps.setClearEpoch((e) => e + 1)
     deps.setToast({
       message: `resumed ${plan.id} — ${leaving} is still listed; any unsent draft was discarded`,

@@ -163,6 +163,7 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
         streaming: cap.streaming,
         setSessionAndPersist: cap.setSessionAndPersist,
         setClearEpoch: cap.setClearEpoch,
+        setResumed: cap.setResumed,
         setToast,
       })
       return true
