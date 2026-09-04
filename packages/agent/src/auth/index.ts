@@ -15,4 +15,6 @@ export { login, logout, methodsFor, oauthDeviceLogin, knownProviders } from './l
 
 export { describeSource, dotenvNames } from './credential-provenance.js'
 
+export { strayCredentialFiles } from './stray-credentials.js'
+
 export { routeToCredential } from './model-route.js'

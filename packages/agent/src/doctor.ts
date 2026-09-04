@@ -70,7 +70,6 @@ function credentialCheck(state: CredentialState): Check {
   }
 }
 
-
 /**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an
  * agent built here would actually wire.
@@ -87,6 +86,11 @@ export function collectChecks(input: {
   readonly sandboxMode: string
   readonly approvalPolicy: string
   readonly credential: CredentialState
+  /**
+   * Credential files in a state directory this product does not read (#72). Optional: a caller that
+   * does not look for them says nothing, rather than asserting there are none.
+   */
+  readonly strayCredentials?: readonly string[]
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
@@ -129,5 +133,18 @@ export function collectChecks(input: {
     entity('mcp', input.wired.mcp),
     entity('skills', input.wired.skills),
     entity('hooks', input.wired.hooks),
+    // Appended only when there is something to say. A row that permanently reads "none" is noise in
+    // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
+    ...((input.strayCredentials ?? []).length > 0
+      ? [
+          {
+            name: 'credential-strays',
+            // A warning, never a failure: nothing is broken. It is a leftover to remove, and exiting
+            // non-zero over one would report a working install as broken.
+            status: 'warn' as const,
+            detail: `not read by this product — remove if you no longer need it: ${(input.strayCredentials ?? []).join(', ')}`,
+          },
+        ]
+      : []),
   ]
 }
