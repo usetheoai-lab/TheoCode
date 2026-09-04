@@ -48,7 +48,7 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/visitor-keys@8.68.0'
   - typescript-eslint@8.68.0
   - '@theokit/tui@0.78.0 || 0.80.0'
-  - '@theokit/sdk@5.0.0-next.1'
+  - '@theokit/sdk@5.0.0-next.4'
 
 # The transitive `@theokit/sdk` is what carries `prompt_cache_key` and the cached-token read
 # (published 4.55.0). `@theokit/agents` asks for `^4.52.1`, which a stale lock happily satisfied with
@@ -67,4 +67,4 @@ minimumReleaseAgeExclude:
 # is what lets agents resolve the newer SDK. Verified in the installed tree, not on paper: agents
 # resolves to `@theokit+sdk@5.0.0-next.1`, typecheck clean, 776 tests green.
 overrides:
-  '@theokit/sdk': '5.0.0-next.1'
+  '@theokit/sdk': '5.0.0-next.4'

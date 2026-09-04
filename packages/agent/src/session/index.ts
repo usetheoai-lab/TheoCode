@@ -19,3 +19,5 @@ export { planAllProjectsOnDisk, runAllProjectsOnDisk, formatReport } from './gc/
 export { guardedSweepStart } from './gc/guarded-start.js'
 
 export { readUserTurnPreviewsAsync } from './backtrack.js'
+
+export { readThreadMessages } from './thread-history.js'

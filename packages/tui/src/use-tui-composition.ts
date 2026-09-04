@@ -10,7 +10,12 @@ import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
 import { useGoalRun } from './persistence/index.js'
-import { useTimeline, useScreenState, useContextWarning } from './rendering/index.js'
+import {
+  useTimeline,
+  useScreenState,
+  useContextWarning,
+  useResumedHistory,
+} from './rendering/index.js'
 import { useTuiKeyboard } from './terminal-io/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
@@ -236,7 +241,14 @@ export function useTuiComposition() {
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
-  const { events, lastUsage } = useTimeline(agent, screen.resumed)
+  // #70 — what the session already contained, read once per resume and drawn ahead of the live
+  // thread. Empty for a fresh session, which is every session that did not come from `/resume` or
+  // from starting on a session pointer.
+  // `currentSessionId()` and not the callback: this reads the id at RENDER, which is what changes
+  // when `/resume` repoints the session and re-renders. Passing the callback would hand the hook a
+  // stable identity that never signals the switch.
+  const history = useResumedHistory(currentSessionId(), screen.resumed)
+  const { events, lastUsage } = useTimeline(agent, screen.resumed, history)
   useSessionToasts(s, screen.setToast, lastUsage?.inputTokens)
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)

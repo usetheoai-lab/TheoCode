@@ -65,6 +65,8 @@ function stubSpies() {
     setApprovalMode: vi.fn(),
     setGoalRun: vi.fn(),
     setGoalFeed: vi.fn(),
+    // #70 — `/new` and `/clear` clear the continuation flag.
+    setResumed: vi.fn(),
     setLoginProvider: vi.fn(),
     setReviewResult: vi.fn(),
     currentSessionId: vi.fn(() => 'sess-1'),

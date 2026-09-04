@@ -68,3 +68,49 @@ describe('the SDK pin', () => {
     ).toBeUndefined()
   })
 })
+
+/**
+ * A THIRD place can pin it now, and the guard has to see it.
+ *
+ * `packages/agent` declares `@theokit/sdk` directly since `readSessionMessages` landed (#70): the
+ * read side of a resumed session is only reachable from the SDK, and `@theokit/agents@12.1.0` does
+ * not forward it. That is a real declaration carrying a version, so it is a third number that can
+ * drift from the other two — the exact defect #69 was about, one file over.
+ */
+describe('#70 — the workspace package that now declares the SDK', () => {
+  const ws = "overrides:\n  '@theokit/sdk': '5.0.0-next.4'\n"
+  const root = '{"devDependencies":{"@theokit/sdk":"5.0.0-next.4"}}'
+
+  it('test_a_workspace_pin_that_agrees_is_accepted', () => {
+    const agent = '{"dependencies":{"@theokit/sdk":"5.0.0-next.4"}}'
+
+    expect(
+      disagreement(root, ws, [{ path: 'packages/agent/package.json', json: agent }]),
+    ).toBeUndefined()
+  })
+
+  it('test_a_workspace_pin_that_drifts_is_reported_by_path', () => {
+    const agent = '{"dependencies":{"@theokit/sdk":"5.0.0-next.1"}}'
+
+    const out = disagreement(root, ws, [{ path: 'packages/agent/package.json', json: agent }])
+
+    expect(out, 'a workspace pinning a different version was accepted').toContain(
+      'packages/agent/package.json',
+    )
+    expect(out, 'the drifting value is not named, so nobody can act on it').toContain('5.0.0-next.1')
+  })
+
+  it('test_a_workspace_that_does_not_declare_it_is_not_a_disagreement', () => {
+    // Three of the four packages do not import the SDK, and must not be forced to name it.
+    const other = '{"dependencies":{"@theokit/agents":"^12.1.0"}}'
+
+    expect(
+      disagreement(root, ws, [{ path: 'packages/tui/package.json', json: other }]),
+    ).toBeUndefined()
+  })
+
+  it('test_no_workspace_argument_behaves_exactly_as_before', () => {
+    // Anti-regression: the guard is called with two arguments everywhere it existed before.
+    expect(disagreement(root, ws)).toBeUndefined()
+  })
+})

@@ -104,6 +104,11 @@ function sessionAndScreen(
     case 'new':
     case 'clear':
       resetSession()
+      // #70 — the screen stops claiming a continuation. `use-screen-state.ts` documented the pair as
+      // "`/resume` sets it, `/new` clears it" and only the first half was implemented, so after
+      // `/resume` then `/new` the greeting still announced one — and the restored turns waited on a
+      // session-id change to disappear rather than on the command the user typed.
+      cap.setResumed(false)
       agent.reset()
       SESSION.attachImages(undefined)
       backtrack.setSeed('')

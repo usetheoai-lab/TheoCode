@@ -101,6 +101,9 @@ export type SessionAndScreenCapabilities = Pick<
   | 'setEffort'
   | 'setGoalRun'
   | 'setGoalFeed'
+  // #70 — `/new` and `/clear` clear the continuation flag, so the greeting stops announcing one and
+  // the restored turns leave with the command that ended the conversation.
+  | 'setResumed'
 >
 
 export type IdentityCapabilities = Pick<

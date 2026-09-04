@@ -6,18 +6,24 @@
  * actually resolved `5.0.0-next.1`. Under pnpm that block is INERT (pnpm reads
  * `pnpm-workspace.yaml`), so the number sat there being wrong and reading as a control that works.
  *
- * Two declarations remain and both are load-bearing:
+ * Three declarations now, all load-bearing:
  *
  *   - the root devDependency, because `tools/build-cli.mjs` copies `provider-catalog.json` out of
  *     the SDK, and pnpm is right not to hoist what nobody declared;
- *   - the `pnpm-workspace.yaml` override, because it decides what the WHOLE tree resolves to.
+ *   - the `pnpm-workspace.yaml` override, because it decides what the WHOLE tree resolves to;
+ *   - any `packages/*` manifest that declares it, because since #70 one of them imports the SDK
+ *     directly — `readSessionMessages` is the read side of a resumed session and
+ *     `@theokit/agents@12.1.0` does not forward it.
  *
- * They pin the same fact. Nothing makes them move together, so this does.
+ * They pin the same fact. Nothing makes them move together, so this does. The third one was added
+ * the moment it became possible to drift, rather than after it had: a pin nobody checks is what #69
+ * was, and adding a declaration without extending the guard would have re-created it deliberately.
  *
  * A CHECK THAT FAILS, not a corrected number — the acceptance criterion the issue names, because a
  * number someone fixes by hand drifts back the next time either file is edited.
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 const PKG = 'package.json'
 const WS = 'pnpm-workspace.yaml'
@@ -29,7 +35,7 @@ const NAME = '@theokit/sdk'
  * Takes the file CONTENTS so the rule is testable without a filesystem — the guard that has no test
  * is the one that reports clean over anything.
  */
-export function disagreement(pkgJson, workspaceYaml) {
+export function disagreement(pkgJson, workspaceYaml, workspaceManifests = []) {
   const pkg = JSON.parse(pkgJson)
   const declared = pkg.devDependencies?.[NAME] ?? pkg.dependencies?.[NAME]
   const npmOverride = pkg.overrides?.[NAME]
@@ -61,14 +67,43 @@ export function disagreement(pkgJson, workspaceYaml) {
   if (declared !== wsOverride) {
     return `${PKG} declares ${NAME}@${declared} while ${WS} overrides the tree to ${wsOverride} — the build would read a different copy than everything else`
   }
+
+  // A workspace that does NOT name the SDK is silent, not wrong: three of the four packages reach it
+  // only through `@theokit/agents`, and forcing them to declare a dependency they do not import would
+  // be the redundant pin this guard exists to refuse.
+  for (const { path, json } of workspaceManifests) {
+    const manifest = JSON.parse(json)
+    const pin = manifest.dependencies?.[NAME] ?? manifest.devDependencies?.[NAME]
+    if (pin === undefined) continue
+    if (pin !== wsOverride) {
+      return `${path} declares ${NAME}@${pin} while ${WS} overrides the tree to ${wsOverride} — that package would typecheck against one copy and run against another`
+    }
+  }
   return undefined
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const problem = disagreement(readFileSync(PKG, 'utf8'), readFileSync(WS, 'utf8'))
+  // Read from disk here rather than inside `disagreement`, which stays filesystem-free so the rule
+  // is testable — the guard with no test is the one that reports clean over anything.
+  const manifests = readdirSync('packages', { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => join('packages', e.name, 'package.json'))
+    .filter((p) => existsSync(p))
+    .map((p) => ({ path: p, json: readFileSync(p, 'utf8') }))
+  const problem = disagreement(readFileSync(PKG, 'utf8'), readFileSync(WS, 'utf8'), manifests)
   if (problem !== undefined) {
     process.stderr.write(`${problem}\n`)
     process.exit(1)
   }
-  if (!process.argv.includes('--quiet')) process.stdout.write(`${NAME}: one pin, agreed in both files\n`)
+  if (!process.argv.includes('--quiet')) {
+    // Counted, not assumed: `manifests.length` would report every package scanned, including the
+    // three that correctly say nothing about the SDK — a number that grows when a package is added
+    // and means less each time.
+    const naming = manifests.filter((m) => {
+      const j = JSON.parse(m.json)
+      return (j.dependencies?.[NAME] ?? j.devDependencies?.[NAME]) !== undefined
+    })
+    const where = [PKG, WS, ...naming.map((m) => m.path)].join(', ')
+    process.stdout.write(`${NAME}: one pin, agreed in ${where}\n`)
+  }
 }
