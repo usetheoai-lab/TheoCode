@@ -30,6 +30,18 @@ const DESCRIBED_NOT_CITED = new Map([
     'the instruction file an operator may put in THEIR project — described in the configuration ' +
       'table, not a record in this repository',
   ],
+  [
+    'THEO.md',
+    'same reason as AGENTS.md: a name the loader reads from the OPERATOR\'s repository. Added when ' +
+      'the chain became THEO.md > AGENTS.md > CLAUDE.md — documenting a name we read is not the ' +
+      'same as citing a file we have.',
+  ],
+  [
+    'CLAUDE.md',
+    'same reason again, and the one that matters most: this file exists precisely so a repository ' +
+      'we did NOT write steers the agent. Requiring it here would mean the README could not ' +
+      'describe the interop it just gained.',
+  ],
 ])
 
 /** Backticked paths that look like repository files, not URLs, globs or shell fragments. */
