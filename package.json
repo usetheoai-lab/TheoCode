@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . && knip --no-progress && node tools/check-english-only.mjs --quiet && node tools/check-artifact-promotion.mjs --quiet && node tools/check-doc-references.mjs --quiet && node tools/check-config-documented.mjs --quiet",
+    "lint": "eslint . && knip --no-progress && node tools/check-english-only.mjs --quiet && node tools/check-artifact-promotion.mjs --quiet && node tools/check-doc-references.mjs --quiet && node tools/check-config-documented.mjs --quiet && node tools/check-sdk-pin.mjs --quiet",
     "lint:deadcode": "knip --no-progress",
     "deps:theokit": "node tools/check-theokit-updates.mjs",
     "deps:theokit:json": "node tools/check-theokit-updates.mjs --json",
@@ -50,10 +50,5 @@
   },
   "bin": {
     "theocode": "./dist/theocode.mjs"
-  },
-  "overrides": {
-    "@theokit/presenter": "^0.8.0",
-    "@theokit/tui": "^0.79.0",
-    "@theokit/sdk": "^4.63.3"
   }
 }
