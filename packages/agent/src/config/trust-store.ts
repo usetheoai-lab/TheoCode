@@ -1,6 +1,6 @@
 import { TrustStore } from '@theokit/agents/config'
 
-import { DEFAULT_HOME_DIR } from './home-dir.js'
+import { DEFAULT_HOME_DIR, homeStateDir } from './home-dir.js'
 
 import { existsSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -22,7 +22,7 @@ export function trustStorePath(
   env: Record<string, string | undefined> = process.env,
   home: string = homedir(),
 ): string {
-  return join(env.THEOKIT_HOME ?? join(home, DEFAULT_HOME_DIR), 'trusted-dirs.json')
+  return join(homeStateDir(env, home), 'trusted-dirs.json')
 }
 
 /** The root every installation had before `home_dir` existed, read but never written. */

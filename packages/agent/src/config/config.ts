@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 import { parse as parseToml } from 'smol-toml'
 
-import { DEFAULT_HOME_DIR, isValidHomeDirName } from './home-dir.js'
+import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR, homeStateDir, isValidHomeDirName } from './home-dir.js'
 import { z } from 'zod'
 
 import {
@@ -469,9 +469,15 @@ export function loadConfig(opts: {
   // directory and read exactly like a product defect. Changing either path here means changing the
   // README in the same commit; a hook is arbitrary command execution on every tool call, and its
   // location must not become folklore.
-  const user = readTomlIfPresent(join(userDir, '.theocode', 'config.toml'))
+  // #72 — the unified directory first, the previous one as a fallback that is read and never
+  // written. The unified one wins when both exist: the alternative is that an operator who moves
+  // their file sees no effect, which is the worse silence of the two.
+  const user =
+    readTomlIfPresent(join(homeStateDir(env, userDir), 'config.toml')) ??
+    readTomlIfPresent(join(userDir, LEGACY_HOME_DIR, 'config.toml'))
   const project = opts.posture.allows.projectConfig
-    ? readTomlIfPresent(join(projectDir, '.theocode', 'config.toml'))
+    ? (readTomlIfPresent(join(projectDir, DEFAULT_HOME_DIR, 'config.toml')) ??
+      readTomlIfPresent(join(projectDir, LEGACY_HOME_DIR, 'config.toml')))
     : null
   return resolveConfig({
     ...(user !== null ? { user: user } : {}),

@@ -1,3 +1,4 @@
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { TheokitAgentError } from '@theokit/agents'
@@ -10,6 +11,33 @@ import { TheokitAgentError } from '@theokit/agents'
  * by default would strand all of it.
  */
 export const DEFAULT_HOME_DIR = '.theokit'
+
+/**
+ * The root this product used for the operator's config, instructions and credentials before
+ * `home_dir` existed. READ, never written.
+ *
+ * `#65` argued the split — "`.theokit/` inside a PROJECT is the framework's directory, but what this
+ * product owns in the operator's home is `.theocode/`" — and that argument was sound while there was
+ * no way to name one root. `home_dir` is that way, and keeping a second root it cannot reach makes
+ * the key a half-truth. The split had already cost a duplicated credential store: measured
+ * 2026-09-04, `~/.theokit/auth.json` sat nine days stale beside the live `~/.theocode/auth.json`,
+ * unread and unrotated.
+ */
+export const LEGACY_HOME_DIR = '.theocode'
+
+/**
+ * The one directory this product keeps its state in, under the operator's home.
+ *
+ * `THEOKIT_HOME` is read rather than the config key because both surfaces install it at bootstrap
+ * from that key, and the SDK reads the same variable — one resolved answer instead of a second
+ * resolution that can disagree with the first.
+ */
+export function homeStateDir(
+  env: Record<string, string | undefined> = process.env,
+  home: string = homedir(),
+): string {
+  return env.THEOKIT_HOME ?? join(home, DEFAULT_HOME_DIR)
+}
 
 /**
  * Its own error rather than `ConfigError`, and the reason is structural.

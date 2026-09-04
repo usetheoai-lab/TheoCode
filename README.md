@@ -43,22 +43,28 @@ node dist/theocode.mjs sessions gc
 
 ## Where configuration lives
 
-Two directories, and they are not interchangeable. This is written down because it is not guessable
-and because getting it wrong fails silently — a `[[hooks]]` block in the wrong one is ignored with
-no error, and a hook is arbitrary command execution on every tool call (B-086).
+One directory per side — `<project>/.theokit/` in a repository, `~/<home_dir>/` under your home.
+It used to be two of each, and getting it wrong failed silently: a `[[hooks]]` block in the other one
+was ignored with no error, and a hook is arbitrary command execution on every tool call (B-086).
+
+`.theocode/` was the other one. It is still **read**, so nothing you already configured stops
+working, and it is never written. When both hold a config file, the unified directory wins — the
+alternative is that moving your file has no visible effect.
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `[[hooks]]`, profiles |
-| `~/.theocode/config.toml`         | this product       | the same keys, as your defaults; the project layer wins                                         |
-| `~/<home_dir>/`                   | the SDK            | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
+| `<project>/.theokit/config.toml`  | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `[[hooks]]`, profiles |
+| `~/<home_dir>/config.toml`        | this product       | the same keys, as your defaults; the project layer wins                                         |
+| `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's own file is read after it      |
-| `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's `.theokit/rules/` is read after them               |
+| `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's rules are read after them                          |
 | `<project>/THEO.md`               | this product       | project instructions — **first-wins** over `AGENTS.md`, then `CLAUDE.md`; a Claude Code repo needs no migration |
 | `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/`                              |
+| `<project>/.claude/`              | this product       | `rules/*.md` and `agents/<name>.md` are read from here too, so a Claude Code repository needs no migration; `skills/` already worked |
 | `<project>/.mcp.json`             | the SDK            | MCP servers, spawned when the directory is trusted                                              |
+| `<project>/.theocode/config.toml` | this product       | the previous location — still read, never written; the row above wins when both exist           |
 
-The project layer of `.theocode/config.toml` is read **only for a trusted directory** — an untrusted
+The project layer is read **only for a trusted directory** — an untrusted
 one falls back to your user layer, and no repository hook is wired at all. `/hooks` reports which of
 those two you are in; `/status` reports the resolved model, effort, approval and sandbox.
 
