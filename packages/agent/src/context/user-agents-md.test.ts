@@ -22,7 +22,7 @@
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -38,8 +38,11 @@ afterEach(() => {
 })
 
 function writeUserDoc(text: string): void {
-  mkdirSync(join(home, '.theocode'), { recursive: true })
-  writeFileSync(userAgentsMdPath(home), text)
+  // #72 — the directory comes from the path the loader will read, not from a name spelled here.
+  // Both are valid locations now, and pinning one would test the fixture rather than the loader.
+  const path = userAgentsMdPath(home)
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, text)
 }
 
 describe('loadUserAgentsMd', () => {
@@ -58,13 +61,13 @@ describe('loadUserAgentsMd', () => {
     // The load-bearing half: `expandInstructionImports` confines to a root, and pointing it at the
     // project would make an operator's own `@shared.md` unreadable from inside a repo.
     writeUserDoc('See @shared.md for the rest.')
-    writeFileSync(join(home, '.theocode', 'shared.md'), 'shared preference')
+    writeFileSync(join(dirname(userAgentsMdPath(home)), 'shared.md'), 'shared preference')
     expect(loadUserAgentsMd(home)).toContain('shared preference')
   })
 
   it('test_a_traversal_out_of_the_user_directory_is_refused', () => {
     // Confinement is not a formality just because the file is the operator's: an import is expanded
-    // into the model's prompt, and `~/.theocode` is a directory other tools also write into.
+    // into the model's prompt, and the state directory is one other tools also write into.
     const outside = join(home, 'secret.md')
     writeFileSync(outside, 'SHOULD-NOT-APPEAR')
     writeUserDoc('Read @../secret.md now.')

@@ -7,6 +7,8 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 
 import type { ApprovalMode } from '../consent/index.js'
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
+import { userAgentsMdPath } from '@theocode/agent/context'
+
 import { resolveMentions } from './mentions.js'
 import type {
   AgentTheInterpreterUses,
@@ -85,7 +87,9 @@ function joinParts(project: string, user: string): string {
 }
 
 function defaultUserChain(home: string): readonly string[] {
-  const path = join(home, '.theocode', 'AGENTS.md')
+  // #72 — the path comes from the loader, not from a second literal here. `/status` exists to say
+  // what IS in the prompt, and a row computing its own answer is a row that can be wrong about it.
+  const path = userAgentsMdPath(home)
   return existsSync(path) ? [path] : []
 }
 

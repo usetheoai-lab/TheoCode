@@ -56,8 +56,8 @@ alternative is that moving your file has no visible effect.
 | `<project>/.theokit/config.toml`  | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `[[hooks]]`, profiles |
 | `~/<home_dir>/config.toml`        | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
-| `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's own file is read after it      |
-| `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's rules are read after them                          |
+| `~/<home_dir>/AGENTS.md`          | this product       | instructions that belong to YOU, in every project; the project's own file is read after it. `~/.theocode/AGENTS.md` still works |
+| `~/<home_dir>/rules/*.md`         | this product       | your own rules, scoped or not; the project's rules are read after them. `~/.theocode/rules/` and `~/.claude/rules/` are read too — rules are additive |
 | `<project>/THEO.md`               | this product       | project instructions — **first-wins** over `AGENTS.md`, then `CLAUDE.md`; a Claude Code repo needs no migration |
 | `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/`                              |
 | `<project>/.claude/`              | this product       | `rules/*.md` and `agents/<name>.md` are read from here too, so a Claude Code repository needs no migration; `skills/` already worked |

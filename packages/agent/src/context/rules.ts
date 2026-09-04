@@ -1,6 +1,8 @@
-import { join } from 'node:path'
+import { isAbsolute, join, relative } from 'node:path'
 
 import { loadInstructionTree } from '@theokit/agents/config'
+
+import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR, homeStateDir } from '../config/home-dir.js'
 
 type WarnFn = (message: string) => void
 
@@ -57,22 +59,53 @@ export function loadRules(
 }
 
 /**
- * The operator's own rules — `~/.theocode/rules/` (#65).
+ * The operator's own rules — the unified state directory, the one before it, and `~/.claude/rules/`.
  *
- * `.theocode` and not `.theokit`, and the difference is not cosmetic: `.theokit/` inside a PROJECT
- * is the framework's directory, but what this product owns in the operator's home is `.theocode/` —
- * where `config.toml`, `auth.json` and `AGENTS.md` already live. A user rule is the operator's file,
- * not the framework's.
+ * All three are read, and additively: a rules directory is a SET, so dropping one because another
+ * directory also has rules would silently disable a rule the operator wrote. That is the opposite
+ * choice from `AGENTS.md`, which is one document under several names and is therefore first-wins.
+ *
+ * `#65` argued for `.theocode` alone — "what this product owns in the operator's home is
+ * `.theocode/`" — and #72 reverses it: `home_dir` names ONE root now, and a second root that key
+ * cannot reach makes it a half-truth. The old root is still read, so nothing an operator wrote stops
+ * being applied.
+ *
+ * Read OUTSIDE the trust gate, for the reason `user-agents-md.ts` sets out at length: that gate asks
+ * whether this repository's code is trusted, and nobody's home directory is the repository.
  *
  * Read OUTSIDE the trust gate, for the reason `user-agents-md.ts` sets out at length: that gate asks
  * whether this repository's code is trusted, and nobody's home directory is the repository.
  */
+/**
+ * The rule directories under the operator's home, as NAMES relative to it.
+ *
+ * Relative, and measured rather than assumed: `loadInstructionTree` resolves a root against `cwd`
+ * and returns `count: 0` for an absolute one — probed 2026-09-04 against `@theokit/agents@12.1.0`.
+ * Passing `homeStateDir()` straight through would therefore have read nothing, silently, which is
+ * the failure shape this whole issue is about.
+ *
+ * The configured root is included only when it IS a directory under the operator's home. An
+ * explicit `THEOKIT_HOME` pointing elsewhere has no name relative to home, and inventing one would
+ * escape the confinement the traversal depends on; the three known names still apply.
+ */
+function userRuleRoots(
+  home: string,
+  env: Record<string, string | undefined> = process.env,
+): readonly string[] {
+  const configured = relative(home, homeStateDir(env, home))
+  const names = [DEFAULT_HOME_DIR, LEGACY_HOME_DIR]
+  if (configured.length > 0 && !configured.startsWith('..') && !isAbsolute(configured)) {
+    names.unshift(configured)
+  }
+  return [...new Set([...names.map((n) => join(n, 'rules')), CLAUDE_RULES])]
+}
+
 export function loadUserRules(
   home: string,
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): { text: string; count: number } {
-  return loadRulesFrom(home, [join('.theocode', 'rules'), CLAUDE_RULES], warn, budget)
+  return loadRulesFrom(home, userRuleRoots(home), warn, budget)
 }
 
 /**
