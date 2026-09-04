@@ -12,11 +12,12 @@
  * turned down by NAMING the vocabulary rather than being dropped, and the report still says which
  * input decided the colour — including a `THEOCODE_THEME` value that was thrown away to get there.
  *
- * The switch lasts for the session only, and the message says so on the branch that performs it.
- * That is not a limitation being apologised for: a durable preference belongs in `THEOCODE_THEME`
- * where it can be reviewed, for the same reason `memory-switch.ts` keeps its own flag out of
- * config. A user who is told nothing about durability assumes the wrong one and finds out at the
- * next launch.
+ * The switch is REMEMBERED (#72), and the message says which of the two happened. It used to be
+ * session-only, on the argument that a durable preference belongs in `THEOCODE_THEME` "where it can
+ * be reviewed". That argument was about reviewability, and a file this command writes is at least as
+ * reviewable as an environment variable — more so, because the operator does not have to first learn
+ * the variable exists and then edit a shell profile. What survives is the honesty: the toast names
+ * the file, says the variable still overrides it, and says plainly when the write did not land.
  */
 import type { ToastPayload } from '../screen-types.js'
 import { THEME_BASES, type ThemeBase, type ThemeResolution } from '../theme-base.js'
@@ -57,7 +58,20 @@ const HOW_TO_CHANGE =
  * variant is the only part of a toast read at a glance, and an informational tone on an unperformed
  * action is exactly what makes a no-op look like it worked.
  */
-export function handleTheme(arg: string, setToast: (toast: ToastPayload) => void): void {
+export function handleTheme(
+  arg: string,
+  setToast: (toast: ToastPayload) => void,
+  /**
+   * Injected, and REQUIRED — not defaulted to the real writer.
+   *
+   * It did write into the operator's real home, once: with a default, three existing call sites kept
+   * the two-argument form and running the suite left a `tui-theme` file on the machine of whoever
+   * ran it, silently changing the colour they would see at the next launch. A default seam is a seam
+   * you have to remember; a required one is one the compiler asks about.
+   */
+  persist: (base: ThemeBase) => boolean,
+  describeStore: () => string,
+): void {
   const requested = arg.trim()
   if (requested.length === 0) {
     setToast({
@@ -78,8 +92,14 @@ export function handleTheme(arg: string, setToast: (toast: ToastPayload) => void
     return
   }
   setSessionThemeBase(known)
+  // #72 — the switch is remembered. Reported honestly on both branches rather than promised: a
+  // failed write still leaves the session switched, and telling the operator it will persist when it
+  // will not is the one outcome worse than not persisting at all.
+  const kept = persist(known)
   setToast({
-    message: `theme: ${known} — this session only; set THEOCODE_THEME=${known} to make it the default at launch`,
+    message: kept
+      ? `theme: ${known} — remembered for next launch too (${describeStore()}); THEOCODE_THEME still overrides it`
+      : `theme: ${known} — this session only; ${describeStore()} could not be written`,
     variant: 'success',
   })
 }

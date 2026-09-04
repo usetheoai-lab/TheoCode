@@ -62,6 +62,7 @@ alternative is that moving your file has no visible effect.
 | `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/`                              |
 | `<project>/.claude/`              | this product       | `rules/*.md` and `agents/<name>.md` are read from here too, so a Claude Code repository needs no migration; `skills/` already worked |
 | `<project>/.mcp.json`             | the SDK            | MCP servers, spawned when the directory is trusted                                              |
+| `~/<home_dir>/tui-theme`          | this product       | what `/theme` last picked; `NO_COLOR` and `THEOCODE_THEME` both still override it                |
 | `~/.theocode/auth.json`           | this product       | your credential — the one file deliberately left where it is; moving a live login is the one step of the unification that can log you out, so `theocode doctor` reports any copy in another state directory instead |
 | `<project>/.theocode/config.toml` | this product       | the previous location — still read, never written; the row above wins when both exist           |
 

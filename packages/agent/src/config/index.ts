@@ -13,6 +13,8 @@ export { installConfiguredHome } from './install-home.js'
 
 export { trustStorePath, trustDir } from './trust-store.js'
 
+export { homeStateDir } from './home-dir.js'
+
 export { resolveTrustPosture, type TrustPosture } from './trust-posture.js'
 
 export { sandboxWritePolicy } from './sandbox-policy.js'
