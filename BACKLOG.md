@@ -67,20 +67,19 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-151 items — **Open** 2 · **In flight** 0 · **Closed** 149
+151 items — **Open** 1 · **In flight** 0 · **Closed** 150
 
-### Open (2)
+### Open (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `triaged` | major |
 | [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class----) | A retried failure still reaches the user as the wrong error class | `triaged` | minor |
 
 ### In flight (0)
 
 _None._
 
-### Closed (149)
+### Closed (150)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -183,6 +182,7 @@ _None._
 | [`B-097`](#b-097--layered-config-with-a-trust-posture-is-rebuilt-by-every-agent-product---x) | Layered config with a trust posture is rebuilt by every agent product | `shipped` | major |
 | [`B-098`](#b-098--approval-and-consent-are-rebuilt-by-every-agent-product---x) | Approval and consent are rebuilt by every agent product | `shipped` | major |
 | [`B-099`](#b-099--credential-resolution-and-provider-routing-are-rebuilt-by-every-agent-product---x) | Credential resolution and provider routing are rebuilt by every agent product | `shipped` | major |
+| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose---x) | An SRE agent has no infrastructure tools to compose | `killed` | major |
 | [`B-101`](#b-101--confinement-covers-the-disk-not-the-blast-radius---x) | Confinement covers the disk, not the blast radius | `shipped` | major |
 | [`B-102`](#b-102--a-framework-gap-is-invisible-until-a-consumer-trips-on-it---x) | A framework gap is invisible until a consumer trips on it | `shipped` | minor |
 | [`B-103`](#b-103--context-assembly-exists-in-the-sdk-and-no-consumer-can-reach-it---x) | Context assembly exists in the SDK and no consumer can reach it | `killed` | major |
@@ -3839,7 +3839,7 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-credential-routing`).
 
-## B-100 — An SRE agent has no infrastructure tools to compose   [ ]
+## B-100 — An SRE agent has no infrastructure tools to compose   [x]
 
 domain: theokit
 repo: theokit
@@ -3899,7 +3899,7 @@ progress_2026_08_11: |
   against ZERO measured consumers — the mistake B-104 recorded and its resolution avoided. Building
   four of them now would produce an interface the first real SRE consumer routes around. What ships
   is the seam they declare through; the tools themselves want a consumer with a cluster.
-status: triaged
+status: killed
 triaged_note: |
   Advanced 2026-09-03. The status said `raw` — "a hypothesis nobody has measured" — while the
   evidence block carried a measurement taken 2026-08-10: 9 of TheoCode's 10 tools come from
@@ -3928,6 +3928,21 @@ blocked_by: |
 > packages/agents` — the 23 factories that ARE the evidence live there, so the dedup search that
 > matters had been run against the wrong tracker. And the re-measured count said 22 while listing 22
 > names; a fresh grep finds 23, because `createACPTool` was missed. Both corrected above.
+
+kill_reason: |
+  KILLED 2026-09-04 by the framework owner's decision, recorded on usetheokit/theokit#647 and closed
+  there as `not planned`: an infrastructure tool family is not theokit's responsibility and will not
+  be implemented.
+
+  The MEASUREMENT is not withdrawn — 23 factories, none infrastructure-shaped, re-measured the day
+  this closed. What changed is what the measurement MEANS. The absence was filed as a gap and it is a
+  BOUNDARY: the framework carries the agent core and generic tools, and a domain-specific tool family
+  belongs to the product that needs it. An SRE product on this framework still inherits everything
+  the costing rated 1-2/5 and still has to build its own tools; that is now a known price rather than
+  a missing feature.
+
+  A kill is the successful ending here, per `cycle-discover.md`: the item asked a real question, the
+  answer came from the only party who could give it, and the answer is no.
 
 ## B-101 — Confinement covers the disk, not the blast radius   [x]
 
