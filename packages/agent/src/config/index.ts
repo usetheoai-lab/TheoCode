@@ -9,6 +9,7 @@ export {
 } from './config.js'
 
 export { EffectiveConfig, resolveEffectiveConfig } from './effective-config.js'
+export { installConfiguredHome } from './install-home.js'
 
 export { TRUST_STORE, trustDir } from './trust-store.js'
 

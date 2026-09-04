@@ -51,6 +51,7 @@ no error, and a hook is arbitrary command execution on every tool call (B-086).
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
 | `<project>/.theocode/config.toml` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `[[hooks]]`, profiles |
 | `~/.theocode/config.toml`         | this product       | the same keys, as your defaults; the project layer wins                                         |
+| `~/<home_dir>/`                   | the SDK            | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/.theocode/AGENTS.md`           | this product       | instructions that belong to YOU, in every project; the project's own file is read after it      |
 | `~/.theocode/rules/*.md`          | this product       | your own rules, scoped or not; the project's `.theokit/rules/` is read after them               |
 | `<project>/THEO.md`               | this product       | project instructions — **first-wins** over `AGENTS.md`, then `CLAUDE.md`; a Claude Code repo needs no migration |
@@ -132,7 +133,7 @@ what an SLO should replace once there is production measurement to build it from
 ## What is deliberately not here
 
 This repository holds **production source and its tests**. `npm test` runs them:
-**126 files, 983 cases** (measured 2026-09-03 — `npm test`'s own count, which is the only one that is right. Two naive substitutes both undercount: a glob over `*.test.ts` finds 115, because 8 suites are `.test.tsx` and 3 are `.test.mjs`; and `grep -c 'it('` across all three extensions finds 933, because `it.each` expands into one case per row). The following were left out by an explicit decision —
+**130 files, 1022 cases** (measured 2026-09-03 — `npm test`'s own count, which is the only one that is right. Two naive substitutes both undercount: a glob over `*.test.ts` finds 119, because 8 suites are `.test.tsx` and 3 are `.test.mjs`; and `grep -c 'it('` across all three extensions finds 959, because `it.each` expands into one case per row). The following were left out by an explicit decision —
 stated here so nobody assumes they were forgotten:
 
 - **The process toolchain** — the engineering-cycle kit, its rules, its plans and its audit trail.

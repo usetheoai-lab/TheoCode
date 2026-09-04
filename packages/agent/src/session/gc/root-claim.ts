@@ -1,3 +1,4 @@
+import { existsSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -29,7 +30,28 @@ export function builtInDefaultRoot(home = homedir()): string {
 }
 
 export function claimDefaultRoot(root: string, defaultRoot: string = builtInDefaultRoot()): void {
-  if (root !== defaultRoot) return
   if (rootIsOurs(root)) return
+  if (root !== defaultRoot && holdsProjects(root)) return
   claimRoot(root)
+}
+
+/**
+ * Whether a root already holds somebody's transcripts.
+ *
+ * This is what separates "the operator renamed our directory" from "the operator pointed us at
+ * another product's". A custom root that is empty or absent is one we are CREATING, and refusing it
+ * forever would mean retention never runs again for anyone who set `home_dir`. A custom root that
+ * already has project directories in it was written by something else, and claiming it on sight
+ * would hand our delete path a tree we did not write.
+ *
+ * Unreadable counts as HOLDING. A directory we cannot enumerate is not one we can conclude is empty,
+ * and every uncertain answer in this file resolves to "not ours".
+ */
+function holdsProjects(root: string): boolean {
+  if (!existsSync(root)) return false
+  try {
+    return readdirSync(root, { withFileTypes: true }).some((e) => e.isDirectory())
+  } catch {
+    return true
+  }
 }

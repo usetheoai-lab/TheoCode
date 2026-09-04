@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import { ConfigError } from './config.js'
+import { TheokitAgentError } from '@theokit/agents'
 
 /**
  * The directory this product keeps its state in, under the operator's home.
@@ -10,6 +10,21 @@ import { ConfigError } from './config.js'
  * by default would strand all of it.
  */
 export const DEFAULT_HOME_DIR = '.theokit'
+
+/**
+ * Its own error rather than `ConfigError`, and the reason is structural.
+ *
+ * `config.ts` imports this module for the default and the validator, so importing `ConfigError` back
+ * from it closes a cycle — caught by `npm run depcruise` on the first run. Extending the SDK base
+ * keeps the error TYPED, which `rules/error-handling.md` asks for and a plain `Error` would give up.
+ *
+ * NOT exported: nothing catches it by type today, and knip refused the orphan export. It stays a
+ * class rather than becoming a plain Error because the type is what a future catcher would need,
+ * and adding it back is one keyword.
+ */
+class HomeDirError extends TheokitAgentError {
+  override readonly name = 'HomeDirError'
+}
 
 /**
  * A NAME, never a path.
@@ -48,7 +63,7 @@ export function installTheokitHome(
   name: string = DEFAULT_HOME_DIR,
 ): string {
   if (!isValidHomeDirName(name)) {
-    throw new ConfigError(
+    throw new HomeDirError(
       `home_dir: ${JSON.stringify(name)} is not a directory name — expected a single segment ` +
         `under your home, such as ${JSON.stringify(DEFAULT_HOME_DIR)} or ".claude"`,
     )
