@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 /**
@@ -74,7 +74,12 @@ export function rootIsOurs(projectsRoot: string): boolean {
  */
 export function claimRoot(projectsRoot: string): void {
   try {
-    if (rootIsOurs(projectsRoot)) return
+    // A marker that EXISTS and is not ours is never overwritten. `rootIsOurs` cannot answer this on
+    // its own — it returns false for "absent" and for "someone else's" alike, and only one of those
+    // is a directory we may take. Claiming must not be a way to seize a root from whoever marked it
+    // first, and a build that does not understand a future version of our own marker must not
+    // downgrade it.
+    if (existsSync(markerPath(projectsRoot))) return
     mkdirSync(dirname(projectsRoot), { recursive: true })
     const own: Ownership = { product: PRODUCT, version: VERSION }
     writeFileSync(markerPath(projectsRoot), `${JSON.stringify(own, null, 2)}\n`)
