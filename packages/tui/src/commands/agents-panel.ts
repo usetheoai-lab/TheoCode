@@ -16,7 +16,7 @@ import { listSessions } from '@theocode/agent/session'
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
 import { sessionListLines, type ListedSessions } from './session-commands.js'
-import { listSubagents, subagentDir } from './subagent-inventory.js'
+import { listSubagents, subagentDirs } from './subagent-inventory.js'
 
 /**
  * The subagent listing, as both `/subagents` and `/agents` print it.
@@ -28,7 +28,7 @@ import { listSubagents, subagentDir } from './subagent-inventory.js'
 export function subagentsPanelBody(cwd: string): string {
   const names = listSubagents(cwd)
   return names.length === 0
-    ? `no subagents in ${subagentDir(cwd)} — a custom command naming one will run in the main context instead`
+    ? `no subagents in ${subagentDirs(cwd).join(' or ')} — a custom command naming one will run in the main context instead`
     : names.map((name) => `  ${name}`).join('\n')
 }
 

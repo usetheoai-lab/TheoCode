@@ -21,7 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { agentsPanelBody, handleAgents, subagentsPanelBody } from './agents-panel.js'
 import type { ListedSessions } from './session-commands.js'
-import { subagentDir } from './subagent-inventory.js'
+import { subagentDirs } from './subagent-inventory.js'
 
 let cwd: string
 
@@ -33,8 +33,9 @@ afterEach(() => {
 })
 
 function writeSubagent(name: string): void {
-  mkdirSync(subagentDir(cwd), { recursive: true })
-  writeFileSync(join(subagentDir(cwd), `${name}.md`), '# agent\n')
+  const dir = subagentDirs(cwd)[0] as string
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, `${name}.md`), '# agent\n')
 }
 
 const sessions: ListedSessions = [
@@ -98,7 +99,11 @@ describe('the agents panel reuses the listings it composes', () => {
   it('test_a_project_with_no_subagents_names_the_directory_rather_than_saying_none', () => {
     const body = agentsPanelBody(cwd, [], 'tui-1')
 
-    expect(body, 'the path the build actually reads is not shown').toContain(subagentDir(cwd))
+    // Both paths, because both are read: naming only one sends the operator to a directory that
+      // would have worked while hiding the other.
+      for (const dir of subagentDirs(cwd)) {
+        expect(body, `the path the build actually reads is not shown: ${dir}`).toContain(dir)
+      }
   })
 
   it('test_no_sessions_yet_is_stated_rather_than_left_blank', () => {

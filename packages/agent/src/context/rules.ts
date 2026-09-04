@@ -53,7 +53,7 @@ export function loadRules(
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): { text: string; count: number } {
-  return loadRulesFrom(cwd, join('.theokit', 'rules'), warn, budget)
+  return loadRulesFrom(cwd, [join('.theokit', 'rules'), CLAUDE_RULES], warn, budget)
 }
 
 /**
@@ -72,12 +72,25 @@ export function loadUserRules(
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): { text: string; count: number } {
-  return loadRulesFrom(home, join('.theocode', 'rules'), warn, budget)
+  return loadRulesFrom(home, [join('.theocode', 'rules'), CLAUDE_RULES], warn, budget)
 }
+
+/**
+ * #72 — the directory a Claude Code repository already keeps its rules in.
+ *
+ * Read ALONGSIDE ours, never instead: a rules directory is a SET, and Claude Code loads every `.md`
+ * under it exactly as this product does under its own. A repository that has both meant both, which
+ * is the opposite of the instruction chain — one document steering the agent, where a second one
+ * silently shadowing the first is the confusion `THEO.md > AGENTS.md > CLAUDE.md` exists to prevent.
+ *
+ * Ours is walked FIRST because `loadInstructionTree` documents the order as the caller's, and with
+ * additive loading that decides the order in the prompt rather than what gets read at all.
+ */
+const CLAUDE_RULES = join('.claude', 'rules')
 
 function loadRulesFrom(
   cwd: string,
-  root: string,
+  roots: readonly string[],
   warn: WarnFn,
   budget: TraversalBudget,
 ): { text: string; count: number } {
@@ -85,7 +98,7 @@ function loadRulesFrom(
 
   const tree = loadInstructionTree({
     cwd,
-    roots: [root],
+    roots,
     // See § 3 — the walk is bounded by depth and file count, the ceilings this product declares.
     budget: {
       maxDepth: budget.maxDepth,

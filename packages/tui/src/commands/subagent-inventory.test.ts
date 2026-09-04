@@ -11,7 +11,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { listSubagents, subagentDir } from './subagent-inventory.js'
+import { listSubagents, subagentDirs, subagentPath } from './subagent-inventory.js'
 
 let cwd: string
 
@@ -22,9 +22,11 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true })
 })
 
+const ours = (): string => join(cwd, '.theokit', 'agents')
+
 function writeAgent(name: string): void {
-  mkdirSync(subagentDir(cwd), { recursive: true })
-  writeFileSync(join(subagentDir(cwd), `${name}.md`), '# agent\n')
+  mkdirSync(ours(), { recursive: true })
+  writeFileSync(join(ours(), `${name}.md`), '# agent\n')
 }
 
 describe('B-072 — listSubagents', () => {
@@ -35,15 +37,20 @@ describe('B-072 — listSubagents', () => {
   })
 
   it('test_resolves_where_the_router_resolves', () => {
-    // The router checks `.theokit/agents/<name>.md` under the working directory. Pinning the path
-    // here is what keeps the two from drifting.
-    expect(subagentDir(cwd)).toBe(join(cwd, '.theokit', 'agents'))
+    // The router resolves through `subagentPath`, over the directories `subagentDirs` names, in that
+    // order. Pinning both here is what keeps the listing and the router from drifting — and pinning
+    // the ORDER is what makes ours win when a name exists in both.
+    expect(subagentDirs(cwd)).toEqual([join(cwd, '.theokit', 'agents'), join(cwd, '.claude', 'agents')])
+
+    writeAgent('reviewer')
+    expect(subagentPath(cwd, 'reviewer')).toBe(join(ours(), 'reviewer.md'))
+    expect(subagentPath(cwd, 'absent')).toBeUndefined()
   })
 
   it('test_ignores_files_that_are_not_agents', () => {
     writeAgent('reviewer')
-    writeFileSync(join(subagentDir(cwd), 'README.txt'), 'x')
-    writeFileSync(join(subagentDir(cwd), '.md'), 'x')
+    writeFileSync(join(ours(), 'README.txt'), 'x')
+    writeFileSync(join(ours(), '.md'), 'x')
     expect(listSubagents(cwd)).toEqual(['reviewer'])
   })
 

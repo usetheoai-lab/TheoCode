@@ -1,9 +1,9 @@
 import { expandTemplate } from './command-template.js'
-import { subagentDir } from './subagent-inventory.js'
+import { subagentPath } from './subagent-inventory.js'
 import type { CustomCommand } from './custom-commands.js'
 import { nextApprovalMode, parseApprovalMode, type ApprovalMode } from '../consent/index.js'
 import { execFile } from 'node:child_process'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -155,16 +155,17 @@ function withDelegationInstruction(
   expanded: string,
   setToast: CustomCommandDeps['setToast'],
 ): string {
-  // B-072 — the directory comes from `subagentDir`, the same function `/subagents` lists from.
+  // B-072 — resolved by `subagentPath`, the same function `/subagents` lists from. #72 widened both
+  // together: a listing the router cannot follow is the drift that function exists to prevent.
   // It was an inline `join(...)` here and a second literal in the listing, so the two could drift
   // into a listing that promises an agent this router then fails to find. One definition, one
   // possible answer.
   const agentExists =
     command.agent !== undefined &&
-    existsSync(join(subagentDir(workingDirectory()), `${command.agent}.md`))
+    subagentPath(workingDirectory(), command.agent) !== undefined
   if (command.agent !== undefined && !agentExists) {
     setToast({
-      message: `/${name}: subagent "${command.agent}" not found in .theokit/agents/ — running in main context`,
+      message: `/${name}: subagent "${command.agent}" not found in .theokit/agents/ or .claude/agents/ — running in main context`,
       variant: 'info',
     })
   }
