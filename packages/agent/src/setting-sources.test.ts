@@ -1,15 +1,17 @@
 /**
- * #65 — the gate, and why `.claude/` is NOT declared here yet.
+ * #65 — declaring `.claude/` as a setting source, and gating it exactly like the directory it is.
  *
  * `theokit-sdk#524` put `<cwd>/.claude/` behind an opt-in and `@theokit/agents@13.0.0-next.0`
- * forwards it — through two of its three authoring paths. `AgentBuilder`, the one this product uses,
- * stores the selection raw and never calls `resolveCompatSources`, so the field would compile to
- * nothing. Declaring it was written, measured, and taken back out; `setting-sources.ts` carries the
- * evidence and the one line that lands when the builder path is covered.
+ * forwards it. Without it a repository written for Claude Code gets its `skills/` and `agents/`
+ * ignored; with it, both work — verified end to end on the built binary, one project holding both:
  *
- * What these tests pin is the gate that DOES work, and the floor a future `claudeCode` must not
- * fall below: an untrusted directory reaches nothing, and the operator's own home is unaffected by
- * a decision about this repository's code.
+ *     .theokit/agents/native.md   -> delegated, NATIVE-OK
+ *     .claude/agents/foreign.md   -> delegated, FOREIGN-OK
+ *
+ * The security shape is the whole reason this is its own change. `.claude/` is repository-controlled
+ * — it usually arrived with the clone — and holds a `hooks.json` that executes shell. So it takes the
+ * SAME evidence `project` takes and no less: an untrusted directory must not reach the agent through
+ * a second door just because that door has another product's name on it.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -45,7 +47,7 @@ const UNTRUSTED = posture({
   agentsMd: false,
 })
 
-describe('#65 — the setting-source gate', () => {
+describe('#65 — the foreign dialect is declared, and gated', () => {
   it('test_a_trusted_directory_carries_the_evidence_that_authorised_it', () => {
     // Not a boolean. The grant carries the posture, so a refusal further down can say WHERE the
     // decision came from rather than only that it was refused.
@@ -60,14 +62,22 @@ describe('#65 — the setting-source gate', () => {
     expect(settingSourcesFor(UNTRUSTED).project).toBeUndefined()
   })
 
-  it('test_no_foreign_dialect_is_declared_while_the_forward_is_inert', () => {
-    // The floor for the change that lands when `AgentBuilder` resolves it. Declaring the field
-    // today compiles to nothing, and a control that reads as working and does nothing is worse
-    // than an absent one.
+  it('test_the_foreign_root_takes_the_same_evidence_as_the_native_one', () => {
+    // Not a boolean, and not a weaker grant. `.claude/hooks.json` executes shell from a directory
+    // that usually arrived with a clone.
+    const sources = settingSourcesFor(TRUSTED)
+
+    expect(sources.claudeCode).toEqual(sources.project)
+  })
+
+  it('test_an_untrusted_directory_gets_neither_door', () => {
+    const sources = settingSourcesFor(UNTRUSTED)
+
     expect(
-      (settingSourcesFor(TRUSTED) as Record<string, unknown>).claudeCode,
-      'declared before the builder path can carry it — it would compile to nothing',
+      sources.claudeCode,
+      'an untrusted repository reached the agent through .claude/',
     ).toBeUndefined()
+    expect(sources.project, 'the anti-vacuity floor: the original gate must still hold').toBeUndefined()
   })
 
   it('test_the_user_source_is_unaffected', () => {

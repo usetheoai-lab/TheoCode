@@ -359,12 +359,13 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     // The counter-proof to the untrusted case, in the M86 shape: `project` is present, and the grant
     // carries the posture that authorized it — including `source`, so a refusal further down can say
     // where the decision came from rather than only that it was refused.
-    expect(agent.settingSources).toEqual({
-      user: true,
-      project: {
-        trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
-      },
-    })
+    const grant = {
+      trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
+    }
+    // #65 — `claudeCode` carries the SAME grant, deliberately. `.claude/` is repository-controlled
+    // and holds a `hooks.json` that executes shell, so the second door takes the evidence the first
+    // one takes; a weaker grant would be a gate with a bypass named after another product.
+    expect(agent.settingSources).toEqual({ user: true, project: grant, claudeCode: grant })
     // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
     // a trusted directory alone leaves it off. The two halves are asserted apart, below, because
     // collapsing them would let either one carry the other.

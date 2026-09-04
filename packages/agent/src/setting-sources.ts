@@ -13,30 +13,34 @@ type Grant = { trustedBy: ReturnType<typeof projectSettingsPosture> }
  * whether THIS repository's code is trusted, and the operator's home is not the repository.
  * `user-agents-md.ts` sets out the reasoning at length.
  *
- * `claudeCode` is NOT declared, and the reason is measured rather than cautious.
- *
- * `@theokit/agents@13.0.0-next.0` forwards it (usetheokit/theokit#634) — through two of its three
- * authoring paths. `defineAgent` resolves it, `SettingSourcesCapability` resolves it, and
- * `AgentBuilder` — the path THIS product uses — stores the selection raw:
- *
- *     settingSources: (selection) => makeBuilder({ ...config, settingSources: selection })
- *
- * So nothing calls `resolveCompatSources`, the compiled agent carries no `compatSources` key
- * (verified against the real builder, not a mock), and `local.compatSources` never reaches
- * `Agent.create`. Declaring it here would be a control that reads as working and does nothing —
- * which is the exact failure #634 held itself back to avoid, one authoring path over. End-to-end
- * check on the built binary: with the field declared, a skill under `.claude/skills/` still never
- * reached the prompt.
- *
- * When the builder path is covered, the change is one line — `claudeCode: grant` — and the grant is
- * already the right one: the SAME evidence `project` takes, because `.claude/` is
- * repository-controlled, usually arrived with the clone, and holds a `hooks.json` that executes
+ * `claudeCode` reads `<cwd>/.claude/` (#65, usetheokit/theokit#634). It takes the SAME grant
+ * `project` takes, and that is the security decision worth stating plainly: `.claude/` is
+ * repository-controlled — it usually arrived with the clone — and holds a `hooks.json` that executes
  * shell. A second door with another product's name on it must not be easier to open than the first.
+ *
+ * Declaring the field and trusting the directory answer two different questions, which is why the
+ * framework keeps them in one value: the field says "import another product's configuration", the
+ * `TrustPosture` inside says "run code from this directory". This product answers the first yes
+ * unconditionally — an adopter's `.claude/` is the reason they are here — and leaves the second to
+ * the gate that already existed.
+ *
+ * Verified end to end on the built binary, one project holding both, trusted directory:
+ *
+ *     .theokit/agents/native.md   -> delegated, NATIVE-OK
+ *     .claude/agents/foreign.md   -> delegated, FOREIGN-OK
+ *     .claude/skills/x/SKILL.md   -> body reached the prompt
+ *
+ * and `local` arriving at the SDK as
+ * `{"settingSources":["user","project"],"compatSources":["claude-code"]}`.
+ *
  */
 export function settingSourcesFor(posture: TrustPosture): {
   user: true
   project?: Grant
+  claudeCode?: Grant
 } {
   if (!projectSourceAllowed(posture.allows)) return { user: true }
-  return { user: true, project: { trustedBy: projectSettingsPosture(posture) } }
+  // One grant object for both, so they cannot drift apart into a weaker gate for the foreign root.
+  const grant: Grant = { trustedBy: projectSettingsPosture(posture) }
+  return { user: true, project: grant, claudeCode: grant }
 }
