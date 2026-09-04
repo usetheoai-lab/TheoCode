@@ -30,16 +30,31 @@
 /**
  * Failures common enough to be worth a next step rather than only a name.
  *
- * Matched on the error CODE where the framework supplies one and on the message otherwise —
- * message matching is a heuristic and is kept to a substring that names an error class, never a
- * phrase that could be reworded upstream without anyone noticing.
+ * Matched on the SDK's typed error CODE first, and on the message only as a fallback for a provider
+ * that supplies none. Message matching is a heuristic and is kept to a substring that names an error
+ * class, never a phrase that could be reworded upstream without anyone noticing.
+ *
+ * The code half was DESCRIBED here and not implemented until 2026-09-04. The probe concatenated code
+ * and message and ran the text patterns over both, so a typed code only matched when its own string
+ * happened to look like one — measured across the eleven `ErrorCode` values of
+ * `@theokit/sdk@4.63.4-next.0`, exactly one did (`rate_limit`), and the other ten produced no hint at
+ * all. The one that matters is `auth_failed`: a refused credential reported the bare message and no
+ * next step, while the same failure with a raw `401` in its text got the hint. That is B-149's
+ * remaining half — upstream now keeps the class distinct, and this side was throwing it away.
  */
-const HINTS: readonly { readonly matches: (probe: string) => boolean; readonly hint: string }[] = [
+const HINTS: readonly {
+  /** The SDK codes this hint answers. Checked before the message. */
+  readonly codes?: ReadonlySet<string>
+  readonly matches: (probe: string) => boolean
+  readonly hint: string
+}[] = [
   {
+    codes: new Set(['rate_limit']),
     matches: (p) => p.includes('ratelimit') || p.includes('rate_limit') || p.includes('429'),
     hint: 'the provider is rate-limiting this account — wait and retry, or switch model with /model',
   },
   {
+    codes: new Set(['auth_failed']),
     matches: (p) =>
       p.includes('401') ||
       p.includes('unauthor') ||
@@ -48,11 +63,28 @@ const HINTS: readonly { readonly matches: (probe: string) => boolean; readonly h
     hint: 'the credential was refused — run `theocode doctor`, then /login to re-authenticate',
   },
   {
+    codes: new Set(['network', 'timeout']),
     matches: (p) =>
       p.includes('econnrefused') || p.includes('enotfound') || p.includes('etimedout'),
     hint: 'the provider could not be reached — check the network, then retry',
   },
   {
+    /**
+     * Deliberately NOT folded into the rate-limit entry above. Both are "the provider said no", and
+     * the actions are opposites: rate limiting clears by waiting, an exhausted quota does not, so
+     * sending the user to wait would be sending them to wait out a condition that never resolves.
+     */
+    codes: new Set(['quota_exceeded']),
+    matches: (p) => p.includes('quota'),
+    hint: 'the account quota is exhausted — waiting will not clear it; check billing, or switch model with /model',
+  },
+  {
+    codes: new Set(['model_unavailable']),
+    matches: () => false,
+    hint: 'the provider does not have this model right now — switch with /model',
+  },
+  {
+    codes: new Set(['context_too_long']),
     matches: (p) => p.includes('context') && p.includes('length'),
     hint: 'the conversation outgrew the model window — /compact frees context',
   },
@@ -90,6 +122,22 @@ export interface TurnErrorContext {
 const DIAGNOSTICS_HINT =
   'set THEOCODE_DIAGNOSTICS=stderr to see the retry sequence and the underlying error'
 
+/**
+ * The next step for a failure, or `undefined` when there is no honest one to give.
+ *
+ * The typed code first, the message only when no hint claimed the code — a provider that supplies no
+ * code falls through to the text patterns exactly as before. Extracted because inlining it pushed
+ * `turnErrorText` past the complexity gate, and because "which hint answers this failure" is one
+ * question that should be readable on its own.
+ *
+ * `undefined` is a real answer: `unknown` means the SDK could not classify the failure, and inventing
+ * a next step for it would be a guess dressed as guidance.
+ */
+function hintFor(code: string | undefined, probe: string): string | undefined {
+  const byCode = code === undefined ? undefined : HINTS.find((h) => h.codes?.has(code))
+  return (byCode ?? HINTS.find((h) => h.matches(probe)))?.hint
+}
+
 export function turnErrorText(
   error: { message: string; code?: string },
   context: TurnErrorContext = {},
@@ -99,7 +147,7 @@ export function turnErrorText(
   const labelled = error.code === undefined ? named : `${named} [${error.code}]`
 
   const probe = `${error.code ?? ''} ${message}`.toLowerCase()
-  const hint = HINTS.find((h) => h.matches(probe))?.hint
+  const hint = hintFor(error.code, probe)
 
   // Order is deliberate and pinned by a test: what happened, then what to do, then the context. The
   // original defect was a user left with nothing to act on, so nothing may push the message down.

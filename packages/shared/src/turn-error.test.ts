@@ -164,3 +164,69 @@ describe('the failure names the switch that shows more', () => {
     expect(text).toContain('THEOCODE_DIAGNOSTICS')
   })
 })
+
+/**
+ * The SDK's TYPED error codes must reach the hints, and ten of eleven did not.
+ *
+ * The table was written against provider MESSAGE text — `401`, `unauthor`, `econnrefused`,
+ * `context`+`length` — so it fires when the raw message happens to contain those strings and stays
+ * silent on the typed path. Measured 2026-09-04 against `ErrorCode` in `@theokit/sdk@4.63.4-next.0`:
+ * only `rate_limit` matched, and only because the code string coincides with a text pattern.
+ *
+ * The case that matters is `auth_failed`, which is what a refused credential reports today. B-149
+ * was filed because a 401 reached the user as a rate-limit; upstream fixed the class (the 429 retry
+ * fires only on a real 429, and `auth_failed` is a distinct code), and this is the half that stayed
+ * broken on OUR side — the class arrives correctly and we say nothing about it.
+ */
+describe('the SDK typed error codes reach a hint', () => {
+  /**
+   * The HINT only — everything after the em dash.
+   *
+   * Asserting on the whole string passes for the wrong reason: the code is echoed in the label
+   * (`… [network]`), so `toContain('network')` is satisfied by the label whether or not a hint
+   * exists. Two assertions in the first draft of this block were green for exactly that reason.
+   */
+  const hintFor = (code: string) => {
+    const out = turnErrorText({ code, message: 'the provider refused' }, {})
+    const at = out.indexOf(' — ')
+    return at === -1 ? '' : out.slice(at + 3)
+  }
+
+  it('test_auth_failed_points_at_the_credential', () => {
+    // The B-149 case. Before this, `auth_failed` produced the bare message and no next step, while a
+    // raw "401" in the text produced the hint — the typed path was the one left with nothing.
+    expect(hintFor('auth_failed')).toContain('/login')
+  })
+
+  it('test_context_too_long_points_at_compact', () => {
+    expect(hintFor('context_too_long')).toContain('/compact')
+  })
+
+  it.each(['network', 'timeout'])('test_%s_points_at_the_connection', (code) => {
+    expect(hintFor(code)).toContain('network')
+  })
+
+  it('test_quota_exceeded_is_not_reported_as_rate_limiting', () => {
+    // Distinct actions: rate limiting clears by waiting, an exhausted quota does not. Collapsing
+    // them would send the user to wait out a condition that never resolves.
+    const quota = hintFor('quota_exceeded')
+
+    expect(quota).not.toContain('wait and retry')
+    expect(quota).toContain('quota')
+  })
+
+  it('test_model_unavailable_points_at_the_model_switch', () => {
+    expect(hintFor('model_unavailable')).toContain('/model')
+  })
+
+  it('test_a_code_with_no_honest_action_gets_no_hint', () => {
+    // Anti-vacuity, and the honest half: `unknown` means the SDK could not classify it, and inventing
+    // a next step for it would be a guess dressed as guidance.
+    expect(hintFor('unknown')).toBe('')
+  })
+
+  it('test_the_message_patterns_still_work_for_a_provider_that_sets_no_code', () => {
+    // The text table is not replaced. A provider that returns a bare string keeps its hint.
+    expect(turnErrorText({ message: '401 Unauthorized' }, {})).toContain('/login')
+  })
+})
