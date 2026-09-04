@@ -67,19 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-151 items — **Open** 1 · **In flight** 0 · **Closed** 150
+151 items — **Open** 0 · **In flight** 0 · **Closed** 151
 
-### Open (1)
+### Open (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class----) | A retried failure still reaches the user as the wrong error class | `triaged` | minor |
+_None._
 
 ### In flight (0)
 
 _None._
 
-### Closed (150)
+### Closed (151)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -231,6 +229,7 @@ _None._
 | [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
 | [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
 | [`B-148`](#b-148--a-hand-maintained-count-in-the-readme-went-stale-twice-in-one-session-both-times-by-my-hand---x) | A hand-maintained count in the README went stale twice in one session, both times by my hand | `shipped` | minor |
+| [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class---x) | A retried failure still reaches the user as the wrong error class | `shipped` | minor |
 | [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
 | [`B-151`](#b-151--b-134s-guarantee-had-no-gate-and-the-next-dangling-citation-was-already-there---x) | B-134's guarantee had no gate, and the next dangling citation was already there | `shipped` | major |
 
@@ -6950,7 +6949,7 @@ dod:
 
 > Registered 2026-09-03, by sweeping the fourth repeated pattern of this release.
 
-## B-149 — A retried failure still reaches the user as the wrong error class   [ ]
+## B-149 — A retried failure still reaches the user as the wrong error class   [x]
 
 domain: theokit
 repo: theokit
@@ -6980,7 +6979,8 @@ blocked_by: |
   usetheokit/theokit#474 — `streamAgentTurnInProcess` must expose the retry policy (or the error it
   preserves) before a consumer can keep the class. Per the issue-lifecycle rule, this stays OPEN with
   the dependency named rather than being closed as "not ours".
-status: triaged
+status: shipped
+fixed_in: 9ff78a0
 severity: minor
 dod:
   - a failure that the transport retried reports the class of the FIRST failure, not of the last
@@ -6994,6 +6994,28 @@ dod:
 
 > Registered 2026-09-03, splitting the undelivered half of B-130 rather than leaving it inside an
 > item marked shipped.
+
+> CLOSED 2026-09-04, and the blocker was only half the story.
+>
+> UPSTREAM RESOLVED IT. `usetheokit/theokit#474` is fixed: `@theokit/agents@12.1.0` declares
+> `retry?: RetryOptions` on `StreamAgentTurnInProcessInput`, and absent it the turn makes a single
+> attempt. The SDK also keeps `auth_failed` and `rate_limit` as distinct `ErrorCode` values, and its
+> `RunRateLimitEvent` fires only when "the provider returned a rate-limit (HTTP 429)". The mechanism
+> that rewrote a 401 into a 429 has no path in these versions — read from the declared contract, NOT
+> reproduced against a live 401, and that limit is stated rather than glossed.
+>
+> OUR HALF WAS BROKEN, and nobody had looked. The hint table matched on provider MESSAGE text while
+> its docblock claimed it matched on the error CODE. Measured across the SDK's eleven codes: one
+> matched (`rate_limit`, by coincidence of spelling) and ten produced no hint — including
+> `auth_failed`, which is what a refused credential reports. So the class arrived correctly and this
+> side threw it away: the user saw the bare message and no next step, while the same failure with a
+> raw `401` in its text got one.
+>
+> Fixed in 9ff78a0, which changed `packages/shared/src/turn-error.ts` and its test — NOT
+> `run.ts`, whose line 56 this block cites as where the original measurement was RECORDED
+> rather than where the defect lived. Both DoD bullets hold: the first because the class survives and is now
+> ANSWERED here, the second because the 401 case has a test on both paths — the routed-credential
+> regression (`run-target.test.ts:50`) and the typed code (`turn-error.test.ts`).
 
 ## B-150 — Moving the sweep to a child process silently regressed two shipped DoDs   [x]
 
