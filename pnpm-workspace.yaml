@@ -47,7 +47,7 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/utils@8.68.0'
   - '@typescript-eslint/visitor-keys@8.68.0'
   - typescript-eslint@8.68.0
-  - '@theokit/tui@0.78.0'
+  - '@theokit/tui@0.78.0 || 0.80.0'
   - '@theokit/sdk@5.0.0-next.1'
 
 # The transitive `@theokit/sdk` is what carries `prompt_cache_key` and the cached-token read

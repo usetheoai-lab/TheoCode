@@ -111,8 +111,8 @@ importers:
         specifier: ^12.1.0
         version: 12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/tui':
-        specifier: ^0.79.0
-        version: 0.79.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)
+        specifier: ^0.80.0
+        version: 0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)
       ink:
         specifier: ^7.1.0
         version: 7.1.1(@types/react@19.2.18)(react@19.2.8)
@@ -916,8 +916,8 @@ packages:
       ws:
         optional: true
 
-  '@theokit/tui@0.79.0':
-    resolution: {integrity: sha512-xlzSS3yV5umOeY+0ttomUNQ0mIHfyu9gthxywlHU0ikUi3e616WukHSjyYZjXL47zZdt4ETdbgqcwaL+AUQe9g==}
+  '@theokit/tui@0.80.0':
+    resolution: {integrity: sha512-2494AbWjPHaZR6KVg73/ld/7uO+ROqmq0GMq3G0mO1Rc+pN/B8JSM0HY7c0k5ZNRdMNUKX802+5Kun9t1h5HSw==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       figlet: ^1.7.0
@@ -2584,7 +2584,7 @@ snapshots:
     optionalDependencies:
       ws: 8.21.3
 
-  '@theokit/tui@0.79.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)':
+  '@theokit/tui@0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)':
     dependencies:
       '@alcalzone/ansi-tokenize': 0.1.3
       chalk: 5.6.2
