@@ -66,8 +66,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: ^12.1.0
-        version: 12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.0
+        version: 13.0.0-next.0(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/agents-pty':
         specifier: ^0.2.1
         version: 0.2.1(@theokit/sdk@5.0.0-next.4(ws@8.21.3))
@@ -90,8 +90,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: ^12.1.0
-        version: 12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.0
+        version: 13.0.0-next.0(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/presenter':
         specifier: ^0.8.0
         version: 0.8.0(@theokit/sdk@5.0.0-next.4(ws@8.21.3))(zod@4.4.3)
@@ -99,8 +99,8 @@ importers:
   packages/shared:
     dependencies:
       '@theokit/agents':
-        specifier: ^12.1.0
-        version: 12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.0
+        version: 13.0.0-next.0(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
 
   packages/tui:
     dependencies:
@@ -111,8 +111,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: ^12.1.0
-        version: 12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.0
+        version: 13.0.0-next.0(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/tui':
         specifier: ^0.80.0
         version: 0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)
@@ -837,21 +837,20 @@ packages:
     resolution: {integrity: sha512-JTNdU4T/XKHs3XRbKHTwqm9K4GqIv28udDUKB5rq9GJJfz3EAad7mp9qflABPqv2sDsJXsCRI1qrha40QsWCqw==}
     engines: {node: '>=22.12.0'}
 
-  '@theokit/agents@12.1.0':
-    resolution: {integrity: sha512-bhIHm06ltIlCSq+YNcpOyPG83AdqbxyKkZEseK92weznP905/BZmY83dohDXd+g5AtZJt8lFx7SSo3R+mCIUAA==}
+  '@theokit/agents@13.0.0-next.0':
+    resolution: {integrity: sha512-UfjoH4Ytq7MAhOLrnRK2E4iFSH8UgD1hBN+92ODHWGxcANEHRSKxUY1V+I96ATgTG75G1xMs0XGOWWNKP65fZg==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
-      '@theokit/http': '>=0.1.0-alpha.0'
+      '@theokit/http': '>=2.1.0-next.0'
       react: '>=18'
       zod: ^4.0.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@theokit/http@1.1.0':
-    resolution: {integrity: sha512-FNDYlivrU7MCcfJsPNAxLaBKnj5pOq+xZFvq3nMkybKGVQf//Ot4UJmzjFAf3z+SAmn29wN2whc4RiAZlNoXGQ==}
+  '@theokit/http@2.1.0-next.0':
+    resolution: {integrity: sha512-Cy+q2b+0bbLEEJG7cF1oV5kvw7/cvV5KEF6YiZOw8Qqu31Jpery1QYqWfcjcc7eH4Gbn9cqxfvaoVgvu7dunAg==}
     engines: {node: '>=22.12.0'}
-    deprecated: 'Publicado com license: MIT por engano; o repositorio licencia este codigo sob Apache-2.0. Use >=1.1.1.'
     peerDependencies:
       '@swc/core': '>=1.3.0'
       react: '>=18.0.0'
@@ -2534,9 +2533,9 @@ snapshots:
     transitivePeerDependencies:
       - '@theokit/sdk'
 
-  '@theokit/agents@12.1.0(@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)':
+  '@theokit/agents@13.0.0-next.0(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
-      '@theokit/http': 1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)
+      '@theokit/http': 2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)
       '@theokit/presenter': 0.8.0(@theokit/sdk@5.0.0-next.4(ws@8.21.3))(zod@4.4.3)
       '@theokit/sdk': 5.0.0-next.4(ws@8.21.3)
       '@theokit/sdk-tools': 0.27.3(@theokit/sdk@5.0.0-next.4(ws@8.21.3))(vitest@4.1.11)(zod@4.4.3)
@@ -2554,7 +2553,7 @@ snapshots:
       - vitest
       - ws
 
-  '@theokit/http@1.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)':
+  '@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)':
     dependencies:
       reflect-metadata: 0.2.2
       zod: 4.4.3
