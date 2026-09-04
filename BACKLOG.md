@@ -3842,7 +3842,7 @@ dod:
 ## B-100 — An SRE agent has no infrastructure tools to compose   [ ]
 
 domain: theokit
-repo: theokit-sdk
+repo: theokit
 suggested_mode: evolve
 source: human
 evidence: |
@@ -3917,6 +3917,17 @@ dod:
   - a second product can build an SRE agent whose tool layer is composition, not authorship
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `sdk-infrastructure-tool-family`).
+
+blocked_by: |
+  usetheokit/theokit#647 — filed 2026-09-04 after a dedup search of that repo returned nothing. The
+  item had been `triaged` for three weeks with no upstream issue at all, which made it look stalled
+  for no reason: this backlog carried the finding and the repository that owns the code did not.
+
+> CORRECTED 2026-09-04 while filing. Two facts in this block were wrong. `repo` said `theokit-sdk`,
+> but `@theokit/agents` declares `repository.url: usetheokit/theokit` with `directory:
+> packages/agents` — the 23 factories that ARE the evidence live there, so the dedup search that
+> matters had been run against the wrong tracker. And the re-measured count said 22 while listing 22
+> names; a fresh grep finds 23, because `createACPTool` was missed. Both corrected above.
 
 ## B-101 — Confinement covers the disk, not the blast radius   [x]
 
