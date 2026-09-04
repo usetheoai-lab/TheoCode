@@ -43,7 +43,7 @@ import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
-import { projectSettingsPosture, projectSourceAllowed } from './config/project-source.js'
+import { settingSourcesFor } from './setting-sources.js'
 
 
 
@@ -662,28 +662,6 @@ function profileTools(
   }
 }
 
-/**
- * Which on-disk config roots this build may read.
- *
- * Lifted out of the chain for one mechanical reason and one better one: the ternary took
- * `buildChatAgent` from 10 to 11 cyclomatic complexity, over the lint ceiling — and a TRUST decision
- * buried in a builder link is where nobody looks when they ask "why did this repo manage to load
- * hooks?".
- *
- * `project` is OMITTED, not passed with a denying posture. The framework REFUSES a
- * requested-but-ungranted `project` — right for a caller that asked, and this build is not asking.
- * An untrusted directory here has always degraded to user-only and kept working; passing the grant
- * unconditionally would turn that into a hard failure on every untrusted repo. Omitting a root is
- * not enabling it.
- */
-function settingSourcesFor(posture: TrustPosture): {
-  user: true
-  project?: { trustedBy: ReturnType<typeof projectSettingsPosture> }
-} {
-  return projectSourceAllowed(posture.allows)
-    ? { user: true, project: { trustedBy: projectSettingsPosture(posture) } }
-    : { user: true }
-}
 
 
 /**
