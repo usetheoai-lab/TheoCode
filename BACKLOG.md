@@ -3900,6 +3900,7 @@ progress_2026_08_11: |
   four of them now would produce an interface the first real SRE consumer routes around. What ships
   is the seam they declare through; the tools themselves want a consumer with a cluster.
 status: killed
+fixed_in: (decision) — killed on the framework owner's scope decision, usetheokit/theokit#647 closed as `not planned`; no code change was warranted here
 triaged_note: |
   Advanced 2026-09-03. The status said `raw` — "a hypothesis nobody has measured" — while the
   evidence block carried a measurement taken 2026-08-10: 9 of TheoCode's 10 tools come from
