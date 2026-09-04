@@ -18,7 +18,7 @@ import { THEME_RESOLUTION } from '../theme.js'
 import { themeResolutionLine } from './theme-command.js'
 import { sessionThemeBase } from '../theme-session.js'
 import type { WiredCapabilities } from '@theocode/agent'
-import { agentsMdChain } from '@theocode/agent/context'
+import { BASE_NAMES, agentsMdChain } from '@theocode/agent/context'
 
 /** Paths as the user reads them — relative to the directory the session is in. */
 const relative = (paths: readonly string[]): string =>
@@ -156,9 +156,15 @@ export function initAgents(
   lastSentMessage: MutableRefObject<string | null>,
   setToast: Dispatch<SetStateAction<ToastPayload | null>>,
 ): void {
-  if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
+  // Every name the loader reads, not just the one `/init` writes. Checking `AGENTS.md` alone was
+  // correct while it was the only name; under the first-wins chain it let `/init` write an
+  // `AGENTS.md` into a repository steered by `CLAUDE.md` — nothing overwritten, and the operator's
+  // file silently stops being read because AGENTS.md wins. The list is IMPORTED rather than
+  // retyped: two copies of a precedence order drift, and this one would drift silently.
+  const steering = BASE_NAMES.find((n) => existsSync(join(workingDirectory(), n)))
+  if (steering !== undefined) {
     setToast({
-      message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
+      message: `${steering} already exists — delete it first if you want to regenerate it`,
       variant: 'info',
     })
     return

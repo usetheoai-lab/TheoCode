@@ -17,6 +17,7 @@ for `release.yml` in this repository will not find it, and should not have been 
 ## [Unreleased]
 
 ### Added
+- **`THEO.md`, `AGENTS.md` and `CLAUDE.md` are all read, first-wins in that order.** A repository written for Claude Code now steers this agent with no migration; before, only `AGENTS.md` was read and everything else was invisible. A directory contributes exactly one instruction file, and `.local.md` runs its own chain so adding a `THEO.md` cannot orphan an `AGENTS.local.md` (#72)
 - `theocode doctor` is now documented — a user-facing diagnostic that has shipped since B-081 and that the README's own list of CLI modes omitted, and the discoverability gate now covers CLI modes as well as config keys
 - `context_window` and `goal_oracle` are now listed among the documented config keys, and a lint gate keeps the README's list complete — a knob an operator cannot discover is a knob that does not exist for them
 
