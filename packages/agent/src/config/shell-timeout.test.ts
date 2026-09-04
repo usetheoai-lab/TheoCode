@@ -125,6 +125,7 @@ describe('every schema key survives pickScalars', () => {
     skills: ['a-skill'],
     hooks: [{ event: 'Stop', command: 'true' }],
     memory: true,
+    home_dir: '.theocode',
     shell_timeout_ms: 33_000,
     session_gc: false,
     context_window: 12_345,

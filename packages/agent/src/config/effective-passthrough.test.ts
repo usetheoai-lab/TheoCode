@@ -30,6 +30,7 @@ const NON_DEFAULT: Record<SchemaKey, unknown> = {
   skills: ['something-else'],
   hooks: [{ event: 'Stop', command: 'true' }],
   memory: true,
+  home_dir: '.theocode',
   shell_timeout_ms: 45_000,
   session_gc: false,
   context_window: 123_456,

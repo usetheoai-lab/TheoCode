@@ -5,6 +5,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { parse as parseToml } from 'smol-toml'
+
+import { DEFAULT_HOME_DIR, isValidHomeDirName } from './home-dir.js'
 import { z } from 'zod'
 
 import {
@@ -82,6 +84,12 @@ export interface AgentConfig {
    * closes the inconsistency: both features execute commands the operator wrote, so both are the
    * operator's to bound.
    */
+  /**
+   * The directory under your home where this product keeps its state — transcripts, trust, hook
+   * approvals. A NAME, not a path; see `home-dir.ts` for why, and for why an explicit
+   * `THEOKIT_HOME` wins over it.
+   */
+  home_dir: string
   shell_timeout_ms: number
   /**
    * Whether the session collector runs on its own (B-131 / B-132).
@@ -109,6 +117,7 @@ export const CONFIG_SCHEMA_KEYS = [
   'skills',
   'hooks',
   'memory',
+  'home_dir',
   'shell_timeout_ms',
   'session_gc',
   'context_window',
@@ -160,6 +169,13 @@ interface EnvOptOut {
 }
 
 export const ENV_OPT_OUTS: readonly EnvOptOut[] = [
+  {
+    key: 'home_dir',
+    reason:
+      'The environment already controls this, through the variable the SDK itself reads: `THEOKIT_HOME`, which takes the resolved PATH and wins over this key. A second variable naming the same fact in a different unit is the two-knobs-that-disagree hazard this key exists to remove.',
+    exitCriterion:
+      'Never, while `THEOKIT_HOME` exists. If the SDK ever stops reading it, this key needs an environment path of its own and this exemption goes.',
+  },
   {
     key: 'skills',
     reason:
@@ -227,6 +243,7 @@ const DEFAULTS: AgentConfig = {
   goal_oracle: 'judge',
   // Off, matching Codex's `memories` feature. See `AgentConfig.memory` for the measurement.
   memory: false,
+  home_dir: DEFAULT_HOME_DIR,
   shell_timeout_ms: DEFAULT_SHELL_TIMEOUT_MS,
   session_gc: true,
   skills: ['daily-briefing'],
@@ -263,6 +280,10 @@ const scalarSchema = z
     skills: z.array(z.string()).optional(),
     hooks: z.array(z.unknown()).optional(),
     memory: z.boolean().optional(),
+    home_dir: z
+      .string()
+      .refine(isValidHomeDirName, 'home_dir: expected a single directory name under your home, such as ".theokit" or ".claude" — not a path')
+      .optional(),
     shell_timeout_ms: z
       .number()
       .int('shell_timeout_ms: milliseconds are whole numbers')
