@@ -59,3 +59,33 @@ describe('#72 — the stray-credential row', () => {
     expect(names).not.toContain('credential-strays')
   })
 })
+
+/**
+ * #72 — an entity that is suppressed by trust AND has something active is two facts, not one.
+ *
+ * Only MCP can be in that state: the personal scope is not gated on project trust. Reporting only
+ * the suppression says "not wired" about a server that is running; reporting only the active list
+ * hides that the repository's share was withheld. An operator debugging either half needs the other.
+ */
+describe('#72 — the mcp row under partial suppression', () => {
+  const withMcp = (active: readonly string[], suppressed: boolean): string | undefined =>
+    collectChecks({
+      ...base,
+      wired: { ...base.wired, mcp: { active, suppressedByTrust: suppressed } },
+    }).find((c) => c.name === 'mcp')?.detail
+
+  it('test_both_facts_are_reported_when_something_survived_the_gate', () => {
+    const detail = withMcp(['mine'], true)
+
+    expect(detail, 'the running server is not named').toContain('mine')
+    expect(detail, "the repository's withheld share is not mentioned").toContain('untrusted')
+  })
+
+  it('test_full_suppression_still_reads_as_before', () => {
+    expect(withMcp([], true)).toBe('declared but NOT wired — this directory is untrusted')
+  })
+
+  it('test_a_trusted_directory_still_reads_as_before', () => {
+    expect(withMcp(['mine', 'theirs'], false)).toBe('mine, theirs')
+  })
+})

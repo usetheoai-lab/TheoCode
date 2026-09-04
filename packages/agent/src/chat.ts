@@ -1,6 +1,9 @@
 import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
-import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
+
+import { mcpScopes } from './mcp-scopes.js'
+import { wiringRecord } from './composition-record.js'
+import type { WiredCapabilities } from './wired-capabilities.js'
 import { memoryEnabledForSession } from './memory-switch.js'
 import { sandboxModeForSession } from './sandbox-switch.js'
 import { withSandboxMode } from './config/effective-config.js'
@@ -20,7 +23,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
+import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
 import { loadRules, loadUserRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
@@ -41,6 +44,8 @@ import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
 import { projectSettingsPosture, projectSourceAllowed } from './config/project-source.js'
+
+
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
@@ -128,7 +133,7 @@ export function buildChatAgent(overrides: {
   // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
   // which is why every listing that wanted it had to re-read the file and could disagree with what
   // actually ran.
-  const mcpServers = mcpServersFor(posture, cwd, overrides?.onMcpWarn)
+  const mcp = mcpScopes(posture, cwd, overrides?.onMcpWarn)
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
@@ -139,25 +144,14 @@ export function buildChatAgent(overrides: {
     modelId,
     writePolicy,
     cwd,
-    mcpServers,
+    mcpServers: mcp.servers,
     searchConfigured,
   })
 
   // Derived from the SAME values the builder just received, at the point it received them. That is
   // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
   // decision.
-  const wired = wiredCapabilities({
-    posture,
-    projectSourcesAllowed: projectSourceAllowed(posture.allows),
-    mcpServers,
-    configuredSkills: cfg.skills,
-    hookEvents: configuredHookEvents(cfg),
-    // The same walk `projectDocument` runs below, so the record and the prompt cannot name
-    // different files. Paths only — the record is a listing, never a copy of the instructions.
-    agentsMdFiles: agentsMdChain(cwd),
-    // Already carries the session override — `chatContext` applied it once, above.
-    sandboxMode: cfg.sandbox_mode,
-  })
+  const wired = wiringRecord(posture, cwd, cfg, mcp)
 
   overrides?.onWired?.(wired)
 
@@ -174,16 +168,6 @@ export function buildChatAgent(overrides: {
  * list here and is surfaced by the consent gate, which already reports it (B-039) — this record is
  * not the place to raise it a second time.
  */
-function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
-  try {
-    // B-071 — event AND command: a listing that showed only the event would tell a user something
-    // is allowed to block them without saying what runs, which is the half that matters when the
-    // directory came from a clone.
-    return parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`)
-  } catch {
-    return []
-  }
-}
 
 function chatContext(overrides: {
   posture?: TrustPosture
@@ -701,25 +685,6 @@ function settingSourcesFor(posture: TrustPosture): {
     : { user: true }
 }
 
-/**
- * The MCP servers this build will start — or none.
- *
- * Lifted out for the same reason as `settingSourcesFor`: it is a TRUST GATE, and a gate buried in a
- * ternary inside a 60-line function is where nobody looks. An MCP server is local process execution
- * at agent init, before any per-tool approval exists to refuse it.
- *
- * `onWarn` travels with it deliberately. Without it the framework sends warnings to stderr — which
- * under the TUI is a log file nobody has open — while `/mcp` cheerfully lists the servers that DID
- * load and never says one was ignored.
- */
-function mcpServersFor(
-  posture: TrustPosture,
-  cwd: string,
-  onWarn?: (warning: string) => void,
-): ReturnType<typeof loadMcpJson> {
-  if (!posture.allows.mcp) return {}
-  return loadMcpJson(cwd, { onWarn })
-}
 
 /**
  * Whether a web-search PROVIDER is actually reachable — and therefore whether `web_search` is

@@ -71,6 +71,39 @@ function credentialCheck(state: CredentialState): Check {
 }
 
 /**
+ * One capability row: what is active, or why nothing is.
+ *
+ * At module scope rather than inside `collectChecks` — it closes over nothing, and the linter's
+ * function-length ceiling is a real signal here: the row now carries three states.
+ */
+const entity = (
+name: string,
+e: { active: readonly string[]; suppressedByTrust: boolean },
+): Check =>
+  e.suppressedByTrust
+    ? {
+        name,
+        status: 'warn',
+        // A warning, not a failure: trust-gating is the product working as designed. It is
+        // reported because a user debugging "my hook does not run" needs to see it, not because
+        // anything is broken.
+        //
+        // #72 — suppressed AND non-empty is a real state for `mcp` alone: the operator's own
+        // servers are not gated on project trust. Reporting only the suppression would say "not
+        // wired" about a server that is running; reporting only the list would hide that the
+        // repository's share was withheld. Whoever is debugging either half needs the other.
+        detail:
+          e.active.length === 0
+            ? 'declared but NOT wired — this directory is untrusted'
+            : `${e.active.join(', ')} — yours; the project's are NOT wired, this directory is untrusted`,
+      }
+    : {
+        name,
+        status: 'ok',
+        detail: e.active.length === 0 ? 'none' : e.active.join(', '),
+      }
+
+/**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an
  * agent built here would actually wire.
  *
@@ -97,25 +130,6 @@ export function collectChecks(input: {
     readonly hooks: { active: readonly string[]; suppressedByTrust: boolean }
   }
 }): Check[] {
-  const entity = (
-    name: string,
-    e: { active: readonly string[]; suppressedByTrust: boolean },
-  ): Check =>
-    e.suppressedByTrust
-      ? {
-          name,
-          status: 'warn',
-          // A warning, not a failure: trust-gating is the product working as designed. It is
-          // reported because a user debugging "my hook does not run" needs to see it, not because
-          // anything is broken.
-          detail: 'declared but NOT wired — this directory is untrusted',
-        }
-      : {
-          name,
-          status: 'ok',
-          detail: e.active.length === 0 ? 'none' : e.active.join(', '),
-        }
-
   return [
     { name: 'cwd', status: 'ok', detail: input.cwd },
     {
