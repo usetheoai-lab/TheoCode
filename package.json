@@ -1,6 +1,7 @@
 {
   "name": "theocode",
   "version": "0.4.7",
+  "packageManager": "pnpm@11.22.0",
   "private": true,
   "type": "module",
   "description": "A terminal coding agent: one agent core, two surfaces.",
@@ -19,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . && knip --no-progress && node tools/check-english-only.mjs --quiet && node tools/check-artifact-promotion.mjs --quiet",
+    "lint": "eslint . && knip --no-progress && node tools/check-english-only.mjs --quiet && node tools/check-artifact-promotion.mjs --quiet && node tools/check-doc-references.mjs --quiet && node tools/check-config-documented.mjs --quiet && node tools/check-sdk-pin.mjs --quiet",
     "lint:deadcode": "knip --no-progress",
     "deps:theokit": "node tools/check-theokit-updates.mjs",
     "deps:theokit:json": "node tools/check-theokit-updates.mjs --json",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@theokit/sdk": "5.0.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@vitest/coverage-v8": "^4.1.11",
@@ -48,9 +50,5 @@
   },
   "bin": {
     "theocode": "./dist/theocode.mjs"
-  },
-  "overrides": {
-    "@theokit/presenter": "^0.8.0",
-    "@theokit/tui": "^0.78.0"
   }
 }

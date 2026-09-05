@@ -10,7 +10,12 @@ import { useTuiSession } from './composition/use-tui-session.js'
 import { useComposerCommands } from './commands/index.js'
 import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
 import { useGoalRun } from './persistence/index.js'
-import { useTimeline, useScreenState, useContextWarning } from './rendering/index.js'
+import {
+  useTimeline,
+  useScreenState,
+  useContextWarning,
+  useResumedHistory,
+} from './rendering/index.js'
 import { useTuiKeyboard } from './terminal-io/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
@@ -24,6 +29,7 @@ import { workingDirectory } from './working-directory.js'
 
 import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { installAuthHome } from '@theocode/agent/auth'
+import { installClaudeProjectDir } from '@theocode/agent/hooks'
 
 import { useBacktrack } from './backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
@@ -31,6 +37,18 @@ import type { ReasoningEffort } from '@theocode/agent/config'
 // The same call the CLI's bootstrap makes. It used to be a hand-rolled `??=` here and a function
 // call there, which is how the two surfaces came to disagree about whether the variable got set.
 installAuthHome(process.env, homedir())
+// Beside it for the same reason: a variable the SDK's hook runner will need, supplied before the
+// first turn rather than discovered as a denial. See `claude-project-dir.ts` for why it is needed
+// at all (usetheokit/theokit-sdk#522).
+//
+// `process.cwd()` and NOT `workingDirectory()`, which this file imports and uses elsewhere. This
+// statement is module-level, so ESM runs it before `main.tsx` reaches `setWorkingDirectory` — the
+// hoisting hazard `working-directory.ts` documents. The slot is unset here, and `workingDirectory()`
+// falls back to `process.cwd()` anyway, so the two are identical at this point; writing the slot
+// accessor would only read as honouring a selection that cannot exist yet, and would start silently
+// differing the day the ordering changed. Left explicit, with the reason, because a sweep for direct
+// cwd reads will otherwise "fix" it.
+installClaudeProjectDir(process.env, process.cwd())
 
 function useConversationState(s: ReturnType<typeof useTuiSession>) {
   const { currentSessionId, SESSION } = s
@@ -217,13 +235,20 @@ function buildComposerDeps(args: {
 export function useTuiComposition() {
   const s = useTuiSession()
   const { agent, currentSessionId, stdout, streaming } = s
-  const screen = useScreenState()
+  const screen = useScreenState(s.ROOT.resumeOnStartup)
 
   const conv = useConversationState(s)
   const { setMode } = screen
   const backToChat = useCallback(() => setMode('chat'), [setMode])
 
-  const { events, lastUsage } = useTimeline(agent, s.ROOT.resumeOnStartup)
+  // #70 — what the session already contained, read once per resume and drawn ahead of the live
+  // thread. Empty for a fresh session, which is every session that did not come from `/resume` or
+  // from starting on a session pointer.
+  // `currentSessionId()` and not the callback: this reads the id at RENDER, which is what changes
+  // when `/resume` repoints the session and re-renders. Passing the callback would hand the hook a
+  // stable identity that never signals the switch.
+  const history = useResumedHistory(currentSessionId(), screen.resumed)
+  const { events, lastUsage } = useTimeline(agent, screen.resumed, history)
   useSessionToasts(s, screen.setToast, lastUsage?.inputTokens)
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
@@ -301,6 +326,7 @@ function conversationProps(c: {
     contextWindow: c.SESSION.cfg().contextWindow.window,
     backtrack: c.backtrack,
     showHelp: c.screen.showHelp,
+    verbose: c.screen.verbose,
     customCommands: c.customCommands,
     setToast: c.screen.setToast,
   }

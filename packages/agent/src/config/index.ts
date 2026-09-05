@@ -2,14 +2,18 @@ export {
   EFFORT_LEVELS,
   parseEffort,
   SANDBOX_MODES,
+  DEFAULT_SHELL_TIMEOUT_MS,
   type AgentConfig,
   type ReasoningEffort,
   type SandboxMode,
 } from './config.js'
 
 export { EffectiveConfig, resolveEffectiveConfig } from './effective-config.js'
+export { installConfiguredHome } from './install-home.js'
 
-export { TRUST_STORE, trustDir } from './trust-store.js'
+export { trustStorePath, trustDir } from './trust-store.js'
+
+export { homeStateDir } from './home-dir.js'
 
 export { resolveTrustPosture, type TrustPosture } from './trust-posture.js'
 

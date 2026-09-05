@@ -44,11 +44,24 @@ interface CodexName {
   readonly listed: boolean
 }
 
+/** One answer for every Codex sandbox verb: the mode is set as a whole here, not per-path. */
+const SANDBOX_ANSWER = 'the sandbox is set as a whole here — /sandbox shows and changes the mode'
+
+/** Shared by the Codex verbs that branch a conversation. */
+const FORK_ANSWER = 'the nearest thing is /fork, which branches this session into a new one'
+
 export const CODEX_NAMES: ReadonlyMap<string, CodexName> = new Map([
   // ── Names with a real equivalent here. Listed, because the menu is where they are found. ──
   [
     'memories',
     { answer: 'it is /memory here — /memory, /memory off|on, /memory forget <n>', listed: true },
+  ],
+  [
+    'multi-agents',
+    {
+      answer: 'it is /agents here — /agents lists them, /subagents shows the ones a run spawned',
+      listed: true,
+    },
   ],
   [
     'auto-review',
@@ -68,30 +81,38 @@ export const CODEX_NAMES: ReadonlyMap<string, CodexName> = new Map([
     },
   ],
   [
+    'elevate-sandbox',
+    { answer: SANDBOX_ANSWER, listed: true },
+  ],
+  [
+    'sandbox-read-root',
+    { answer: SANDBOX_ANSWER, listed: true },
+  ],
+  [
     'sandbox-add-read-dir',
     {
-      answer: 'the sandbox is set as a whole here — /sandbox shows and changes the mode',
+      answer: SANDBOX_ANSWER,
       listed: true,
     },
   ],
   [
     'setup-default-sandbox',
     {
-      answer: 'the sandbox is set as a whole here — /sandbox shows and changes the mode',
+      answer: SANDBOX_ANSWER,
       listed: true,
     },
   ],
   [
     'side',
     {
-      answer: 'the nearest thing is /fork, which branches this session into a new one',
+      answer: FORK_ANSWER,
       listed: true,
     },
   ],
   [
     'btw',
     {
-      answer: 'the nearest thing is /fork, which branches this session into a new one',
+      answer: FORK_ANSWER,
       listed: true,
     },
   ],

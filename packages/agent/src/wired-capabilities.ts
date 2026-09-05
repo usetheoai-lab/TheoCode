@@ -52,8 +52,26 @@ export function wiredCapabilities(input: {
     readonly allows: { mcp: boolean; skills: boolean; hooks: boolean; agentsMd: boolean }
   }
   readonly projectSourcesAllowed: boolean
-  /** The map handed to `.mcp()` — already loaded, never re-read here. */
+  /** The map handed to `.mcp()` — already loaded, never re-read here. Both scopes, merged. */
   readonly mcpServers: Readonly<Record<string, unknown>>
+  /**
+   * Which of those names came from the OPERATOR's own `.mcp.json` (#72).
+   *
+   * The personal scope is not gated on project trust, so it must not be reported through the gate.
+   * `recordWiring` takes the posture and marks every requested server suppressed, which made
+   * `theocode doctor` say "declared but NOT wired" about a server that was running — a record that
+   * contradicts the run, in the file whose whole reason for existing (B-071) is to BE the record of
+   * the decision rather than a second guess at it.
+   */
+  readonly mcpPersonal?: readonly string[]
+  /**
+   * The project's server names that trust withheld (#72) — declared, never started.
+   *
+   * Fed to `recordWiring` as REQUESTED so the posture can refuse them, which is what turns
+   * `suppressedByTrust` into a true statement. Without it that flag was always false for MCP and the
+   * "declared but NOT wired" report was unreachable for the one capability it mattered most for.
+   */
+  readonly mcpWithheld?: readonly string[]
   readonly configuredSkills: readonly string[]
   /** The hook events handed to `.hooks()`, in the order they were registered. */
   readonly hookEvents: readonly string[]
@@ -66,7 +84,14 @@ export function wiredCapabilities(input: {
     requested: {
       // Sorted because the map's key order is insertion order from a JSON file, and a listing whose
       // order changes when someone reorders `.mcp.json` looks like something moved.
-      mcp: Object.keys(input.mcpServers).sort(),
+      // Only the project's. The personal ones are added back below, outside the gate they are not
+      // subject to.
+      mcp: [
+        ...Object.keys(input.mcpServers).filter(
+          (name) => !(input.mcpPersonal ?? []).includes(name),
+        ),
+        ...(input.mcpWithheld ?? []),
+      ].sort(),
       skills: input.configuredSkills,
       hooks: input.hookEvents,
       // NOT sorted: the walk's order is root-most first, which is the order they are composed into
@@ -77,6 +102,12 @@ export function wiredCapabilities(input: {
 
   return {
     ...record,
+    // Both facts survive: what is running, and whether the repository's share was withheld.
+    // Collapsing them would leave an operator unable to tell "my server" from "their server got in".
+    mcp: {
+      ...record.mcp,
+      active: [...new Set([...record.mcp.active, ...(input.mcpPersonal ?? [])])].sort(),
+    },
     projectSources: input.projectSourcesAllowed,
     sandboxMode: input.sandboxMode,
   }

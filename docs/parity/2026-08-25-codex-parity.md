@@ -25,6 +25,96 @@ one real divergence.
 Codex CLI v0.147.0. Model output is stochastic: token counts vary between runs of the same task, so
 treat a single figure as an order of magnitude and the direction as the finding.
 
+## Re-measured on the current stack, 2026-09-02
+
+The figures below were taken with `@theokit/agents@11.0.0`, `@theokit/tui@0.78.0` and an SDK tarball.
+The stack has since moved across a MAJOR — `agents@12.1.0`, `tui@0.79.0`, `sdk@4.63.3` — which
+changed real behaviour: transcript replay reads structure instead of prose, the PTY moved to its own
+package, and `prompt_cache_key` is now published rather than local. So the run was repeated.
+
+Seeds rebuilt from scratch and proved byte-identical by hash before dispatch (`t1 9b7725a8…`,
+`t3 0b04ed5b…`), each side getting its own copy under `git init`. Same provider, model
+(`gpt-5.6-terra`) and effort (`medium`), run side by side in tmux.
+
+| task | TheoCode | Codex | verdict |
+|---|---|---|---|
+| duration parser from failing tests | 10/10, test file untouched | 10/10, test file untouched | equal |
+| money-ledger spec, agent writes its own tests | 5/5 **+ probe 4/4** | 5/5 **+ probe 4/4** | equal |
+
+**The divergence did not return, which was the question this re-run existed to answer.** The probe
+is the same one that caught it the first time — it tests PAST the illustration the spec gives:
+
+| case | before the prompt fix | now, both sides |
+|---|---|---|
+| `0.1 + 0.2` (the spec's example) | 0.3 ✓ | 0.3 ✓ |
+| `0.001 + 0.002` | **0** ✗ | 0.003 ✓ |
+| `0.005 + 0.005` | **0.02** ✗ | 0.01 ✓ |
+| `0.0001 × 3` | **0** ✗ | 0.0003 ✓ |
+
+So the `BASE_INSTRUCTIONS` change — *an example illustrates a rule and never defines it*, and *tests
+you write yourself must include cases you did not already know the code handles* — survived a MAJOR
+of the framework and a nine-minor jump of the SDK.
+
+| root-cause a wrong-associativity bug across 3 files | 5/5, **one file touched** | 5/5, **three files touched** | equal result, see below |
+
+### Cost, re-instrumented
+
+| | gross | cached | **blended** |
+|---|---|---|---|
+| TheoCode | 27,682 | 13,824 | **13,858** |
+| Codex | — | — | **12,410** |
+
+Same formula as before, Codex's own: `blended = max(0, input − cached) + max(0, output)`. Roughly
+**12% apart**, TheoCode above — the same order of magnitude, not a benchmark.
+
+Two honesty notes on that pair of numbers. Ours comes from a structured field —
+`{"type":"turn.completed","usage":{...}}` on `--json`, which now carries `cached_input_tokens`;
+Codex's was read out of its log text (`tokens used 12.410`), so the two are not measured with equal
+instrumentation. And it is one run each, against a task whose own earlier measurement showed Codex
+varying 2x between identical runs.
+
+What the gross-versus-blended gap does confirm is that the cache is working from a PUBLISHED package:
+27,682 gross against 13,858 blended means half the traffic was served from cache. On the first
+measurement that came from a local tarball; it now comes from `@theokit/sdk@4.63.3`.
+
+### A divergence in scope, which the earlier run did not surface
+
+Both fixed the bug and both reach 5/5. The fixes differ, and the difference is not stylistic:
+
+```
+seed (the bug):   return (amount + amount) * rate
+
+TheoCode:         return amount + amount * rate      ← tax.mjs only
+Codex:            return amount * (1 + rate)         ← and rewrote discount.mjs too
+```
+
+`discount.mjs` was **correct in the seed**. TheoCode left it alone; Codex rewrote it from
+`amount - amount * pct` to `amount * (1 - pct)` — algebraically identical, with no defect to fix —
+and added rounding to `total.mjs` that the task never asked for.
+
+Neither is wrong by the oracle: both suites pass. But the task was to find the root cause of a
+failing test, and touching a correct file widens the diff for a reviewer with nothing to show for it.
+**On this axis the more restrained behaviour is ours**, which is worth recording precisely because
+every other axis here measures whether we match them.
+
+### The third task measured nothing, and the seed was mine
+
+A third task was dispatched: a wrong-associativity bug across three files, "the tests fail, find the
+root cause". **The tests did not fail.** The seed passes 5/5 untouched — `applyTax(applyDiscount(100,
+0.1), 0.1)` is 99, which is what the test asserts. I wrote a broken task and only found out by
+diffing the result against the seed.
+
+Neither agent changed a byte, and both reported honestly. That is the correct behaviour in the face
+of a prompt asserting something false, and it is worth recording — but it is **not** the root-cause
+parity the task was meant to measure, and counting it as such would be inventing a result. The
+original task 5 in the table below is the real measurement; this re-run does not replace it.
+
+### Not re-measured
+
+Everything the original run left out is still out: interactive TUI behaviour, long-horizon tasks,
+anything needing the network or an MCP server. Three tasks, one model, one afternoon — the direction
+is evidence, the ratios are not a benchmark.
+
 ## Result parity — 6 tasks
 
 | # | Task | Verified outcome | Agreement |

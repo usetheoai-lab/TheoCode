@@ -65,18 +65,14 @@ function blendedTotal(u: Record<string, number>): number {
   return nonCachedInput + Math.max(0, u.output_tokens ?? 0)
 }
 
+import { toolLine } from './tool-line.js'
+
 export interface ExecProcessor {
   process(chunk: ChunkLike): void
   finish(
     status: 'finished' | 'error',
     extra?: { usage?: Record<string, number>; error?: string },
   ): ProcessorResult
-}
-
-function toolLine(chunk: ChunkLike): string {
-  const name = chunk.toolName ?? 'tool'
-  const input = JSON.stringify(chunk.input ?? {}).slice(0, 200)
-  return `exec ${name} ${input}`
 }
 
 /**

@@ -11,7 +11,7 @@ import {
 } from '@theokit/agents'
 
 import { ENV_TRUST_ALL_DIRS, ENV_TRUST_ALL_DIRS_LEGACY } from './env-knobs.js'
-import { TRUST_STORE, isTrusted } from './trust-store.js'
+import { isTrusted, trustStorePath } from './trust-store.js'
 
 export interface TrustCapability {
   readonly key: string
@@ -115,17 +115,22 @@ function environmentGrantsTrust(env: Record<string, string | undefined>): boolea
  */
 export function resolveTrustPosture(
   cwd: string,
-  store: string = TRUST_STORE,
+  // Resolved from `env` below rather than defaulted here, because a default parameter cannot see a
+  // later one. Defaulting to the ambient store while the caller injected an environment would
+  // reintroduce the very split B-006 and B-033 closed: one run reading the posture from one source
+  // and the configuration it describes from another.
+  store: string | undefined = undefined,
   // B-006 — injected so a caller that resolves configuration from an explicit environment gets a
   // trust decision from that same environment. Reading the ambient one meant the posture could
   // disagree with the config it was supposed to describe.
   env: Record<string, string | undefined> = process.env,
 ): TrustPosture {
+  const resolved = store ?? trustStorePath(env)
   return resolvePosture({
     capabilities: TRUST_CAPABILITIES.map((c) => c.key),
     // A function rather than a boolean: it reads the trust store off disk, and the framework skips
     // it entirely when the environment already granted trust.
-    isTrusted: () => isTrusted(cwd, store),
+    isTrusted: () => isTrusted(cwd, resolved),
     envOverride: environmentGrantsTrust(env),
   })
 }

@@ -66,6 +66,29 @@ function wasDenied(event: AgentToolEvent): boolean {
   return output === REJECTED_BODY || output.includes(DENIED_MARK)
 }
 
+/**
+ * Ours only. `defaultToolHeader` was composed in as a fallback and then REMOVED, measured.
+ *
+ * The reasoning that added it was sound and the measurement killed it. This product exposes
+ * `git_diff`, `grep`, `list_dir` and `read_file` with no entry below, so they rendered as raw
+ * snake_case names, and the toolkit's default answers all four. What that missed is the sentence in
+ * `ToolHeaderFormatter`'s own docblock: *explored grouping matches on the (possibly overridden)
+ * `name`, so returning a name for a tool listed in `exploreTools` opts that call OUT of the
+ * collapse*. All four are in `DEFAULT_EXPLORE_TOOLS`.
+ *
+ * Measured on three consecutive `read_file` calls:
+ *
+ *     without a header   ->  explored                              (one block)
+ *     with the default   ->  tool/Read | tool/Read | tool/Read     (three cards)
+ *
+ * So the fallback bought a verb on a card and paid for it with the grouping — and the grouping is
+ * the Claude Code shape this product is chasing. Every tool the default could have helped is in the
+ * explore set, which makes the trade a pure loss rather than a balance.
+ *
+ * A tool that is NOT explored and has no entry below still renders its raw name. That is the honest
+ * cost of this decision, and the fix for it is an entry here — where the verb can carry the target
+ * and the tense, which the tool-agnostic default cannot.
+ */
 export function formatToolHeader(
   event: AgentToolEvent,
 ): { name?: string; summary?: string } | undefined {
@@ -137,6 +160,13 @@ const HEADERS_BY_TOOL: ReadonlyMap<
     (input, active) => {
       const path = typeof input.path === 'string' ? input.path : 'file'
       return { name: `${active ? 'Editing' : 'Edited'} ${path}`.trim() }
+    },
+  ],
+  [
+    'view_image',
+    (input, active) => {
+      const path = typeof input.path === 'string' ? input.path : 'image'
+      return { name: `${active ? 'Viewing' : 'Viewed'} ${path}`.trim() }
     },
   ],
   [

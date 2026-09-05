@@ -200,3 +200,42 @@ describe('the body of a rejected call', () => {
     expect(result(JSON.stringify({ stdout: 'hi\n', stderr: '', exit_code: 0 }))).toBe('hi')
   })
 })
+
+/**
+ * The toolkit's default table is NOT composed in — measured, then reverted.
+ *
+ * It was added as a fallback so `git_diff`, `grep`, `list_dir` and `read_file` would stop rendering
+ * as raw snake_case names. All four are in `DEFAULT_EXPLORE_TOOLS`, and `ToolHeaderFormatter`'s
+ * docblock says returning a name for such a tool opts it OUT of the explored collapse. Measured on
+ * three consecutive `read_file` calls: `explored` (one block) became three separate cards.
+ *
+ * The grouping is the Claude Code shape this product is chasing, so the fallback was a pure loss.
+ * These tests pin the trade in both directions, because the argument for adding it back is
+ * persuasive and the cost is invisible from the call site.
+ */
+describe('the explored grouping is worth more than a verb on a card', () => {
+  it('test_an_explored_tool_is_left_unnamed_so_its_run_can_collapse', () => {
+    for (const tool of ['read_file', 'list_dir', 'grep', 'git_diff']) {
+      expect(
+        formatToolHeader({ name: tool, status: 'completed', input: {} } as never),
+        `${tool} is in DEFAULT_EXPLORE_TOOLS — naming it breaks the collapse`,
+      ).toBe(undefined)
+    }
+  })
+
+  it('test_our_own_table_still_names_what_it_knows', () => {
+    // Anti-vacuity: a formatter that returned `undefined` for everything would satisfy the case
+    // above and delete every header in the product.
+    expect(
+      formatToolHeader({
+        name: 'run_shell',
+        status: 'running',
+        input: { command: 'echo hi' },
+      } as never)?.name,
+    ).toBe('Running echo hi')
+    expect(
+      formatToolHeader({ name: 'view_image', status: 'completed', input: { path: 'a.png' } } as never)
+        ?.name,
+    ).toBe('Viewed a.png')
+  })
+})

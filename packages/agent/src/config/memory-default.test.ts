@@ -24,7 +24,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { resolveConfig } from './config.js'
+import { ConfigError, resolveConfig } from './config.js'
 
 describe('memory is opt-in', () => {
   it('test_it_is_off_when_nobody_configured_it', () => {
@@ -51,5 +51,36 @@ describe('memory is opt-in', () => {
     // `memory = "yes"` in TOML must fail loudly. Coercing it would silently enable writing to the
     // user's repository off a typo.
     expect(() => resolveConfig({ user: { memory: 'yes' } })).toThrow()
+  })
+})
+
+/**
+ * B-135 — `memory` is reachable from the environment, which it was not.
+ *
+ * The reachability detector asserts that every config key is settable by environment or explicitly
+ * exempt, and `memory` was neither. It went unnoticed because the detector's input was a
+ * hand-maintained copy of the schema that had drifted — so the gate reported green about a key it
+ * never read. The list is derived now; this covers the key the derivation exposed.
+ */
+describe('memory is reachable from the environment', () => {
+  it('test_the_environment_can_turn_it_on', () => {
+    expect(resolveConfig({ env: { THEOCODE_MEMORY: 'true' } }).memory).toBe(true)
+    expect(resolveConfig({ env: { THEOCODE_MEMORY: '1' } }).memory).toBe(true)
+    expect(resolveConfig({ env: { THEOCODE_MEMORY: 'ON' } }).memory).toBe(true)
+  })
+
+  it('test_the_environment_can_turn_it_off_over_a_file_that_turned_it_on', () => {
+    // The benchmark case the key exists for: a determinism-sensitive run overriding a checked-in
+    // preference, without editing the operator's config.
+    expect(
+      resolveConfig({ user: { memory: true }, env: { THEOCODE_MEMORY: 'false' } }).memory,
+    ).toBe(false)
+  })
+
+  it('test_an_unrecognised_value_fails_loud_instead_of_being_read_as_off', () => {
+    // The dangerous direction. Silently treating a typo as `false` is how an operator believes a
+    // capability is on while it is not — and for memory, that is a benchmark whose determinism the
+    // operator thinks they disabled.
+    expect(() => resolveConfig({ env: { THEOCODE_MEMORY: 'maybe' } })).toThrow(ConfigError)
   })
 })

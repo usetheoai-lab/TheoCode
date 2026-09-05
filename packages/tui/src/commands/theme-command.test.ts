@@ -24,9 +24,23 @@ import { THEME_RESOLUTION } from '../theme.js'
 import { handleTheme, themeResolutionLine } from './theme-command.js'
 
 /** The one toast a call produces, or a failure that says the command was silent. */
+/** Where a `/theme` switch was told it landed, so a test can assert persistence without a real home. */
+let persisted: string[] = []
+let writeSucceeds = true
+
 function toastOf(arg: string): ToastPayload {
   const setToast = vi.fn()
-  handleTheme(arg, setToast)
+  handleTheme(
+    arg,
+    setToast,
+    // #72 — injected. Before this seam existed, running this suite wrote a `tui-theme` file into the
+    // home of whoever ran it, silently changing the colour they would see at their next launch.
+    (base) => {
+      persisted.push(base)
+      return writeSucceeds
+    },
+    () => '<store>',
+  )
   const payload = setToast.mock.calls[0]?.[0] as ToastPayload | undefined
   expect(payload, `/theme ${arg} said nothing at all`).toBeDefined()
   return payload as ToastPayload
@@ -38,7 +52,7 @@ function statusThemeRow(): string | undefined {
     attachImages: vi.fn(),
     effort: () => 'medium' as never,
     setEffort: vi.fn(),
-    cfg: () => ({ modelLabel: 'm', sandboxLabel: 's', sandboxDetail: 'read-only' }),
+    cfg: () => ({ modelLabel: 'm', sandboxLabel: 's', sandboxDetail: 'read-only', memory: false }),
     sessionModel: () => undefined,
     setSessionModel: vi.fn(),
     setModel: vi.fn(),
@@ -124,7 +138,7 @@ describe('the active theme is reported with the input that decided it', () => {
     const before = statusThemeRow()
     const other = THEME_BASES.find((base) => base !== THEME_RESOLUTION.base)
 
-    handleTheme(other as string, vi.fn())
+    handleTheme(other as string, vi.fn(), () => true, () => '<store>')
 
     expect(statusThemeRow(), 'the /status theme row ignored the switch').not.toBe(before)
     expect(statusThemeRow(), 'the row does not name the base now being drawn').toMatch(
@@ -160,17 +174,30 @@ describe('a theme this build can switch to is applied rather than explained away
     expect(sessionThemeBase(), '/theme light did not switch the base').toBe('light')
   })
 
-  it('test_the_switch_is_reported_as_performed_and_as_temporary', () => {
+  it('test_the_switch_is_reported_as_performed_and_as_remembered', () => {
     // Both halves are load-bearing. An `error` variant on a switch that worked reads as a failure;
-    // silence about durability leaves the user expecting the colour back at the next launch.
+    // silence about durability leaves the user guessing which of the two happened.
+    persisted = []
+    writeSucceeds = true
     const toast = toastOf('no-color')
 
     expect(toast.variant, 'a switch that worked was announced as a failure').toBe('success')
     expect(toast.message, 'the new base is not named back').toContain('no-color')
-    expect(toast.message, 'the message does not say the switch dies with the session').toContain(
-      'session',
+    expect(persisted, 'the switch was not written anywhere').toEqual(['no-color'])
+    expect(toast.message, 'the message does not say the switch outlives the session').toContain(
+      'next launch',
     )
-    expect(toast.message, 'the durable route is not offered').toContain('THEOCODE_THEME')
+    expect(toast.message, 'the override that still wins is not named').toContain('THEOCODE_THEME')
+  })
+
+  it('test_a_write_that_failed_is_said_so_rather_than_promised', () => {
+    // The one outcome worse than not persisting: telling the operator it persisted when it did not.
+    persisted = []
+    writeSucceeds = false
+    const toast = toastOf('light')
+
+    expect(toast.message, 'a failed write was reported as remembered').toContain('this session only')
+    expect(toast.message, 'the file that could not be written is not named').toContain('<store>')
   })
 
   it('test_an_uppercase_value_is_applied_rather_than_called_a_typo', () => {
@@ -193,8 +220,8 @@ describe('a theme this build can switch to is applied rather than explained away
   it('test_an_unrecognised_theme_leaves_the_active_base_alone', () => {
     // The refusal has to be a refusal. A handler that said "not a theme" and then stored the word
     // anyway would satisfy the message assertions above and hand `THEMES[base]` an `undefined`.
-    handleTheme('light', vi.fn())
-    handleTheme('drak', vi.fn())
+    handleTheme('light', vi.fn(), () => true, () => '<store>')
+    handleTheme('drak', vi.fn(), () => true, () => '<store>')
 
     expect(sessionThemeBase(), 'a rejected word replaced the base that was working').toBe('light')
   })

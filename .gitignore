@@ -16,6 +16,7 @@ data/
 *.swo
 *.pem
 code-review-output
+specs
 # Claude Code kit — LOCAL, never versioned. A tool for whoever develops this, not product
 # code: someone who clones TheoCode gets the agent, not the maintenance scaffolding of the
 # people who write it. Install it with `bash <squad>/scripts/install.sh .` when wanted.
@@ -136,3 +137,6 @@ halt-loop-prompts/
 # It is a legitimate thing to have on disk — it is the reference the parity work is measured
 # against. What must not happen is it entering a commit.
 codex/
+
+# One package manager, one lockfile — see pnpm-workspace.yaml.
+package-lock.json

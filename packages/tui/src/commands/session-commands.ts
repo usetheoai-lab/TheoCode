@@ -296,9 +296,33 @@ function forgetFact(rawIndex: string, setToast: SetToast): void {
   })
 }
 
-function memoryHeader(trusted: boolean): string {
-  if (!trusted) return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
-  if (!memoryEnabledForSession()) {
+/**
+ * What the panel says must be what actually runs.
+ *
+ * Real memory is the AND of THREE facts, and `chat.ts` is where they meet:
+ *
+ *     posture.allows.memory && cfg.memory === true && memoryEnabledForSession()
+ *
+ * This read two of them. With the shipped default `memory: false` it therefore answered `Memory ON`
+ * while nothing could be written — measured in the running TUI: the panel named a `MEMORY.md` path,
+ * a fact was dictated, and no such file was ever created.
+ *
+ * Each `false` keeps its own sentence because the remedy differs: trust the directory, set the config
+ * key, or flip the session switch. Telling someone `/memory on to resume` when the SWITCH is not what
+ * is off sends them to a command that cannot help.
+ */
+export function memoryHeader(state: {
+  trusted: boolean
+  configured: boolean
+  sessionOn: boolean
+}): string {
+  if (!state.trusted) {
+    return 'Memory OFF — this directory is untrusted (memory writes into the repo).'
+  }
+  if (!state.configured) {
+    return 'Memory OFF — not enabled in config (set `memory = true`) — existing facts are still recalled.'
+  }
+  if (!state.sessionOn) {
     return 'Memory OFF for this session (/memory on to resume) — existing facts are still recalled.'
   }
   return `Memory ON — ${memoryStorePath()}`
@@ -310,13 +334,24 @@ function memoryHeader(trusted: boolean): string {
  * It used to report only. A user watching the fact count climb had been told a store exists and
  * where, and given no way to see what was in it or stop it without editing files outside the product.
  */
-export function handleMemoryInfo(arg: string, setToast: SetToast, setPanel: SetPanel): void {
+export function handleMemoryInfo(
+  arg: string,
+  setToast: SetToast,
+  setPanel: SetPanel,
+  /** The config factor. Absent ⇒ treated as ON, so a caller that has not been updated keeps its
+   *  previous wording rather than silently claiming memory is off. */
+  configured = true,
+): void {
   const verb = arg.trim().toLowerCase()
   if (verb === 'off' || verb === 'on') return toggleMemory(verb === 'on', setToast)
   if (verb.startsWith('forget')) return forgetFact(verb.slice('forget'.length).trim(), setToast)
 
   const facts = memoryFacts(readMemoryStore())
-  const header = memoryHeader(resolveTrustPosture(workingDirectory()).allows.memory)
+  const header = memoryHeader({
+    trusted: resolveTrustPosture(workingDirectory()).allows.memory,
+    configured,
+    sessionOn: memoryEnabledForSession(),
+  })
   setPanel({
     title: 'memory',
     body:
@@ -362,11 +397,29 @@ export function handleResume(
     streaming: boolean
     setSessionAndPersist: (id: string) => void
     setClearEpoch: Dispatch<SetStateAction<number>>
+    /**
+     * #70 — the screen must SAY the session was resumed.
+     *
+     * `clearEpoch` empties the transcript and the thread is not repopulated, so what the user sees
+     * afterwards is the welcome banner and nothing else — identical to a command that did nothing,
+     * while the model demonstrably has the earlier turns. This is the one signal that tells the two
+     * apart, and it already existed: it was bound to whether the PROCESS started on a session
+     * pointer, so a mid-session `/resume` never reached it.
+     */
+    setResumed: Dispatch<SetStateAction<boolean>>
     setToast: SetToast
+    /**
+     * Injected so the SUCCESS path has a test.
+     *
+     * Without it the only reachable cases are the refusals, and a test suite that covers only the
+     * refusals proves nothing about the thing #70 is: whether a real resume tells the user it
+     * happened. Mutating the flag away would have left every case green.
+     */
+    listKnownSessions?: () => Promise<{ agentId: string }[]>
   },
 ): void {
   void (async () => {
-    const known = (await listSessions()).map((s) => s.agentId)
+    const known = (await (deps.listKnownSessions ?? listSessions)()).map((s) => s.agentId)
     const plan = planResume({
       arg,
       current: deps.currentSessionId(),
@@ -379,6 +432,7 @@ export function handleResume(
     }
     const leaving = deps.currentSessionId()
     deps.setSessionAndPersist(plan.id)
+    deps.setResumed(true)
     deps.setClearEpoch((e) => e + 1)
     deps.setToast({
       message: `resumed ${plan.id} — ${leaving} is still listed; any unsent draft was discarded`,

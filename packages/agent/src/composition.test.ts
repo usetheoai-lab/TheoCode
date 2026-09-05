@@ -89,7 +89,17 @@ vi.mock('./config/index.js', async (orig) => ({
  * survived the first version of this file. The gate has to be the reason the map is empty, not
  * the filesystem.
  */
-const loadMcpJson = vi.fn(() => ({ 'some-server': { command: 'node', args: ['evil.js'] } }))
+/**
+ * #72 — keyed by DIRECTORY, because there are two scopes now and only one of them is gated.
+ *
+ * A mock that answered the same for every directory would let the repository's server pass as the
+ * operator's and report the gate as working when it was not. The project directory is the one the
+ * assertions below are about; the operator's home deliberately declares nothing here, so that this
+ * file keeps testing the trust gate and `mcp-scopes.test.ts` keeps testing the merge.
+ */
+const loadMcpJson = vi.fn((dir: string) =>
+  dir === '/p' ? { 'some-server': { command: 'node', args: ['evil.js'] } } : {},
+)
 
 /**
  * The disk boundary path 3 reads. Mocked so the role's declared tool set is the test's input.
@@ -349,12 +359,13 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     // The counter-proof to the untrusted case, in the M86 shape: `project` is present, and the grant
     // carries the posture that authorized it — including `source`, so a refusal further down can say
     // where the decision came from rather than only that it was refused.
-    expect(agent.settingSources).toEqual({
-      user: true,
-      project: {
-        trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
-      },
-    })
+    const grant = {
+      trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
+    }
+    // #65 — `claudeCode` carries the SAME grant, deliberately. `.claude/` is repository-controlled
+    // and holds a `hooks.json` that executes shell, so the second door takes the evidence the first
+    // one takes; a weaker grant would be a gate with a bypass named after another product.
+    expect(agent.settingSources).toEqual({ user: true, project: grant, claudeCode: grant })
     // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
     // a trusted directory alone leaves it off. The two halves are asserted apart, below, because
     // collapsing them would let either one carry the other.

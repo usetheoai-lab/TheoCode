@@ -113,6 +113,21 @@ describe("this build's own verbs are not shadowed", () => {
     ).toEqual([])
   })
 
+  it('test_a_codex_name_whose_feature_exists_here_is_never_an_error', () => {
+    // The map exists so a Codex user finds the feature we DO have. A name we answer with
+    // `unknown command` while shipping the capability under another verb is the exact
+    // discovery failure the map was built to close — worse than a missing feature, because
+    // the user concludes we lack something that is one word away.
+    const withEquivalent = ['multi-agents', 'elevate-sandbox', 'sandbox-read-root']
+
+    const unanswered = withEquivalent.filter((n) => routeCommand(`/${n}`).kind === 'commandError')
+
+    expect(
+      unanswered,
+      `these Codex names have a real equivalent here but still error: ${unanswered.join(', ')}`,
+    ).toEqual([])
+  })
+
   it('test_an_unknown_name_is_still_an_error', () => {
     // Anti-vacuity: the pointer map must not turn every typo into a friendly answer.
     expect(routeCommand('/moddel')).toMatchObject({ kind: 'commandError' })

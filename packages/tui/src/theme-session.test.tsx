@@ -113,7 +113,7 @@ describe('a theme picked in the session reaches the rendered provider', () => {
       </ThemedSurface>,
     )
 
-    handleTheme(OTHER_BASE as string, vi.fn())
+    handleTheme(OTHER_BASE as string, vi.fn(), () => true, () => '<store>')
     await painted()
 
     expect(lastFrame(), '/theme did not reach the provider').toContain(

@@ -42,6 +42,7 @@ import { initAgents, sendMessage, diffPanel, statusPanel, switchModel } from './
 import { currentWiring } from '../agent-session/wiring-record.js'
 import { handleAgents } from './agents-panel.js'
 import { permissionsPanel } from './permissions-panel.js'
+import { storeThemeBase, themeStorePath } from '../theme-store.js'
 import { handleTheme } from './theme-command.js'
 import { handleStatusline, handleTitle } from './surface-commands.js'
 import { handleRaw } from './raw-command.js'
@@ -103,6 +104,11 @@ function sessionAndScreen(
     case 'new':
     case 'clear':
       resetSession()
+      // #70 — the screen stops claiming a continuation. `use-screen-state.ts` documented the pair as
+      // "`/resume` sets it, `/new` clears it" and only the first half was implemented, so after
+      // `/resume` then `/new` the greeting still announced one — and the restored turns waited on a
+      // session-id change to disappear rather than on the command the user typed.
+      cap.setResumed(false)
       agent.reset()
       SESSION.attachImages(undefined)
       backtrack.setSeed('')
@@ -163,6 +169,7 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
         streaming: cap.streaming,
         setSessionAndPersist: cap.setSessionAndPersist,
         setClearEpoch: cap.setClearEpoch,
+        setResumed: cap.setResumed,
         setToast,
       })
       return true
@@ -245,7 +252,7 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
       return true
     case 'memoryInfo':
       // B-077 — inspection, not turn: it renders a panel and starts no turn.
-      handleMemoryInfo(action.arg, setToast, setPanel)
+      handleMemoryInfo(action.arg, setToast, setPanel, cap.SESSION.cfg().memory)
       return true
     case 'showStatus': {
       setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner, currentWiring()))
@@ -347,7 +354,7 @@ function settings(action: CommandAction, _text: string, cap: SettingsCapabilitie
       cap.setPanel(permissionsPanel(cap.approvalMode, cap.SESSION.cfg().sandboxDetail))
       return true
     case 'theme':
-      handleTheme(action.arg, cap.setToast)
+      handleTheme(action.arg, cap.setToast, storeThemeBase, themeStorePath)
       return true
     case 'title':
       handleTitle(action.arg, cap)

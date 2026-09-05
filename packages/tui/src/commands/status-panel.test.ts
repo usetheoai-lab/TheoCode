@@ -25,6 +25,7 @@ function session(over: Partial<ReturnType<SessionTheInterpreterUses['cfg']>> = {
       modelLabel: 'gpt-5.4',
       sandboxLabel: 'sandbox:workspace-write',
       sandboxDetail: 'workspace-write',
+      memory: false,
       ...over,
     }),
     sessionModel: () => undefined,
@@ -132,7 +133,10 @@ describe('the status panel says what is steering the agent', () => {
   it('test_a_repository_with_no_instruction_file_reads_the_same_before_and_after_a_build', () => {
     // Anti-vacuity, and a real equivalence: "the walk found nothing" is the same fact whether or
     // not an agent has been built, so inventing a second wording for it would be noise.
-    expect(agentsMdRow(undefined, () => [])).toBe('<none>')
+    // The user chain is injected for the same reason the project one is: leaving it ambient makes
+    // the result depend on whether the machine running the suite happens to have a
+    // `~/.theocode/AGENTS.md`, which is a real file on a real developer's machine.
+    expect(agentsMdRow(undefined, () => [], () => [])).toBe('<none>')
   })
 
   it('test_an_untrusted_directory_is_reported_as_a_REFUSAL_not_an_absence', () => {
@@ -148,9 +152,13 @@ describe('the status panel says what is steering the agent', () => {
   })
 
   it('test_a_repository_with_no_instruction_file_reports_none', () => {
-    expect(agentsRow(wired({ active: [], requested: [], suppressedByTrust: false }))).toContain(
-      '<none>',
-    )
+    expect(
+      agentsMdRow(
+        wired({ active: [], requested: [], suppressedByTrust: false }),
+        () => [],
+        () => [],
+      ),
+    ).toContain('<none>')
   })
 
   it('test_loaded_files_are_named', () => {
@@ -164,5 +172,45 @@ describe('the status panel says what is steering the agent', () => {
 
     expect(row).toContain('AGENTS.md')
     expect(row).not.toContain('<none>')
+  })
+})
+
+/**
+ * The user layer has to be visible — usetheoai-lab/TheoCode#65.
+ *
+ * A `~/.theocode/AGENTS.md` that silently failed to load is indistinguishable from one being
+ * followed, which is the defect this row exists to prevent for the project chain and now has to
+ * prevent for the operator's own file too.
+ *
+ * The untrusted case is the one that changed meaning. `NOT LOADED — directory untrusted` was true
+ * when the project chain was all there was; with a user layer it is a lie by omission, because
+ * something IS in the prompt. A status line that overstates in the safe direction is still a status
+ * line nobody can trust.
+ */
+describe('agentsMdRow — the user layer', () => {
+  it('test_a_user_file_is_named_when_no_project_chain_exists', () => {
+    expect(agentsMdRow(undefined, () => [], () => ['/home/u/.theocode/AGENTS.md'])).toContain(
+      'user',
+    )
+  })
+
+  it('test_the_untrusted_row_no_longer_claims_nothing_was_loaded', () => {
+    const wired = {
+      agentsMd: { suppressedByTrust: true, requested: ['/repo/AGENTS.md'], active: [] },
+    } as never
+    const row = agentsMdRow(wired, () => [], () => ['/home/u/.theocode/AGENTS.md'])
+
+    expect(row, 'the project chain being ignored still has to be said').toContain('untrusted')
+    expect(
+      row,
+      'something WAS loaded — a row saying otherwise is the defect this test exists for',
+    ).toContain('user')
+  })
+
+  it('test_no_user_file_leaves_the_existing_rows_untouched', () => {
+    // Anti-regression: the common case is an operator with no user file at all, and its wording
+    // must not acquire an empty clause.
+    expect(agentsMdRow(undefined, () => [], () => [])).toBe('<none>')
+    expect(agentsMdRow(undefined, () => ['/repo/AGENTS.md'], () => [])).toContain('on disk')
   })
 })

@@ -7,9 +7,12 @@
   "exports": {
     "./agent": "./src/agent.ts",
     "./diagnostic-sink": "./src/diagnostic-sink.ts",
-    "./turn-error": "./src/turn-error.ts"
+    "./git-runner": "./src/git-runner.ts",
+    "./retry-record": "./src/retry-record.ts",
+    "./turn-error": "./src/turn-error.ts",
+    "./turn-failure-reporting": "./src/turn-failure-reporting.ts"
   },
   "dependencies": {
-    "@theokit/agents": "^11.0.0"
+    "@theokit/agents": "13.0.0-next.0"
   }
 }

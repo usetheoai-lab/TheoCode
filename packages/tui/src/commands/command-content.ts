@@ -1,11 +1,14 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 
 import type { ApprovalMode } from '../consent/index.js'
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
+import { userAgentsMdPath } from '@theocode/agent/context'
+
 import { resolveMentions } from './mentions.js'
 import type {
   AgentTheInterpreterUses,
@@ -17,7 +20,7 @@ import { THEME_RESOLUTION } from '../theme.js'
 import { themeResolutionLine } from './theme-command.js'
 import { sessionThemeBase } from '../theme-session.js'
 import type { WiredCapabilities } from '@theocode/agent'
-import { agentsMdChain } from '@theocode/agent/context'
+import { BASE_NAMES, agentsMdChain } from '@theocode/agent/context'
 
 /** Paths as the user reads them — relative to the directory the session is in. */
 const relative = (paths: readonly string[]): string =>
@@ -50,17 +53,44 @@ export function agentsMdRow(
    * both branches would be unassertable on half the machines.
    */
   onDiskChain: (cwd: string) => readonly string[] = agentsMdChain,
+  /**
+   * The operator's own files, injectable for the same reason as the chain above: with the ambient
+   * home the outcome depends on whether the machine running the suite happens to have one.
+   */
+  userChain: (home: string) => readonly string[] = defaultUserChain,
 ): string {
+  const user = userChain(homedir())
+  const userNote = user.length === 0 ? '' : `user: ${relative(user)}`
+
   if (wired === undefined) {
     const onDisk = onDiskChain(workingDirectory())
-    return onDisk.length === 0 ? '<none>' : `${relative(onDisk)}  (on disk — not loaded yet)`
+    const project =
+      onDisk.length === 0 ? '' : `${relative(onDisk)}  (on disk — not loaded yet)`
+    return joinParts(project, userNote)
   }
   const entity = wired.agentsMd
   if (entity.suppressedByTrust) {
-    return `NOT LOADED — directory untrusted (${entity.requested.length} file(s) ignored)`
+    // The user layer is NOT gated (#65), so the old wording — "NOT LOADED" — became a lie by
+    // omission the moment that layer existed: the project chain is ignored and the operator's file
+    // is in the prompt. A status row that overstates in the safe direction is still one nobody can
+    // trust.
+    const ignored = `project NOT LOADED — directory untrusted (${entity.requested.length} file(s) ignored)`
+    return joinParts(ignored, userNote)
   }
-  if (entity.active.length === 0) return '<none>'
-  return relative(entity.active)
+  return joinParts(entity.active.length === 0 ? '' : relative(entity.active), userNote)
+}
+
+/** Both halves, or whichever exists; `<none>` only when there is genuinely nothing. */
+function joinParts(project: string, user: string): string {
+  const parts = [project, user].filter(Boolean)
+  return parts.length === 0 ? '<none>' : parts.join('  ·  ')
+}
+
+function defaultUserChain(home: string): readonly string[] {
+  // #72 — the path comes from the loader, not from a second literal here. `/status` exists to say
+  // what IS in the prompt, and a row computing its own answer is a row that can be wrong about it.
+  const path = userAgentsMdPath(home)
+  return existsSync(path) ? [path] : []
 }
 
 export function sendMessage(
@@ -130,9 +160,15 @@ export function initAgents(
   lastSentMessage: MutableRefObject<string | null>,
   setToast: Dispatch<SetStateAction<ToastPayload | null>>,
 ): void {
-  if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
+  // Every name the loader reads, not just the one `/init` writes. Checking `AGENTS.md` alone was
+  // correct while it was the only name; under the first-wins chain it let `/init` write an
+  // `AGENTS.md` into a repository steered by `CLAUDE.md` — nothing overwritten, and the operator's
+  // file silently stops being read because AGENTS.md wins. The list is IMPORTED rather than
+  // retyped: two copies of a precedence order drift, and this one would drift silently.
+  const steering = BASE_NAMES.find((n) => existsSync(join(workingDirectory(), n)))
+  if (steering !== undefined) {
     setToast({
-      message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
+      message: `${steering} already exists — delete it first if you want to regenerate it`,
       variant: 'info',
     })
     return
@@ -202,13 +238,35 @@ function alignedRows(rows: readonly (readonly [string, string])[]): string {
   return rows.map(([label, value]) => `${`${label}:`.padEnd(width + 3)}${value}`).join('\n')
 }
 
+/**
+ * B-145 — the bound on `/diff`'s two git calls.
+ *
+ * `spawnSync` blocks the event loop, and in the TUI that is the Ink render loop: a `git diff` on a
+ * large working tree, or against a slow filesystem, freezes the frame with no cursor and no way to
+ * tell it apart from a crash.
+ *
+ * 10 s is the same number `/review` already bounds its git calls with. Two different answers to "how
+ * long may git take" inside one product is the inconsistency B-128 was about, one file over.
+ */
+export const DIFF_TIMEOUT_MS = 10_000
+
+/**
+ * The options both `git diff` calls are made with, as a value a test can read.
+ *
+ * Same reason as the clipboard's: a constant that never reaches the call is the same as no bound,
+ * and asserting the constant alone is how that goes unnoticed.
+ */
+export function diffSpawnOptions(): { cwd: string; encoding: 'utf8'; timeout: number } {
+  return { cwd: workingDirectory(), encoding: 'utf8', timeout: DIFF_TIMEOUT_MS }
+}
+
 export function diffPanel(): ContentPanel | undefined {
-  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], {
-    cwd: workingDirectory(),
-    encoding: 'utf8',
-  })
+  const r = spawnSync('git', ['diff', '--stat', 'HEAD'], diffSpawnOptions())
+  // A timeout leaves `status` null, which is not 0 — so a killed diff renders no panel rather than
+  // an empty one claiming a clean tree. Measured 2026-09-03: `spawnSync('sleep', ['5'], {timeout:200})`
+  // returns `status: null, signal: 'SIGTERM', error.code: 'ETIMEDOUT'`.
   if (r.status !== 0) return undefined
-  const detail = spawnSync('git', ['diff', 'HEAD'], { cwd: workingDirectory(), encoding: 'utf8' })
+  const detail = spawnSync('git', ['diff', 'HEAD'], diffSpawnOptions())
   const stat = r.stdout.trim()
   const patch = detail.stdout
   if (stat.length === 0 && patch.trim().length === 0) {

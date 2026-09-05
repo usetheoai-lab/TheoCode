@@ -70,6 +70,38 @@ function credentialCheck(state: CredentialState): Check {
   }
 }
 
+/**
+ * One capability row: what is active, or why nothing is.
+ *
+ * At module scope rather than inside `collectChecks` — it closes over nothing, and the linter's
+ * function-length ceiling is a real signal here: the row now carries three states.
+ */
+const entity = (
+name: string,
+e: { active: readonly string[]; suppressedByTrust: boolean },
+): Check =>
+  e.suppressedByTrust
+    ? {
+        name,
+        status: 'warn',
+        // A warning, not a failure: trust-gating is the product working as designed. It is
+        // reported because a user debugging "my hook does not run" needs to see it, not because
+        // anything is broken.
+        //
+        // #72 — suppressed AND non-empty is a real state for `mcp` alone: the operator's own
+        // servers are not gated on project trust. Reporting only the suppression would say "not
+        // wired" about a server that is running; reporting only the list would hide that the
+        // repository's share was withheld. Whoever is debugging either half needs the other.
+        detail:
+          e.active.length === 0
+            ? 'declared but NOT wired — this directory is untrusted'
+            : `${e.active.join(', ')} — yours; the project's are NOT wired, this directory is untrusted`,
+      }
+    : {
+        name,
+        status: 'ok',
+        detail: e.active.length === 0 ? 'none' : e.active.join(', '),
+      }
 
 /**
  * The checks for a directory: resolved config, trust, sandbox, credential presence, and what an
@@ -87,31 +119,17 @@ export function collectChecks(input: {
   readonly sandboxMode: string
   readonly approvalPolicy: string
   readonly credential: CredentialState
+  /**
+   * Credential files in a state directory this product does not read (#72). Optional: a caller that
+   * does not look for them says nothing, rather than asserting there are none.
+   */
+  readonly strayCredentials?: readonly string[]
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
     readonly hooks: { active: readonly string[]; suppressedByTrust: boolean }
   }
 }): Check[] {
-  const entity = (
-    name: string,
-    e: { active: readonly string[]; suppressedByTrust: boolean },
-  ): Check =>
-    e.suppressedByTrust
-      ? {
-          name,
-          status: 'warn',
-          // A warning, not a failure: trust-gating is the product working as designed. It is
-          // reported because a user debugging "my hook does not run" needs to see it, not because
-          // anything is broken.
-          detail: 'declared but NOT wired — this directory is untrusted',
-        }
-      : {
-          name,
-          status: 'ok',
-          detail: e.active.length === 0 ? 'none' : e.active.join(', '),
-        }
-
   return [
     { name: 'cwd', status: 'ok', detail: input.cwd },
     {
@@ -129,5 +147,18 @@ export function collectChecks(input: {
     entity('mcp', input.wired.mcp),
     entity('skills', input.wired.skills),
     entity('hooks', input.wired.hooks),
+    // Appended only when there is something to say. A row that permanently reads "none" is noise in
+    // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
+    ...((input.strayCredentials ?? []).length > 0
+      ? [
+          {
+            name: 'credential-strays',
+            // A warning, never a failure: nothing is broken. It is a leftover to remove, and exiting
+            // non-zero over one would report a working install as broken.
+            status: 'warn' as const,
+            detail: `not read by this product — remove if you no longer need it: ${(input.strayCredentials ?? []).join(', ')}`,
+          },
+        ]
+      : []),
   ]
 }

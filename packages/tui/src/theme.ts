@@ -1,20 +1,26 @@
 import type { TheoThemeOverride, TheoThemeProp } from '@theokit/tui'
 import { AGENT } from '@theocode/shared/agent'
 import { resolveThemeBase, THEME_BASES, type ThemeBase } from './theme-base.js'
+import { storedThemeBase } from './theme-store.js'
 
 export const ACCENT = '#d97757'
 
 /**
- * B-073 — resolved once at module load, from the process environment. The resolver itself takes an
- * env argument so it stays deterministic under test; this is the single place that reads the real
- * one. `invalid` is surfaced by `App` rather than dropped here — a module-level side effect would
- * print during test collection.
+ * B-073 — resolved once at module load. The resolver takes its inputs as arguments so IT stays
+ * deterministic under test; this is the single place that reads the real ones. `invalid` is surfaced
+ * by `App` rather than dropped here — a module-level side effect would print during test collection.
+ *
+ * Since #72 the real inputs are two: the process environment and the operator's stored preference on
+ * disk. So this CONSTANT is machine-dependent, while `resolveThemeBase` is not. No test asserts its
+ * `base` today, and the suite was run with `light` and with `no-color` stored to confirm that. A test
+ * that starts asserting it would become dependent on whoever runs it — call `resolveThemeBase` with
+ * explicit arguments instead, which is what every existing theme test does.
  *
  * It is the DEFAULT now rather than the decision: `/theme` can override it for the session
  * (`theme-session.tsx`). What the environment resolved stays readable here so `/status` can report
  * both facts — the base being drawn, and the one the terminal would have picked.
  */
-export const THEME_RESOLUTION = resolveThemeBase(process.env)
+export const THEME_RESOLUTION = resolveThemeBase(process.env, storedThemeBase())
 
 /**
  * The product's own marks, applied on top of whichever base is active.

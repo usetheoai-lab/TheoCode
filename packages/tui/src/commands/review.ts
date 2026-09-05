@@ -10,6 +10,7 @@ import { createReviewAgent } from '@theocode/agent/review'
 import { runReview } from '@theocode/agent/review'
 import type { ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
+import { createGitRunner } from '@theocode/shared/git-runner'
 
 export interface ReviewCommandDeps {
   setReviewResult: (r: string | null) => void
@@ -76,19 +77,13 @@ export async function runReviewCommand(
   setToast({ message: `>> Code review started <<`, variant: 'info' })
   const { shutdown, uninstallSignals: detach } = reviewShutdown(setToast)
   try {
-    const { execFileSync } = await import('node:child_process')
     const surfaceHooks = await hookChain(reviewCfg.hooks)
     const result = await runReview(arg, {
-      git: (args) => {
-        try {
-          return {
-            ok: true,
-            stdout: execFileSync('git', args, { encoding: 'utf8', timeout: 10_000 }),
-          }
-        } catch {
-          return { ok: false, stdout: '' }
-        }
-      },
+      git: createGitRunner({
+        timeoutMs: reviewCfg.shell_timeout_ms,
+        // The TUI owns the screen: a toast, not a stderr write that would paint over the frame.
+        onWarn: (m) => setToast({ message: m, variant: 'info' }),
+      }),
       createAgent: createReviewAgent({
         config: reviewCfg,
         cwd: workingDirectory(),

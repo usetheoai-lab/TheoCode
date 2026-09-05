@@ -13,7 +13,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSessionId } from '../runtime/index.js'
-import { turnErrorText } from '@theocode/shared/turn-error'
+import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
+import { turnFailureReporting } from '@theocode/shared/turn-failure-reporting'
 
 function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
@@ -38,12 +39,38 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
   return json ? createJsonlProcessor(io, sessionId) : createHumanProcessor(io, sessionId)
 }
 
-export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<void> {
-  const prompt = readPrompt(args)
+/**
+ * Resolve the credential and the model id the turn will actually run on.
+ *
+ * Extracted from `runCommand` because it is a self-contained decision with its own long reason, and
+ * because that reason is about CREDENTIAL ROUTING rather than about running a turn — keeping it
+ * inline made the caller read as if the routing order were part of the turn loop.
+ */
+/**
+ * The three seams the ordering below depends on, injectable so the order can be ASSERTED.
+ *
+ * B-141 — the order is what `run.ts` calls "the fix", it cost a real user a misdiagnosed turn, and
+ * nothing tested it: it survived as a comment over dynamic imports no test could reach. Production
+ * passes nothing and gets the real modules.
+ */
+export interface RunTargetDeps {
+  readonly resolveCredentialForModel: typeof import('@theocode/agent/auth').resolveCredentialForModel
+  readonly routeToCredential: typeof import('@theocode/agent/auth').routeToCredential
+  readonly composeRun: typeof import('../run-composition.js').composeRun
+}
 
-  const { streamAgentTurnInProcess } = await import('@theokit/agents')
-  const { composeRun } = await import('../run-composition.js')
-  const { resolveCredentialForModel, routeToCredential } = await import('@theocode/agent/auth')
+export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) {
+  const { composeRun, resolveCredentialForModel, routeToCredential } =
+    injected ??
+    (await (async () => {
+      const auth = await import('@theocode/agent/auth')
+      const composition = await import('../run-composition.js')
+      return {
+        composeRun: composition.composeRun,
+        resolveCredentialForModel: auth.resolveCredentialForModel,
+        routeToCredential: auth.routeToCredential,
+      }
+    })())
 
   // The ORDER here is the fix, and it is the TUI's order: route the model id for the credential
   // that will serve it, THEN resolve a credential for the routed id, THEN build on that same id.
@@ -69,6 +96,17 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
     routeModel: (id) => routeToCredential(probe, id),
   })
   const cred = await resolveCredentialForModel(model, { env: process.env, home: homedir() })
+  // `model` is deliberately not returned: it is consumed here and nowhere else, and a value
+  // nobody reads is the dead surface the audit that produced B-128..B-134 exists to find.
+  return { headlessPolicy, mod, apiKey: cred.apiKey }
+}
+
+export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<void> {
+  const prompt = readPrompt(args)
+
+  const { streamAgentTurnInProcess } = await import('@theokit/agents')
+  const { headlessPolicy, mod, apiKey } = await resolveRunTarget(args)
+
   const sessionId = availableIdOrFork(await resolveSessionId(args), process.cwd())
   const processor = createProcessor(args.json === true, sessionId)
 
@@ -82,15 +120,22 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
     },
   })
   try {
+    // B-130 — the transport's retries were invisible: after three attempts an auth failure reached
+    // the user as `rate_limit (HTTP 429)` (see the ORDER note above, which fixed that specific
+    // case). The count comes from the SDK's own `rate_limit` event, not from anything invented here.
+    const failure = turnFailureReporting({ diagnosticsEnabled })
     const openStream = (sessionId: string): AsyncIterable<unknown> =>
-      streamAgentTurnInProcess(mod, cred.apiKey, {
+      streamAgentTurnInProcess(mod, apiKey, {
         message: prompt,
         sessionId: sessionId,
         awaitApproval: async () => headlessPolicy,
         // Without this the framework masks every failure to "An error occurred." — the right
         // default for a public HTTP endpoint and the wrong one here, where the caller IS the
         // operator. See `@theocode/shared/turn-error`.
-        onError: turnErrorText,
+        onError: failure.onError,
+        // The only member read is `rate_limit`; every other event is ignored, the same discipline
+        // the TUI's MCP sink applies to the same stream.
+        onRunEvent: failure.onRunEvent,
       }) as AsyncIterable<unknown>
     await consumeWithForkIfBusy(
       sessionId,
@@ -116,6 +161,14 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
       )
     }
   }
+  // B-142 — the CLI deliberately does NOT collect.
+  //
+  // It used to, awaited, after the answer was delivered. That was measured as a 4.9-37.1 s hang
+  // before exit on a large tree — invisible in a script except as a stall. A one-shot process cannot
+  // host a background sweep either: it exits before the child finishes and kills it halfway.
+  //
+  // So collection belongs to the long-lived surface (the TUI spawns a child), and `sessions gc`
+  // remains here as the explicit command it always was.
   const drainedExit = createDrainedProcessOutput(DEFAULT_WATCHDOG_MS)
   drainedExit(result.errorSeen || emptyTurn !== undefined ? 1 : 0)
 }

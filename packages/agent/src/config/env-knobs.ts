@@ -13,6 +13,9 @@ export const ENV_SANDBOX_MODE = `${AB}SANDBOX_MODE`
 export const ENV_APPROVAL_POLICY = `${AB}APPROVAL_POLICY`
 export const ENV_GOAL_ORACLE = `${AB}GOAL_ORACLE`
 export const ENV_CONTEXT_WINDOW = `${AB}CONTEXT_WINDOW`
+export const ENV_SHELL_TIMEOUT_MS = `${AB}SHELL_TIMEOUT_MS`
+export const ENV_MEMORY = `${AB}MEMORY`
+export const ENV_SESSION_GC = `${AB}SESSION_GC`
 const ENV_PROVIDER = `${AB}PROVIDER`
 export const ENV_HOME = `${AB}HOME`
 const ENV_THEOKIT_HOME = 'THEOKIT_HOME'
@@ -68,6 +71,27 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: '—',
     effect:
       'The model context window, in tokens. A positive integer; absent ⇒ the window comes from the model catalogue, with the conservative floor when the catalogue does not know it.',
+  },
+  {
+    name: ENV_SHELL_TIMEOUT_MS,
+    reader: CONFIG,
+    default: '10000',
+    effect:
+      'Milliseconds before an operator-supplied shell command (`/…` custom command expansion) is killed. A positive integer; the hook engine has always had the equivalent per-hook `timeout_ms`.',
+  },
+  {
+    name: ENV_MEMORY,
+    reader: CONFIG,
+    default: 'false',
+    effect:
+      'Durable memory across sessions. `1`/`true`/`yes`/`on` and their negatives; an unrecognised value fails loud rather than being read as off. Off by default — see `AgentConfig.memory` for the measured cost.',
+  },
+  {
+    name: ENV_SESSION_GC,
+    reader: CONFIG,
+    default: 'true',
+    effect:
+      'Whether the session collector runs on its own, at most once a day, applying the SAME 30-day window, 1-day floor and operation budget `sessions gc` uses. `0`/`false` keeps collection manual.',
   },
   {
     name: ENV_PROVIDER,

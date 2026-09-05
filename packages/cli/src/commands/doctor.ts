@@ -44,7 +44,7 @@ export function credentialState(path: string, now: number = Date.now()): Credent
 
 export async function doctorCommand(opts: { json: boolean; cd?: string }): Promise<void> {
   const agent = await import('@theocode/agent')
-  const { authFilePath } = await import('@theocode/agent/auth')
+  const { authFilePath, strayCredentialFiles } = await import('@theocode/agent/auth')
   const { resolveEffectiveConfig, resolveTrustPosture } = await import('@theocode/agent/config')
   const cwd = opts.cd ?? process.cwd()
 
@@ -76,6 +76,11 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // either way, but computing the path a second way here would be the divergence a diagnostic
     // must never introduce — it would report on a file the product does not use.
     credential: credentialState(authFilePath(homedir(), process.env)),
+    // #72 — the split between our two state directories left a credential behind once already:
+    // `~/.theokit/auth.json`, written by the SDK before `installAuthHome` pointed it at ours, then
+    // read by nothing and rotated by nothing. The store is deliberately NOT moved — that is the one
+    // step of the unification that can log an operator out — so the leftover is made visible.
+    strayCredentials: strayCredentialFiles(homedir(), process.env),
     wired,
   })
   const result = agent.diagnose(checks)
