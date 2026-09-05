@@ -58,6 +58,7 @@ alternative is that moving your file has no visible effect.
 | `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/<home_dir>/AGENTS.md`          | this product       | instructions that belong to YOU, in every project; the project's own file is read after it. `~/.theocode/AGENTS.md` still works |
 | `~/<home_dir>/rules/*.md`         | this product       | your own rules, scoped or not; the project's rules are read after them. `~/.theocode/rules/` and `~/.claude/rules/` are read too — rules are additive |
+| `~/<home_dir>/agents/*.md`        | this product       | your own squad roles (`explorer`, `worker`), in every project; a role of the same name in the project wins, and yours are read even in an untrusted directory — the trust gate asks about THIS repository's code, and your home is not it |
 | `<project>/THEO.md`               | this product       | project instructions — **first-wins** over `AGENTS.md`, then `CLAUDE.md`; a Claude Code repo needs no migration |
 | `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/`                              |
 | `<project>/.claude/`              | this product       | `rules/*.md` and `agents/<name>.md` are read from here too, so a Claude Code repository needs no migration; `skills/` already worked |
