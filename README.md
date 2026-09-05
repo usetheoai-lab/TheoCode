@@ -103,9 +103,10 @@ and that was enough to say the remaining half lived in `@theokit/sdk`.
 ## Contributing
 
 `CONTRIBUTING.md` holds the one thing the gates cannot check: how to know that what you measured is
-what runs. Two ways a careful measurement still lies — a compound command that skips the build, and
-two legitimate artifacts that disagree about which one the runtime executes — both taken from
-mistakes made here, with the retracted upstream reports they produced.
+what runs. Three ways a careful measurement still lies — a compound command that skips the build, a negative
+result with no positive control, and two legitimate artifacts that disagree about which one the
+runtime executes — all taken from mistakes made here, with the retracted upstream reports they
+produced.
 
 ## What a failure is allowed to cost
 

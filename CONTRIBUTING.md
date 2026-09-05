@@ -37,6 +37,20 @@ npm run build
 grep -c MY_PROBE_MARKER dist/theocode.mjs      # 1, or the probe is measuring the old binary
 ```
 
+### A negative result without a positive control is not evidence
+
+A probe that "did not fire" has two explanations: the thing under test is broken, or the probe never
+had a chance. Telling them apart costs one extra run.
+
+Measured here: `.claude/hooks.json` did not fire in an untrusted directory, which read as the SDK
+refusing to honour a declaration. The control — the *native* `.theokit/hooks.json`, same directory —
+did not fire either. This product's trust gate withholds every repository hook there, so the arm
+proved nothing about the SDK, and the conclusion drawn from it would have had an upstream maintainer
+revert correct behaviour.
+
+Before reporting a negative, run the arm that should succeed. If it also fails, the probe is what is
+broken.
+
 ### Two legitimate artifacts can disagree, and only one is executed
 
 `AgentBuilder.build()` returns a definition carrying the raw declaration; `compileAgentDefinition`
