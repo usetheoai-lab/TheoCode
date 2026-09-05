@@ -23,9 +23,9 @@ import {
   utimesSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
-import { encodeProjectDir } from '@theokit/agents/persistence'
+import { transcriptPath } from '@theokit/agents/persistence'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { LiveSessionDeletionError, deleteSession, protectedSessions } from './session-ops.js'
@@ -33,11 +33,18 @@ import { LiveSessionDeletionError, deleteSession, protectedSessions } from './se
 let base: string
 let cwd: string
 
-/** Write a transcript for `id` and stamp its mtime so "most recent" is deterministic. */
+/**
+ * Write a transcript for `id` and stamp its mtime so "most recent" is deterministic.
+ *
+ * The path comes from `transcriptPath`, never from string-building. This fixture used to compose
+ * `<base>/projects/<encoded-cwd>/<id>.jsonl` itself and the assertions matched on `<id>.jsonl`,
+ * which stopped being the filename when the SDK moved transcripts to UUID names. Both halves had to
+ * stop assuming: the writer asks for the path, and the caller compares against the path it got back
+ * rather than against a name it expects the layout to produce.
+ */
 function writeTranscript(id: string, ageSeconds: number): string {
-  const dir = join(base, 'projects', encodeProjectDir(cwd))
-  mkdirSync(dir, { recursive: true })
-  const path = join(dir, `${id}.jsonl`)
+  const path = transcriptPath(base, cwd, id)
+  mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, '{}\n')
   const when = new Date(Date.now() - ageSeconds * 1000)
   utimesSync(path, when, when)
@@ -56,22 +63,22 @@ afterEach(() => {
 
 describe('B-003 — protectedSessions covers what the caller can see', () => {
   it('test_the_live_pointer_is_protected', () => {
-    writeTranscript('tui-pointed', 10)
+    const pointed = writeTranscript('tui-pointed', 10)
     mkdirSync(join(cwd, '.theokit'), { recursive: true })
     writeFileSync(join(cwd, '.theokit', 'tui-session'), 'tui-pointed\n')
 
-    expect(protectedSessions(cwd, base).some((p) => p.endsWith('tui-pointed.jsonl'))).toBe(true)
+    expect(protectedSessions(cwd, base)).toContain(pointed)
   })
 
   it('test_the_most_recent_transcript_is_protected_even_without_a_pointer', () => {
     writeTranscript('older', 3600)
-    writeTranscript('newest', 5)
+    const newest = writeTranscript('newest', 5)
 
     expect(
       protectedSessions(cwd, base),
       'the most recent transcript is the one a running session is most likely still appending to, ' +
         'and it was absent from the guard the SDK uses to refuse a fork onto a live session',
-    ).toEqual([expect.stringContaining('newest.jsonl')])
+    ).toEqual([newest])
   })
 
   it('test_an_empty_project_protects_nothing', () => {

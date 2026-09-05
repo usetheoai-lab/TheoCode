@@ -55,6 +55,7 @@ export function composerDeps(
     goalAbort,
     lastSentMessage,
     stdout: s.stdout,
+    writeToScrollback: s.writeToScrollback,
     approvalMode,
     goalRun,
     goalActive,

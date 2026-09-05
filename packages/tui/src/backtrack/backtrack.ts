@@ -23,7 +23,8 @@ export interface PrimeBacktrackDeps {
 }
 
 export async function primeBacktrack(deps: PrimeBacktrackDeps): Promise<void> {
-  let previews: string[] = []
+  // No initialiser: the `catch` toasts and returns, so the assignment below is the only way past.
+  let previews: string[]
   try {
     previews = await readUserTurnPreviewsAsync(deps.currentSessionId())
   } catch {

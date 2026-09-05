@@ -27,6 +27,16 @@ export interface WiredCapabilities {
   readonly mcp: WiredEntity
   readonly skills: WiredEntity
   readonly hooks: WiredEntity
+  /**
+   * The `AGENTS.md` chain, gated by the same posture as the other three.
+   *
+   * It was the one trust-gated INSTRUCTION source with no listing: `/skills`, `/mcp` and `/hooks`
+   * each report what survived the gate, and the file that most directly steers the model reported
+   * nothing. An untrusted directory drops it silently, which is the case a user most needs told —
+   * the agent is running without the rules the repository wrote for it, and nothing on screen says
+   * so. Codex puts the same fact on its status panel (`Agents.md: <none>`).
+   */
+  readonly agentsMd: WiredEntity
   /** Whether `.theokit/agents/*.md` were allowed to load — subagents and project hooks ride on it. */
   readonly projectSources: boolean
   /**
@@ -38,13 +48,35 @@ export interface WiredCapabilities {
 }
 
 export function wiredCapabilities(input: {
-  readonly posture: { readonly allows: { mcp: boolean; skills: boolean; hooks: boolean } }
+  readonly posture: {
+    readonly allows: { mcp: boolean; skills: boolean; hooks: boolean; agentsMd: boolean }
+  }
   readonly projectSourcesAllowed: boolean
-  /** The map handed to `.mcp()` — already loaded, never re-read here. */
+  /** The map handed to `.mcp()` — already loaded, never re-read here. Both scopes, merged. */
   readonly mcpServers: Readonly<Record<string, unknown>>
+  /**
+   * Which of those names came from the OPERATOR's own `.mcp.json` (#72).
+   *
+   * The personal scope is not gated on project trust, so it must not be reported through the gate.
+   * `recordWiring` takes the posture and marks every requested server suppressed, which made
+   * `theocode doctor` say "declared but NOT wired" about a server that was running — a record that
+   * contradicts the run, in the file whose whole reason for existing (B-071) is to BE the record of
+   * the decision rather than a second guess at it.
+   */
+  readonly mcpPersonal?: readonly string[]
+  /**
+   * The project's server names that trust withheld (#72) — declared, never started.
+   *
+   * Fed to `recordWiring` as REQUESTED so the posture can refuse them, which is what turns
+   * `suppressedByTrust` into a true statement. Without it that flag was always false for MCP and the
+   * "declared but NOT wired" report was unreachable for the one capability it mattered most for.
+   */
+  readonly mcpWithheld?: readonly string[]
   readonly configuredSkills: readonly string[]
   /** The hook events handed to `.hooks()`, in the order they were registered. */
   readonly hookEvents: readonly string[]
+  /** The instruction files the walk found — the paths, never their contents. */
+  readonly agentsMdFiles: readonly string[]
   readonly sandboxMode: string
 }): WiredCapabilities {
   const record = recordWiring({
@@ -52,14 +84,30 @@ export function wiredCapabilities(input: {
     requested: {
       // Sorted because the map's key order is insertion order from a JSON file, and a listing whose
       // order changes when someone reorders `.mcp.json` looks like something moved.
-      mcp: Object.keys(input.mcpServers).sort(),
+      // Only the project's. The personal ones are added back below, outside the gate they are not
+      // subject to.
+      mcp: [
+        ...Object.keys(input.mcpServers).filter(
+          (name) => !(input.mcpPersonal ?? []).includes(name),
+        ),
+        ...(input.mcpWithheld ?? []),
+      ].sort(),
       skills: input.configuredSkills,
       hooks: input.hookEvents,
+      // NOT sorted: the walk's order is root-most first, which is the order they are composed into
+      // the prompt. Sorting would present a precedence that is not the one in effect.
+      agentsMd: input.agentsMdFiles,
     },
   })
 
   return {
     ...record,
+    // Both facts survive: what is running, and whether the repository's share was withheld.
+    // Collapsing them would leave an operator unable to tell "my server" from "their server got in".
+    mcp: {
+      ...record.mcp,
+      active: [...new Set([...record.mcp.active, ...(input.mcpPersonal ?? [])])].sort(),
+    },
     projectSources: input.projectSourcesAllowed,
     sandboxMode: input.sandboxMode,
   }

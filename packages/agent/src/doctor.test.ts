@@ -10,7 +10,7 @@ import { collectChecks, diagnose, renderDiagnosis } from './doctor.js'
 const base = {
   cwd: '/workspace',
   trustLevel: 'trusted',
-  model: 'openai/gpt-5.4',
+  model: 'openai/gpt-5.6-terra',
   effort: 'medium',
   sandboxMode: 'workspace-write',
   approvalPolicy: 'on-request',
@@ -36,6 +36,31 @@ describe('B-081 — collectChecks', () => {
     expect(d.failed).toBeGreaterThan(0)
     expect(d.exitCode, 'the exit code is what makes this usable in a support script').not.toBe(0)
     expect(d.checks.find((c) => c.name === 'credential')?.detail).toContain('/login')
+  })
+
+  it('test_an_expired_credential_is_not_reported_as_present', () => {
+    // The defect this state exists for. Measured 2026-08-25: an OAuth token ten days past its
+    // expiry produced `✓ credential: present` — a green tick on the one thing about to fail.
+    const check = collectChecks({ ...base, credential: 'expired' }).find(
+      (c) => c.name === 'credential',
+    )
+
+    expect(check?.status, 'an expired credential still reported as ok').not.toBe('ok')
+    expect(check?.detail).toContain('EXPIRED')
+  })
+
+  it('test_an_expired_credential_warns_rather_than_fails', () => {
+    // A refresh token may still renew it on the next turn, so "this will not work" would overstate
+    // what is known. `absent` is the state that IS a failure.
+    const expired = collectChecks({ ...base, credential: 'expired' }).find(
+      (c) => c.name === 'credential',
+    )
+    const absent = collectChecks({ ...base, credential: 'absent' }).find(
+      (c) => c.name === 'credential',
+    )
+
+    expect(expired?.status).toBe('warn')
+    expect(absent?.status).toBe('fail')
   })
 
   it('test_an_unreadable_credential_is_distinct_from_an_absent_one', () => {

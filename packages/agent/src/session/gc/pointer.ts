@@ -36,6 +36,10 @@ export function readPointerId(
     throw new Error(
       `cannot read the live-session pointer at ${pointerPath(cwd)} — refusing to GC (would risk ` +
         `the live session): ${(err as Error).message}`,
+      // The message already carries the text; `cause` carries the STACK and the errno object. This
+      // error is raised to refuse a deletion, and whoever reads it needs to know which syscall on
+      // which path failed — interpolating `.message` answers what, and only the cause answers where.
+      { cause: err },
     )
   }
   const id = raw.trim()

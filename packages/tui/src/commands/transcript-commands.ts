@@ -13,7 +13,7 @@ import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
 import { copyToClipboard } from '../clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
-import { listSubagents, subagentDir } from './subagent-inventory.js'
+import { subagentsPanelBody } from './agents-panel.js'
 import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'
 import { currentMcpFailures } from '../agent-session/mcp-failure-record.js'
 import { currentWiring } from '../agent-session/wiring-record.js'
@@ -79,19 +79,13 @@ export function handleExport(
  * B-072 — the subagent inventory, rendered.
  *
  * Lives beside the transcript commands because both answer "what is here?" without starting a turn.
- * The empty case names the directory: a user who defined agents somewhere else needs the path, not
- * the word "none".
+ *
+ * The body is rendered by `agents-panel.ts`, because `/agents` prints this same listing above the
+ * sessions. Two renderers for one inventory would eventually disagree about the empty case, which
+ * is the one carrying the directory a user needs.
  */
 export function handleListSubagents(setPanel: (p: ContentPanel) => void): void {
-  const cwd = workingDirectory()
-  const names = listSubagents(cwd)
-  setPanel({
-    title: 'subagents',
-    body:
-      names.length === 0
-        ? `no subagents in ${subagentDir(cwd)} — a custom command naming one will run in the main context instead`
-        : names.map((n) => `  ${n}`).join('\n'),
-  })
+  setPanel({ title: 'subagents', body: subagentsPanelBody(workingDirectory()) })
 }
 
 /**

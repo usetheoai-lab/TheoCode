@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import {
   handleCopy,
   handleExport,
@@ -8,7 +7,6 @@ import {
   handleSandbox,
   handleListSubagents,
 } from './transcript-commands.js'
-import { join } from 'node:path'
 
 import { CLEAR_SCREEN_AND_SCROLLBACK } from '@theokit/tui/terminal'
 import {
@@ -36,20 +34,24 @@ import type {
   IdentityCapabilities,
   TurnCapabilities,
   InspectionCapabilities,
+  SettingsCapabilities,
   ShellCapabilities,
   SteeringCapabilities,
 } from './command-capabilities.js'
-import {
-  AGENTS_MD_REQUEST,
-  sendMessage,
-  diffPanel,
-  statusPanel,
-  switchModel,
-} from './command-content.js'
+import { initAgents, sendMessage, diffPanel, statusPanel, switchModel } from './command-content.js'
+import { currentWiring } from '../agent-session/wiring-record.js'
+import { handleAgents } from './agents-panel.js'
+import { permissionsPanel } from './permissions-panel.js'
+import { storeThemeBase, themeStorePath } from '../theme-store.js'
+import { handleTheme } from './theme-command.js'
+import { handleStatusline, handleTitle } from './surface-commands.js'
+import { handleRaw } from './raw-command.js'
+import { handleListPtys, handleStopPtys } from './pty-commands.js'
 import { handleGoalVerb } from './goal.js'
 import { runReviewCommand } from './review.js'
 import type { CommandAction } from './registry.js'
 import { workingDirectory } from '../working-directory.js'
+import { codexNameAnswer } from './codex-names.js'
 
 export function interpretCommand(
   action: CommandAction,
@@ -65,7 +67,16 @@ const GROUPS: readonly ((
   action: CommandAction,
   text: string,
   cap: CommandCapabilities,
-) => boolean)[] = [sessionAndScreen, identity, turn, inspection, transcriptOut, shells, conduct]
+) => boolean)[] = [
+  sessionAndScreen,
+  identity,
+  turn,
+  inspection,
+  transcriptOut,
+  settings,
+  shells,
+  conduct,
+]
 
 function sessionAndScreen(
   action: CommandAction,
@@ -93,6 +104,11 @@ function sessionAndScreen(
     case 'new':
     case 'clear':
       resetSession()
+      // #70 — the screen stops claiming a continuation. `use-screen-state.ts` documented the pair as
+      // "`/resume` sets it, `/new` clears it" and only the first half was implemented, so after
+      // `/resume` then `/new` the greeting still announced one — and the restored turns waited on a
+      // session-id change to disappear rather than on the command the user typed.
+      cap.setResumed(false)
       agent.reset()
       SESSION.attachImages(undefined)
       backtrack.setSeed('')
@@ -118,6 +134,12 @@ function sessionAndScreen(
       return true
     case 'toggleUsage':
       setShowUsage((u) => !u)
+      return true
+    case 'codexName':
+      // Answered here, in the cheapest group, because it renders nothing and starts no turn — it
+      // is one toast. Placing it in `inspection` beside the other question-answering commands
+      // would have pushed that switch past its complexity budget for no gain.
+      setToast({ message: codexNameAnswer(action.name), variant: 'info' })
       return true
     default:
       return false
@@ -147,6 +169,7 @@ function identity(action: CommandAction, _text: string, cap: IdentityCapabilitie
         streaming: cap.streaming,
         setSessionAndPersist: cap.setSessionAndPersist,
         setClearEpoch: cap.setClearEpoch,
+        setResumed: cap.setResumed,
         setToast,
       })
       return true
@@ -222,24 +245,21 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
     case 'quit':
       exit()
       return true
+    case 'pwd':
+      // A toast, not a panel: this is the shape `/model` with no argument already uses for a
+      // one-value answer, and a bordered panel holding a single line would read as a bug.
+      setToast({ message: workingDirectory(), variant: 'info' })
+      return true
     case 'memoryInfo':
       // B-077 — inspection, not turn: it renders a panel and starts no turn.
-      handleMemoryInfo(action.arg, setToast, setPanel)
+      handleMemoryInfo(action.arg, setToast, setPanel, cap.SESSION.cfg().memory)
       return true
     case 'showStatus': {
-      setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner))
+      setPanel(statusPanel(SESSION, approvalMode, currentSessionId, ptyOwner, currentWiring()))
       return true
     }
     case 'initAgents': {
-      if (existsSync(join(workingDirectory(), 'AGENTS.md'))) {
-        setToast({
-          message: 'AGENTS.md already exists — delete it first if you want to regenerate it',
-          variant: 'info',
-        })
-        return true
-      }
-      agent.send({ message: AGENTS_MD_REQUEST })
-      lastSentMessage.current = AGENTS_MD_REQUEST
+      initAgents(agent, lastSentMessage, setToast)
       return true
     }
     case 'showDiff': {
@@ -267,6 +287,10 @@ function inspection(action: CommandAction, _text: string, cap: InspectionCapabil
  * B-075 — getting the conversation OUT of the terminal. Its own group rather than another arm of
  * `inspection`: those commands render a panel back into the TUI, these two hand text to something
  * outside it, and folding them in pushed `inspection` past its complexity budget.
+ *
+ * The four inventories moved in behind them, and `/agents` joins them here rather than opening a
+ * group of its own: it renders the `/subagents` listing above the `/sessions` one, so it belongs
+ * beside the case whose body it shares.
  */
 function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapabilities): boolean {
   switch (action.kind) {
@@ -278,6 +302,9 @@ function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapa
       return true
     case 'listSubagents':
       handleListSubagents(cap.setPanel)
+      return true
+    case 'showAgents':
+      handleAgents(cap.currentSessionId, cap.setPanel, cap.setToast)
       return true
     case 'listHooks':
       handleListHooks(cap.setPanel)
@@ -291,37 +318,63 @@ function transcriptOut(action: CommandAction, _text: string, cap: InspectionCapa
     case 'sandbox':
       handleSandbox(action.arg, () => cap.SESSION.cfg().sandboxLabel, cap.setToast)
       return true
+    case 'raw':
+      // Here rather than in `settings`, because this group's subject is exactly what `/raw` does:
+      // it hands text to something outside the frame. Its two neighbours put a reply on the
+      // clipboard and in a file; this one puts it in the terminal's own scrollback.
+      handleRaw(action.arg, cap.events, cap.writeToScrollback, cap.setToast)
+      return true
+    default:
+      return false
+  }
+}
+
+/**
+ * The knobs — `/permissions` shows the approval and sandbox posture on one screen, `/theme` shows
+ * the colour base and switches it for the session, and `/title` and `/statusline` choose which
+ * facts the terminal's tab and the footer carry.
+ *
+ * Its own group rather than four more arms of `inspection`, which is at the complexity ceiling the
+ * lint enforces: the precedent `transcriptOut` set is to move work OUT of a full group instead of
+ * raising the ceiling.
+ *
+ * The two newest arms are one action each because the surfaces they configure are subscribed to
+ * their stores (`statusline-session.ts`, `title-session.ts`). Nothing has to be re-rendered from
+ * here — the write notifies, which is the property `theme-session.tsx` documents as load-bearing.
+ *
+ * `/permissions` still only reports, and that is the design rather than an unfinished half. Its
+ * setters stay where they are — `/approval` in `turn`, `/sandbox` in `transcriptOut` — because the
+ * sandbox one arms a confirmation before a loosening, and a second route to the same value would
+ * either duplicate that guard or walk around it. `/theme` has no such guard to respect: the colour
+ * base grants nothing, so the command that reports it is also the one that sets it.
+ */
+function settings(action: CommandAction, _text: string, cap: SettingsCapabilities): boolean {
+  switch (action.kind) {
+    case 'showPermissions':
+      cap.setPanel(permissionsPanel(cap.approvalMode, cap.SESSION.cfg().sandboxDetail))
+      return true
+    case 'theme':
+      handleTheme(action.arg, cap.setToast, storeThemeBase, themeStorePath)
+      return true
+    case 'title':
+      handleTitle(action.arg, cap)
+      return true
+    case 'statusline':
+      handleStatusline(action.arg, cap)
+      return true
     default:
       return false
   }
 }
 
 function shells(action: CommandAction, _text: string, cap: ShellCapabilities): boolean {
-  const { ptyOwner, setToast } = cap
   switch (action.kind) {
-    case 'listPtys': {
-      const n = ptyOwner.backend().activeSessionCount()
-      setToast({
-        message:
-          n === 0
-            ? 'No background shell sessions'
-            : `${String(n)} background shell session(s) — /stop ends all of them`,
-        variant: 'info',
-      })
+    case 'listPtys':
+      handleListPtys(cap.ptyOwner, cap.setToast)
       return true
-    }
-    case 'stopPtys': {
-      const before = ptyOwner.backend().activeSessionCount()
-      ptyOwner.backend().killAll()
-      setToast({
-        message:
-          before === 0
-            ? 'Nothing to stop — no background sessions'
-            : `${String(before)} background shell session(s) ended`,
-        variant: before === 0 ? 'info' : 'success',
-      })
+    case 'stopPtys':
+      handleStopPtys(cap.ptyOwner, cap.setToast)
       return true
-    }
     default:
       return false
   }

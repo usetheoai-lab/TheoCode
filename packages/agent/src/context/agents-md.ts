@@ -19,33 +19,75 @@ const SEPARATOR = '\n\n--- project-doc ---\n\n'
  * which files load. So the walk below stays ours and the expansion becomes theirs, which is the
  * split that was always correct.
  */
-export function loadAgentsMd(
-  cwd: string,
-  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
-): string {
+/**
+ * The instruction files the walk finds, grouped by the directory they came from.
+ *
+ * ONE traversal, used by both callers. `/status` has to answer "is an AGENTS.md steering this
+ * agent?" — Codex answers it on its own status panel (`Agents.md: <none>`) and this product
+ * answered it nowhere — and the only wrong way to answer it is a second walk that can disagree
+ * with the one that actually loaded.
+ */
+/**
+ * The instruction file, in order of precedence, FIRST-WINS per directory level.
+ *
+ * `THEO.md` is this product's own name; `AGENTS.md` is the cross-tool convention; `CLAUDE.md` is
+ * read so a repository written for Claude Code steers this agent with no migration — which was the
+ * finding: the list was literal, so an adopter arriving from there brought nothing and started by
+ * re-writing instructions they already had.
+ *
+ * FIRST-WINS is a change of kind, not of degree. The previous list read BOTH files it knew about at
+ * every level; now a directory contributes exactly ONE. A repository that grows a `THEO.md`
+ * therefore stops reading its `AGENTS.md` — that is the point (one file steers, and which one is
+ * unambiguous) and it is also the surprise, so a test pins it rather than leaving it to be found.
+ */
+export const BASE_NAMES = ['THEO.md', 'AGENTS.md', 'CLAUDE.md'] as const
+
+/**
+ * The private companion, running its OWN chain rather than following the winner above.
+ *
+ * If it followed, adding a `THEO.md` would silently orphan an existing `AGENTS.local.md` — a file
+ * the operator wrote, disabled by a file they added for an unrelated reason. Two independent chains
+ * cost one line and remove that trap.
+ */
+const LOCAL_NAMES = ['THEO.local.md', 'AGENTS.local.md', 'CLAUDE.local.md'] as const
+
+function walkInstructionChain(cwd: string): {
+  rootDir: string
+  chain: { dir: string; files: string[] }[]
+} {
   const chain: { dir: string; files: string[] }[] = []
   let dir = cwd
-  let rootDir = cwd
   for (;;) {
-    const files = ['AGENTS.md', 'AGENTS.local.md']
-      .map((f) => join(dir, f))
-      .filter((p) => existsSync(p))
+    const files = [BASE_NAMES, LOCAL_NAMES]
+      .map((names) => names.map((f) => join(dir, f)).find((p) => existsSync(p)))
+      .filter((p): p is string => p !== undefined)
     if (files.length > 0) chain.push({ dir, files })
-    if (existsSync(join(dir, '.git'))) {
-      rootDir = dir
-      break
-    }
+    // The repository root bounds the import expansion below.
+    if (existsSync(join(dir, '.git'))) return { rootDir: dir, chain }
     const parent = dirname(dir)
     if (parent === dir) {
       // B-042 — reaching the FILESYSTEM ROOT used to set `rootDir = '/'`, which makes
       // `insideRoot(anything, '/')` true: outside a git repository the confinement did not merely
       // stop working, it permitted reading any file on the machine into the system prompt. With no
       // repository to bound it, the project IS the working directory.
-      rootDir = cwd
-      break
+      return { rootDir: cwd, chain }
     }
     dir = parent
   }
+}
+
+/** The paths the walk would read, root-most first — the order `loadAgentsMd` composes them in. */
+export function agentsMdChain(cwd: string): readonly string[] {
+  return walkInstructionChain(cwd)
+    .chain.flatMap((l) => l.files)
+    .reverse()
+}
+
+export function loadAgentsMd(
+  cwd: string,
+  warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
+): string {
+  const { rootDir, chain } = walkInstructionChain(cwd)
   const chainPaths = new Set(chain.flatMap((l) => l.files))
 
   const found: string[] = []

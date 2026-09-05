@@ -10,7 +10,12 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   // `deadcode-output/` is the loop-deadcode-audit plugin's working directory (gitignored, like
   // `code-review-output`). Its scripts are throwaway analysis tooling, not project source.
-  { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**'] },
+  // `codex/` is the OpenAI Codex study clone (99 MB, Apache-2.0), kept on disk as the reference the
+  // parity work is measured against and gitignored so it can never be committed. ESLint does not
+  // read `.gitignore`, and from v10 it descends here and tries to LOAD `codex/sdk/typescript/
+  // eslint.config.js` — a foreign config with plugins this repository does not install, which
+  // aborted the whole lint run with ERR_MODULE_NOT_FOUND before a single file of ours was checked.
+  { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**', 'codex/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // `tools/` and the dependency-cruiser config are Node CommonJS/ESM build scripts, not app source:

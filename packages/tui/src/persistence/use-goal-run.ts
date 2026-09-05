@@ -29,9 +29,20 @@ export function useGoalRun(pointer: string): GoalRun {
   return { goalRun, setGoalRun, goalActive, goalBadge }
 }
 
+/**
+ * The badge, WITHOUT a separator.
+ *
+ * It used to carry a leading ` · ` because the footer glued it straight onto the sandbox label.
+ * Once the footer became a selection (`statusline-session.ts`) the separator became the footer's
+ * job — the badge is one item among several, and an item that brings its own delimiter renders
+ * ` ·  · goal:…` the moment the run is joined rather than concatenated.
+ *
+ * `''` when there is no run, which the footer reads as "omit": that is what keeps a selection
+ * containing `goal` from leaving a dangling separator on the ninety-nine sessions with no goal.
+ */
 function goalLabel(goalRun: GoalRunState | null, goalActive: boolean, goalElapsed: number): string {
   if (goalRun === null) return ''
-  if (goalActive) return ` · goal:pursuing (${String(goalElapsed)}s)`
+  if (goalActive) return `goal:pursuing (${String(goalElapsed)}s)`
   const total = Math.round(((goalRun.endedAt ?? Date.now()) - goalRun.startedAt) / 1000)
-  return ` · goal:${goalRun.status} (${String(total)}s)`
+  return `goal:${goalRun.status} (${String(total)}s)`
 }

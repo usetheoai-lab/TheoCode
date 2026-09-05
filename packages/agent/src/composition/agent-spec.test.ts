@@ -73,9 +73,13 @@ describe('B-059 — an agent shape is declared, not written', () => {
     // The registry's fail-loud policy has to survive the indirection. A shape that silently dropped
     // an unknown name would hand an agent less authority than its declaration says, with no signal
     // — the "unobservable change of authority" the framework's own Toolset docstring warns about.
+    // The message must NAME the offending tool, and that is the assertion rather than a bare
+    // `.toThrow()`: any throw satisfies the bare form, including a crash for an unrelated reason,
+    // so it would go on passing after the fail-loud policy had decayed into a stack trace. Measured
+    // — the message is `unknown tool "gerp"` — not guessed from the source.
     expect(() =>
       declareAgent('typo', ctx(), [toolsNamed(ctx().registry, ['read_file', 'gerp'])]),
-    ).toThrow()
+    ).toThrow(/unknown tool "gerp"/)
   })
 
   it('test_the_reviewer_tool_names_all_exist_in_the_registry', async () => {

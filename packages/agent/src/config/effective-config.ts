@@ -13,7 +13,6 @@ import {
   type SandboxMode,
 } from './config.js'
 import { approvalModeFor } from './sandbox-policy.js'
-import { TRUST_STORE } from './trust-store.js'
 import { resolveTrustPosture } from './trust-posture.js'
 
 export class EffectiveConfig {
@@ -24,6 +23,14 @@ export class EffectiveConfig {
   readonly goal_oracle: GoalOracle
   readonly skills: readonly string[]
   readonly hooks: readonly unknown[]
+  /** Durable memory — off unless asked for. See `AgentConfig.memory` for why the default is off. */
+  readonly memory: boolean
+  /** The directory under the operator's home where this product keeps its state. See `home-dir.ts`. */
+  readonly home_dir: string
+  /** Milliseconds before an operator-supplied shell command is killed. See `AgentConfig`. */
+  readonly shell_timeout_ms: number
+  /** Whether the session collector runs on its own. See `AgentConfig.session_gc`. */
+  readonly session_gc: boolean
   readonly profile: string | undefined
 
   readonly #contextWindow: number | undefined
@@ -34,6 +41,10 @@ export class EffectiveConfig {
     this.sandbox_mode = cfg.sandbox_mode
     this.approval_policy = cfg.approval_policy
     this.goal_oracle = cfg.goal_oracle
+    this.memory = cfg.memory
+    this.home_dir = cfg.home_dir
+    this.shell_timeout_ms = cfg.shell_timeout_ms
+    this.session_gc = cfg.session_gc
     this.profile = cfg.profile
     this.#contextWindow = cfg.context_window
 
@@ -56,9 +67,24 @@ export class EffectiveConfig {
     return resolveSandboxPosture({ mode: this.sandbox_mode })
   }
 
+  /**
+   * The sandbox posture WITH the `sandbox:` prefix — for the footer, where it sits in a `·`-joined
+   * run of bare values and needs to say which knob it is.
+   */
   get sandboxLabel(): string {
+    return `sandbox:${this.sandboxDetail}`
+  }
+
+  /**
+   * The same posture WITHOUT the prefix, for anywhere the label is already supplied by a column.
+   *
+   * `/status` renders a `sandbox:` column and filled it with `sandboxLabel`, so the panel read
+   * `sandbox:    sandbox:workspace-write`. Splitting the getter is what stops the next consumer
+   * from either repeating the prefix or stripping it back off with a `replace`.
+   */
+  get sandboxDetail(): string {
     const p = this.sandboxPosture
-    return p.enforced ? `sandbox:${p.mode}` : `sandbox:${p.mode} ⚠ tool-gating`
+    return p.enforced ? p.mode : `${p.mode} ⚠ tool-gating`
   }
 
   get approvalMode(): 'suggest' | 'auto-edit' | 'full-auto' {
@@ -96,7 +122,7 @@ export function resolveEffectiveConfig(
     loadConfig({
       ...withCliLayer(opts),
       projectDir: opts.projectDir ?? cwd,
-      posture: resolveTrustPosture(cwd, opts.store ?? TRUST_STORE),
+      posture: resolveTrustPosture(cwd, opts.store),
     }),
   )
 }

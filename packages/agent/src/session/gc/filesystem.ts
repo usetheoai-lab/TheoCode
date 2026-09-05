@@ -24,6 +24,8 @@ import {
   type AllResult,
 } from './all-sessions.js'
 import { readPointerId } from './pointer.js'
+import { claimDefaultRoot } from './root-claim.js'
+import { OWNERSHIP_MARKER, rootIsOurs } from './root-ownership.js'
 
 const FIRST_LINE_CAP = 64 * 1024
 
@@ -33,7 +35,8 @@ const FIRST_LINE_CAP = 64 * 1024
  * Counts filesystem OPERATIONS now, not DFS nodes: the depth and per-project node ceilings went with
  * the oracle, because `classifyProjects` resolves a project by reading a transcript's recorded cwd
  * rather than by walking the disk. The measured cost is ~2.54 operations per project, so 200 000
- * covers a tree an order of magnitude past the 13 269 that motivated the ticket. What the sweep
+ * covers ~78 700 projects at that rate — 5.9x the 13 269 that motivated the ticket, not the
+ * order of magnitude an earlier version of this sentence claimed. What the sweep
  * cannot classify within it is UNDETERMINED and therefore KEPT (B-020) — the safe direction on the
  * only path that deletes user data.
  */
@@ -107,6 +110,26 @@ function listProjectDirs(root: string): string[] {
 
 export async function planAllProjectsOnDisk(opts: CliOptions = {}): Promise<AllPlan> {
   const root = opts.projectsRoot ?? projectsRoot()
+  claimDefaultRoot(root)
+  if (!rootIsOurs(root)) {
+    // REFUSED, and loudly. The alternative is what this used to do: enumerate a directory nobody
+    // marked, find nothing it recognises, and report a clean sweep — measured 2026-09-04 as
+    // `DRY-RUN — 0 would remove; 0 kept` over an empty root, exit 0.
+    //
+    // An empty plan is the honest shape: nothing IS a candidate. `errors` carries the reason so the
+    // operator reads a refusal rather than inferring one from a zero.
+    return {
+      candidates: [],
+      kept: [],
+      touchedProjects: [],
+      liveCwds: [],
+      totalByKind: {} as AllPlan['totalByKind'],
+      errors: [
+        `${root}: this collector did not create this directory and will not delete inside it — ` +
+          `write ${OWNERSHIP_MARKER} beside it to claim it deliberately`,
+      ],
+    }
+  }
   // Enumerated ONCE and shared: the framework's sweep classifies the whole list in one call against
   // one budget, so it needs the names up front — and reading the directory twice could hand the two
   // halves different sets on a tree that changes under them.
