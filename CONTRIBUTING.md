@@ -14,10 +14,10 @@ a dependency bump, a new option reaching the framework, anything about what the 
 exercise the built binary in a throwaway project. The suite mocks the boundary this kind of change
 crosses, which is exactly why it stays green through the failure.
 
-## Two ways a careful measurement still lies
+## Ways a careful measurement still lies
 
-Both of these happened here, hours apart, and neither is caught by being more careful with the
-measurement itself. The fault is upstream of it.
+All of these happened here, and none is caught by being more careful with the measurement itself.
+The fault is upstream of it.
 
 ### A compound command can skip the step that gave the rest its meaning
 
@@ -64,6 +64,31 @@ It is doing its job — it cannot see an install that did not happen.
 So the question is not *"did I inspect an artifact?"* but **"which artifact does the system
 execute?"** Answer it by following the call path, or by instrumenting the real call site and
 rebuilding.
+
+### A test double must branch on everything the real function branches on
+
+`composition.test.ts` mocks the subagent loader so a role's declared tools are the test's input. The
+double keyed on one argument — the setting sources — and ignored the directory:
+
+```ts
+const discoverSubagents = vi.fn((_cwd: string, opts: { settingSources: string[] }) => ...)
+```
+
+That was faithful while production called the loader once. When the operator's root was added, it
+called it **twice** — once for the project, once for the home — and both calls pass
+`settingSources: ['project']`, because that token selects the `<cwd>/.theokit/agents` *layout*, not
+the root. The double could not tell the two calls apart, so it answered the home call with the
+repository's roles, and a test asserting that an untrusted repository is refused would have passed
+while the repository's own definition was used.
+
+The danger is the direction it fails in. A double that keys on fewer dimensions than the real
+function silently **merges two different calls into one answer**, and merged answers look like
+passes. Its own docblock had already warned that a mock returning roles regardless "would make the
+untrusted assertion pass for the wrong reason" — the warning was right and the code had drifted past
+it.
+
+Before trusting a double, list the inputs the real function branches on and check the double branches
+on each. If it does not, it is answering a different question than the code does.
 
 ## Filing upstream
 
