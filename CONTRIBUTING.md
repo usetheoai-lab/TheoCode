@@ -90,6 +90,31 @@ it.
 Before trusting a double, list the inputs the real function branches on and check the double branches
 on each. If it does not, it is answering a different question than the code does.
 
+### A filter narrower than the signal reports absence, and absence reads as a negative
+
+Four times in one day, across two repositories, a measurement was nearly reported backwards because
+the output was trimmed before it was read:
+
+| filter | what it cut | the conclusion it would have produced |
+|---|---|---|
+| `tail -3` | a version-floor warning printed at the top | "the snapshot does not fix #74" |
+| `grep -A2` | an `env:` twelve lines below the match | "the token never reached the branch" |
+| `tail -30` of a push log | the gate's own diagnostic | "the push failed, reason unknown" |
+| the test runner from the repo root | a package's setup | "72 tests broke, this is a regression" |
+
+The asymmetry is what makes this dangerous. A **wrong command** produces an error, and an error
+demands attention. A **narrow filter** produces silence — and silence is exactly what a true negative
+looks like, so nothing about it feels wrong. The first case above was caught only because the same
+command was re-run without the pipe.
+
+The version-floor case is the sharpest: `compatSources` had been switched off by a guard before the
+test could exercise it, so the arm did not fail, it was **void**. Reporting it as a failure would
+have sent someone hunting for a bug in code that was correct.
+
+Before trusting a negative result, re-run the command with no filter at all and read the whole
+output. If that is impractical, filter for the signal AND for the words a guard would use when it
+disables something.
+
 ## Filing upstream
 
 This product is built on `@theokit/*`, and a finding often belongs to a repository that is not this
