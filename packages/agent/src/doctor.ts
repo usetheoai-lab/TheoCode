@@ -114,7 +114,11 @@ e: { active: readonly string[]; suppressedByTrust: boolean },
 /** The disagreement between the declared skills and the disk, or no row when there is none. */
 function skillsOnDiskCheck(
   found:
-    | { readonly declaredButAbsent: readonly string[]; readonly presentButUndeclared: readonly string[] }
+    | {
+        readonly declaredButAbsent: readonly string[]
+        readonly presentButUndeclared: readonly string[]
+        readonly declaredUserOnlySoNotLoaded?: readonly string[]
+      }
     | undefined,
 ): Check[] {
   if (found === undefined) return []
@@ -123,6 +127,16 @@ function skillsOnDiskCheck(
     parts.push(`declared with no SKILL.md: ${found.declaredButAbsent.join(', ')}`)
   if (found.presentButUndeclared.length > 0)
     parts.push(`on disk but declared nowhere, so not loaded: ${found.presentButUndeclared.join(', ')}`)
+  // #65 — a third state, and its remedy is neither of the two above: the file exists and the config
+  // names it, and it still does not load, because the resolver builds every root from `cwd`. Saying
+  // "no SKILL.md" here named a cause that is false; saying nothing left a declared skill silently
+  // inert. Naming the root is what makes the row actionable — the fix is to move the file.
+  if ((found.declaredUserOnlySoNotLoaded ?? []).length > 0)
+    parts.push(
+      `on disk only under your own root, which is not read — move into the project to load: ${(
+        found.declaredUserOnlySoNotLoaded ?? []
+      ).join(', ')}`,
+    )
   if (parts.length === 0) return []
   // A warning, never a failure: neither direction breaks a working install, and exiting non-zero
   // over a skill someone is midway through writing would report work-in-progress as broken.
@@ -149,6 +163,7 @@ export function collectChecks(input: {
   readonly skillsOnDisk?: {
     readonly declaredButAbsent: readonly string[]
     readonly presentButUndeclared: readonly string[]
+    readonly declaredUserOnlySoNotLoaded?: readonly string[]
   }
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }

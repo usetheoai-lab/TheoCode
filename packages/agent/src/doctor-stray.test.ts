@@ -97,8 +97,26 @@ describe('#72 — the mcp row under partial suppression', () => {
  * declares. Both measured on the built binary; both invisible because the row was the declared list.
  */
 describe('#67 — declared skills against the disk', () => {
-  const rows = (skills: { declaredButAbsent: string[]; presentButUndeclared: string[] }) =>
-    collectChecks({ ...base, skillsOnDisk: skills })
+  const rows = (skills: {
+    declaredButAbsent: string[]
+    presentButUndeclared: string[]
+    declaredUserOnlySoNotLoaded?: string[]
+  }) => collectChecks({ ...base, skillsOnDisk: skills })
+
+  it('test_a_skill_only_under_the_user_root_says_it_does_not_load', () => {
+    // #65 — measured 2026-09-05 with a positive control: the same file loads from the project and
+    // not from `~/.theokit/skills/`. The row must say that, and must NOT say "no SKILL.md" — the
+    // file is there, and sending the reader to write it again is worse than silence.
+    const row = rows({
+      declaredButAbsent: [],
+      presentButUndeclared: [],
+      declaredUserOnlySoNotLoaded: ['mine'],
+    }).find((c) => c.name === 'skills-on-disk')
+
+    expect(row?.status, 'a skill that does not load was reported as fine').toBe('warn')
+    expect(row?.detail).toContain('mine')
+    expect(row?.detail, 'the false cause came back').not.toContain('no SKILL.md')
+  })
 
   it('test_a_declared_skill_with_no_file_is_reported', () => {
     const row = rows({ declaredButAbsent: ['ghost'], presentButUndeclared: [] }).find(

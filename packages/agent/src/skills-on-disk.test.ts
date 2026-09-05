@@ -26,17 +26,26 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { skillsOnDisk } from './skills-on-disk.js'
 
 let cwd: string
+let home: string
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), 'theocode-skills-'))
+  home = mkdtempSync(join(tmpdir(), 'theocode-home-'))
 })
 afterEach(() => {
   rmSync(cwd, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 })
 
 function write(root: string, name: string): void {
   mkdirSync(join(cwd, root, 'skills', name), { recursive: true })
   writeFileSync(join(cwd, root, 'skills', name, 'SKILL.md'), `---\nname: ${name}\n---\nbody\n`)
+}
+
+/** The operator's own root — `~/.theokit/skills/<name>/SKILL.md`. */
+function writeUser(name: string): void {
+  mkdirSync(join(home, '.theokit', 'skills', name), { recursive: true })
+  writeFileSync(join(home, '.theokit', 'skills', name, 'SKILL.md'), `---\nname: ${name}\n---\nbody\n`)
 }
 
 describe('#67 — declared against what is on disk', () => {
@@ -70,6 +79,7 @@ describe('#67 — declared against what is on disk', () => {
     expect(skillsOnDisk(cwd, ['exists'])).toEqual({
       declaredButAbsent: [],
       presentButUndeclared: [],
+      declaredUserOnlySoNotLoaded: [],
     })
   })
 
@@ -81,7 +91,64 @@ describe('#67 — declared against what is on disk', () => {
     expect(skillsOnDisk(cwd, ['hollow']).declaredButAbsent).toEqual(['hollow'])
   })
 
+
+  it('test_a_skill_under_the_user_root_is_not_reported_as_absent', () => {
+    // Measured 2026-09-05 against the built binary: a `SKILL.md` at `~/.theokit/skills/<name>/`,
+    // declared in config, produced `! declared with no SKILL.md`. The file was there. The reason
+    // given was false, and a diagnostic that names the wrong cause sends the reader to write a file
+    // that already exists.
+    writeUser('mine')
+
+    expect(skillsOnDisk(cwd, ['mine'], home).declaredButAbsent).toEqual([])
+  })
+
+  it('test_a_skill_only_under_the_user_root_is_named_as_not_loading', () => {
+    // And it is NOT clean either. Same measurement, with the same file copied into the project as a
+    // positive control: the project copy loads (`PROBE-OK`), the user copy leaves the model with no
+    // skill tool at all. `@theokit/sdk@5.0.1` builds every skill root from `cwd`
+    // (`SkillsCapability.refresh`), so the operator's root contributes nothing.
+    //
+    // Reporting it as present would be the failure this whole module exists to end, one root over:
+    // a green tick over a capability that is not there.
+    writeUser('mine')
+
+    expect(skillsOnDisk(cwd, ['mine'], home).declaredUserOnlySoNotLoaded).toEqual(['mine'])
+  })
+
+  it('test_the_project_root_wins_when_a_name_lives_in_both', () => {
+    // The project copy is the one that loads, so a name present in both is simply present.
+    write('.theokit', 'both')
+    writeUser('both')
+
+    const found = skillsOnDisk(cwd, ['both'], home)
+    expect(found.declaredUserOnlySoNotLoaded).toEqual([])
+    expect(found.declaredButAbsent).toEqual([])
+  })
+
+  it('test_an_undeclared_user_skill_is_not_dragged_into_the_project_direction', () => {
+    // `presentButUndeclared` means "add a config line and it loads". That is false for the user
+    // root, where declaring it changes nothing today — so it must not appear there.
+    writeUser('stray')
+
+    expect(skillsOnDisk(cwd, [], home).presentButUndeclared).toEqual([])
+  })
+
+  it('test_omitting_the_home_keeps_the_old_answer', () => {
+    // Anti-vacuity on the new argument: callers that pass no home get exactly what they got before.
+    write('.theokit', 'exists')
+
+    expect(skillsOnDisk(cwd, ['exists'])).toEqual({
+      declaredButAbsent: [],
+      presentButUndeclared: [],
+      declaredUserOnlySoNotLoaded: [],
+    })
+  })
+
   it('test_no_skills_anywhere_is_not_an_error', () => {
-    expect(skillsOnDisk(cwd, [])).toEqual({ declaredButAbsent: [], presentButUndeclared: [] })
+    expect(skillsOnDisk(cwd, [])).toEqual({
+      declaredButAbsent: [],
+      presentButUndeclared: [],
+      declaredUserOnlySoNotLoaded: [],
+    })
   })
 })
