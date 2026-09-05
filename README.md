@@ -123,6 +123,13 @@ without a metrics pipeline and falsifiable by a test:
 - **A failure that cost retries says so.** The transport retries; a turn that spent three attempts
   reports three, so a refused credential cannot read as a quota problem.
 - **A failure names the way to see more**, when there is more to see and diagnostics are off.
+- **A secret scrubbed from the transcript does not come back on resume, and that is the trade.** The
+  live turn sees what you typed — `token: ABC123` is echoed back correctly — while the persisted
+  record stores `token: ***`. Resume replays the record, so the resumed conversation only knows the
+  redaction. Measured 2026-09-05: this reads exactly like a resume defect from the outside, and it is
+  the credential guard doing its job. Storing the value so resume could restore it would put every
+  pasted credential in a file that outlives the session, which is strictly worse than losing it.
+
 - **Housekeeping never takes the agent down.** The session collector reports its failures instead of
   raising them, and sweeps at most once a day.
 - **The delete path fails towards keeping.** What the collector cannot classify is kept, and a
