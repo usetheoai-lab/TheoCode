@@ -22,7 +22,7 @@ import { buildRoleAgent } from './roles.js'
 vi.mock('@theokit/agents', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   discoverSubagents: vi.fn(async () => ({
-    explorer: { name: 'explorer', prompt: 'explore', description: 'x' },
+    explorer: { name: 'explorer', prompt: 'explore', description: 'x', sandbox: true },
   })),
 }))
 
@@ -64,6 +64,28 @@ describe('#74 — what a delegated role is allowed to read', () => {
 
     expect(local.settingSources).toEqual([])
     expect(local.compatSources).toBeUndefined()
+  })
+
+
+  it('test_inheriting_the_roots_does_not_cost_the_role_its_sandbox', async () => {
+    // The one way this fix could have gone wrong, named by the theokit-sdk session while implementing
+    // the same inheritance upstream: `local` is assembled from several conditional pieces, and a
+    // second spread of it overwrites rather than merges. Adding the roots that way would drop
+    // `sandboxOptions` — trading a capability bug for a default-OPEN security one, which is the wrong
+    // direction to trade in.
+    //
+    // It is correct here by construction (one object literal, no re-spread), and nothing said so:
+    // no test in this repository asserted a child's `sandboxOptions` at all. A refactor that
+    // extracted a helper between these fields would break it in silence.
+    const local = await localOf({ subagents: true, hooks: true })
+
+    expect(local.compatSources, 'precondition: the roots are the thing being inherited').toEqual([
+      'claude-code',
+    ])
+    expect(
+      local.sandboxOptions,
+      'the role kept its roots and lost its sandbox — a default-open trade',
+    ).toEqual({ enabled: true })
   })
 
   it('test_the_cwd_is_still_there', async () => {
