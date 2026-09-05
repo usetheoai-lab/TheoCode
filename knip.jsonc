@@ -71,11 +71,6 @@
 
   "includeEntryExports": true,
 
-  // `check-theokit-updates.mjs` shells out to `pnpm view <pkg> version`. knip reads the first
-  // element of an `execFileSync` argv as a binary and reports `view` as unlisted — it is a pnpm
-  // SUBCOMMAND, and no package provides it. Ignoring the name is narrower than exempting the file.
-  "ignoreBinaries": ["view"],
-
   "workspaces": {
     // Only the test globs are listed. The other ten patterns this block used to carry were reported
     // by knip itself as `Remove redundant entry pattern` — it already reaches each of them without
