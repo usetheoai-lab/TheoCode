@@ -65,6 +65,15 @@ So the question is not *"did I inspect an artifact?"* but **"which artifact does
 execute?"** Answer it by following the call path, or by instrumenting the real call site and
 rebuilding.
 
+**The sharpest form of this is two trees on one machine.** Testing an upstream change means
+installing it in a worktree with a dependency override — and the main checkout still holds the
+pinned version. Both `.d.ts` files are real, both are on disk, and an editor or a `grep` run from the
+repository root resolves the *pinned* one. Measured here: a type read from the release tree's
+`@theokit/sdk@5.0.1` was compared against behaviour from a snapshot build, and the field that the
+snapshot had added read as absent — twice, across two rounds, while the answer sat in the file the
+worktree had installed. When an override is in play, read every signature from the worktree's
+`node_modules`, by absolute path, or the reading is stale by construction.
+
 ### A test double must branch on everything the real function branches on
 
 `composition.test.ts` mocks the subagent loader so a role's declared tools are the test's input. The
@@ -114,6 +123,12 @@ have sent someone hunting for a bug in code that was correct.
 Before trusting a negative result, re-run the command with no filter at all and read the whole
 output. If that is impractical, filter for the signal AND for the words a guard would use when it
 disables something.
+
+**Write the rule and you will still break it.** Both later instances above happened *after* this
+section existed, by its own author. Knowing a pattern does not fire at the moment of confidence; it
+fires afterwards, re-reading what you already wrote. So the practice is not "remember this" — it is
+mechanical: **every empty or negative output that is about to become a claim gets a second read with
+a wider window.** Two lines of cost, and it does not depend on having been suspicious.
 
 ## Filing upstream
 
