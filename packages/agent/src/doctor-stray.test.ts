@@ -89,3 +89,53 @@ describe('#72 — the mcp row under partial suppression', () => {
     expect(withMcp(['mine', 'theirs'], false)).toBe('mine, theirs')
   })
 })
+
+/**
+ * #67 — the skills row stops being a copy of the configuration.
+ *
+ * A green tick for a declared skill with no `SKILL.md`, and silence about a `SKILL.md` nothing
+ * declares. Both measured on the built binary; both invisible because the row was the declared list.
+ */
+describe('#67 — declared skills against the disk', () => {
+  const rows = (skills: { declaredButAbsent: string[]; presentButUndeclared: string[] }) =>
+    collectChecks({ ...base, skillsOnDisk: skills })
+
+  it('test_a_declared_skill_with_no_file_is_reported', () => {
+    const row = rows({ declaredButAbsent: ['ghost'], presentButUndeclared: [] }).find(
+      (c) => c.name === 'skills-on-disk',
+    )
+
+    expect(row?.status, 'a capability that is not there was reported as fine').toBe('warn')
+    expect(row?.detail).toContain('ghost')
+  })
+
+  it('test_a_file_nothing_declares_is_reported', () => {
+    const row = rows({ declaredButAbsent: [], presentButUndeclared: ['undeclared'] }).find(
+      (c) => c.name === 'skills-on-disk',
+    )
+
+    expect(row?.detail, 'the documented way to create a skill did nothing, silently').toContain(
+      'undeclared',
+    )
+  })
+
+  it('test_the_two_directions_are_told_apart', () => {
+    // They have different remedies — a name to delete or a file to write, against a line to add.
+    const row = rows({ declaredButAbsent: ['ghost'], presentButUndeclared: ['orphan'] }).find(
+      (c) => c.name === 'skills-on-disk',
+    )
+
+    expect(row?.detail).toMatch(/ghost[\s\S]*orphan/)
+  })
+
+  it('test_agreement_adds_no_row', () => {
+    // A row that permanently reads "consistent" is noise in a ten-row diagnostic.
+    const names = rows({ declaredButAbsent: [], presentButUndeclared: [] }).map((c) => c.name)
+
+    expect(names).not.toContain('skills-on-disk')
+  })
+
+  it('test_a_caller_that_did_not_look_says_nothing', () => {
+    expect(collectChecks(base).map((c) => c.name)).not.toContain('skills-on-disk')
+  })
+})

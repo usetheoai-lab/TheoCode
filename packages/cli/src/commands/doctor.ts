@@ -45,6 +45,7 @@ export function credentialState(path: string, now: number = Date.now()): Credent
 export async function doctorCommand(opts: { json: boolean; cd?: string }): Promise<void> {
   const agent = await import('@theocode/agent')
   const { authFilePath, strayCredentialFiles } = await import('@theocode/agent/auth')
+  const { skillsOnDisk } = await import('@theocode/agent')
   const { resolveEffectiveConfig, resolveTrustPosture } = await import('@theocode/agent/config')
   const cwd = opts.cd ?? process.cwd()
 
@@ -81,6 +82,9 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // read by nothing and rotated by nothing. The store is deliberately NOT moved — that is the one
     // step of the unification that can log an operator out — so the leftover is made visible.
     strayCredentials: strayCredentialFiles(homedir(), process.env),
+    // #67 — the skills row is the DECLARED list, so it ticked green for a name with no SKILL.md and
+    // said nothing about a file no configuration named. This holds the two against each other.
+    skillsOnDisk: skillsOnDisk(cwd, cfg.skills),
     wired,
   })
   const result = agent.diagnose(checks)

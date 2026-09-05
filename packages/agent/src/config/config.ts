@@ -246,7 +246,11 @@ const DEFAULTS: AgentConfig = {
   home_dir: DEFAULT_HOME_DIR,
   shell_timeout_ms: DEFAULT_SHELL_TIMEOUT_MS,
   session_gc: true,
-  skills: ['daily-briefing'],
+  // #67 — empty, because no skill ships with this product. The default was `['daily-briefing']`,
+  // a name that resolves to no `SKILL.md` anywhere in the tree or in any state directory, so every
+  // fresh install declared a capability it did not have and `/skills` listed it as available. A
+  // default that names something absent is worse than none: the panel cannot be read as evidence.
+  skills: [],
   hooks: [],
 }
 
