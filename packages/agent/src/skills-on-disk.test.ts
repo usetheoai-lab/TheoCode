@@ -144,6 +144,32 @@ describe('#67 — declared against what is on disk', () => {
     })
   })
 
+
+  it('test_the_foreign_root_is_not_offered_the_declare_it_remedy', () => {
+    // Dogfooded on this repository 2026-09-05: `.claude/skills/` held 40 entries installed by a
+    // Claude Code kit and `.theokit/skills/` was empty, so the row asked the operator to declare
+    // thirty-nine skills belonging to another tool. Every one of them is a true statement and the
+    // row is useless — and a diagnostic nobody reads is the failure this project's own rules name:
+    // "the first thing anyone does with a noisy gate is turn it off".
+    //
+    // The asymmetry is deliberate and matches the remedy, not the root: a `SKILL.md` under
+    // `.theokit/skills/` is one somebody wrote FOR this product and forgot to declare, and
+    // "add a config line" is the fix. Under `.claude/` it is another tool's inventory, and the same
+    // sentence is an instruction to adopt it.
+    write('.claude', 'theirs')
+
+    expect(skillsOnDisk(cwd, []).presentButUndeclared).toEqual([])
+  })
+
+  it('test_the_foreign_root_still_counts_when_a_declared_skill_lives_there', () => {
+    // The other direction is unchanged and must stay unchanged: `.claude/skills/` IS read since #72,
+    // measured on the built binary (`FOREIGN-SKILL`), so a declared skill living only there is not
+    // missing and must not be reported as such.
+    write('.claude', 'theirs')
+
+    expect(skillsOnDisk(cwd, ['theirs']).declaredButAbsent).toEqual([])
+  })
+
   it('test_no_skills_anywhere_is_not_an_error', () => {
     expect(skillsOnDisk(cwd, [])).toEqual({
       declaredButAbsent: [],

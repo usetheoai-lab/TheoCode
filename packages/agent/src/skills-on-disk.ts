@@ -7,10 +7,31 @@ import { DEFAULT_HOME_DIR } from './config/home-dir.js'
 /** The project roots a skill may live under, in the order `#72` established for the other surfaces. */
 const ROOTS = [DEFAULT_HOME_DIR, '.claude'] as const
 
+/**
+ * The root a skill written FOR this product lives under.
+ *
+ * Only this one can be missing a config line, so only this one is searched for the undeclared
+ * direction — see the note on `presentButUndeclared` below.
+ */
+const NATIVE_ROOT = DEFAULT_HOME_DIR
+
 export interface SkillsOnDisk {
   /** Declared in configuration, with no `SKILL.md` under any root — the operator's included. */
   readonly declaredButAbsent: readonly string[]
-  /** A `SKILL.md` in the PROJECT that no configuration names, so nothing loads it. */
+  /**
+   * A `SKILL.md` under this product's OWN project root that no configuration names, so nothing
+   * loads it.
+   *
+   * The foreign root is deliberately excluded. Dogfooded on this repository 2026-09-05:
+   * `.claude/skills/` held forty entries installed by a Claude Code kit and `.theokit/skills/` was
+   * empty, so this list named thirty-nine skills belonging to another tool. Each entry was true and
+   * the row was useless — and `rules/english-only.md` states the cost of that in this project's own
+   * words: the first thing anyone does with a noisy gate is turn it off.
+   *
+   * The line is drawn by the REMEDY, not by the root. "Add a config line" is the fix for a skill
+   * someone wrote for this product and forgot to declare. Said about another tool's inventory, the
+   * same sentence is an instruction to adopt it.
+   */
   readonly presentButUndeclared: readonly string[]
   /**
    * Declared, and on disk ONLY under the operator's own root — where nothing reads it (`#65`).
@@ -58,15 +79,17 @@ export function skillsOnDisk(
   home: string = homedir(),
 ): SkillsOnDisk {
   const inProject = new Set(ROOTS.flatMap((root) => skillNamesIn(join(cwd, root, 'skills'))))
+  const inNativeRoot = new Set(skillNamesIn(join(cwd, NATIVE_ROOT, 'skills')))
   const inUserRoot = new Set(skillNamesIn(join(home, DEFAULT_HOME_DIR, 'skills')))
   const named = new Set(declared)
   return {
     declaredButAbsent: [...named]
       .filter((name) => !inProject.has(name) && !inUserRoot.has(name))
       .sort(),
-    // The project direction only: "declare it and it loads" is true there and false under the
-    // operator's root, so a stray user skill must not be offered that remedy.
-    presentButUndeclared: [...inProject].filter((name) => !named.has(name)).sort(),
+    // This product's own project root only. "Declare it and it loads" is false under the operator's
+    // root (nothing reads it) and wrong under the foreign one (it is another tool's inventory), so
+    // neither is offered a remedy that does not fit it.
+    presentButUndeclared: [...inNativeRoot].filter((name) => !named.has(name)).sort(),
     declaredUserOnlySoNotLoaded: [...named]
       .filter((name) => inUserRoot.has(name) && !inProject.has(name))
       .sort(),
