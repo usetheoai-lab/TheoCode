@@ -17,6 +17,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 ## [Unreleased]
 
 ### Added
+- **A delegated role keeping its roots can no longer cost it its sandbox.** `local` is assembled from several conditional pieces, and adding the inherited roots as a second spread would overwrite it rather than merge — dropping `sandboxOptions` and trading a capability bug for a default-OPEN security one. It is correct here by construction, and nothing said so: no test in this repository asserted a child's `sandboxOptions` at all, so a refactor extracting a helper between those fields would have broken it in silence. Proven non-vacuous by introducing the exact trap — the naive spread makes only the new test fail while the other three stay green, which is the shape that would have shipped. Named by the `theokit-sdk` session while implementing the same inheritance upstream.
+
+
+### Added
 - **`npm run lint` refuses a test that asserts something throws without saying what.** `rules/error-handling.md` requires errors to be explicit and typed, and nothing checked that the tests honoured it — a principle written down with no mechanism reads exactly like an enforced one. A bare `expect(fn).toThrow()` is satisfied by any throw, including a `TypeError` from an unrelated null deref, so a test guarding a typed refusal keeps reporting green after that refusal has decayed into a crash. Two such assertions existed and both guarded fail-loud contracts: a non-boolean `memory` key must be rejected rather than coerced, and an unknown tool name must fail at declaration. Both were tightened against **measured** values — `ConfigError` with the field named, and the message `unknown tool "gerp"` — never against what the source looks like it should raise. The gate was proven to fire by planting a violation, because a gate that has never failed has demonstrated nothing.
 
 
