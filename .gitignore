@@ -140,3 +140,6 @@ codex/
 
 # One package manager, one lockfile — see pnpm-workspace.yaml.
 package-lock.json
+
+# Session transcripts dumped by the TUI export; evidence for one run, not project docs.
+/tui-*-*-*-*-*.md
