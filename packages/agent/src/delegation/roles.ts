@@ -1,5 +1,7 @@
-import { Agent, buildModelSelection, discoverSubagents, reasoningEffortOf } from '@theokit/agents'
+import { Agent, buildModelSelection, reasoningEffortOf } from '@theokit/agents'
 import type { CustomTool, HookHandlers, SDKAgent, SubagentDefinition } from '@theokit/agents'
+
+import { discoverRoles } from './role-discovery.js'
 import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
@@ -103,15 +105,19 @@ function unresolvedRole(name: string, posture: TrustPosture): ConfigurationError
     return new ConfigurationError(
       `role "${name}" could not be loaded: the \`project\` subagent source is OFF ` +
         `because this directory is NOT trusted. In that state a repository \`.theokit/agents/${name}.md\` ` +
-        `is not read — whether it exists or not. Trust this directory (the TUI asks on the first ` +
-        `run) to enable project roles. For CI, set the trust-all-directories environment ` +
-        `variable — see \`config/env-knobs.ts\`, which is the registry of every knob.`,
+        `is not read — whether it exists or not. Your OWN \`~/.theokit/agents/${name}.md\` is read ` +
+        `regardless, so defining the role there is the other way out. Trust this directory (the TUI ` +
+        `asks on the first run) to enable project roles. For CI, set the trust-all-directories ` +
+        `environment variable — see \`config/env-knobs.ts\`, which is the registry of every knob.`,
       { code: 'role_source_untrusted' },
     )
   }
-  return new ConfigurationError(`role "${name}" is not in .theokit/agents`, {
-    code: 'role_not_found',
-  })
+  // #65 — naming both roots, because both are searched now. "is not in .theokit/agents" sent the
+  // reader to look in one place when the definition could belong in either.
+  return new ConfigurationError(
+    `role "${name}" is not in .theokit/agents — neither this project's nor your own`,
+    { code: 'role_not_found' },
+  )
 }
 
 function inheritFromParent(
@@ -148,7 +154,12 @@ async function roleAgentOptions(
   // Mutable, because `LocalOptions.settingSources` is — a `readonly` array does not assign to it,
   // and widening the SDK's type from here would be this product deciding a contract it does not own.
   const sources: 'project'[] = ctx.posture.allows.subagents ? ['project'] : []
-  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), { settingSources: sources })
+  // #65 — both roots. The project's is gated by the posture above; the operator's own is not, for
+  // the reason `context/user-agents-md.ts` states for instructions. See `role-discovery.ts`.
+  const found = await discoverRoles({
+    cwd: ctx.cwd ?? process.cwd(),
+    projectAllowed: ctx.posture.allows.subagents,
+  })
   const def = found[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)

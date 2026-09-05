@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+- **A squad role can live in your own `~/.theokit/agents/`, not only in the repository you happen to be in** (#65). Measured with a positive control: the identical file delegated from the project and left the model reporting *"no such subagent/delegation tool is available"* from the operator's root. The gap was ours rather than upstream — `@theokit/sdk` has no user-configuration layer for any surface, so the user-level rules and `AGENTS.md` that already loaded are read by this product's own code, and two surfaces simply never got the same treatment. The project still wins a name collision, and an untrusted directory still contributes nothing: the trust gate asks whether the code in *this* directory is trusted, and nobody's home is the repository. Reuses the framework's own reader by handing it the home directory, rather than listing a directory here — a second reader of one convention is the defect that reader was published to end.
+
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
