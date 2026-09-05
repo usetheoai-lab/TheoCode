@@ -50,7 +50,14 @@ describe('memory is opt-in', () => {
   it('test_a_non_boolean_is_rejected_rather_than_coerced', () => {
     // `memory = "yes"` in TOML must fail loudly. Coercing it would silently enable writing to the
     // user's repository off a typo.
-    expect(() => resolveConfig({ user: { memory: 'yes' } })).toThrow()
+    //
+    // The type and the field are asserted, not merely that something threw: a bare `.toThrow()`
+    // passes on a `TypeError` from an unrelated null deref, so it would keep reporting green while
+    // the typed-refusal contract this test exists to protect had rotted into a crash. Both values
+    // were MEASURED — `ConfigError`, message `config.toml: Invalid input: expected boolean, received
+    // string [memory]` — rather than inferred from what the code looks like it should raise.
+    expect(() => resolveConfig({ user: { memory: 'yes' } })).toThrow(ConfigError)
+    expect(() => resolveConfig({ user: { memory: 'yes' } })).toThrow(/\[memory\]/)
   })
 })
 

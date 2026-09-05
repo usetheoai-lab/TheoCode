@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+- **`npm run lint` refuses a test that asserts something throws without saying what.** `rules/error-handling.md` requires errors to be explicit and typed, and nothing checked that the tests honoured it — a principle written down with no mechanism reads exactly like an enforced one. A bare `expect(fn).toThrow()` is satisfied by any throw, including a `TypeError` from an unrelated null deref, so a test guarding a typed refusal keeps reporting green after that refusal has decayed into a crash. Two such assertions existed and both guarded fail-loud contracts: a non-boolean `memory` key must be rejected rather than coerced, and an unknown tool name must fail at declaration. Both were tightened against **measured** values — `ConfigError` with the field named, and the message `unknown tool "gerp"` — never against what the source looks like it should raise. The gate was proven to fire by planting a violation, because a gate that has never failed has demonstrated nothing.
+
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
