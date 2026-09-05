@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+- **A delegated role no longer carries a shell its definition never granted** (#80). The framework registers a `shell` tool for every local agent whether or not the caller asks — *"including when you pass `tools: []`"*, per the SDK's own `LocalOptions` docblock — so a role declared with three read tools enumerated `shell` first in its catalog, while the test asserting its declared list went on passing. The list was right; the catalog was not. Roles now withhold the builtin. Safe for the roles that legitimately execute: this product's shell is the custom `run_shell` under a different name, verified on the built binary — an executing role still returns `WORKER-OK-42`. **Not verified: the read-only role's effective catalog**, because the squad path summarises its member's reply instead of relaying it, so the claim rests on the unit test plus the SDK's documented contract rather than on an observed listing. The `analyst` is unfixed and stays so — it is a `SubAgent`, whose spec carries no such field, and upstream measured that a withholding parent produces a child that recovers the tool anyway (`usetheokit/theokit-sdk#580`).
+
+
 ### Added
 - **A delegated role keeping its roots can no longer cost it its sandbox.** `local` is assembled from several conditional pieces, and adding the inherited roots as a second spread would overwrite it rather than merge — dropping `sandboxOptions` and trading a capability bug for a default-OPEN security one. It is correct here by construction, and nothing said so: no test in this repository asserted a child's `sandboxOptions` at all, so a refactor extracting a helper between those fields would have broken it in silence. Proven non-vacuous by introducing the exact trap — the naive spread makes only the new test fail while the other three stay green, which is the shape that would have shipped. Named by the `theokit-sdk` session while implementing the same inheritance upstream.
 
