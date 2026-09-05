@@ -140,9 +140,15 @@ async function roleAgentOptions(
   name: string,
   ctx: RoleAgentContext,
 ): Promise<Parameters<typeof Agent.create>[0]> {
-  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), {
-    settingSources: ctx.posture.allows.subagents ? ['project'] : [],
-  })
+  // #74 — the roots this role may read, decided once and used twice: to FIND its definition, and to
+  // tell the child agent what it may read once it exists. They were two answers before, and the
+  // child got neither — so a squad member ran with a narrower view of the workspace than the agent
+  // that spawned it, and said so once per delegation the moment the SDK's notice reached stderr
+  // (usetheokit/theokit-sdk#563).
+  // Mutable, because `LocalOptions.settingSources` is — a `readonly` array does not assign to it,
+  // and widening the SDK's type from here would be this product deciding a contract it does not own.
+  const sources: 'project'[] = ctx.posture.allows.subagents ? ['project'] : []
+  const found = await discoverSubagents(ctx.cwd ?? process.cwd(), { settingSources: sources })
   const def = found[name]
   if (def === undefined) throw unresolvedRole(name, ctx.posture)
   const role = roleConfigFrom(def, name)
@@ -153,6 +159,12 @@ async function roleAgentOptions(
     model: buildModelSelection(modelId, effort),
     local: {
       cwd,
+      settingSources: sources,
+      // The foreign dialect travels WITH the native one and never past it: `.claude/` is
+      // repository-controlled and holds a `hooks.json` that executes shell, so the second root takes
+      // the evidence the first one takes — the rule `setting-sources.ts` states for the parent,
+      // applied to the child that inherits its workspace.
+      ...(sources.length > 0 ? { compatSources: ['claude-code' as const] } : {}),
       ...(role.sandbox !== undefined ? { sandboxOptions: { enabled: role.sandbox } } : {}),
     },
     tools: resolveRoleTools(
