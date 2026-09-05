@@ -111,6 +111,38 @@ e: { active: readonly string[]; suppressedByTrust: boolean },
  * credential, an untrusted directory and a broken config without arranging any of them on disk,
  * and it keeps this function from being a second resolution path of its own.
  */
+/** The disagreement between the declared skills and the disk, or no row when there is none. */
+function skillsOnDiskCheck(
+  found:
+    | {
+        readonly declaredButAbsent: readonly string[]
+        readonly presentButUndeclared: readonly string[]
+        readonly declaredUserOnlySoNotLoaded?: readonly string[]
+      }
+    | undefined,
+): Check[] {
+  if (found === undefined) return []
+  const parts: string[] = []
+  if (found.declaredButAbsent.length > 0)
+    parts.push(`declared with no SKILL.md: ${found.declaredButAbsent.join(', ')}`)
+  if (found.presentButUndeclared.length > 0)
+    parts.push(`on disk but declared nowhere, so not loaded: ${found.presentButUndeclared.join(', ')}`)
+  // #65 — a third state, and its remedy is neither of the two above: the file exists and the config
+  // names it, and it still does not load, because the resolver builds every root from `cwd`. Saying
+  // "no SKILL.md" here named a cause that is false; saying nothing left a declared skill silently
+  // inert. Naming the root is what makes the row actionable — the fix is to move the file.
+  if ((found.declaredUserOnlySoNotLoaded ?? []).length > 0)
+    parts.push(
+      `on disk only under your own root, which is not read — move into the project to load: ${(
+        found.declaredUserOnlySoNotLoaded ?? []
+      ).join(', ')}`,
+    )
+  if (parts.length === 0) return []
+  // A warning, never a failure: neither direction breaks a working install, and exiting non-zero
+  // over a skill someone is midway through writing would report work-in-progress as broken.
+  return [{ name: 'skills-on-disk', status: 'warn', detail: parts.join(' · ') }]
+}
+
 export function collectChecks(input: {
   readonly cwd: string
   readonly trustLevel: string
@@ -124,6 +156,15 @@ export function collectChecks(input: {
    * does not look for them says nothing, rather than asserting there are none.
    */
   readonly strayCredentials?: readonly string[]
+  /**
+   * What configuration claims about skills, held against the disk (#67). Optional: a caller that did
+   * not look says nothing, rather than asserting the two agree.
+   */
+  readonly skillsOnDisk?: {
+    readonly declaredButAbsent: readonly string[]
+    readonly presentButUndeclared: readonly string[]
+    readonly declaredUserOnlySoNotLoaded?: readonly string[]
+  }
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
@@ -147,6 +188,11 @@ export function collectChecks(input: {
     entity('mcp', input.wired.mcp),
     entity('skills', input.wired.skills),
     entity('hooks', input.wired.hooks),
+    // #67 — the skills row above reports what was DECLARED. This one reports where that disagrees
+    // with the disk, in both directions, because they have different remedies: a name to delete or a
+    // file to write, against a config line to add. A green tick for a skill that is not there is the
+    // shape this repository has fixed three times.
+    ...skillsOnDiskCheck(input.skillsOnDisk),
     // Appended only when there is something to say. A row that permanently reads "none" is noise in
     // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
     ...((input.strayCredentials ?? []).length > 0

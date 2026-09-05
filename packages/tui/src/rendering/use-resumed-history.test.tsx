@@ -33,11 +33,24 @@ async function drive(
   }
   const first = steps[0] as { sessionId: string | undefined; resumed: boolean }
   const instance = render(<Probe sessionId={first.sessionId} resumed={first.resumed} />)
-  for (const step of steps.slice(1)) {
-    await new Promise((r) => setTimeout(r, 5))
-    instance.rerender(<Probe sessionId={step.sessionId} resumed={step.resumed} />)
+  let current = first
+  // Settled by RE-RENDERING until the effect's promise has landed, not by waiting a fixed number of
+  // milliseconds. The first version slept 5ms between steps and 20ms at the end: it passed alone and
+  // failed once under the full suite, where the machine is loaded. `rules/testing.md` calls a flaky
+  // test a bug rather than a nuisance. The bound is iterations, so a genuinely stuck effect still
+  // fails instead of hanging.
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 50; i += 1) {
+      await Promise.resolve()
+      instance.rerender(<Probe sessionId={current.sessionId} resumed={current.resumed} />)
+    }
   }
-  await new Promise((r) => setTimeout(r, 20))
+  await settle()
+  for (const step of steps.slice(1)) {
+    current = step
+    instance.rerender(<Probe sessionId={step.sessionId} resumed={step.resumed} />)
+    await settle()
+  }
   instance.unmount()
   return { seen, calls }
 }

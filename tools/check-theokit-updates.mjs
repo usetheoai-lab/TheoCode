@@ -111,17 +111,50 @@ function installedAcross(declarations, name) {
   }
 }
 
-/** The published `latest`, via pnpm — the registry client is not reimplemented here. */
-function publishedLatest(name) {
-  const out = execFileSync('pnpm', ['view', name, 'version'], {
+/**
+ * Which dist-tag a package is tracked on here, read from the version ON DISK (#73).
+ *
+ * Not configured anywhere: a repository that pins a prerelease has already said which channel it
+ * follows, and asking it to say so a second time is a second place to drift.
+ */
+export function channelFor(installed) {
+  if (installed === undefined) return 'latest'
+  return installed.includes('-') ? 'next' : 'latest'
+}
+
+/**
+ * The version this row should compare against, and the channel it came from.
+ *
+ * The channel travels WITH the number because a version with no channel beside it is the ambiguity
+ * that produced #73: the row read `4.63.4` while we were deliberately on `5.0.0-next.1`, and nothing
+ * said which question that number answered.
+ *
+ * A package with no `next` tag falls back to `latest`. Most `@theokit/*` packages publish no
+ * prerelease, and reporting them as unknown would turn four correct rows into four question marks.
+ */
+export function publishedFor(installed, tags) {
+  const channel = channelFor(installed)
+  const version = tags[channel] ?? tags.latest
+  return { version, channel: tags[channel] === undefined ? 'latest' : channel }
+}
+
+/**
+ * The published dist-tags, via npm — the registry client is not reimplemented here (Rule 9).
+ *
+ * `npm view <name> dist-tags --json` rather than `pnpm view <name> version`: the second resolves
+ * `latest` and nothing else, which is exactly the blind spot #73 reports. One call returns the whole
+ * map, so reading a second channel costs no extra request.
+ */
+function publishedTags(name) {
+  const out = execFileSync('npm', ['view', name, 'dist-tags', '--json'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   })
-  const version = out.trim().split('\n').pop()?.trim()
-  if (version === undefined || version.length === 0) {
-    throw new Error(`\`pnpm view ${name} version\` returned nothing`)
+  const parsed = JSON.parse(out.trim())
+  if (typeof parsed !== 'object' || parsed === null || typeof parsed.latest !== 'string') {
+    throw new Error(`\`npm view ${name} dist-tags\` returned no \`latest\``)
   }
-  return version
+  return parsed
 }
 
 function majorOf(version) {
@@ -136,8 +169,14 @@ function main() {
   for (const { name, declarations } of declaredRanges()) {
     const { version: installed, split } = installedAcross(declarations, name)
     let latest
+    let channel
     try {
-      latest = publishedLatest(name)
+      // #73 — the channel comes from what is INSTALLED, so a repository tracking prereleases is
+      // compared against the versions it actually wants. Comparing against `latest` reported us
+      // behind a version we had deliberately declined, and hid two prereleases we needed.
+      const resolved = publishedFor(installed, publishedTags(name))
+      latest = resolved.version
+      channel = resolved.channel
     } catch (err) {
       failures.push({ name, reason: err instanceof Error ? err.message : String(err) })
       continue
@@ -146,6 +185,7 @@ function main() {
       name,
       installed: installed ?? '(not installed)',
       latest,
+      channel,
       // A major bump is called out because it is the one that cannot be taken by editing a caret:
       // it is a migration, and it needs the suite run against it before anyone believes it.
       split,
@@ -161,10 +201,13 @@ function main() {
     const width = (pick) => Math.max(...rows.map((r) => pick(r).length), 0)
     const nameWidth = Math.max(width((r) => r.name), 'package'.length)
     const installedWidth = Math.max(width((r) => r.installed), 'installed'.length)
-    const latestWidth = Math.max(width((r) => r.latest), 'latest'.length)
+    const latestWidth = Math.max(width((r) => r.latest), 'published'.length)
+    // The channel is printed BESIDE the number, because a version with no channel is the ambiguity
+    // #73 reports: the reader cannot tell which question the number answered.
+    const channelWidth = Math.max(width((r) => r.channel ?? 'latest'), 'tag'.length)
 
     process.stdout.write(
-      `${'package'.padEnd(nameWidth)}  ${'installed'.padEnd(installedWidth)}  ${'latest'.padEnd(latestWidth)}  declared by\n`,
+      `${'package'.padEnd(nameWidth)}  ${'installed'.padEnd(installedWidth)}  ${'published'.padEnd(latestWidth)}  ${'tag'.padEnd(channelWidth)}  declared by\n`,
     )
     for (const row of rows) {
       const mark = row.split ? '><' : row.current ? '  ' : row.major ? '!!' : ' →'
@@ -172,13 +215,15 @@ function main() {
         .map((d) => `${d.label} ${d.range}${d.field === 'overrides' ? ' (override)' : ''}`)
         .join(', ')
       process.stdout.write(
-        `${row.name.padEnd(nameWidth)}  ${row.installed.padEnd(installedWidth)}  ${row.latest.padEnd(latestWidth)}  ${mark} ${where}\n`,
+        `${row.name.padEnd(nameWidth)}  ${row.installed.padEnd(installedWidth)}  ${row.latest.padEnd(latestWidth)}  ${(row.channel ?? 'latest').padEnd(channelWidth)}  ${mark} ${where}\n`,
       )
     }
     const behind = rows.filter((r) => !r.current)
     process.stdout.write(
       behind.length === 0
-        ? `\nEvery @theokit/* dependency is at its published latest.\n`
+        // "on the tag it tracks", not "at latest": since #73 a prerelease pin is compared against
+        // `next`, and saying `latest` there would be the same wrong claim in the summary line.
+        ? `\nEvery @theokit/* dependency is current on the tag it tracks.\n`
         : `\n${behind.length} of ${rows.length} behind. \`!!\` is a MAJOR — read its changelog and run the suite before taking it.\n`,
     )
     for (const f of failures) process.stderr.write(`could not check ${f.name}: ${f.reason}\n`)
@@ -188,9 +233,14 @@ function main() {
   process.exit(rows.some((r) => !r.current) ? 1 : 0)
 }
 
-try {
-  main()
-} catch (err) {
-  process.stderr.write(`ERROR: ${err instanceof Error ? err.message : String(err)}\n`)
-  process.exit(2)
+// Guarded, so importing this file for its rules does not run the whole check. Without it the first
+// `import` in a test exits the process — which is how this file went untested while it decided
+// whether anyone was told a dependency had moved.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    main()
+  } catch (err) {
+    process.stderr.write(`ERROR: ${err instanceof Error ? err.message : String(err)}\n`)
+    process.exit(2)
+  }
 }

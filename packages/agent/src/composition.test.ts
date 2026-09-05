@@ -101,6 +101,15 @@ const loadMcpJson = vi.fn((dir: string) =>
   dir === '/p' ? { 'some-server': { command: 'node', args: ['evil.js'] } } : {},
 )
 
+/** What the project's `.theokit/agents/` declares in these tests. */
+const PROJECT_ROLES = {
+  explorer: { tools: ['read_file', 'grep', 'list_dir'] },
+  worker: { tools: ['read_file', 'apply_patch', 'run_shell'] },
+}
+
+/** What the operator's own `~/.theokit/agents/` declares. Empty unless a test fills it. */
+let operatorRoles: Record<string, unknown> = {}
+
 /**
  * The disk boundary path 3 reads. Mocked so the role's declared tool set is the test's input.
  *
@@ -108,15 +117,18 @@ const loadMcpJson = vi.fn((dir: string) =>
  * for an untrusted directory and the real loader then finds nothing. A mock that returned the
  * roles regardless would make the untrusted assertion below pass for the wrong reason — it would
  * be asserting that some later validation happened to throw, not that the gate closed.
+ *
+ * It also honours `cwd`, and that half was added after this mock started lying. #65 made
+ * `discoverRoles` call this function TWICE — once for the project and once for the operator's home,
+ * both with `settingSources: ['project']`, because that token selects the `<cwd>/.theokit/agents`
+ * LAYOUT and the layout is the same in both roots. A mock keyed only on the sources answered the
+ * home call with the project's roles, and the untrusted assertion below started passing an
+ * untrusted repository's definition off as the operator's own. The real loader keys on the
+ * directory; so does this now.
  */
-const discoverSubagents = vi.fn((_cwd: string, opts: { settingSources: string[] }) =>
+const discoverSubagents = vi.fn((cwd: string, opts: { settingSources: string[] }) =>
   Promise.resolve(
-    opts.settingSources.includes('project')
-      ? {
-          explorer: { tools: ['read_file', 'grep', 'list_dir'] },
-          worker: { tools: ['read_file', 'apply_patch', 'run_shell'] },
-        }
-      : {},
+    cwd === '/p' ? (opts.settingSources.includes('project') ? PROJECT_ROLES : {}) : operatorRoles,
   ),
 )
 
@@ -552,6 +564,34 @@ describe('path 3 — buildRoleAgent composes a delegated team member', () => {
     const worker = await buildRole('worker', { subagents: true })
 
     expect(worker?.local.cwd).toBe('/p')
+  })
+
+  it('test_an_untrusted_directory_still_materialises_the_operator_own_role', async () => {
+    // #65 — the counterpart of the refusal below, and the reason it must be stated: the gate asks
+    // whether the code in THIS directory is trusted, and nobody's home is the repository. A role the
+    // operator wrote for themselves is theirs in every directory they visit; refusing it because a
+    // stranger's repository is untrusted would withhold someone's own configuration from them.
+    //
+    // What is NOT relaxed is the line above it: the definition here comes from the home, never from
+    // the untrusted repository, so nothing in that repository chooses the member's model, effort or
+    // sandbox flag.
+    const { buildRoleAgent } = await import('./delegation/roles.js')
+    operatorRoles = { explorer: { tools: ['read_file'] } }
+
+    try {
+      await expect(
+        buildRoleAgent('explorer', {
+          apiKey: 'test-key-not-a-real-credential',
+          parent: { model: 'gpt-5.4', reasoning_effort: 'medium' },
+          cwd: '/p',
+          sandbox,
+          posture: { level: 'untrusted', source: 'store', allows: { subagents: false } } as never,
+          createAgent: () => Promise.resolve({} as never),
+        } as never),
+      ).resolves.toBeDefined()
+    } finally {
+      operatorRoles = {}
+    }
   })
 
   it('test_an_untrusted_directory_refuses_to_materialise_a_repository_role', async () => {

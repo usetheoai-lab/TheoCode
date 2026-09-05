@@ -13,8 +13,8 @@ import { TheokitAgentError } from '@theokit/agents'
 export const DEFAULT_HOME_DIR = '.theokit'
 
 /**
- * The root this product used for the operator's config, instructions and credentials before
- * `home_dir` existed. READ, never written.
+ * The root this product used for the operator's config and instructions before `home_dir` existed.
+ * For those, READ and never written.
  *
  * `#65` argued the split — "`.theokit/` inside a PROJECT is the framework's directory, but what this
  * product owns in the operator's home is `.theocode/`" — and that argument was sound while there was
@@ -22,6 +22,19 @@ export const DEFAULT_HOME_DIR = '.theokit'
  * the key a half-truth. The split had already cost a duplicated credential store: measured
  * 2026-09-04, `~/.theokit/auth.json` sat nine days stale beside the live `~/.theocode/auth.json`,
  * unread and unrotated.
+ *
+ * ## The credential is the exception, and it is written here on every sign-in
+ *
+ * This comment used to say "READ, never written" without qualification, and that was false of the
+ * one file under this root that matters most. `auth/oauth-config.ts` names this directory as the
+ * credential store's `dirName`, and `installAuthHome` points the SDK at it, so a sign-in writes
+ * `<home>/.theocode/auth.json` today.
+ *
+ * The behaviour is deliberate, not leftover: the SDK's own OAuth store is `<home>/.theokit/auth.json`
+ * (`auth/credentials.ts` § `installAuthHome`), and two writers sharing one file is the collision the
+ * separate name avoids. What was wrong was only the claim about it — stated here, in the file that
+ * defines the roots, where a reader would most reasonably trust it and conclude that nothing writes
+ * to this directory. Pinned by `auth/credentials.test.ts` so the two cannot drift apart again.
  */
 export const LEGACY_HOME_DIR = '.theocode'
 

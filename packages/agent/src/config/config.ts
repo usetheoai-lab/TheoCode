@@ -75,6 +75,27 @@ export interface AgentConfig {
    *
    * Remembering across sessions is a real feature and worth having; it is not a sensible DEFAULT for
    * a tool that runs inside someone else's repository.
+   *
+   * ## WHERE it remembers, decided 2026-09-05 (#65)
+   *
+   * The PROJECT, and this is a decision rather than the default nobody questioned. The SDK gives one
+   * memory directory per agent, so the curated `wiki/` corpus belongs either to the repository or to
+   * the operator, and there is no arrangement that gives both.
+   *
+   * It belongs to the repository. A fact about this code — the deploy runbook, the convention that is
+   * not in the linter, the reason a workaround exists — is worth exactly as much to whoever clones it
+   * next, and under the operator's home it reaches one machine. The mirror argument is real and loses
+   * on volume: a preference about how someone likes to work is cheap to restate and expensive to
+   * make travel.
+   *
+   * Measured the same day, with a negative control: a file under `.theokit/memory/wiki/` is recalled
+   * by a later session and cited by path and line, and with the file absent the agent reports finding
+   * nothing rather than inventing a plausible runbook. Session transcripts are indexed automatically
+   * under the same root, so recall already crosses sessions without any tool call.
+   *
+   * There is no `memory_write`: `BuiltinToolName` is a closed union of `shell`, `memory_search` and
+   * `memory_get`. A durable fact is written as an ordinary file under `wiki/`, which is why the
+   * choice of root is the whole decision.
    */
   memory: boolean
   /**
@@ -246,7 +267,11 @@ const DEFAULTS: AgentConfig = {
   home_dir: DEFAULT_HOME_DIR,
   shell_timeout_ms: DEFAULT_SHELL_TIMEOUT_MS,
   session_gc: true,
-  skills: ['daily-briefing'],
+  // #67 — empty, because no skill ships with this product. The default was `['daily-briefing']`,
+  // a name that resolves to no `SKILL.md` anywhere in the tree or in any state directory, so every
+  // fresh install declared a capability it did not have and `/skills` listed it as available. A
+  // default that names something absent is worse than none: the panel cannot be read as evidence.
+  skills: [],
   hooks: [],
 }
 

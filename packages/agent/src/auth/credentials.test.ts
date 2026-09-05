@@ -16,6 +16,8 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR } from '../config/home-dir.js'
+
 import {
   authFilePath,
   credentialHome,
@@ -23,6 +25,35 @@ import {
   installAuthHome,
   resolveCredentialForModel,
 } from './credentials.js'
+
+
+/**
+ * The credential store's directory, pinned so a comment and the code cannot drift apart again.
+ *
+ * `home-dir.ts` describes `LEGACY_HOME_DIR` as the root this product used "before `home_dir`
+ * existed. READ, never written." That is true of config and instructions and FALSE of credentials:
+ * `oauth-config.ts` still names it as the store's `dirName`, and `installAuthHome` points the SDK
+ * at it, so it is written on every sign-in.
+ *
+ * The behaviour is right — `credentials.ts` explains why: the SDK's own store is
+ * `<home>/.theokit/auth.json`, and sharing one file between two writers is the collision this split
+ * avoids. What was wrong was only the claim about it, in the file that defines the roots. A reader
+ * who believed that comment would conclude nothing writes there, and tidy up a live credential.
+ *
+ * So the comment is corrected, and this test is what keeps it corrected: "fixing" `oauth-config.ts`
+ * to the current root name would fail here rather than silently move everyone's sign-in.
+ */
+describe('the credential store lives under the legacy-named root, deliberately', () => {
+  it('test_the_store_directory_is_the_legacy_root_not_the_state_root', () => {
+    expect(authFilePath(home, {})).toBe(join(home, LEGACY_HOME_DIR, 'auth.json'))
+    expect(authFilePath(home, {})).not.toBe(join(home, DEFAULT_HOME_DIR, 'auth.json'))
+  })
+
+  it('test_the_state_root_and_the_credential_root_are_different_directories', () => {
+    // Anti-vacuity: the assertion above would also hold if the two constants were equal.
+    expect(LEGACY_HOME_DIR).not.toBe(DEFAULT_HOME_DIR)
+  })
+})
 
 let home: string
 
