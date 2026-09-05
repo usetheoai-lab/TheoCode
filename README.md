@@ -100,6 +100,13 @@ Used this way it isolated [theokit#631](https://github.com/usetheokit/theokit/is
 repository in a single install: the fix under test was in `@theokit/agents`, the symptom survived it,
 and that was enough to say the remaining half lived in `@theokit/sdk`.
 
+## Contributing
+
+`CONTRIBUTING.md` holds the one thing the gates cannot check: how to know that what you measured is
+what runs. Two ways a careful measurement still lies — a compound command that skips the build, and
+two legitimate artifacts that disagree about which one the runtime executes — both taken from
+mistakes made here, with the retracted upstream reports they produced.
+
 ## What a failure is allowed to cost
 
 **No availability number is claimed here, and that is deliberate.** This product has no sustained
