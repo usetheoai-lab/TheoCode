@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-05
+
 ### Added
 - **`theocode doctor` stops blaming a missing file for a skill that is on disk** (#65). A `SKILL.md` under `~/.theokit/skills/`, declared in configuration, was reported as `declared with no SKILL.md` — the file was there, so the row named a cause that is false and sent the reader to write what they had already written. Measured with the same file copied into the project as a positive control: the project copy answers, the operator's copy leaves the model with no skill tool at all, because `@theokit/sdk@5.0.1` builds every skill root from the working directory. The row now distinguishes the two — a skill that is genuinely absent, and one that exists where nothing reads it — and names the remedy for each. Counting the operator's root as present was the alternative, and it is the worse one: a green tick over a capability that does not load is the exact shape this check was added to end.
 
@@ -220,7 +222,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 - **Three defects ESLint 10's new `recommended` rules surfaced.** A live-session pointer that could not be read threw a symptom error with no `cause`, discarding the errno and the stack for a failure whose whole job is to say which syscall on which path refused (`session/gc/pointer.ts`). Two dead initialisers (`config/trust-store.ts`, `tui/src/backtrack/backtrack.ts`) read as fallbacks that no path can ever reach. (#59)
 
 - **Test runs no longer claim every core on the host.** `vitest.config.ts` capped nothing, so the default applied — `os.availableParallelism()`, one fork per core, each booting a full test environment. On a 12-thread machine a single `vitest run` therefore took the whole box, and anything else running alongside it (a second suite, a typecheck, the desktop) competed for what was left. The cap now leaves 4 cores free (`Math.max(2, cpus().length - 4)`), scaling with the runner instead of hard-coding one machine's core count. It costs no wall-clock — measured in `theokit-ui`, the full suite ran 73.96s at 4 workers against 74.36s at 12. (usetheokit/theokit-ui#51)
-
 
 ## [0.4.7] - 2026-08-20
 
