@@ -70,7 +70,7 @@ describe('loadRules — what it reads and how it joins', () => {
     const root = mkdtempSync(join(sandbox, 'empty-'))
     const { warn, messages } = collectWarnings()
 
-    expect(loadRules(root, warn)).toEqual({ text: '', count: 0 })
+    expect(loadRules(root, warn)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
     expect(messages).toEqual([])
   })
 
@@ -111,7 +111,7 @@ describe('loadRules — frontmatter, which changes what the rule CLAIMS to apply
     const root = project({ 'broken.md': '---\npaths:\n  - x\nno closing fence' })
     const { warn, messages } = collectWarnings()
 
-    expect(loadRules(root, warn)).toEqual({ text: '', count: 0 })
+    expect(loadRules(root, warn)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
     // The wording is the framework's now — it is the layer that refused the file, and it says so in
     // its own words. What this test pins is the OUTCOME (nothing reaches the prompt) and that the
     // refusal is announced through the seam; owning the sentence would be owning the wrong thing.
@@ -140,7 +140,7 @@ describe('loadRules — frontmatter, which changes what the rule CLAIMS to apply
     const root = project({ 'empty.md': '---\ntitle: x\n---\n   \n' })
     const { warn, messages } = collectWarnings()
 
-    expect(loadRules(root, warn)).toEqual({ text: '', count: 0 })
+    expect(loadRules(root, warn)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
     expect(messages).toEqual([])
   })
 
@@ -245,7 +245,7 @@ describe("loadRules — the guards, now the framework's and still load-bearing h
     // diagnostic once it appears every run.
     const { warn, messages } = collectWarnings()
 
-    expect(loadRules(join(sandbox, 'does-not-exist'), warn)).toEqual({ text: '', count: 0 })
+    expect(loadRules(join(sandbox, 'does-not-exist'), warn)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
     expect(messages).toEqual([])
   })
 })

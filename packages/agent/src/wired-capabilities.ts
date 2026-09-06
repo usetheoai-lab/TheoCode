@@ -37,6 +37,26 @@ export interface WiredCapabilities {
    * so. Codex puts the same fact on its status panel (`Agents.md: <none>`).
    */
   readonly agentsMd: WiredEntity
+  /**
+   * #91 — how much of the rules block reached the prompt.
+   *
+   * A `WiredEntity` would be the wrong shape: the other four answer "which of the things you
+   * declared survived?", and rules are truncated by LENGTH, mid-block. There is no list of dropped
+   * names to report, only a proportion — so this carries the proportion.
+   *
+   * `undefined` where no build has published it yet, matching how the panel already treats a
+   * missing record rather than inventing a zero that reads as "no rules".
+   */
+  readonly rules?: {
+    /** Blocks that reached the prompt, out of `read`. */
+    readonly count: number
+    readonly read: number
+    /** Length before the ceiling was applied. */
+    readonly chars: number
+    /** Length that reached the prompt, so a surface computes the loss without knowing the ceiling. */
+    readonly kept: number
+    readonly truncated: boolean
+  }
   /** Whether `.theokit/agents/*.md` were allowed to load — subagents and project hooks ride on it. */
   readonly projectSources: boolean
   /**
@@ -88,6 +108,8 @@ export function wiredCapabilities(input: {
   readonly hookEvents: readonly string[]
   /** The instruction files the walk found — the paths, never their contents. */
   readonly agentsMdFiles: readonly string[]
+  /** #91 — the rules load, handed in by the caller that performed it. See the field above. */
+  readonly rules?: WiredCapabilities['rules']
   readonly sandboxMode: string
 }): WiredCapabilities {
   const record = recordWiring({
@@ -126,6 +148,7 @@ export function wiredCapabilities(input: {
       ...record.skills,
       active: [...new Set([...record.skills.active, ...(input.operatorSkills ?? [])])].sort(),
     },
+    ...(input.rules !== undefined ? { rules: input.rules } : {}),
     projectSources: input.projectSourcesAllowed,
     sandboxMode: input.sandboxMode,
   }

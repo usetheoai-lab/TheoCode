@@ -16,6 +16,15 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-06
+
+### Fixed
+
+- `/status` now reports how much of the rules block reached the prompt. A project whose rules exceed
+  the ceiling was running on a fraction of them with the only notice going to `stderr`, which the TUI
+  does not surface — measured in this repository's own checkout, 8 of 34 rule files and 74% of the
+  text were being dropped in silence (#91).
+
 ## [0.7.0] - 2026-09-06
 
 ### Added

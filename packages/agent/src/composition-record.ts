@@ -1,9 +1,15 @@
+import { homedir } from 'node:os'
+
+import type { InlineSkill } from '@theokit/sdk'
+
 import type { EffectiveConfig, TrustPosture } from './config/index.js'
 import { projectSourceAllowed } from './config/project-source.js'
-import { agentsMdChain } from './context/index.js'
+import { agentsMdChain, loadRules, loadUserRules } from './context/index.js'
+import type { RulesLoad } from './context/rules.js'
 import { parseHooks } from './hooks/index.js'
 import type { McpScopes } from './mcp-scopes.js'
 import { wiredCapabilities } from './wired-capabilities.js'
+import type { WiredCapabilities } from './wired-capabilities.js'
 
 /** The hook events, each with the command it runs — see the comment inside for why both. */
 function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
@@ -24,7 +30,7 @@ function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
  * length ceiling and the ceiling was right: the derivation now carries two MCP scopes, and a record
  * that has grown its own rules is no longer a line of the composition.
  */
-export function wiringRecord(
+function wiringRecord(
   posture: TrustPosture,
   cwd: string,
   cfg: EffectiveConfig,
@@ -37,6 +43,12 @@ export function wiringRecord(
    * the bug B-071 was reopened for.
    */
   operatorSkills: readonly string[],
+  /**
+   * #91 — how much of the rules block reached the prompt, from the load the caller already
+   * performed. Re-reading it here would give the panel a second answer to a question the builder
+   * has already answered, which is the disagreement this whole record exists to prevent.
+   */
+  rules: ReturnType<typeof wiredCapabilities>['rules'],
 ): ReturnType<typeof wiredCapabilities> {
   return wiredCapabilities({
     posture,
@@ -46,6 +58,7 @@ export function wiringRecord(
     mcpWithheld: mcp.projectWithheld,
     configuredSkills: cfg.skills,
     operatorSkills,
+    ...(rules !== undefined ? { rules } : {}),
     hookEvents: configuredHookEvents(cfg),
     // The same walk `projectDocument` runs below, so the record and the prompt cannot name
     // different files. Paths only — the record is a listing, never a copy of the instructions.
@@ -53,4 +66,71 @@ export function wiringRecord(
     // Already carries the session override — `chatContext` applied it once, above.
     sandboxMode: cfg.sandbox_mode,
   })
+}
+
+/**
+ * #91 — both rule roots, read ONCE.
+ *
+ * Here rather than inline in `buildChatAgent` for the reason `mcpScopes` is: the prompt and the
+ * record must not be able to disagree about how much of the rules block made it in.
+ * `projectDocument` used to read them inside the builder and drop the counts on the floor, so the
+ * only trace that 74% of this repository's own rules were being cut was a `stderr` line the TUI
+ * does not surface.
+ */
+export function bothRuleRoots(cwd: string): {
+  project: RulesLoad
+  user: RulesLoad
+  /** The same load, projected for the record — so the call site cannot project it differently. */
+  record: WiredCapabilities['rules']
+} {
+  const project = loadRules(cwd)
+  const user = loadUserRules(homedir())
+  return { project, user, record: rulesLoad([project, user]) }
+}
+
+/**
+ * Build the record and hand it to whoever asked for it.
+ *
+ * Derived from the SAME values the builder just received, at the point it received them. That is
+ * the DoD bullet B-071 was reopened for: not a second read of config, but a record of the decision.
+ */
+export function publishWiring(
+  onWired: ((wired: WiredCapabilities) => void) | undefined,
+  from: {
+    posture: TrustPosture
+    cwd: string
+    cfg: EffectiveConfig
+    mcp: McpScopes
+    operatorSkills: readonly InlineSkill[]
+    rules: ReturnType<typeof bothRuleRoots>
+  },
+): void {
+  onWired?.(
+    wiringRecord(
+      from.posture,
+      from.cwd,
+      from.cfg,
+      from.mcp,
+      from.operatorSkills.map((s) => s.name),
+      from.rules.record,
+    ),
+  )
+}
+
+/**
+ * #91 — the two loads as one figure, because the operator asks one question: *is what I wrote in
+ * the prompt?*
+ *
+ * The sums are addition over two DISJOINT loads, not an invented aggregate: each root is read once
+ * and sliced against its own ceiling, so `read` and `chars` add cleanly. `truncated` is a
+ * disjunction — either root losing content is the answer "no".
+ */
+function rulesLoad(both: readonly RulesLoad[]): WiredCapabilities['rules'] {
+  return {
+    count: both.reduce((n, r) => n + r.count, 0),
+    read: both.reduce((n, r) => n + r.read, 0),
+    chars: both.reduce((n, r) => n + r.chars, 0),
+    kept: both.reduce((n, r) => n + r.kept, 0),
+    truncated: both.some((r) => r.truncated),
+  }
 }

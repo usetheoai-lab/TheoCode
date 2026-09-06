@@ -67,11 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-155 items — **Open** 0 · **In flight** 0 · **Closed** 155
+156 items — **Open** 1 · **In flight** 0 · **Closed** 155
 
-### Open (0)
+### Open (1)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `raw` | — |
 
 ### In flight (0)
 
@@ -7335,6 +7337,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: `context/rules.ts:99` includes `CLAUDE_RULES` in `userRuleRoots`; `context/user-skills.ts`, `delegation/role-discovery.ts` and `@theokit/agents`' `loadCustomCommands` all read the operator's NATIVE root only
+why_now: v0.7.0 added the operator's skills and the project's foreign agents/commands, and in doing so made an asymmetry visible that nothing states. At the USER level, `~/.claude/rules/` is read and `~/.claude/{skills,agents,commands}/` are not. Measured on this machine: `~/.claude/skills/` holds 6 entries belonging to another kit, `~/.claude/rules/` is empty — so the asymmetry is currently harmless here and would not be on a machine that used both.
+status: raw
+dod:
+  - a stated rule for what the operator's foreign root means, that all four surfaces follow
+  - each surface's behaviour matches that rule, defended by an assertion rather than a comment
+  - if the surfaces legitimately differ, the difference is written where the next reader meets it
 
 ## B-155 — `doctor` called a working bundled skill a missing file   [x]
 
