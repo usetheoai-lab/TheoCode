@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, statSync, promises as fsp } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import { Agent } from '@theokit/agents'
 import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
@@ -78,15 +78,26 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
   )
   const listed = await listFn(cwd)
-  const registryAll = new Set(listed.map((e) => e.agentId))
+  const registryAll = new Set(listed.map((e) => e.agentId))  // session ids; mapped where compared
 
   const pointer = readPointer(cwd)
   const mostRecent = onDisk[0]?.id
+  // A SESSION ID and a TRANSCRIPT NAME are different strings, and this set held both while the lookup
+  // below asks with a name. Measured: a registry entry `tui-838055f5-…` names a file called
+  // `80a43d49-….jsonl`. So registry entries and the pointer contributed values nothing could ever ask
+  // for, and only `keepLast` and most-recent — filename-derived on both sides — protected anything.
+  // The same mismatch made `inRegistry` permanently false, which is why every session read as an
+  // orphan: a report that looked like an explanation and was an artefact of the comparison.
+  //
+  // One namespace, using the SDK's forward mapping. The inverse cannot exist over a hash
+  // (usetheokit/theokit-sdk#577) and is not wanted: every id here is already in hand.
+  const transcriptIdOf = (session: string): string =>
+    basename(transcriptPath(transcriptRoot(), cwd, session)).replace(/\.jsonl$/, '')
   const protectedIds = new Set<string>([
-    ...listed.filter((e) => e.archived !== true).map((e) => e.agentId),
+    ...listed.filter((e) => e.archived !== true).map((e) => transcriptIdOf(e.agentId)),
     ...onDisk.slice(0, keepLast).map((x) => x.id),
   ])
-  if (pointer !== undefined) protectedIds.add(pointer)
+  if (pointer !== undefined) protectedIds.add(transcriptIdOf(pointer))
   if (mostRecent !== undefined) protectedIds.add(mostRecent)
 
   const candidates: SessionGCCandidate[] = []
@@ -94,7 +105,10 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
   for (const { id, mtimeMs } of onDisk) {
     const ageDays = (now() - mtimeMs) / 86_400_000
     if (!protectedIds.has(id) && ageDays > maxAgeDays) {
-      candidates.push({ id, ageDays, inRegistry: registryAll.has(id) })
+      // `registryAll` holds SESSION ids and `id` is a transcript name — comparing them directly is
+      // what made this field permanently false. Ask the registry in its own vocabulary.
+      const inRegistry = [...registryAll].some((agentId) => transcriptIdOf(agentId) === id)
+      candidates.push({ id, ageDays, inRegistry })
     } else {
       kept.push(id)
     }
