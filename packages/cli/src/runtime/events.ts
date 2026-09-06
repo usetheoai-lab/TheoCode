@@ -66,6 +66,9 @@ function blendedTotal(u: Record<string, number>): number {
 }
 
 import { toolLine } from './tool-line.js'
+import type { ToolChunk } from './tool-line.js'
+import { changedPaths } from './changed-paths.js'
+import { turnDiff } from './turn-diff.js'
 
 export interface ExecProcessor {
   process(chunk: ChunkLike): void
@@ -117,10 +120,22 @@ function finalMessage(): {
   }
 }
 
-export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcessor {
+export function createHumanProcessor(
+  io: ExecIo,
+  sessionId: string,
+  /**
+   * #105 — how the turn asks git what it changed. Injected rather than built here for the reason
+   * every other seam in this file is: with an ambient runner the arms would depend on whichever
+   * checkout the suite happens to run in. Omitted in production by nobody — `run.ts` supplies it.
+   */
+  git?: (args: string[]) => { ok: boolean; stdout: string },
+): ExecProcessor {
   const message = finalMessage()
   let errorSeen = false
   let usage: Record<string, number> | undefined
+  // #105 — collected as they go past, so the diff at the end is scoped to what THIS turn wrote
+  // rather than to whatever the working tree happens to hold.
+  const writes: ToolChunk[] = []
   return {
     process(chunk) {
       switch (chunk.type) {
@@ -136,6 +151,7 @@ export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcess
           const preamble = message.cut()
           if (preamble !== undefined) io.err(preamble)
           io.err(toolLine(chunk))
+          writes.push(chunk)
           break
         }
         case 'tool-output-available':
@@ -156,6 +172,12 @@ export function createHumanProcessor(io: ExecIo, sessionId: string): ExecProcess
       }
       const finalText = message.done()
       if (finalText.length > 0) io.out(finalText)
+      // #105 — after the answer, before the accounting line: what the tree now holds, from git.
+      // The prose above is the agent's claim; this is the artifact. Silent when nothing changed.
+      if (git !== undefined) {
+        const diff = turnDiff(git, changedPaths(writes))
+        if (diff !== undefined) io.err(diff)
+      }
       const u = toCodexUsage(extra?.usage ?? usage)
       io.err(
         `[exec] session=${sessionId} status=${errorSeen ? 'error' : status} tokens=${blendedTotal(u)}`,
