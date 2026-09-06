@@ -80,6 +80,33 @@ export function agentsMdRow(
   return joinParts(entity.active.length === 0 ? '' : relative(entity.active), userNote)
 }
 
+/**
+ * #91 — how much of the rules block reached the prompt.
+ *
+ * Sibling of `agentsMdRow`, and here for the same reason its own comment gives: *"the case that
+ * matters is the silent one"*. A truncated rules block is silent by construction — the agent
+ * answers normally, having never seen the part that was cut, and until now the only notice was a
+ * `stderr` line the TUI does not surface. Measured on this product's own checkout at v0.7.0:
+ * 248,669 chars against a 64,000 ceiling, so 74% of the rules were dropped in the repository that
+ * wrote them.
+ *
+ * The complete case prints WITHOUT arithmetic on purpose. A row that always read "12 of 12 · 4,000
+ * chars" is a row people learn to skip, and then the one time it says something different, nobody
+ * is reading it.
+ */
+export function rulesRow(rules: WiredCapabilities['rules']): string {
+  // Distinguished from "no rules", the same way `agentsMdRow` distinguishes on-disk from loaded.
+  // Collapsing them would answer an unasked question in the reassuring direction.
+  if (rules === undefined) return '<not loaded yet>'
+  if (rules.read === 0) return '<none>'
+  if (!rules.truncated) return `${String(rules.count)} loaded`
+
+  // From the two numbers the record carries — never from the ceiling, which lives in the loader
+  // and would be a second copy here, wrong the day it moved.
+  const dropped = Math.round((100 * (rules.chars - rules.kept)) / rules.chars)
+  return `${String(rules.count)} of ${String(rules.read)} — ${String(dropped)}% dropped (${rules.chars.toLocaleString('en-US')} chars over the ceiling)`
+}
+
 /** Both halves, or whichever exists; `<none>` only when there is genuinely nothing. */
 function joinParts(project: string, user: string): string {
   const parts = [project, user].filter(Boolean)
@@ -204,6 +231,11 @@ export function statusPanel(
     // directory drops the file, so the agent runs WITHOUT the rules the repository wrote for it
     // and nothing on screen says so.
     ['agents.md', agentsMdRow(wired)],
+    // #91 — beside `agents.md` because it answers the other half of one question: are the
+    // instructions this repository wrote actually in the prompt? That row covers the file being
+    // dropped by the trust gate; this one covers the rules block being cut by the ceiling. Both
+    // failures are silent, and this product's own checkout was losing 74% when the row was added.
+    ['rules', rulesRow(wired?.rules)],
     ['session', currentSessionId()],
     ['shells', `${String(ptyOwner.backend().activeSessionCount())} in background`],
     // B-073 — the source answers "why is it this colour?", which is the only question anyone
