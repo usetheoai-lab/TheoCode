@@ -91,7 +91,7 @@ export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) 
     policy: headlessPolicy,
     mod,
     model,
-  } = composeRun({
+  } = await composeRun({
     ...args,
     routeModel: (id) => routeToCredential(probe, id),
   })
