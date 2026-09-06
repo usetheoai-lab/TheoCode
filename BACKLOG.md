@@ -7204,6 +7204,54 @@ dod:
 > Registered 2026-09-06. Upstream, so the dialect is read the same way for every consumer rather
 > than translated in one product.
 
+## The gap is not only the path — the shapes differ, and one of them cannot be passed through
+
+Measured 2026-09-06, before anyone starts building. This changes what the fix has to be: the reader
+cannot simply be pointed at a second file.
+
+### Two shapes, one vocabulary
+
+Ours — `.theokit/hooks.json`, a flat array validated by a `.strict()` schema:
+
+```jsonc
+{ "hooks": [ { "event": "PreToolUse", "command": "...", "matcher": "…", "timeout_ms": 5000 } ] }
+```
+
+The dialect — `.claude/settings.json`, nested by event with an inner array and a type discriminator:
+
+```jsonc
+{ "hooks": { "PreToolUse": [ { "matcher": "*", "hooks": [ { "type": "command", "command": "…" } ] } ] } }
+```
+
+The **event names already agree** — `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, which is
+exactly the set `hooks-spec.ts` declares. So the vocabulary was never the problem; the structure is.
+
+### One incompatibility that fails closed, and would fail loudly
+
+`matcher: "*"` is idiomatic in the dialect and is **not a valid regular expression**:
+
+```
+$ node -e 'new RegExp("*")'
+Invalid regular expression: /*/: Nothing to repeat
+```
+
+Our parser calls `new RegExp(matcher)` in `requireCompilableMatcher` and raises `HookError` when it
+throws. So a translation that passes the matcher through unchanged does not silently misbehave — it
+refuses the file at boot, for a value the source dialect considers normal. Any fix has to map `*` to
+match-all rather than forward it.
+
+Recorded because it is the kind of detail that turns "read a second path" into a translation with a
+decision in it, and because a fix that got this wrong would fail in the one place a hooks file must
+not: at startup, on a repository that was working a moment earlier.
+
+### What this does not settle
+
+Whose layer performs the translation. `CompatSourceDeclaration` and `projectConfigRoots` live in
+`@theokit/sdk`, which is why the item routes upstream — but the hook engine and this vocabulary live
+here (`packages/agent/src/hooks/`). If the answer is "the SDK exposes the declaration and the
+consumer translates", half of this is local work and I do it. Asked upstream; not assumed.
+
+
 ## B-154 — `.claude/plugins/` is not read, and nothing in the tree knows the word   [ ]
 
 domain: theokit
