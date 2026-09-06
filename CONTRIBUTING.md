@@ -171,7 +171,13 @@ string that names why it exists:
 ```
 
 The mechanism already exists and has been used: `#83` in this repository was measured against
-exactly that version, days before `5.1.0` reached `latest`.
+exactly that version — published `2026-09-05T21:22Z`, **15 hours** before `5.1.0` reached `latest`
+at `2026-09-06T12:20Z`.
+
+That figure was first written here as *"days"*, from memory, and corrected the same day after the
+`theokit` session challenged a neighbouring claim and both were measured. Fifteen hours is still
+worth having; the point is that the number in a document justifying a convention has to come from
+`npm view <pkg> time`, not from how long the wait felt.
 
 ### Why not a symlink
 
@@ -194,6 +200,40 @@ That failure has a name in this repository, and § *Ways a careful measurement s
 list of times it already happened. A symlink makes it the permanent, invisible default. A snapshot
 version string cannot be mistaken for anything else.
 
+### Where it does not work, and why
+
+**A repository in changesets pre mode cannot publish a snapshot at all.** Not a policy — the tool
+refuses:
+
+```
+node_modules/@changesets/cli/dist/changesets-cli.cjs.js:1352
+  logger.error("Snapshot release is not allowed in pre mode")
+  logger.log("To resolve this exit the pre mode by running `changeset pre exit`")
+  throw new errors.ExitError(1)
+```
+
+Measured 2026-09-06 on changesets 2.31.0: `theokit` has `.changeset/pre.json` (tag `next`) and is
+refused; `theokit-sdk` has none and is not. So this convention applies to `theokit-sdk` and does not
+apply to `theokit` — and the remedy the tool suggests, `changeset pre exit`, is a release decision
+nobody has taken, not a step in this procedure.
+
+Measured by the `theokit` session, which refused the convention rather than writing a procedure its
+own tooling rejects. That refusal is the right one: a documented step that throws on the first run
+is the fabricated mechanism both repositories spend their time hunting.
+
+**It is the same cause as the symlink objection above.** In pre mode changesets treats version state
+as a single monotonic ledger, and a snapshot would fork it — which is why the on-disk `version` does
+not move until the release. One cause, two symptoms.
+
+### For a repository that cannot snapshot
+
+The gap a snapshot closes is not *"no channel exists"* — a prerelease tag is pinnable by exact
+version. It is *not knowing a cut happened*. That costs a message, not a publish:
+
+> when a cut lands something a consumer is blocked on, tell them the exact version
+
+No convention, no release decision, and it works in pre mode.
+
 ### The rules that make it safe
 
 - **A snapshot pin never reaches `develop`.** It is a measurement aid; the merged tree pins a real
@@ -208,6 +248,11 @@ version string cannot be mistaken for anything else.
 - **Report the result back, including a failure.** The publishing session cannot tell whether what it
   shipped serves the consumer; that is the only thing the snapshot buys, and skipping it spends the
   cost without collecting the value.
+
+The last rule is the one that carries the value, and it is **independent of the channel**. In the
+B-152 handover it was the only one that acted — no snapshot existed — and what made the report
+usable was removing the fix, watching the arm fail, and restoring it, rather than accepting a green
+that looked right. The first three regulate a channel; the fourth is why anyone benefits from one.
 
 ### Reading an upstream tree without pinning it
 
