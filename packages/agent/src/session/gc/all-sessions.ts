@@ -190,8 +190,41 @@ async function resolveGuards(
   } catch {
     return { failedRead: reading }
   }
-  for (const e of registry) if (e.archived !== true) protectedIds.add(e.agentId)
+  // #102 — mapped, like the pointer above. `ca3db5c` converted the pointer and left this loop
+  // adding RAW session ids to a set that is queried with transcript names, so a registered
+  // non-archived session in another project stayed unprotected — the exact defect that commit was
+  // cut to close, surviving in the path it did not touch. Found by `theocode review` on its first
+  // working run, against the commit that introduced the half-fix.
+  for (const e of registry) {
+    if (e.archived === true) continue
+    // #102 — BOTH names. 5.x hashes the id into the filename; 4.x used the id itself, so an
+    // upgraded machine has both on disk. Mapping ALONE stops protecting every legacy transcript,
+    // which is the trade `ca3db5c` made without noticing. See `per-session.ts § namesOf`.
+    protectedIds.add(transcriptId(basename(transcriptPath(transcriptRoot(), liveness.cwd, e.agentId))))
+    protectedIds.add(e.agentId)
+  }
   return { protectedIds, registry }
+}
+
+/**
+ * #102 — every name a registered session can wear on disk, for THIS project.
+ *
+ * Both conventions: 5.x hashes the id into the filename, 4.x used the id itself, and an upgraded
+ * machine has both. A DEAD project has no cwd to map against and `resolveGuards` already hands back
+ * an empty registry for one, so the empty set is the same answer without a cast.
+ */
+function registryNames(
+  liveness: { state: string; cwd?: string },
+  registry: readonly RegistryEntry[],
+): Set<string> {
+  if (liveness.state !== 'ALIVE' || liveness.cwd === undefined) return new Set()
+  const cwd = liveness.cwd
+  return new Set(
+    registry.flatMap((e) => [
+      transcriptId(basename(transcriptPath(transcriptRoot(), cwd, e.agentId))),
+      e.agentId,
+    ]),
+  )
 }
 
 async function planOneProject(
@@ -240,7 +273,12 @@ async function planOneProject(
   }
   const { protectedIds, registry } = guards
   if (liveness.state === 'ALIVE') liveCwds.push(liveness.cwd)
-  const idsInRegistry = new Set(registry.map((e) => e.agentId))
+  // #102 — keyed by TRANSCRIPT name, because that is what `has(id)` is asked with further down
+  // (`planTranscript`). Holding session ids here made `inRegistry` permanently false on this path,
+  // so every registered transcript in every other project was reported as an orphan.
+  // A DEAD project has no cwd to map against, and `resolveGuards` already returns an empty registry
+  // for one — so the empty set is the same answer, arrived at without a cast.
+  const idsInRegistry = registryNames(liveness, registry)
 
   let plannedSomething = false
   const recordCandidate = (c: AllCandidate): void => {

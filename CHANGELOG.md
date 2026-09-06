@@ -16,6 +16,23 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-06
+
+### Fixed
+
+- `theocode review` works when you signed in with OAuth, which is the default. It failed on every
+  invocation with `API key for provider "openai" expected to start with "sk-"`, on both the CLI and
+  the TUI, while the same credential worked for an ordinary turn (#101).
+- `sessions gc` no longer deletes a registered session in another project, no longer leaves a
+  registry entry behind after reporting it removed, and protects transcripts written by 4.x as well
+  as 5.x. All three were found by the repaired `review` running against this morning's own gc
+  commit (#101).
+
+### Changed
+
+- `@theokit/sdk` 5.2.0 → 5.2.1, which refuses a created subagent where it previously answered a
+  plausible wrong tool list about it.
+
 ## [0.7.2] - 2026-09-06
 
 ### Fixed
