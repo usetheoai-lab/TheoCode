@@ -251,19 +251,27 @@ describe("loadRules — the guards, now the framework's and still load-bearing h
 })
 
 describe('loadRules — truncation at the character ceiling', () => {
-  it('test_the_assembled_text_is_sliced_and_the_loss_is_announced', () => {
-    // 64_000 chars is the ceiling. Two blocks of 40k each exceed it, and the caller is told rather
-    // than silently handed a shortened prompt — a truncation nobody reports is indistinguishable
-    // from a rule that was never written.
+  it('test_only_whole_rules_survive_and_the_loss_is_announced', () => {
+    // 64_000 chars is the ceiling. Two blocks of 40k each exceed it, so only the first fits.
+    //
+    // This arm used to assert `text.length === 64_000` — the ceiling exactly, because the block was
+    // sliced mid-content. B-157 measured the price of that: in this repository's own checkout the
+    // prompt ended mid-word ("They differ in what counts as a measure"), and the model had no way to
+    // know it was reading a fragment. Whole blocks now, so the length lands wherever the last
+    // complete rule ends.
+    //
+    // What did NOT change, and is still asserted: the caller is told. A truncation nobody reports is
+    // indistinguishable from a rule that was never written.
     const big = 'x'.repeat(40_000)
     const root = project({ 'a.md': big, 'b.md': big, 'c.md': 'never reached' })
     const { warn, messages } = collectWarnings()
 
     const { text, count } = loadRules(root, warn)
 
-    expect(text.length).toBe(64_000)
-    // The third file is not read: the loop breaks once the accumulated length passes the ceiling.
-    expect(count).toBe(2)
+    expect(count, 'a second 40k block was admitted under a 64k ceiling').toBe(1)
+    expect(text.length).toBeLessThan(64_000)
+    expect(text, 'a rule was cut mid-content').toContain(big)
+    expect(text, 'the model was not told its instructions are partial').toMatch(/omitted for length/)
     expect(messages.some((m) => m.includes('truncated to 64000 chars'))).toBe(true)
   })
 

@@ -179,15 +179,30 @@ function loadRulesFrom(
 }
 
 /**
- * Join the blocks, and slice at the prompt ceiling.
+ * Join the blocks that fit, and say what did not.
  *
- * The slice is mid-block on purpose, and it is the behaviour this function inherited: filling the
- * budget beats stopping short of it, because the rules a user wrote are worth more to the model
- * than a tidy boundary.
+ * ## Whole blocks only
  *
- * `count` is the number of rules that CONTRIBUTED to the returned text — not the number read. The
- * first attempt at this migration read every block and reported that, so a caller was told "3 rules"
- * while the model saw two. A number describing something the caller cannot see is worse than none.
+ * This used to slice the joined text at the ceiling, mid-block on purpose — the argument being that
+ * "filling the budget beats stopping short of it, because the rules a user wrote are worth more to
+ * the model than a tidy boundary."
+ *
+ * B-157 measured what the trade actually costs. In this repository's own checkout the block ended:
+ *
+ *   "## Modes\n\nEvery mode measures **our** system. They differ in what counts as a measure"
+ *
+ * Mid-word. The price is not a tidy boundary — it is a rule the model reads as complete when it is
+ * a fragment, with nothing in the text marking where the author stopped and the cut began. A rule
+ * that is absent is one the model cannot follow; a rule that is half-present is one it follows
+ * wrongly while believing it has the whole thing.
+ *
+ * ## The omission is announced, to the MODEL
+ *
+ * `/status` reports the loss to the operator (#91). Nothing reported it inside the prompt, so the
+ * model reasoned as though it held the whole corpus — and an agent that believes its instructions
+ * are complete draws conclusions from their silence. One line changes what an absence can mean.
+ *
+ * `count` remains the number of blocks that CONTRIBUTED, which is now exactly the number that fit.
  */
 function assemble(blocks: readonly string[], warn: WarnFn): RulesLoad {
   const full = blocks.join(SEPARATOR)
@@ -196,27 +211,31 @@ function assemble(blocks: readonly string[], warn: WarnFn): RulesLoad {
     return { text: full, count: read, read, chars: full.length, kept: full.length, truncated: false }
   }
 
-  let consumed = 0
-  let count = 0
+  // Reserve room for the notice before choosing what fits, so adding it can never be what pushes
+  // the block over — a marker that itself caused a further drop would be its own small lie.
+  const budget = MAX_CHARS - OMISSION_MAX
+  const kept: string[] = []
+  let used = 0
   for (const block of blocks) {
-    if (consumed >= MAX_CHARS) break
-    count += 1
-    consumed += block.length + (count > 1 ? SEPARATOR.length : 0)
+    const cost = block.length + (kept.length > 0 ? SEPARATOR.length : 0)
+    if (used + cost > budget) break
+    kept.push(block)
+    used += cost
   }
 
-  // #91 — the warning stays, and is no longer the ONLY notice. Its sink is `stderr` by default and
-  // the TUI does not surface stderr, so a project running on a quarter of its rules said so into a
-  // log nobody has open. The numbers now travel in the return value too, which is what lets
-  // `/status` print them beside the `agents.md` row that exists for exactly this reason.
   warn(`[rules] rules block truncated to ${String(MAX_CHARS)} chars (was ${String(full.length)})`)
-  return {
-    text: full.slice(0, MAX_CHARS),
-    count,
-    read,
-    chars: full.length,
-    kept: MAX_CHARS,
-    truncated: true,
-  }
+  const text = [...kept, omissionNotice(read - kept.length, read)].join(SEPARATOR)
+  return { text, count: kept.length, read, chars: full.length, kept: text.length, truncated: true }
+}
+
+/** Bounded so the reservation above is a fact rather than an estimate. */
+const OMISSION_MAX = 200
+
+function omissionNotice(dropped: number, read: number): string {
+  return (
+    `> NOTE: ${String(dropped)} of ${String(read)} rule file(s) were omitted for length. ` +
+    'Your instructions are INCOMPLETE — do not treat the absence of a rule as permission.'
+  )
 }
 
 /**
