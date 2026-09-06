@@ -16,6 +16,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+
+- **The agent could not start a turn at all in 0.7.0 and 0.7.1.** Both the CLI and the TUI failed on
+  every invocation with `an agents/ file must default-export a defineAgent(...) value`. Upgrade
+  from either version (#96).
+
 ### Changed
 
 - `@theokit/sdk` 5.1.0 → 5.2.0, which publishes `effectiveToolNames` — the instrument that answers

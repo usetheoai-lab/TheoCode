@@ -56,7 +56,12 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
           .apiKey
         yield* streamAgentTurnInProcess(
           {
-            default: buildChatAgent({
+            // #96 — awaited. `buildChatAgent` became async in 0.7.0 and `compileAgentModule`
+            // needs a RESOLVED definition: it accepts `AgentDefinition | CompiledAgentOptions` and
+            // neither a promise nor a thunk. Unawaited, this surface could not start a turn at all.
+            // `streamAgentTurnInProcess(mod: unknown, …)` states no contract, so nothing in the type
+            // system guards this line — `chat-transport.smoke.test.ts` is what does.
+            default: await buildChatAgent({
               // B-059 — from the TUI's single working-directory seam (B-057), which is the same
               // value `resolveEffectiveConfig` is given two lines above. They used to be able to
               // disagree: this call resolved its directory inside `buildChatAgent` from the process

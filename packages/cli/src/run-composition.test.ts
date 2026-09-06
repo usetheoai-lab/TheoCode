@@ -1,7 +1,7 @@
 /**
  * B-024 — the composition seam had no caller and no test, so nothing proved it worked.
  *
- * `composeRun(args, seams)` accepts a `CompositionSeams` object precisely so composition can be
+ * `await composeRun(args, seams)` accepts a `CompositionSeams` object precisely so composition can be
  * exercised without touching the real trust store or the real working directory. Its single
  * production caller passes no seams, so the injection point was scaffolding for a use that never
  * arrived — and an untested seam is not a seam, it is a parameter that happens to typecheck.
@@ -32,12 +32,12 @@ afterEach(() => {
 })
 
 describe('B-024 — the composition seam is real', () => {
-  it('test_the_cwd_seam_decides_which_directory_is_composed_against', () => {
+  it('test_the_cwd_seam_decides_which_directory_is_composed_against', async () => {
     // The directory is trusted in the injected store, so composition must see a trusted posture.
     // Reading the real ~/.theokit store instead would make this assertion depend on the machine.
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
 
-    const composed = composeRun({ overrides: [] }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: [] }, { cwd: dir, store })
 
     expect(composed.mod.default, 'composition produced no agent module').not.toBe(undefined)
     expect(
@@ -46,7 +46,7 @@ describe('B-024 — the composition seam is real', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('test_the_store_seam_decides_whether_the_project_config_is_read', () => {
+  it('test_the_store_seam_decides_whether_the_project_config_is_read', async () => {
     // Anti-vacuity floor with teeth. A project `.theokit/config.toml` is read ONLY for a trusted
     // directory — that is the anti-prompt-injection gate. So the same directory composed against a
     // trusting store and an empty one must produce DIFFERENT config. If the seam were ignored and
@@ -56,10 +56,10 @@ describe('B-024 — the composition seam is real', () => {
     writeFileSync(join(dir, '.theocode', 'config.toml'), 'reasoning_effort = "high"\n')
 
     writeFileSync(store, JSON.stringify({ trusted: [] }), { mode: 0o600 })
-    const untrusted = composeRun({ overrides: [] }, { cwd: dir, store })
+    const untrusted = await composeRun({ overrides: [] }, { cwd: dir, store })
 
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
-    const trusted = composeRun({ overrides: [] }, { cwd: dir, store })
+    const trusted = await composeRun({ overrides: [] }, { cwd: dir, store })
 
     expect(
       trusted.cfg.reasoning_effort,
@@ -71,10 +71,10 @@ describe('B-024 — the composition seam is real', () => {
     ).not.toBe('high')
   })
 
-  it('test_a_cli_override_reaches_the_effective_config', () => {
+  it('test_a_cli_override_reaches_the_effective_config', async () => {
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
 
-    const composed = composeRun({ overrides: ['reasoning_effort=high'] }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: ['reasoning_effort=high'] }, { cwd: dir, store })
 
     expect(composed.cfg.reasoning_effort, 'a -c override did not reach the effective config').toBe(
       'high',
@@ -97,10 +97,10 @@ describe('composeRun routes the model for the credential that will serve it', ()
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
   })
 
-  it('test_the_routed_id_is_what_the_agent_is_built_on_and_what_the_caller_is_told', () => {
+  it('test_the_routed_id_is_what_the_agent_is_built_on_and_what_the_caller_is_told', async () => {
     // The two have to be the same value. A caller that re-derived the routed id could derive it
     // differently, which is the divergence this seam exists to close.
-    const composed = composeRun(
+    const composed = await composeRun(
       { overrides: [], model: 'openai/gpt-5.4', routeModel: () => 'openai-chatgpt/gpt-5.4' },
       { cwd: dir, store },
     )
@@ -108,11 +108,11 @@ describe('composeRun routes the model for the credential that will serve it', ()
     expect(composed.model).toBe('openai-chatgpt/gpt-5.4')
   })
 
-  it('test_the_route_sees_the_CONFIGURED_id_when_no_model_flag_was_given', () => {
+  it('test_the_route_sees_the_CONFIGURED_id_when_no_model_flag_was_given', async () => {
     // The case that actually shipped broken: no `--model`, so the id came from config and the
     // rewrite had nothing to look at. A router handed `undefined` cannot route.
     const seen: string[] = []
-    composeRun(
+    await composeRun(
       {
         overrides: [],
         routeModel: (id) => {
@@ -128,9 +128,9 @@ describe('composeRun routes the model for the credential that will serve it', ()
     expect(seen[0]).not.toBe('undefined')
   })
 
-  it('test_without_a_router_the_configured_id_is_used_unchanged', () => {
+  it('test_without_a_router_the_configured_id_is_used_unchanged', async () => {
     // Anti-vacuity: the seam is additive. A caller that supplies no router gets what it always got.
-    const composed = composeRun({ overrides: [], model: 'anthropic/x' }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: [], model: 'anthropic/x' }, { cwd: dir, store })
 
     expect(composed.model).toBe('anthropic/x')
   })

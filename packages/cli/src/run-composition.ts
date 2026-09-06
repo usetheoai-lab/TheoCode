@@ -30,7 +30,22 @@ export interface CompositionSeams {
 export interface RunComposition {
   readonly cfg: EffectiveConfig
   readonly policy: ReturnType<typeof resolveHeadlessApproval>
-  readonly mod: { readonly default: ReturnType<typeof buildChatAgent> }
+  /**
+   * #96 — `Awaited`, and the type cannot be trusted to keep it that way.
+   *
+   * This read `{ default: ReturnType<typeof buildChatAgent> }`. When `buildChatAgent` became async
+   * in 0.7.0 the annotation silently became `Promise<AgentDefinition>` and `tsc` had nothing to
+   * report, while the headless CLI could no longer start at all — the module loader needs a
+   * RESOLVED definition (`compileAgentModule` accepts `AgentDefinition | CompiledAgentOptions` and
+   * neither a thunk nor a promise).
+   *
+   * Naming the consumer's contract would normally be the fix. It is not available here:
+   * `streamAgentTurnInProcess(mod: unknown, …)` states no contract at all, so no annotation on this
+   * side can catch the next break of this shape. `Awaited<…>` is honest about still tracking the
+   * producer, and the gate that actually protects this path is `run-composition.smoke.test.ts`,
+   * which executes it.
+   */
+  readonly mod: { readonly default: Awaited<ReturnType<typeof buildChatAgent>> }
   /**
    * The model id the agent was actually built on, AFTER `routeModel`.
    *
@@ -41,7 +56,7 @@ export interface RunComposition {
   readonly model: string
 }
 
-export function composeRun(
+export async function composeRun(
   args: {
     readonly overrides: CliOverrides
     readonly model?: string
@@ -61,7 +76,7 @@ export function composeRun(
     readonly routeModel?: (model: string) => string
   },
   seams: CompositionSeams = {},
-): RunComposition {
+): Promise<RunComposition> {
   const cwd = seams.cwd ?? process.cwd()
 
   // B-033 — the same environment that feeds config resolution below. These used to be two
@@ -95,7 +110,7 @@ export function composeRun(
     policy,
     model,
     mod: {
-      default: buildChatAgent({
+      default: await buildChatAgent({
         surface: 'headless',
         // B-015 — this root already resolved a directory (and accepts one as a seam). Passing only
         // config+posture left the remaining reads inside buildChatAgent on process.cwd().
