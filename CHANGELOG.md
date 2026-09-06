@@ -16,6 +16,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+
+- A rules corpus too large for the prompt is now cut **between** rules instead of mid-sentence, and
+  the model is told what was left out. It was receiving a rule that stopped in the middle of a word
+  and reading it as complete (B-157).
+
+### Changed
+
+- Your own `~/.claude/` contributes rules and not skills, subagents or commands — one stated rule
+  instead of four separate decisions: a foreign root may bring text that constrains the agent, never
+  artifacts that add invokable surface (B-156).
+
 ## [0.9.1] - 2026-09-06
 
 ### Changed
