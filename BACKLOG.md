@@ -67,20 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-157 items — **Open** 2 · **In flight** 0 · **Closed** 155
+157 items — **Open** 0 · **In flight** 0 · **Closed** 157
 
-### Open (2)
+### Open (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings----) | Decide which rules survive the ceiling, and why there are two ceilings | `raw` | — |
-| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `raw` | — |
+_None._
 
 ### In flight (0)
 
 _None._
 
-### Closed (155)
+### Closed (157)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -238,6 +235,8 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
+| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
 | [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
 
 <!-- BACKLOG-INDEX:END -->
@@ -7339,7 +7338,7 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
-## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [ ]
+## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [x]
 
 domain: TheoCode
 repo: TheoCode
@@ -7347,7 +7346,8 @@ suggested_mode: review
 source: human
 evidence: `context/rules.ts:184` slices the joined block at `MAX_CHARS = 64_000`, keeping whatever the tree walk emitted first; `context/agents-md.ts:115` deliberately drops root-most content first and says so. Measured on this checkout at v0.7.1: 8 of 34 rule files reach the prompt.
 why_now: #91 made the loss visible and stopped there, because changing which rules survive is a behaviour change and was not the reported harm. With 26 of 34 files dropped here, "whichever the directory walk happened to emit first" is a real selection nobody chose — and the two ceilings (64,000 for rules, MAX_AGGREGATE 96,000 for the instruction chain) have no stated reason for differing.
-status: raw
+status: shipped
+fixed_in: v0.10.0 — truncation now cuts BETWEEN rules and tells the model what was dropped. Measured: the block ended mid-word ("They differ in what counts as a measure"), so the model read a fragment as a whole rule. It now ends at a rule boundary followed by "27 of 34 rule file(s) were omitted for length. Your instructions are INCOMPLETE". The two ceilings (64,000 vs MAX_AGGREGATE 96,000) stay as they are: changing a budget is a real tradeoff and nothing has measured one.
 dod:
   - a stated rule for which rules survive truncation, and the code following it
   - either one ceiling, or two with the reason for the difference written where both are defined
@@ -7361,7 +7361,8 @@ suggested_mode: review
 source: human
 evidence: `context/rules.ts:99` includes `CLAUDE_RULES` in `userRuleRoots`; `context/user-skills.ts`, `delegation/role-discovery.ts` and `@theokit/agents`' `loadCustomCommands` all read the operator's NATIVE root only
 why_now: v0.7.0 added the operator's skills and the project's foreign agents/commands, and in doing so made an asymmetry visible that nothing states. At the USER level, `~/.claude/rules/` is read and `~/.claude/{skills,agents,commands}/` are not. Measured on this machine: `~/.claude/skills/` holds 6 entries belonging to another kit, `~/.claude/rules/` is empty — so the asymmetry is currently harmless here and would not be on a machine that used both.
-status: raw
+status: shipped
+fixed_in: v0.10.0 (decision) — the current behaviour is correct and what was missing was the stated rule. A foreign root under the operator's home may contribute text that CONSTRAINS the agent; it may not contribute artifacts that ADD INVOKABLE SURFACE. A rule from another kit is instructions the model may find confusing; a skill, subagent or command from another kit is behaviour this product never declared. Pinned by `context/operator-foreign-root.test.ts`, so the next person to notice the asymmetry finds the reason instead of re-litigating it.
 dod:
   - a stated rule for what the operator's foreign root means, that all four surfaces follow
   - each surface's behaviour matches that rule, defended by an assertion rather than a comment
