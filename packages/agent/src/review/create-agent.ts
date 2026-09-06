@@ -11,6 +11,8 @@ import { reviewerShape } from '../composition/agent-spec.js'
 
 import type { AgentConfig } from '../config/index.js'
 import { ToolRegistry, resolveToolScope, type ToolScope } from '../tools/index.js'
+import { routeToCredential } from '../auth/model-route.js'
+import type { ResolvedCredential } from '../auth/index.js'
 import type { ReviewAgentLike, ReviewDeps } from './run-review.js'
 
 export const REVIEWER_SHELL_CAP = 30_000
@@ -27,7 +29,7 @@ interface AgentInstance {
   [Symbol.asyncDispose](): Promise<void>
 }
 
-interface CreationOptions {
+export interface CreationOptions {
   agentId: string
   apiKey: string
   model: ReturnType<typeof buildModelSelection>
@@ -40,7 +42,16 @@ interface CreationOptions {
 export interface ReviewFactoryDeps {
   config: ReviewerConfig
   cwd: string
-  resolveCredential: (model: string) => Promise<string>
+  /**
+   * #101 — the whole credential, not just its key.
+   *
+   * It was `(model) => Promise<string>`, and that shape is why `theocode review` failed for every
+   * OAuth user: with only the key, this factory could not tell a ChatGPT credential from an API-key
+   * one, so it could not route the model the way `run.ts` and `chat-transport.ts` both do. The model
+   * reached a provider expecting `sk-…` and was refused, while the same model on the same
+   * credential worked through `exec` and `resume`.
+   */
+  credential: (model: string) => Promise<ResolvedCredential>
   hooks?: HookHandlers
   registerCleanup: (fn: () => Promise<void>) => void
   createInstance?: (opts: CreationOptions) => Promise<AgentInstance>
@@ -70,11 +81,17 @@ export function createReviewAgent(deps: ReviewFactoryDeps): ReviewDeps['createAg
   const hooksPlugin = deps.hooks !== undefined ? hooksForMember(deps.hooks) : undefined
 
   return async ({ agentId, systemPrompt }): Promise<ReviewAgentLike> => {
-    const apiKey = await deps.resolveCredential(deps.config.model)
+    const cred = await deps.credential(deps.config.model)
+    // #101 — the same routing the chat path applies, at the same point: a ChatGPT credential serves
+    // a differently-named model, and asking for the configured id would be asking the wrong
+    // provider. `routeToCredential` is a no-op for an API-key credential, which the negative arm of
+    // `create-agent.oauth.test.ts` pins — routing unconditionally would send a real `sk-` user to a
+    // provider they never configured.
+    const routed = routeToCredential(cred, deps.config.model)
     const inst = await createInstance({
       agentId,
-      apiKey,
-      model: buildModelSelection(deps.config.model, deps.config.reasoning_effort),
+      apiKey: cred.apiKey,
+      model: buildModelSelection(routed, deps.config.reasoning_effort),
       local: { cwd: deps.cwd },
       systemPrompt,
       tools: [...shape.tools],

@@ -14,9 +14,19 @@ function transcriptDir(cwd: string, baseDir: string = defaultBaseDir()): string 
 }
 
 interface SessionGCCandidate {
+  /** The TRANSCRIPT name (the `.jsonl` stem). What `unlink` takes. */
   id: string
   ageDays: number
   inRegistry: boolean
+  /**
+   * #102 — the SESSION id this transcript was matched from, when the registry knows it.
+   *
+   * `Agent.delete` takes a session id and was being handed `id`, which is the transcript name, so
+   * the registry entry outlived a deletion that reported success. The match already computes this
+   * value; it was thrown away one line later. Absent when no registry entry matched, which is the
+   * `unlink` path and needs no session id.
+   */
+  agentId?: string
 }
 
 export interface SessionGCPlan {
@@ -93,11 +103,24 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
   // (usetheokit/theokit-sdk#577) and is not wanted: every id here is already in hand.
   const transcriptIdOf = (session: string): string =>
     basename(transcriptPath(transcriptRoot(), cwd, session)).replace(/\.jsonl$/, '')
+  /**
+   * #102 — BOTH names a session id can appear under on disk.
+   *
+   * 5.x names a transcript `sessionUuidFor(id).jsonl`, a hash. 4.x named it after the id itself,
+   * which is why the SDK still exports `legacyTranscriptPath`, and an upgraded machine has both
+   * conventions side by side. `ca3db5c` replaced the raw id with the mapped one and so stopped
+   * protecting every legacy-named transcript of a live registered session — trading one deletion
+   * bug for another. Caught by `resume-protection.test.ts`, whose fixture is a 4.x transcript.
+   *
+   * Adding both is the safe direction: a name that matches nothing merely keeps a file, while a
+   * name that is missing deletes one, and `unlink` here has no restore.
+   */
+  const namesOf = (session: string): string[] => [transcriptIdOf(session), session]
   const protectedIds = new Set<string>([
-    ...listed.filter((e) => e.archived !== true).map((e) => transcriptIdOf(e.agentId)),
+    ...listed.filter((e) => e.archived !== true).flatMap((e) => namesOf(e.agentId)),
     ...onDisk.slice(0, keepLast).map((x) => x.id),
   ])
-  if (pointer !== undefined) protectedIds.add(transcriptIdOf(pointer))
+  if (pointer !== undefined) for (const n of namesOf(pointer)) protectedIds.add(n)
   if (mostRecent !== undefined) protectedIds.add(mostRecent)
 
   const candidates: SessionGCCandidate[] = []
@@ -107,8 +130,15 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
     if (!protectedIds.has(id) && ageDays > maxAgeDays) {
       // `registryAll` holds SESSION ids and `id` is a transcript name — comparing them directly is
       // what made this field permanently false. Ask the registry in its own vocabulary.
-      const inRegistry = [...registryAll].some((agentId) => transcriptIdOf(agentId) === id)
-      candidates.push({ id, ageDays, inRegistry })
+      // #102 — `find`, not `some`: the matching id is the one `Agent.delete` needs, and discarding
+      // it here is what made the deletion address a name the registry has never heard of.
+      const agentId = [...registryAll].find((a) => namesOf(a).includes(id))
+      candidates.push({
+        id,
+        ageDays,
+        inRegistry: agentId !== undefined,
+        ...(agentId !== undefined ? { agentId } : {}),
+      })
     } else {
       kept.push(id)
     }
@@ -176,7 +206,9 @@ export async function runSessionGC(
       continue
     }
     try {
-      if (c.inRegistry) await del(c.id)
+      // #102 — the registry's own vocabulary. `c.id` is the transcript name; `Agent.delete` wants
+      // the session id, and got the wrong one until the match started carrying it.
+      if (c.inRegistry) await del(c.agentId ?? c.id)
       else await unlink(c.id)
       removed.push(c.id)
     } catch (err) {

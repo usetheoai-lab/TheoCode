@@ -14,7 +14,7 @@ import { effectiveToolNames } from '@theokit/sdk'
 import { describe, expect, it } from 'vitest'
 
 import { ToolRegistry, resolveToolScope } from '../tools/index.js'
-import { analystSpec } from './analyst.js'
+import { analystSpec, createAnalystSubagent } from './analyst.js'
 
 const registry = (): ToolRegistry =>
   new ToolRegistry(resolveToolScope({ sandbox_mode: 'read-only' }, '/p'))
@@ -57,5 +57,26 @@ describe('#80 — the analyst does not carry a builtin it was never granted', ()
     // If someone ever adds an execution tool to `ANALYST_TOOLS`, this arm is what says so.
     const names = (analystSpec('gpt-5.4', registry()).tools ?? []).map((t) => t.name)
     expect(names.sort()).toEqual(['grep', 'list_dir', 'read_file'])
+  })
+
+  it('test_the_seam_is_required_because_a_created_subagent_is_refused', () => {
+    // Upstream #583, and the reason `analystSpec` exists as a separate function.
+    //
+    // `SubAgent.create` returns `{ name, description, inputSchema, handler }` and closes the spec
+    // inside the handler. In `@theokit/sdk@5.2.0` that object satisfied `AgentOptions` BY VACUITY —
+    // every field optional — so `effectiveToolNames` answered `{ names: ["shell"], unresolved: [] }`
+    // for it: a plausible wrong answer asserting completeness, about an object it never described.
+    // Reported from here and fixed in `5.2.1`, which now refuses it.
+    //
+    // Pinned as an arm rather than trusted, because this repository's read-only claim depends on
+    // measuring the SPEC, and a silent return to the old behaviour would make the arm above answer
+    // about the wrong thing while still passing.
+    let thrown: unknown
+    try {
+      effectiveToolNames(createAnalystSubagent('gpt-5.4', registry()) as never)
+    } catch (e) {
+      thrown = e
+    }
+    expect((thrown as { code?: string } | undefined)?.code).toBe('effective_tools_expected_options')
   })
 })

@@ -467,7 +467,8 @@ describe('path 2 — createReviewAgent composes the reviewer', () => {
     const createAgent = createReviewAgent({
       config: { model: 'gpt-5.4', sandbox_mode: 'read-only' },
       cwd: '/p',
-      resolveCredential: () => Promise.resolve('k'),
+      // #101 — the whole credential now; an API-key one, so the model is NOT routed here.
+      credential: () => Promise.resolve({ apiKey: 'k', kind: 'apiKey', provider: 'openai' } as never),
       registerCleanup: () => undefined,
       createInstance: (opts) => {
         captured = opts as unknown as { tools: { name: string }[] }

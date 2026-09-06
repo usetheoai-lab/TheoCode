@@ -37,8 +37,8 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
       createAgent: createReviewAgent({
         config: execCfg,
         cwd: process.cwd(),
-        resolveCredential: async (model) =>
-          (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
+        credential: async (model) =>
+          await resolveCredentialForModel(model, { env: process.env, home: homedir() }),
         hooks: surfaceHooks,
         // Named for the framework's watchdog, which reports WHICH cleanup hung. Wrapped rather than
         // passed by reference: `register` is a method, and handing it over bare unbinds `this`.
