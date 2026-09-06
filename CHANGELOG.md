@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-06
+
 ### Added
 
 - A turn ends by showing what it changed, from git — scoped to the files that turn wrote, so a
