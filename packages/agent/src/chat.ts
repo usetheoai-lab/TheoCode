@@ -25,6 +25,8 @@ import { z } from 'zod'
 
 import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
 import { loadRules, loadUserRules } from './context/index.js'
+import { userSkills } from './context/user-skills.js'
+import type { InlineSkill } from '@theokit/sdk'
 import {
   resolveEffectiveConfig,
   type EffectiveConfig,
@@ -50,7 +52,7 @@ import { settingSourcesFor } from './setting-sources.js'
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
 
-export function buildChatAgent(overrides: {
+export async function buildChatAgent(overrides: {
   onHookVeto?: HookVetoListener
   /**
    * B-069/B-070/B-071 — told what this build actually wired, once, at the point it was decided.
@@ -135,6 +137,16 @@ export function buildChatAgent(overrides: {
   // actually ran.
   const mcp = mcpScopes(posture, cwd, overrides?.onMcpWarn)
 
+  // #65 — the operator's own skills, loaded HERE for the same reason `mcp` is: once, at the
+  // composition root, so the builder and any record of what was wired cannot disagree.
+  //
+  // This is what made `buildChatAgent` async. Reading a skill body is disk I/O and the SDK's door
+  // (`loadSkillInstructions`) is async by design; the synchronous alternative was a second reader of
+  // the SKILL.md convention, which fails SILENTLY when the format moves — frontmatter lands inside
+  // the instructions and nothing reports it. Four of the five call sites were already in async
+  // functions, so the ripple is an `await`, not a restructure.
+  const operatorSkills = await userSkills(homedir())
+
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
     interactiveBackend,
@@ -145,13 +157,20 @@ export function buildChatAgent(overrides: {
     writePolicy,
     cwd,
     mcpServers: mcp.servers,
+    operatorSkills,
     searchConfigured,
   })
 
   // Derived from the SAME values the builder just received, at the point it received them. That is
   // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
   // decision.
-  const wired = wiringRecord(posture, cwd, cfg, mcp)
+  const wired = wiringRecord(
+    posture,
+    cwd,
+    cfg,
+    mcp,
+    operatorSkills.map((s) => s.name),
+  )
 
   overrides?.onWired?.(wired)
 
@@ -314,6 +333,8 @@ function withShellAndProjectEntities(
     cwd: string
     /** B-069 — loaded by the caller so the record and the builder cannot disagree. */
     mcpServers: ReturnType<typeof loadMcpJson>
+    /** #65 — the operator's `~/.theokit/skills/`, already read. Loaded by the caller, like `mcpServers`. */
+    operatorSkills: InlineSkill[]
     /**
      * Decided by the caller, for the same reason: this function writes the `web_search` APPROVAL
      * entry while `baseAgent` registers the tool, and the framework refuses a map naming a tool the
@@ -402,7 +423,14 @@ function withShellAndProjectEntities(
       // `.theokit/skills/<name>/SKILL.md` (theokit's filebase, enabled by `.settingSources` in M20). The
       // enabled list comes from config (`skills`, Codex parity). TRUST-GATED like AGENTS.md: an untrusted
       // repo's SKILL.md must not steer the agent (anti-prompt-injection), so untrusted ⇒ no skills.
-      .skills(posture.allows.skills ? [...cfg.skills] : [])
+      // #65 — the operator's skills ride alongside the project's names. `SkillsSelection` accepts
+      // `string | InlineSkill`, so an already-read skill needs no adapter.
+      //
+      // They are NOT behind `posture.allows.skills`. That gate asks whether the code in THIS
+      // repository may steer the agent; `~/.theokit/skills/` is not this repository, and gating it
+      // would refuse someone their own configuration because of where they happened to `cd` — the
+      // same reasoning `context/rules.ts` and `user-agents-md.ts` already apply to instructions.
+      .skills([...(posture.allows.skills ? cfg.skills : []), ...ctx.operatorSkills])
       // M20 — opt into theokit's `.theokit/` file-based config (project + user): skills, subagents, hooks,
       // context, mcp are discovered from disk. The enabler for M24 (disk skills), M25 (subagent roles), M26
       // (lifecycle hooks) — those milestones populate `.theokit/`; here we just turn discovery on. The

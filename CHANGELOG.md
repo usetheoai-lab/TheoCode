@@ -16,6 +16,28 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-06
+
+### Added
+
+- A skill in your own `~/.theokit/skills/` is loaded and offered to the agent, so something that
+  encodes how *you* work no longer has to be copied into every checkout (#65).
+- A subagent defined in `.claude/agents/` is discovered, like one in `.theokit/agents/` already was
+  (#83). Your own `~/.claude/agents/` is deliberately not read: on a machine that also runs Claude
+  Code that directory holds another kit's roles.
+- A custom command in `.claude/commands/` appears in the popup alongside `.theokit/commands/` ones
+  (B-152). Both roots are read only when the directory is trusted, as before.
+
+### Fixed
+
+- The `analyst` subagent no longer offers a shell. It is declared read-only in its tool list and
+  says so in its own instructions, and until now it could run commands anyway (#80).
+
+### Changed
+
+- `@theokit/sdk` 5.0.1 → 5.1.0 and `@theokit/agents` 13.0.0-next.0 → 13.0.0-next.1. These carry the
+  three doors the items above needed; none of the work was possible against the previous pins.
+
 ## [0.6.0] - 2026-09-06
 
 ### Added

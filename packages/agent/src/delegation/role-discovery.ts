@@ -48,7 +48,22 @@ export async function discoverRoles(opts: {
   const [mine, theirs] = await Promise.all([
     discoverSubagents(home, { settingSources: ['project'] }),
     opts.projectAllowed
-      ? discoverSubagents(opts.cwd, { settingSources: ['project'] })
+      ? // #83 — the foreign dialect, on the PROJECT root only. Without it a role in
+        // `.claude/agents/` is invisible while the identical file in `.theokit/agents/` resolves:
+        // one dialect, two answers, depending on which selector asks. Measured with four arms, arm N
+        // proving the foreign root was live in the same build (a rule from `.claude/rules/` reached
+        // the model) — so the dialect was admitted and only the agents were not read.
+        //
+        // Deliberately NOT on the operator call above. `~/.claude/agents/` on a machine that also
+        // runs Claude Code holds that kit's roles, and importing them would hand this product a team
+        // nobody declared for it — the same effect that forced `skills-on-disk.ts` to scope
+        // `presentButUndeclared` to the native root when dogfooding surfaced 39 foreign skills.
+        // A repository's `.claude/` is the one the operator has in front of them; their home root
+        // is shared with every other tool that speaks the dialect.
+        discoverSubagents(opts.cwd, {
+          settingSources: ['project'],
+          compatSources: ['claude-code'],
+        })
       : Promise.resolve({}),
   ])
   return { ...mine, ...theirs }
