@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+- **knip 6.32.2 → 6.34.0**, and the gap it was pinned against is re-measured rather than assumed. `includeEntryExports` is still not honoured on the newer release: a dead export planted in an entry file goes unreported, while the identical export in a non-entry file is caught — the positive control that proves the instrument speaks. So `#71` stays open on `webpro-nl/knip#2012`, now with the measurement citing the latest published version instead of the one the report was written against.
+
+
 ### Fixed
 - **`theocode doctor` stopped calling a working bundled skill a missing file** (B-155). A skill inside a `.claude/plugins/<bundle>/skills/` bundle loads and answers — measured on the built binary with the bundle removed as the control — and the row reported `declared with no SKILL.md` regardless. Third instance of one defect in this check: it knew the project roots, then learned the operator's root, and never learned that a root can nest bundles. Each time it named a cause that is false about a file that is there, which is how a diagnostic teaches people to stop reading it.
 
