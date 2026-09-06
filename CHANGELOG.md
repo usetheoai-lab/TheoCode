@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-06
+
 ### Added
 
 - **`npm run blockers` asks the installed tree whether the upstream gaps are still real**, instead of trusting the sentence that says so. Four issues carry a `blocked` label and a comment naming what unblocks each; that naming is prose, true when written, and nothing re-checks it — so the day upstream publishes, the label keeps saying blocked until somebody happens to look. The check resolves the symlink first (two trees with one package name is how a type was once reported absent from a version nobody was reading), reads the type rather than grepping the file, and stays advisory: a blocker that is still real is the expected state, not a build failure. Proven to report both states before being trusted — against the installed `5.0.1` all three read `blocked`, and against a candidate build carrying the fixes all three read `LANDED`.
@@ -39,6 +41,7 @@ for `release.yml` in this repository will not find it, and should not have been 
 - **`theocode doctor` stopped calling a working bundled skill a missing file** (B-155). A skill inside a `.claude/plugins/<bundle>/skills/` bundle loads and answers — measured on the built binary with the bundle removed as the control — and the row reported `declared with no SKILL.md` regardless. Third instance of one defect in this check: it knew the project roots, then learned the operator's root, and never learned that a root can nest bundles. Each time it named a cause that is false about a file that is there, which is how a diagnostic teaches people to stop reading it.
 
 - **A delegated role no longer carries a shell its definition never granted** (#80). The framework registers a `shell` tool for every local agent whether or not the caller asks — *"including when you pass `tools: []`"*, per the SDK's own `LocalOptions` docblock — so a role declared with three read tools enumerated `shell` first in its catalog, while the test asserting its declared list went on passing. The list was right; the catalog was not. Roles now withhold the builtin. Safe for the roles that legitimately execute: this product's shell is the custom `run_shell` under a different name, verified on the built binary — an executing role still returns `WORKER-OK-42`. The mechanism is **observed**, not inferred: with the option set, a child's catalog goes from `shell, read_file, list_dir, grep, parallel` to `read_file, list_dir, grep, parallel` — the first direct sighting of the withhold doing what its docblock promises. That observation was taken on the sibling `SubAgent` path (which accepts the field only in an unreleased upstream build), so what remains inferred is narrow: that the same option, on the same SDK call, behaves the same for a role. The role's own catalog stays unobservable because the squad path summarises its member's reply instead of relaying it. The `analyst` is unfixed and stays so — it is a `SubAgent`, whose spec carries no such field, and upstream measured that a withholding parent produces a child that recovers the tool anyway (`usetheokit/theokit-sdk#580`).
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
