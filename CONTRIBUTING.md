@@ -157,6 +157,70 @@ If a maintainer cannot reproduce your report, that is data. Two upstream reports
 repository were retracted after the owning session refused to fix a defect it could not observe —
 in both cases the cause was on this side, and a "fix" there would have hidden it.
 
+## Unblocking across repositories — snapshot, never symlink
+
+The section above requires reproducing against the **published** artifact. That rule is only
+followable if a published artifact can exist in minutes, so this is how one is obtained.
+
+**When a fix lands upstream that a consuming repository is blocked on, publish a snapshot instead of
+waiting for the release.** A snapshot is a real npm publish under its own dist-tag, with a version
+string that names why it exists:
+
+```
+5.1.0-compat-581-20260905211819
+```
+
+The mechanism already exists and has been used: `#83` in this repository was measured against
+exactly that version, days before `5.1.0` reached `latest`.
+
+### Why not a symlink
+
+Linking a sibling checkout into `node_modules` is the obvious shortcut and it is the wrong one.
+Measured on 2026-09-06, all three routes:
+
+| route | what happened |
+|---|---|
+| `pnpm link ../../../theokit-sdk/packages/sdk` | did **not** link — the symlink kept pointing at the store — and wrote `"sdk": "link:…"` into `package.json`, `pnpm-workspace.yaml` and the lockfile, all versioned |
+| `link:` in `overrides` | works, and breaks every other clone and CI, which have no sibling checkout |
+| snapshot publish | a real artifact, a real version, every gate keeps working |
+
+The decisive objection is not ergonomics. **Under changesets the version field does not move until
+the release, so a local checkout's `package.json` lies about its own source.** Measured the same
+day: `theokit-sdk` on disk said `5.1.0` while its `HEAD` carried the `effectiveToolNames` fix that
+shipped in `5.2.0`. Every gate that reads a version — `npm run blockers`, `tools/check-sdk-pin.mjs`
+— would have reported confidently about the wrong artifact.
+
+That failure has a name in this repository, and § *Ways a careful measurement still lies* is the
+list of times it already happened. A symlink makes it the permanent, invisible default. A snapshot
+version string cannot be mistaken for anything else.
+
+### The rules that make it safe
+
+- **A snapshot pin never reaches `develop`.** It is a measurement aid; the merged tree pins a real
+  release. A snapshot can be unpublished, and a versioned file pointing at one is a build that
+  breaks for everyone later, for a reason nobody will connect to this.
+- **A snapshot measurement does not close an issue.** It proves the fix works. `in-develop` and the
+  close still wait for `latest`, per the issue-lifecycle rule: *corrected* and *installable* are
+  different claims and only the second serves whoever is blocked.
+- **Raise the pin BEFORE running any check.** Otherwise the checker reads the old tree and reports
+  the gap as still real — correctly, about the wrong artifact. This cost a full re-measurement once
+  and is now the first line of every upstream handover message.
+- **Report the result back, including a failure.** The publishing session cannot tell whether what it
+  shipped serves the consumer; that is the only thing the snapshot buys, and skipping it spends the
+  cost without collecting the value.
+
+### Reading an upstream tree without pinning it
+
+`tools/check-upstream-blockers.mjs` takes an optional path, so a sibling checkout can be inspected
+without touching this repository's tree:
+
+```bash
+node tools/check-upstream-blockers.mjs ~/…/theokit-sdk/packages/sdk
+```
+
+Useful for answering *"did the fix land?"* before a snapshot exists. It is not a substitute for
+measuring against the artifact: it reads a tree whose version field, as above, may not describe it.
+
 ## Changelog
 
 `CHANGELOG.md` is written for the person consuming this product, not for the person who changed it.
