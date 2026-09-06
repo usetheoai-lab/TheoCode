@@ -45,6 +45,12 @@ function failureReason(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/** `execFileSync` attaches what the process wrote before it failed; anything else means none. */
+function capturedStdout(err: unknown): string {
+  const out = (err as { stdout?: unknown }).stdout
+  return typeof out === 'string' ? out : ''
+}
+
 export function createGitRunner(opts: GitRunnerOptions): (args: string[]) => GitResult {
   return (args) => {
     try {
@@ -63,7 +69,19 @@ export function createGitRunner(opts: GitRunnerOptions): (args: string[]) => Git
       // Named with the subcommand so the warning identifies WHICH call failed; a review runs several
       // and "git failed" would not say which scope decision was affected.
       opts.onWarn(`git ${args.join(' ')} failed: ${failureReason(err)}`)
-      return { ok: false, stdout: '' }
+      // #105 — what git printed BEFORE exiting non-zero, not discarded.
+      //
+      // For several subcommands a non-zero exit is the answer rather than a failure: `git diff`
+      // exits 1 under `--no-index` or `--exit-code` when it finds the difference it was asked to
+      // find, having already written the diff to stdout. Returning `''` told the caller the call
+      // produced nothing, which is a different and false statement.
+      //
+      // Measured: the end-of-turn diff printed nothing for a file the agent had just created,
+      // because a new file is untracked and `--no-index` is the only way to diff it.
+      //
+      // `ok` is unchanged, so no existing caller behaves differently — they all branch on it. What
+      // changes is that a caller who knows the exit code is expected can now read the output.
+      return { ok: false, stdout: capturedStdout(err) }
     }
   }
 }
