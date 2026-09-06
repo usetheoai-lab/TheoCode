@@ -46,6 +46,17 @@ export function loadCustomCommands(options: LoadOptions): Map<string, CustomComm
     projectDir: options.projectDir,
     homeDir: options.homeDir,
     projectTrusted: options.projectTrusted,
+    // B-152 — ask for the foreign dialect, so `.claude/commands/*.md` is read alongside
+    // `.theokit/commands/*.md`. The framework has read it since `COMPAT_COMMANDS_DIR` landed; this
+    // product simply never asked, so `/tk-probe` reached the popup and the byte-identical
+    // `/cc-probe` did not.
+    //
+    // No new door: `mergeProjectCommands` drops EVERY project directory when `projectTrusted` is
+    // false, so the compat dir takes the same evidence the native one takes. That matters here more
+    // than for most surfaces — a command's body becomes a prompt, and `.claude/` is repository-
+    // controlled. The negative-control arm in `custom-commands.compat.test.ts` is what would notice
+    // if that ever stopped being true.
+    compatSources: ['claude-code'],
     builtinNames: [...BUILTIN_COMMAND_NAMES],
     onWarn: (message) => {
       options.warn(`[custom-command] ${message}`)

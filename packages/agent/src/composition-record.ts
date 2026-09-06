@@ -29,6 +29,14 @@ export function wiringRecord(
   cwd: string,
   cfg: EffectiveConfig,
   mcp: McpScopes,
+  /**
+   * #65 — the operator's own skill names, already read from `~/.theokit/skills/`.
+   *
+   * Handed in rather than re-read here, for the reason the whole record exists: a second read is a
+   * second answer, and the disagreement between what a surface lists and what the agent holds is
+   * the bug B-071 was reopened for.
+   */
+  operatorSkills: readonly string[],
 ): ReturnType<typeof wiredCapabilities> {
   return wiredCapabilities({
     posture,
@@ -37,6 +45,7 @@ export function wiringRecord(
     mcpPersonal: mcp.personal,
     mcpWithheld: mcp.projectWithheld,
     configuredSkills: cfg.skills,
+    operatorSkills,
     hookEvents: configuredHookEvents(cfg),
     // The same walk `projectDocument` runs below, so the record and the prompt cannot name
     // different files. Paths only — the record is a listing, never a copy of the instructions.

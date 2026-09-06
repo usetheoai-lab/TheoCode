@@ -73,6 +73,17 @@ export function wiredCapabilities(input: {
    */
   readonly mcpWithheld?: readonly string[]
   readonly configuredSkills: readonly string[]
+  /**
+   * #65 — the operator's own skills, from `~/.theokit/skills/`.
+   *
+   * Separate from `configuredSkills` for the reason `mcpPersonal` is separate from `mcpServers`:
+   * they are not subject to the project trust gate, so folding them in would make
+   * `suppressedByTrust` a false statement about them. They are added back below, outside it.
+   *
+   * The record has to carry them or `/skills` lists a set the agent does not have — the exact
+   * disagreement between config and reality this record was built (B-071) to make impossible.
+   */
+  readonly operatorSkills?: readonly string[]
   /** The hook events handed to `.hooks()`, in the order they were registered. */
   readonly hookEvents: readonly string[]
   /** The instruction files the walk found — the paths, never their contents. */
@@ -107,6 +118,13 @@ export function wiredCapabilities(input: {
     mcp: {
       ...record.mcp,
       active: [...new Set([...record.mcp.active, ...(input.mcpPersonal ?? [])])].sort(),
+    },
+    // #65 — same shape as `mcp` above, and for the same reason: what is running, without erasing
+    // whose it is. Sorted, because the two sources are read from different directories and an
+    // operator should not see the order change with an unrelated edit.
+    skills: {
+      ...record.skills,
+      active: [...new Set([...record.skills.active, ...(input.operatorSkills ?? [])])].sort(),
     },
     projectSources: input.projectSourcesAllowed,
     sandboxMode: input.sandboxMode,

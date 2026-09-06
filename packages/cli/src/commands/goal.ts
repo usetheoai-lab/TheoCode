@@ -39,7 +39,7 @@ async function buildGoalAgent({
   const { createUpdateGoalTool } = await import('@theocode/agent/goal')
   const { resolveCredentialForModel } = await import('@theocode/agent/auth')
   return toAgentFactory(
-    buildChatAgent({
+    await buildChatAgent({
       cwd,
       config: cfg,
       posture,
