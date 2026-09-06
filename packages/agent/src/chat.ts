@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 
 import { mcpScopes } from './mcp-scopes.js'
-import { wiringRecord } from './composition-record.js'
+import { bothRuleRoots, publishWiring } from './composition-record.js'
 import type { WiredCapabilities } from './wired-capabilities.js'
 import { memoryEnabledForSession } from './memory-switch.js'
 import { sandboxModeForSession } from './sandbox-switch.js'
@@ -24,7 +24,7 @@ import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
 import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
-import { loadRules, loadUserRules } from './context/index.js'
+import type { RulesLoad } from './context/rules.js'
 import { userSkills } from './context/user-skills.js'
 import type { InlineSkill } from '@theokit/sdk'
 import {
@@ -46,8 +46,6 @@ import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
 import { settingSourcesFor } from './setting-sources.js'
-
-
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
@@ -117,7 +115,8 @@ export async function buildChatAgent(overrides: {
   // written by two different functions, and the framework refuses a map naming a tool it was not
   // given — so two reads that disagreed would crash the user's terminal at construction.
   const searchConfigured = webSearchConfigured()
-  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd }
+  const rules = bothRuleRoots(cwd)
+  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules }
   const base = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
@@ -161,18 +160,7 @@ export async function buildChatAgent(overrides: {
     searchConfigured,
   })
 
-  // Derived from the SAME values the builder just received, at the point it received them. That is
-  // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
-  // decision.
-  const wired = wiringRecord(
-    posture,
-    cwd,
-    cfg,
-    mcp,
-    operatorSkills.map((s) => s.name),
-  )
-
-  overrides?.onWired?.(wired)
+  publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules })
 
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
   const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
@@ -239,11 +227,16 @@ function resolveInteractiveBackend(
  * model reads last. Same order the config layers already resolve in, and the same one the README
  * states for them.
  */
-function projectDocument(posture: TrustPosture, cwd: string): string {
+function projectDocument(
+  posture: TrustPosture,
+  cwd: string,
+  /** #91 — read by the caller, so the prompt and the `/status` row come from ONE load. */
+  rules: { project: RulesLoad; user: RulesLoad },
+): string {
   const home = homedir()
-  const user = [loadUserAgentsMd(home), loadUserRules(home).text].filter(Boolean).join('\n\n')
+  const user = [loadUserAgentsMd(home), rules.user.text].filter(Boolean).join('\n\n')
   if (!posture.allows.agentsMd) return user
-  return [user, loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
+  return [user, loadAgentsMd(cwd), rules.project.text].filter(Boolean).join('\n\n')
 }
 
 function resolveProviderPlugins(
@@ -516,6 +509,8 @@ function baseAgent(ctx: {
   registry: ToolRegistry
   /** See `webSearchConfigured`. Decided by the caller so the tool and its approval agree. */
   searchConfigured: boolean
+  /** #91 — the single rules load, so the prompt and `/status` cannot disagree. */
+  rules: { project: RulesLoad; user: RulesLoad }
   overrides?: {
     baseInstructions?: string
     appendInstructions?: string
@@ -559,7 +554,7 @@ function baseAgent(ctx: {
       .system(
         composeInstructions(
           overrides?.baseInstructions ?? BASE_INSTRUCTIONS,
-          projectDocument(ctx.posture, ctx.cwd),
+          projectDocument(ctx.posture, ctx.cwd, ctx.rules),
           overrides?.appendInstructions ?? '',
           { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),
@@ -689,8 +684,6 @@ function profileTools(
     }
   }
 }
-
-
 
 /**
  * Whether a web-search PROVIDER is actually reachable — and therefore whether `web_search` is

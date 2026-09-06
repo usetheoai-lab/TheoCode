@@ -35,7 +35,7 @@ function writeRule(name: string, text: string): void {
 
 describe('loadUserRules', () => {
   it('test_no_rules_directory_is_the_common_case', () => {
-    expect(loadUserRules(home)).toEqual({ text: '', count: 0 })
+    expect(loadUserRules(home)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
   })
 
   it('test_a_user_rule_is_read', () => {
@@ -55,6 +55,6 @@ describe('loadUserRules', () => {
   it('test_only_markdown_is_read', () => {
     // Anti-vacuity: the directory is in the operator's home, where unrelated files accumulate.
     writeRule('notes.txt', 'not a rule')
-    expect(loadUserRules(home)).toEqual({ text: '', count: 0 })
+    expect(loadUserRules(home)).toEqual({ text: '', count: 0, read: 0, chars: 0, kept: 0, truncated: false })
   })
 })

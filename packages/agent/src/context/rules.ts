@@ -50,11 +50,38 @@ const DEFAULT_BUDGET: TraversalBudget = { maxDepth: 32, maxFiles: 2_000 }
  * prompt, read by this product's model; the framework hands over the scopes, and what a scope should
  * SAY is not a decision it can make for us.
  */
+/**
+ * #91 — what a caller needs to say whether the rules in the prompt are the rules on disk.
+ *
+ * `count` alone was already available and was never enough: "12 rules" describes a complete load
+ * and a quarter of one identically. The comparison is the fact, so both halves travel together.
+ */
+export interface RulesLoad {
+  /** The block as it goes into the prompt — already sliced at the ceiling. */
+  readonly text: string
+  /** Blocks that CONTRIBUTED to `text`. Unchanged meaning; see `assemble`. */
+  readonly count: number
+  /** Blocks READ from disk. Equal to `count` when nothing was dropped. */
+  readonly read: number
+  /** Length BEFORE the slice — what would have been in the prompt with no ceiling. */
+  readonly chars: number
+  /**
+   * Length that actually reached the prompt. Equal to `chars` when nothing was dropped.
+   *
+   * Carried rather than left to a caller to derive from the ceiling: a surface that recomputed the
+   * loss from `MAX_CHARS` would hold a second copy of the ceiling and print a wrong percentage the
+   * day it moved.
+   */
+  readonly kept: number
+  /** Derived, and stated rather than left to the caller to infer from `read > count`. */
+  readonly truncated: boolean
+}
+
 export function loadRules(
   cwd: string,
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
-): { text: string; count: number } {
+): RulesLoad {
   return loadRulesFrom(cwd, [join('.theokit', 'rules'), CLAUDE_RULES], warn, budget)
 }
 
@@ -104,7 +131,7 @@ export function loadUserRules(
   home: string,
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
-): { text: string; count: number } {
+): RulesLoad {
   return loadRulesFrom(home, userRuleRoots(home), warn, budget)
 }
 
@@ -126,7 +153,7 @@ function loadRulesFrom(
   roots: readonly string[],
   warn: WarnFn,
   budget: TraversalBudget,
-): { text: string; count: number } {
+): RulesLoad {
   requirePositiveBudget(budget)
 
   const tree = loadInstructionTree({
@@ -162,9 +189,12 @@ function loadRulesFrom(
  * first attempt at this migration read every block and reported that, so a caller was told "3 rules"
  * while the model saw two. A number describing something the caller cannot see is worse than none.
  */
-function assemble(blocks: readonly string[], warn: WarnFn): { text: string; count: number } {
+function assemble(blocks: readonly string[], warn: WarnFn): RulesLoad {
   const full = blocks.join(SEPARATOR)
-  if (full.length <= MAX_CHARS) return { text: full, count: blocks.length }
+  const read = blocks.length
+  if (full.length <= MAX_CHARS) {
+    return { text: full, count: read, read, chars: full.length, kept: full.length, truncated: false }
+  }
 
   let consumed = 0
   let count = 0
@@ -174,8 +204,19 @@ function assemble(blocks: readonly string[], warn: WarnFn): { text: string; coun
     consumed += block.length + (count > 1 ? SEPARATOR.length : 0)
   }
 
+  // #91 — the warning stays, and is no longer the ONLY notice. Its sink is `stderr` by default and
+  // the TUI does not surface stderr, so a project running on a quarter of its rules said so into a
+  // log nobody has open. The numbers now travel in the return value too, which is what lets
+  // `/status` print them beside the `agents.md` row that exists for exactly this reason.
   warn(`[rules] rules block truncated to ${String(MAX_CHARS)} chars (was ${String(full.length)})`)
-  return { text: full.slice(0, MAX_CHARS), count }
+  return {
+    text: full.slice(0, MAX_CHARS),
+    count,
+    read,
+    chars: full.length,
+    kept: MAX_CHARS,
+    truncated: true,
+  }
 }
 
 /**
