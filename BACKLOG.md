@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-156 items — **Open** 1 · **In flight** 0 · **Closed** 155
+157 items — **Open** 2 · **In flight** 0 · **Closed** 155
 
-### Open (1)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings----) | Decide which rules survive the ceiling, and why there are two ceilings | `raw` | — |
 | [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `raw` | — |
 
 ### In flight (0)
@@ -7337,6 +7338,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: `context/rules.ts:184` slices the joined block at `MAX_CHARS = 64_000`, keeping whatever the tree walk emitted first; `context/agents-md.ts:115` deliberately drops root-most content first and says so. Measured on this checkout at v0.7.1: 8 of 34 rule files reach the prompt.
+why_now: #91 made the loss visible and stopped there, because changing which rules survive is a behaviour change and was not the reported harm. With 26 of 34 files dropped here, "whichever the directory walk happened to emit first" is a real selection nobody chose — and the two ceilings (64,000 for rules, MAX_AGGREGATE 96,000 for the instruction chain) have no stated reason for differing.
+status: raw
+dod:
+  - a stated rule for which rules survive truncation, and the code following it
+  - either one ceiling, or two with the reason for the difference written where both are defined
+  - a test that fails if the surviving set stops matching the stated rule
 
 ## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [ ]
 
