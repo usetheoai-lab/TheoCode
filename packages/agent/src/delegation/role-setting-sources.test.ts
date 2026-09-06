@@ -29,6 +29,23 @@ vi.mock('@theokit/agents', async (orig) => ({
 const posture = (allows: Record<string, boolean>) =>
   ({ allows, level: allows.subagents === true ? 'trusted' : 'untrusted', source: 'store' }) as never
 
+/** The whole options object `Agent.create` receives — `withheldBuiltinTools` lives on it, not on `local`. */
+async function optsOf(allows: Record<string, boolean>): Promise<Record<string, unknown>> {
+  let seen: Record<string, unknown> = {}
+  await buildRoleAgent('explorer', {
+    cwd: '/p',
+    posture: posture(allows),
+    apiKey: 'k',
+    parent: { model: 'openai/gpt-5', reasoning_effort: 'medium' },
+    sandbox: { kind: 'none' },
+    createAgent: async (opts: unknown) => {
+      seen = opts as Record<string, unknown>
+      return {} as never
+    },
+  } as never)
+  return seen
+}
+
 async function localOf(allows: Record<string, boolean>): Promise<Record<string, unknown>> {
   let seen: Record<string, unknown> = {}
   await buildRoleAgent('explorer', {
@@ -86,6 +103,26 @@ describe('#74 — what a delegated role is allowed to read', () => {
       local.sandboxOptions,
       'the role kept its roots and lost its sandbox — a default-open trade',
     ).toEqual({ enabled: true })
+  })
+
+
+  it('test_a_role_does_not_get_the_builtin_shell_nobody_declared', async () => {
+    // #80 — a local agent is given a `shell` tool by the framework whether or not the caller asks,
+    // "including when you pass `tools: []`" (`LocalOptions` docblock, `@theokit/sdk@5.0.1`). Measured
+    // on the built binary: the `analyst`, declared with three read tools and instructions saying it
+    // cannot run commands, enumerates its catalog as `shell, read_file, list_dir, grep, parallel`.
+    //
+    // A role therefore carried authority its definition never granted, and the test asserting its
+    // declared tool list passed throughout — the list was right and the catalog was not.
+    //
+    // Withholding the BUILTIN is safe for the roles that legitimately execute: this product's own
+    // shell is the custom `run_shell`, a different name, resolved from the registry per role. What
+    // goes is only the one nobody declared.
+    const opts = await optsOf({ subagents: true, hooks: true })
+
+    expect(opts.withheldBuiltinTools, 'a role kept a shell its definition never granted').toEqual([
+      'shell',
+    ])
   })
 
   it('test_the_cwd_is_still_there', async () => {

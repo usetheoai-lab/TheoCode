@@ -79,12 +79,18 @@ export function skillsOnDisk(
   home: string = homedir(),
 ): SkillsOnDisk {
   const inProject = new Set(ROOTS.flatMap((root) => skillNamesIn(join(cwd, root, 'skills'))))
+  // A root can NEST bundles, and a bundle carries skills of its own. Measured 2026-09-06: a skill at
+  // `.claude/plugins/<bundle>/skills/<name>/SKILL.md` answers on the built binary, and this row still
+  // called it `declared with no SKILL.md`. Bundled names count as present and are never offered the
+  // "declare it" remedy — the bundle is another tool's inventory, the same reason the foreign root is
+  // excluded from that direction.
+  const inBundles = new Set(ROOTS.flatMap((root) => bundledSkillNames(join(cwd, root, 'plugins'))))
   const inNativeRoot = new Set(skillNamesIn(join(cwd, NATIVE_ROOT, 'skills')))
   const inUserRoot = new Set(skillNamesIn(join(home, DEFAULT_HOME_DIR, 'skills')))
   const named = new Set(declared)
   return {
     declaredButAbsent: [...named]
-      .filter((name) => !inProject.has(name) && !inUserRoot.has(name))
+      .filter((name) => !inProject.has(name) && !inUserRoot.has(name) && !inBundles.has(name))
       .sort(),
     // This product's own project root only. "Declare it and it loads" is false under the operator's
     // root (nothing reads it) and wrong under the foreign one (it is another tool's inventory), so
@@ -94,6 +100,24 @@ export function skillsOnDisk(
       .filter((name) => inUserRoot.has(name) && !inProject.has(name))
       .sort(),
   }
+}
+
+/**
+ * The skill names every bundle under one `plugins/` directory contributes.
+ *
+ * One level of nesting, deliberately: `<plugins>/<bundle>/skills/<name>/SKILL.md` is the shape
+ * measured working, and walking deeper would start counting files this product has no evidence are
+ * loaded. An absent directory is the common case, not an error.
+ */
+function bundledSkillNames(pluginsDir: string): string[] {
+  if (!existsSync(pluginsDir)) return []
+  let bundles: string[]
+  try {
+    bundles = readdirSync(pluginsDir)
+  } catch {
+    return []
+  }
+  return bundles.flatMap((bundle) => skillNamesIn(join(pluginsDir, bundle, 'skills')))
 }
 
 /**

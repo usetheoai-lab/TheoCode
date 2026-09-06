@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-151 items — **Open** 0 · **In flight** 0 · **Closed** 151
+155 items — **Open** 0 · **In flight** 0 · **Closed** 155
 
 ### Open (0)
 
@@ -77,7 +77,7 @@ _None._
 
 _None._
 
-### Closed (151)
+### Closed (155)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -232,6 +232,10 @@ _None._
 | [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class---x) | A retried failure still reaches the user as the wrong error class | `shipped` | minor |
 | [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
 | [`B-151`](#b-151--b-134s-guarantee-had-no-gate-and-the-next-dangling-citation-was-already-there---x) | B-134's guarantee had no gate, and the next dangling citation was already there | `shipped` | major |
+| [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
+| [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
+| [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -7112,3 +7116,259 @@ dod:
   - the exemption list cannot grow to match everything, and each entry carries its reason
 
 > Registered 2026-09-03, by gating a guarantee that had been living in a DoD.
+
+## B-152 — `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/`   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-09-06 by reading the loader's own signature, not by inference from behaviour.
+
+  `loadCustomCommands` is the framework's — `@theokit/agents@13.0.0-next.0`, `dist/config.d.ts`. Its
+  input carries the two roots it reads and no third:
+
+      interface LoadCustomCommandsInput {
+        readonly projectDir?: string;   // its `.theokit/commands/`, when trusted
+        readonly homeDir?: string;      // its `.theokit/commands/`
+        readonly projectTrusted: boolean;
+        readonly builtinNames?: readonly string[];
+        readonly onWarn?: (message: string) => void;
+      }
+
+  There is no parameter a caller could use to ask for a foreign dialect, and `grep -c claude` over
+  that `.d.ts` returns 0. So a repository holding `.claude/commands/` gets nothing — no command, no
+  warning, no row in `doctor`.
+
+  Not a fabricated gap: the loader's own docblock states the shape of the problem, in the SDK's
+  words — "Claude Code's custom commands declare `model` and `argument-hint`. Two vocabularies
+  already, and neither is the framework's to adopt."
+why_now: |
+  This product ADVERTISES the foreign root. `README.md` documents `.claude/rules/*.md` and
+  `.claude/agents/<name>.md` as read, and three surfaces were measured working there on 2026-09-05:
+  a rule reaches the model, a skill is invocable, a subagent is delegated to. Commands are the
+  surface that looks identical from outside and is not wired at all.
+
+  A partial dialect is worse than none. Someone who saw the other three work has no reason to
+  suspect this one, and the failure is silent — the file is on disk, the name never appears, and
+  nothing anywhere says why.
+
+  The fix belongs upstream rather than here: the loader is the framework's, so a foreign-root
+  parameter makes it the default for every consumer instead of a workaround in one.
+status: killed
+fixed_in: (decision) — routed to the `theokit` session and implemented there as `e7a4d6505`; nothing in this repository could close it, and nothing here did
+kill_reason: |
+  ROUTED UPSTREAM, not refuted. The defect is real and confirmed on 2026-09-06 with a positive
+  control: `/tk-` lists `/tk-probe` from `.theokit/commands/`, and `/cc-` lists nothing for the
+  identical file under `.claude/commands/`. `commands` is not a member of the SDK's `CompatSurface`
+  ("hooks" | "plugins" | "skills" | "subagents"), and `loadCustomCommands` is implemented in
+  `@theokit/agents` with two roots and no third.
+
+  So nothing here can fix it, and a registry that governs this scope should not carry an item whose
+  whole remedy lives in another repository. Handed to the `theokit` session with the measurement.
+  Removed from the open set by the owner's instruction, and killed rather than deleted because the
+  id is the audit trail — the next person to notice commands failing finds this block and the
+  evidence instead of rediscovering both.
+dod:
+  - `LoadCustomCommandsInput` accepts a foreign-root declaration, in the same shape `discoverSubagents` already uses for the same question
+  - a `.claude/commands/<name>.md` in a trusted project is invocable by `/<name>`, verified on a built binary with a positive control — the identical file under `.theokit/commands/` — so the arm distinguishes "read from the foreign root" from "read at all"
+  - the project's own root still wins a name collision, asserted by a test
+  - the two frontmatter vocabularies stay separate: the loader keeps carrying the lines verbatim and adopts neither product's keys
+
+> Registered 2026-09-06. The justification is the gap between what this product documents about
+> `.claude/` and what it reads — not that another product has commands.
+
+## B-153 — hooks declared in `.claude/settings.json` are read by nobody   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-09-06 by grepping every reader in this product and in the SDK.
+
+  What reads hooks here is `packages/agent/src/hooks/hooks.ts`, and its own first line scopes it:
+  "The PARSER for `.theokit/hooks.json` — and nothing else." Nothing in `packages/*/src` opens
+  `.claude/settings.json`; the only mention of that path in the whole tree is a comment.
+
+  The near-miss that makes this specific rather than vague: `hooks/claude-project-dir.ts` exists
+  precisely so a hook COPIED out of a `.claude/settings.json` keeps working — it supplies the
+  `CLAUDE_PROJECT_DIR` that such a command assumes. So the product went to the trouble of making a
+  borrowed hook script run, while the file that declares it stays unread.
+
+  Event names already match. `hooks/build-handlers.ts` records that `.theokit/hooks.json` "uses
+  Claude Code's names — `PreToolUse`…", so what is missing is the source, not the vocabulary.
+why_now: |
+  The same asymmetry as B-152, one surface over, and with a sharper edge: a hook is the surface a
+  repository uses to enforce something. A repository whose guard rails live in
+  `.claude/settings.json` runs here with those guards silently absent — and the operator's evidence
+  that they are absent is nothing at all.
+
+  Not "Claude Code has hooks". The local reason is that this product already accepts the dialect's
+  event names, already ships a helper for its scripts, and stops one step short of the file.
+status: killed
+fixed_in: (decision) — killed by measurement; the surface already works and no code change was warranted here
+kill_reason: |
+  REFUTED BY MEASUREMENT 2026-09-06. Hooks declared in `.claude/settings.json` ARE read.
+
+      settings.json present   -> hook fired (1 side effect)
+      settings.json removed   -> 0            (negative control)
+      settings.json restored  -> hook fired (1)
+
+  The item asserted absence from a grep for the literal path, and the path is COMPOSED, never
+  literal: `hookConfigCandidates` builds `projectConfigRoots(cwd, compatSources, "hooks")` and then
+  tries `hooks.json`, `settings.json`, `settings.local.json` under each admitted root. A bare
+  `compatSources: ["claude-code"]` — which this product already passes — admits every surface.
+
+  The "translation" the item described was wrong in the same breath: the SDK's hook shape IS the
+  dialect's shape, nested with `type: "command"`. The flat array with `event`/`timeout_ms` is this
+  product's own, and it is the second form, not the first.
+
+  Killing this is the cycle working. The measurement gate exists to stop a hunch from reaching a
+  plan, and it stopped one that had already been written up in detail — which is the more expensive
+  kind to stop late.
+dod:
+  - a `hooks` block in `.claude/settings.json` is honoured in a trusted project, under the same per-hook approval gate `.theokit/hooks.json` goes through — a foreign root must not be a weaker gate
+  - verified on a built binary by observing the hook's own side effect, with a negative control in which the same file is absent
+  - `theocode doctor` names which file each active hook came from, so "declared and not wired" stays distinguishable from "not declared"
+  - an untrusted directory contributes no hook from either root, asserted by a test
+
+> Registered 2026-09-06. Upstream, so the dialect is read the same way for every consumer rather
+> than translated in one product.
+
+## The gap is not only the path — the shapes differ, and one of them cannot be passed through
+
+Measured 2026-09-06, before anyone starts building. This changes what the fix has to be: the reader
+cannot simply be pointed at a second file.
+
+### Two shapes, one vocabulary
+
+Ours — `.theokit/hooks.json`, a flat array validated by a `.strict()` schema:
+
+```jsonc
+{ "hooks": [ { "event": "PreToolUse", "command": "...", "matcher": "…", "timeout_ms": 5000 } ] }
+```
+
+The dialect — `.claude/settings.json`, nested by event with an inner array and a type discriminator:
+
+```jsonc
+{ "hooks": { "PreToolUse": [ { "matcher": "*", "hooks": [ { "type": "command", "command": "…" } ] } ] } }
+```
+
+The **event names already agree** — `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, which is
+exactly the set `hooks-spec.ts` declares. So the vocabulary was never the problem; the structure is.
+
+### One incompatibility that fails closed, and would fail loudly
+
+`matcher: "*"` is idiomatic in the dialect and is **not a valid regular expression**:
+
+```
+$ node -e 'new RegExp("*")'
+Invalid regular expression: /*/: Nothing to repeat
+```
+
+Our parser calls `new RegExp(matcher)` in `requireCompilableMatcher` and raises `HookError` when it
+throws. So a translation that passes the matcher through unchanged does not silently misbehave — it
+refuses the file at boot, for a value the source dialect considers normal. Any fix has to map `*` to
+match-all rather than forward it.
+
+Recorded because it is the kind of detail that turns "read a second path" into a translation with a
+decision in it, and because a fix that got this wrong would fail in the one place a hooks file must
+not: at startup, on a repository that was working a moment earlier.
+
+### What this does not settle
+
+Whose layer performs the translation. `CompatSourceDeclaration` and `projectConfigRoots` live in
+`@theokit/sdk`, which is why the item routes upstream — but the hook engine and this vocabulary live
+here (`packages/agent/src/hooks/`). If the answer is "the SDK exposes the declaration and the
+consumer translates", half of this is local work and I do it. Asked upstream; not assumed.
+
+
+## B-154 — `.claude/plugins/` is not read, and nothing in the tree knows the word   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-09-06: `grep -rn plugins packages/*/src` filtered for the foreign root returns zero
+  matches. Not a partial implementation, not a stub — the subsystem is absent.
+
+  Scope, stated because it is what makes this item different from B-152 and B-153: a plugin in that
+  dialect is not one file. It is a bundle that can carry skills, commands, agents and hooks at once,
+  plus a marketplace it was installed from and a resolution order against the roots already read.
+  The two items above each open one door; this one opens a container that holds all of them.
+why_now: |
+  Same local reason as its siblings — this product documents that it reads the foreign root, and a
+  repository that keeps its skills and commands inside a plugin bundle gets nothing, silently.
+
+  It is registered as implementation, at the owner's decision, with the risk stated rather than
+  hidden: no measurement has been made of what the bundle format requires, so the DoD below is
+  written in terms of observable behaviour rather than of a design nobody has chosen yet. If the
+  first phase of work shows the scope is a different size than this item assumes, the honest move is
+  to reclassify it rather than stretch the criteria to fit.
+status: killed
+fixed_in: (decision) — killed by measurement; the surface already works and no code change was warranted here
+kill_reason: |
+  REFUTED BY MEASUREMENT 2026-09-06. A bundle under `.claude/plugins/` contributes its skills.
+
+      bundle present  -> the skill answers PLUGIN-SKILL-OK
+      bundle removed  -> "no skill_read tool or documented skills are available"  (control)
+      bundle restored -> PLUGIN-SKILL-OK
+
+  `pluginBundleDirs(cwd, compatSources)` admits the root, and `plugins` is a member of
+  `CompatSurface`. Same defect as B-153 in the evidence: a grep for the literal word over this
+  product's tree, when the reading happens in the framework through a composed path.
+
+  What the run did NOT establish, stated so the kill is not read as more than it is: commands and
+  hooks contributed BY a bundle were not exercised, nor was precedence against the project's own
+  roots, nor marketplaces. The hypothesis that the surface is unsupported is dead; a narrower
+  question about what a bundle may carry is not, and would need its own item and its own
+  measurement.
+dod:
+  - a plugin bundle present under `.claude/plugins/` in a trusted project contributes its skills, commands and agents, each verified by invoking it and each with a positive control placing the identical file at the already-read root
+  - precedence against the project's own roots is decided, written down, and asserted by a test — not left to directory order
+  - an untrusted directory contributes nothing from a bundle, asserted by a test, under the same gate the other foreign surfaces pass through
+  - `theocode doctor` lists which bundles were loaded and which were seen and skipped, with the reason
+  - what the work did NOT cover is stated in the shipped note — marketplaces and installation are separate questions from reading a bundle that is already on disk
+
+> Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
+> the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-155 — `doctor` called a working bundled skill a missing file   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: |
+  FOUND 2026-09-06 while measuring B-154, and it is the reason that item was refuted rather than the
+  reason it was filed.
+
+  A skill at `.claude/plugins/<bundle>/skills/<name>/SKILL.md` answers on the built binary —
+  `PLUGIN-SKILL-OK`, with the bundle removed as the control. `theocode doctor` reported it anyway:
+
+      ✓ skills: plug-skill
+      ! skills-on-disk: declared with no SKILL.md: plug-skill
+
+  Third instance of ONE defect in this check, each time naming a cause that is false about a file
+  that is there: it knew the project roots, then learned the operator's root (#65), and never learned
+  that a root can NEST bundles.
+why_now: |
+  The row's whole purpose is to tell a reader which remedy applies. "Write the file" about a file
+  that exists and is loading sends them to do work that is already done, and — worse — teaches them
+  that the row is unreliable, which is how a diagnostic stops being read.
+status: shipped
+fixed_in: 62f6de8
+dod:
+  - a declared skill that exists only inside a bundle is not listed as absent
+  - it is not offered the "declare it" remedy either — a bundle is another tool's inventory, the same reason the foreign root is excluded from that direction
+  - a genuinely absent skill is still named, verified on the binary as a control
+shipped: |
+  SHIPPED 2026-09-06. `bundledSkillNames` walks one level — `<root>/plugins/<bundle>/skills/` — and
+  contributes to presence only. One level deliberately: that is the shape measured working, and
+  walking deeper would count files this product has no evidence are loaded.
+
+  Verified on the built binary in both directions: the bundled skill no longer appears in the row,
+  and a skill declared nowhere on disk still does.
