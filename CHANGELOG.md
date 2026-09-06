@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-06
+
 ### Fixed
 
 - **The agent could not start a turn at all in 0.7.0 and 0.7.1.** Both the CLI and the TUI failed on
