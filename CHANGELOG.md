@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+- **`npm run blockers` asks the installed tree whether the upstream gaps are still real**, instead of trusting the sentence that says so. Four issues carry a `blocked` label and a comment naming what unblocks each; that naming is prose, true when written, and nothing re-checks it — so the day upstream publishes, the label keeps saying blocked until somebody happens to look. The check resolves the symlink first (two trees with one package name is how a type was once reported absent from a version nobody was reading), reads the type rather than grepping the file, and stays advisory: a blocker that is still real is the expected state, not a build failure. Proven to report both states before being trusted — against the installed `5.0.1` all three read `blocked`, and against a candidate build carrying the fixes all three read `LANDED`.
+
+
 ### Changed
 - **knip 6.32.2 → 6.34.0**, and the gap it was pinned against is re-measured rather than assumed. `includeEntryExports` is still not honoured on the newer release: a dead export planted in an entry file goes unreported, while the identical export in a non-entry file is caught — the positive control that proves the instrument speaks. So `#71` stays open on `webpro-nl/knip#2012`, now with the measurement citing the latest published version instead of the one the report was written against.
 
