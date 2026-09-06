@@ -25,7 +25,7 @@ import { join } from 'node:path'
 /** Each blocker: the issue it holds, and the string whose presence in the installed types settles it. */
 const BLOCKERS = [
   {
-    issue: 74,
+    issue: 83,
     what: 'compatSources on DiscoverSubagentsOptions',
     file: 'dist/subagents-loader.d.ts',
     // The whole block, not the file: `compatSources` appears in prose elsewhere, and a match in a
