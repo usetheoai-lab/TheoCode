@@ -28,7 +28,8 @@
     "format": "prettier --write .",
     "lint:english": "node tools/check-english-only.mjs",
     "crossval": "python3 tools/check-backlog-crossval.py",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "blockers": "node tools/check-upstream-blockers.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

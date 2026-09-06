@@ -1,3 +1,7 @@
+import { basename } from 'node:path'
+
+import { transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
+
 import { classifyEntry, type ArtifactKind } from '../artifacts.js'
 /**
  * The GC's own verdict vocabulary.
@@ -167,7 +171,20 @@ async function resolveGuards(
   let reading: 'pointer' | 'registry' = 'pointer'
   try {
     const pointer = opts.readPointer(liveness.cwd)
-    if (pointer !== undefined) protectedIds.add(pointer)
+    // The pointer holds a SESSION ID and this set is keyed by FILENAME, which is derived from the id
+    // and never equal to it — measured: `exec-522dc0ef-…` names a file called `7dc7d4ef-….jsonl`.
+    // Adding the raw id put a value in that the lookup can never ask for, so the guard standing
+    // between a running TUI and the loss of its own conversation matched nothing. It went unseen
+    // because the quota and most-recent guards cover the live session whenever it is also the newest;
+    // it failed exactly when it was not, and deletion here calls `unlink` with no restore.
+    //
+    // The SDK's own forward mapping does the conversion. The INVERSE cannot exist over a hash
+    // (usetheokit/theokit-sdk#577) and is not needed: the id is already in hand, so ask what it is
+    // called rather than trying to read an id out of a name.
+    if (pointer !== undefined) {
+      const named = transcriptPath(transcriptRoot(), liveness.cwd, pointer)
+      protectedIds.add(transcriptId(basename(named)))
+    }
     reading = 'registry'
     registry = await opts.listRegistry(liveness.cwd)
   } catch {

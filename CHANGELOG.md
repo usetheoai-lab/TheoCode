@@ -16,6 +16,14 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+- **`sessions gc` protected nothing it claimed to protect, and deletion here is permanent** (#84). A transcript's filename is derived from its session id and is not equal to it — `exec-522dc0ef-…` names a file called `7dc7d4ef-….jsonl`. The protected set was filled from three vocabularies (registry agent ids, the live-session pointer, filename stems for the quota) and consulted with a filename stem, so two of the three could never match: **a registered session and the session a running TUI was writing to were both collectable**, and the same mismatch made `inRegistry` permanently false, which is why every session read as an `orphan` — a report that looked like an explanation and was an artefact of the comparison. Only `keepLast` and most-recent ever worked, because those are filename-derived on both sides, and they hid the rest by covering the live session whenever it was also the newest. Both plan paths now key on one vocabulary, using the SDK's own forward mapping; the inverse cannot exist over a hash and is not needed, since every id is already in hand. Verified on the built binary in both directions: the pointer's transcript and a registered session are kept, and an unregistered 60-day-old one is still collected.
+
+
+### Added
+- **`npm run blockers` asks the installed tree whether the upstream gaps are still real**, instead of trusting the sentence that says so. Four issues carry a `blocked` label and a comment naming what unblocks each; that naming is prose, true when written, and nothing re-checks it — so the day upstream publishes, the label keeps saying blocked until somebody happens to look. The check resolves the symlink first (two trees with one package name is how a type was once reported absent from a version nobody was reading), reads the type rather than grepping the file, and stays advisory: a blocker that is still real is the expected state, not a build failure. Proven to report both states before being trusted — against the installed `5.0.1` all three read `blocked`, and against a candidate build carrying the fixes all three read `LANDED`.
+
+
 ### Changed
 - **knip 6.32.2 → 6.34.0**, and the gap it was pinned against is re-measured rather than assumed. `includeEntryExports` is still not honoured on the newer release: a dead export planted in an entry file goes unreported, while the identical export in a non-entry file is caught — the positive control that proves the instrument speaks. So `#71` stays open on `webpro-nl/knip#2012`, now with the measurement citing the latest published version instead of the one the report was written against.
 
