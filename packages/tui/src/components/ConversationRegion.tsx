@@ -38,6 +38,7 @@ export interface ConversationRegionProps {
   readonly contextWindow: number
   readonly backtrack: { armed: boolean; previews: readonly string[]; nth: number; total: number }
   readonly showHelp: boolean
+  readonly verbose: boolean
   readonly customCommands: ReadonlyMap<
     string,
     { name: string; hints: string[]; description?: string }
@@ -84,6 +85,13 @@ function ConversationOverlays(props: ConversationRegionProps): ReactElement {
             // B-028 / B-006 — the rows THIS build wires, derived by the library from the
             // declaration in `composer-capabilities.ts`. `shell` is absent there by ADR 0001.
             ...composerShortcutsFor(THIS_BUILD),
+            // Not derivable from `composer-capabilities.ts`: that declares what the COMPOSER can
+            // do, and this key belongs to the transcript above it. A shortcut absent from the help
+            // panel is a shortcut nobody finds — which is the whole reason the panel exists.
+            {
+              keys: 'ctrl+o',
+              description: 'show the detailed transcript (tool cards) instead of the count lines',
+            },
             ...[...props.customCommands.values()].map((c) => ({
               keys: `/${c.name}${c.hints.length > 0 ? ` ${c.hints.join(' ')}` : ''}`,
               description: c.description ?? 'custom command',
@@ -117,7 +125,23 @@ function ContentPanelView({ panel }: { panel: ContentPanel }): ReactElement {
 export function ConversationRegion(props: ConversationRegionProps): ReactElement {
   return (
     <>
-      <AgentTimeline key={props.clearEpoch} events={props.events} header={<Banner />} />
+      {/*
+        `verbose` and `footer` are the toolkit's (usetheokit/theokit-tui#61), and the note under the
+        transcript is ours because the key binding is: the component exposes the flag, the app owns
+        which key flips it. Rendered only while verbose, matching Claude Code — a collapsed
+        transcript is the resting state and does not need to announce itself.
+      */}
+      <AgentTimeline
+        key={props.clearEpoch}
+        events={props.events}
+        header={<Banner />}
+        verbose={props.verbose}
+        footer={
+          props.verbose ? (
+            <Text dimColor>Showing detailed transcript · ctrl+o to toggle</Text>
+          ) : undefined
+        }
+      />
 
       {props.streaming ? (
         <AgentStreaming

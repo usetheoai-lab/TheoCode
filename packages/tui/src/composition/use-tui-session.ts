@@ -36,7 +36,10 @@ export function useTuiSession() {
   const streaming = agent.status === 'streaming'
   const elapsed = useTurnElapsed(streaming)
   const { exit } = useApp()
-  const { stdout } = useStdout()
+  // Both halves of Ink's stdout context. `stdout` is the raw stream (`/clear` addresses the
+  // screen through it); `write` is the seam that puts text above the live frame, which is what
+  // `/raw` needs and what a raw-stream write would have had erased by the next repaint.
+  const { stdout, write: writeToScrollback } = useStdout()
   const [effort, setEffort] = useState<ReasoningEffort>(SESSION.effort())
   return {
     ROOT,
@@ -55,6 +58,7 @@ export function useTuiSession() {
     elapsed,
     exit,
     stdout,
+    writeToScrollback,
     effort,
     setEffort,
   }

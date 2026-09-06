@@ -1,11 +1,11 @@
 import { ConfigurationError, Toolset } from '@theokit/agents'
-import { createViewImageTool } from './view-image.js'
 import type { CustomTool } from '@theokit/agents'
 import { bindToolScope } from '@theokit/agents/tool-scope'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
 import {
   createApplyPatchTool,
   createCurrentTimeTool,
+  createViewImageTool,
   createEditFileTool,
   createGitDiffTool,
   createGitStatusTool,
@@ -77,6 +77,14 @@ export class ToolRegistry {
       ['git_diff', bound.bind(createGitDiffTool)()],
       ['current_time', createCurrentTimeTool()],
       // B-082 — the model can look at a diagram or screenshot itself, under the same read root.
+      // The 53-line local version was DELETED when `@theokit/agents@12.1.0` started forwarding this
+      // built-in: the local one threw for the SDK to convert, where the built-in returns typed
+      // `path_traversal` / `not_found` / `unsupported_image_type` / `image_too_large`; it hard-coded
+      // no size ceiling, where the built-in defaults to 5 MB with the reason written down (base64
+      // inflates by 4/3 straight into the model's context); and it applied the SE17 split by hand,
+      // which the factory now does. The upstream note is the argument for deleting rather than
+      // keeping: "an image reader that honours any path is a file exfiltration primitive with a
+      // friendly name" — not code to maintain one copy of per product.
       ['view_image', bound.bind(createViewImageTool)()],
       // Explicit override: for a write tool, the project root IS the write root.
       ['apply_patch', bound.bind(createApplyPatchTool)({ projectRoot: scope.writeRoot })],

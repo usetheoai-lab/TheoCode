@@ -104,3 +104,46 @@ describe('B-003 — a lock whose transcript still exists is not an orphan', () =
     ).toEqual([])
   })
 })
+
+/**
+ * The floor REFUSES; it does not normalise.
+ *
+ * `planSessionGCAllProjects` throws when `maxAgeDays` is below `FLOOR_DAYS`, and the message says
+ * why: "silently normalising would delete yesterday's session". That guard sits on the only path in
+ * this product that removes a user's data and had no test — a comment in `liveness-seam.test.ts`
+ * mentioned it, which is documentation, not a gate.
+ *
+ * Found 2026-09-03 while writing down the reliability target in the README: the target claims the
+ * delete path fails towards keeping, and a claim in a versioned file needs something that fails when
+ * it stops being true.
+ */
+describe('the retention floor is a refusal, not a normalisation', () => {
+  const base = { projectsRoot: '/nonexistent-for-this-test', projects: [] as string[] }
+
+  it('test_a_window_below_the_floor_is_refused', async () => {
+    await expect(planSessionGCAllProjects({ ...base, maxAgeDays: 0 } as never)).rejects.toThrow(
+      RangeError,
+    )
+  })
+
+  it('test_a_negative_window_is_refused', async () => {
+    await expect(planSessionGCAllProjects({ ...base, maxAgeDays: -30 } as never)).rejects.toThrow(
+      RangeError,
+    )
+  })
+
+  it('test_the_refusal_says_what_the_floor_is_and_why_it_exists', async () => {
+    // A guard that refuses without saying why gets removed by the next person who hits it.
+    await expect(
+      planSessionGCAllProjects({ ...base, maxAgeDays: 0 } as never),
+    ).rejects.toThrow(/floor of 1 day/)
+  })
+
+  it('test_the_floor_itself_is_accepted', async () => {
+    // Anti-vacuity: refusing everything would satisfy the assertions above. One day is a legitimate
+    // choice for someone who wants an aggressive sweep; the floor bounds it, it does not forbid it.
+    await expect(
+      planSessionGCAllProjects({ ...base, maxAgeDays: 1 } as never),
+    ).resolves.toBeDefined()
+  })
+})

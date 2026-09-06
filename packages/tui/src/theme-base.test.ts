@@ -1,7 +1,7 @@
 /**
  * B-073 — the theme base is resolved, not hardcoded.
  *
- * `THEME.base` was the literal `'dark'`, while the toolkit's own type admits
+ * The base handed to the provider was the literal `'dark'`, while the toolkit's own type admits
  * `'dark' | 'light' | 'no-color'`. A light-terminal user had no recourse, and `no-color` — the
  * value a piped, logged or screen-reader-driven terminal wants — was unreachable from outside the
  * source file.
@@ -13,6 +13,10 @@
  *
  * The resolver takes its environment as an argument. Reading `process.env` inside would make every
  * test order-dependent, which `rules/testing.md` § 6 names outright.
+ *
+ * What this file still owns after `/theme` learned to switch: the DEFAULT. The session override
+ * sits in front of this answer and is proved separately (`theme-session.test.tsx`); nothing below
+ * should start asserting on it, or the environment's own precedence stops being tested at all.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -91,6 +95,7 @@ describe('B-073 — the resolution reaches the user', () => {
         cfg: () => ({
           modelLabel: 'gpt-5.4',
           sandboxLabel: 'sandbox:workspace-write',
+          sandboxDetail: 'workspace-write',
           contextWindow: { window: 200_000, source: 'catalogue' },
         }),
       } as never,
@@ -99,7 +104,10 @@ describe('B-073 — the resolution reaches the user', () => {
       { backend: () => ({ activeSessionCount: () => 0 }) } as never,
     )
 
-    expect(panel.body).toContain(`theme:      ${THEME_RESOLUTION.base}`)
+    // Matched WITHOUT the padding. The column width is computed from the widest label now, so a
+    // literal run of spaces here would turn this test red every time a row is added — which is a
+    // fact about alignment, and alignment is `status-panel.test.ts`'s subject, not this file's.
+    expect(panel.body).toMatch(new RegExp(`theme: +${THEME_RESOLUTION.base}`))
     expect(panel.body).toContain(THEME_RESOLUTION.source)
   })
 })

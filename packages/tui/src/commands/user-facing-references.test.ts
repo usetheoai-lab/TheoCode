@@ -16,7 +16,14 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = join(import.meta.dirname, '../../../..')
 
-/** Every `.ts`/`.tsx` under packages/, as text. */
+/**
+ * Every `.ts`/`.tsx` under packages/ that can end up in front of a user, as text.
+ *
+ * Test files are excluded. The premise of this gate is what the PRODUCT says, and a fixture path is
+ * addressed to a temporary directory, never to a person — `.claude/agents/prober.md` inside a
+ * `mkdtemp` project is SUPPOSED not to resolve from the repository root. Scanning them turned a
+ * fixture into a reported defect, while the production strings those tests cover stay fully scanned.
+ */
 function sources(): { path: string; text: string }[] {
   const out: { path: string; text: string }[] = []
   const walk = (dir: string): void => {
@@ -24,7 +31,8 @@ function sources(): { path: string; text: string }[] {
       if (name.name === 'node_modules' || name.name === 'dist') continue
       const p = join(dir, name.name)
       if (name.isDirectory()) walk(p)
-      else if (/\.tsx?$/.test(name.name)) out.push({ path: p, text: readFileSync(p, 'utf8') })
+      else if (/\.tsx?$/.test(name.name) && !/\.test\.tsx?$/.test(name.name))
+        out.push({ path: p, text: readFileSync(p, 'utf8') })
     }
   }
   walk(join(ROOT, 'packages'))

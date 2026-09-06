@@ -29,12 +29,29 @@ for b in blocks:
         problems.append((bid, "closed with no `fixed_in`", "nothing records which commit closed it"))
         continue
     raw = fx.group(1)
-    if "(decision)" in raw or "theokit" in raw:
+
+    # Every sha-shaped token, split on commas AND whitespace.
+    #
+    # Two coverage gaps measured 2026-09-03, both of which made this gate report health over items it
+    # had not looked at:
+    #
+    #   - `x.strip().split()[0]` took the FIRST token of each comma-separated part, so a
+    #     space-separated pair (`2eb9c26 ea99717`) had its second commit silently dropped. Five items
+    #     were in that shape.
+    #   - The skip was `"theokit" in raw`, a substring test. B-094's `fixed_in` reads
+    #     `c969e25 (TheoCode) · @theokit/agents@7.5.0 · …` — a LOCAL commit plus the upstream releases
+    #     it shipped with — and the whole item was skipped because the word appeared.
+    #
+    # An item is skipped now only when it has no local commit to check, which is what "no local commit
+    # by design" claimed all along.
+    candidates = [t for t in re.split(r"[,\s·]+", raw) if re.fullmatch(r"[0-9a-f]{7,40}", t)]
+    local = [t for t in candidates if sh("git", "cat-file", "-t", t).strip() == "commit"]
+    if not local:
         skipped.append((bid, "decision-only or upstream — no local commit by design"))
         continue
 
     touched = set()
-    for s in (x.strip().split()[0] for x in raw.split(",")):
+    for s in candidates:
         if not re.fullmatch(r"[0-9a-f]{7,40}", s):
             continue
         if sh("git", "cat-file", "-t", s).strip() != "commit":

@@ -1,20 +1,31 @@
-# The five gates this repository declares, run on every pull request.
+# The six gates this repository declares, run on every pull request.
 #
 # B-015: `.github` had never existed across 383 commits. Five gates were declared in
 # `package.json` and every one of them passed only when a human remembered to run it. A gate
 # nobody runs is documentation.
 #
-# One workflow, five jobs, and every one of them blocking — deliberately. No job is allowed to
+# One workflow, six jobs, and every one of them blocking — deliberately. No job is allowed to
 # report a failure as a pass; a job that cannot fail is the gate that motivated this file, one
 # layer down. `crossval` was RED when this work
 # started (31 closed items with no `fixed_in`); it was made green BEFORE this file landed, because
 # a gate wired in red is a gate everyone learns to ignore.
 #
-# Five jobs rather than one: a single job stops at the first failure and hides the other four.
-# Each pays its own `npm ci`, which is the price of independent red/green.
+# Six jobs rather than one: a single job stops at the first failure and hides the other five.
+# Each pays its own `pnpm install`, which is the price of independent red/green.
+#
+# The count was five until 2026-09-03, when `build` was added (B-136): every other gate reads the
+# SOURCE, so a repository whose bundle no longer builds passed all five. These header lines said
+# five for the hour between adding the job and noticing — the same decay B-148 recorded about the
+# README's test count, in the file that documents itself.
+#
+# pnpm rather than npm, since 2026-09-02. npm could not honour the `overrides` in
+# `pnpm-workspace.yaml`'s npm twin: measured with an exact pin and a full install, it resolved
+# `@theokit/sdk@4.55.0`, printed `invalid: "^4.63.3"` in `npm ls`, and exited 0. pnpm resolves the
+# same manifests correctly, so CI was validating a different dependency graph than any developer
+# ran. `package-lock.json` is gitignored now — the full reasoning is in `pnpm-workspace.yaml`.
 #
 # ---------------------------------------------------------------------------------------------
-# B-062: these five checks are not required. Nothing here blocks a merge.
+# B-062: these six checks are not required. Nothing here blocks a merge.
 #
 # Read "blocking" above in its narrow sense: no job reports a failure as a pass. It does NOT mean
 # GitHub refuses the merge. It does not, and cannot at this tier. Measured 2026-08-19 with a token
@@ -34,7 +45,7 @@
 # not a permission we lack and not a file we forgot to write — `main` is as unprotected as
 # `develop`.
 #
-# What holds the line today is a person waiting for five green ticks — usually. Surveyed at the
+# What holds the line today is a person waiting for six green ticks — usually. Surveyed at the
 # same time: 25 merged PRs (#25 through #49, every integer in that range), none of which merged
 # with a red rollup, and the six most recent merged 20-49 seconds after the last check completed.
 #
@@ -107,22 +118,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
 
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
       # them — "a guard that passes when it cannot check is worse than no guard, because it is
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
@@ -235,18 +248,19 @@ jobs:
             }
           '
         timeout-minutes: 2
-      - run: npm ci
-      - run: npm test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
 
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       # `tools/check-english-only.mjs` reads the SYSTEM word lists and exits 1 when it cannot find
       # them — "a guard that passes when it cannot check is worse than no guard, because it is
       # believed" (its own words). Those lists ship on a developer's Ubuntu and not on a runner, so
@@ -339,20 +353,50 @@ jobs:
             }
           '
         timeout-minutes: 2
-      - run: npm ci
-      - run: npm run lint
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
 
   depcruise:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run depcruise
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run depcruise
+
+  # B-136 — the build had been broken and nothing noticed, because no job ran it. `npm run build`
+  # could not resolve `@theokit/sdk`, so `dist/theocode.mjs` could not be produced and the smoke test
+  # the README offers as the check that "touches neither the network nor a credential" was
+  # unrunnable by anyone who cloned. Declaring the dependency fixed the day; this job is what stops
+  # it recurring, and it runs the README's own command rather than a proxy for it.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      # The artifacts, asserted rather than assumed: esbuild exits 0 while writing nothing if its
+      # entry point resolves to an empty module, and `provider-catalog.json` is a COPY step whose
+      # failure would silently disable auto-compaction in every model mode.
+      - name: The build produced the artifacts it claims
+        run: |
+          set -euo pipefail
+          for f in dist/theocode.mjs dist/provider-catalog.json dist/acp-entry.mjs; do
+            test -s "$f" || { echo "missing or empty: $f" >&2; exit 1; }
+          done
+      # The README's smoke test, verbatim. It touches neither the network nor a credential.
+      - run: node dist/theocode.mjs sessions gc
 
   crossval:
     runs-on: ubuntu-latest
@@ -363,7 +407,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - run: npm run crossval
+      - run: pnpm run crossval

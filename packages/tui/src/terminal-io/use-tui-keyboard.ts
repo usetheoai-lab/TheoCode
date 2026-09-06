@@ -95,6 +95,7 @@ export function useTuiKeyboard(deps: KeyboardDeps): void {
       confirmBacktrack: backtrack.confirm,
       armExit: () => screen.setExitArmed(true),
       disarmExit: () => screen.setExitArmed(false),
+      toggleVerbose: () => screen.setVerbose((v) => !v),
       quit: exit,
     })
   })

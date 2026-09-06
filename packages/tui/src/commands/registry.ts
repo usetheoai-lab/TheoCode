@@ -4,6 +4,7 @@ import {
   type CommandDefinition,
 } from '@theokit/agents/commands'
 import type { ChatComposerCommand } from '@theokit/tui'
+import { CODEX_NAMES, CODEX_NAME_COMMANDS } from './codex-names.js'
 
 type DemoMode = 'plan' | 'ask' | 'select' | 'progress'
 
@@ -56,6 +57,37 @@ export type CommandAction =
   | { kind: 'showStatus' }
   | { kind: 'initAgents' }
   | { kind: 'quit' }
+  // Codex parity — `/pwd` answers "which directory am I in" without opening a panel.
+  | { kind: 'pwd' }
+  /**
+   * Three Codex names answered with a real command instead of a pointer at two others.
+   *
+   * `/theme` carries an argument it now HONOURS: the base was resolved once at startup until
+   * `theme-session.tsx` put a session override in front of it, so the handler switches the running
+   * frame instead of explaining why it cannot. A value outside the vocabulary is still refused by
+   * name rather than dropped — a silently ignored argument reads as applied.
+   */
+  | { kind: 'theme'; arg: string }
+  | { kind: 'showAgents' }
+  | { kind: 'showPermissions' }
+  /**
+   * Three more Codex names promoted out of `codex-names.ts` into real commands.
+   *
+   * `/title` and `/statusline` both carry a list of item names; `/raw` carries an optional `all`.
+   * All three take `arg: 'optional'` like every other verb here, so the bare form reports rather
+   * than erroring — the shape `/model` and `/theme` already set.
+   */
+  | { kind: 'title'; arg: string }
+  | { kind: 'statusline'; arg: string }
+  | { kind: 'raw'; arg: string }
+  /**
+   * A Codex command name this build does not implement, answered with the equivalent here.
+   *
+   * Carries the NAME rather than the answer so the routing layer stays a vocabulary and the words
+   * stay in one file (`codex-names.ts`). Two places holding the same sentence is how one of them
+   * comes to name a command that no longer exists.
+   */
+  | { kind: 'codexName'; name: string }
   | { kind: 'listPtys' }
   | { kind: 'stopPtys' }
   // M51 — review mode (Codex /review parity): arg = target (empty=uncommitted | base <ref> | commit <sha> | custom).
@@ -107,6 +139,11 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   { name: 'compact', description: 'summarize the conversation to free context' },
   { name: 'init', description: 'bootstrap an AGENTS.md for this repository' },
   { name: 'quit', description: 'exit the TUI' },
+  // Codex answers to BOTH `/quit` and `/exit`. Someone arriving from it types whichever they have
+  // in their fingers, and the one we did not have produced an unknown-command error on the way out
+  // of a session — the least forgiving moment to be pedantic about a synonym.
+  { name: 'exit', description: 'exit the TUI (alias of /quit)' },
+  { name: 'pwd', description: 'print the working directory' },
   {
     name: 'status',
     description: 'show the session state: model, effort, approval, sandbox, cwd',
@@ -120,6 +157,37 @@ export const BUILTIN_COMMANDS: readonly ChatComposerCommand[] = [
   },
   { name: 'review', description: 'review changes [base <ref> | commit <sha>]' },
   { name: 'goal', description: 'run an autonomous goal loop until done/budget' },
+  // Codex names carrying their own implementation here rather than a pointer at another command.
+  // They keep the Codex word because that is the word the fingers of someone arriving from it
+  // produce, and what they render is this build's own state.
+  {
+    name: 'agents',
+    description: 'the subagents this project defines and the sessions you can resume',
+  },
+  { name: 'permissions', description: 'the approval mode and the sandbox mode, together' },
+  {
+    name: 'theme',
+    description: 'switch the colour theme for this session — dark | light | no-color',
+  },
+  {
+    name: 'title',
+    description: 'choose what the terminal title shows: /title <items> | none | default',
+  },
+  {
+    name: 'statusline',
+    description: 'choose which facts the footer shows: /statusline <items> | default',
+  },
+  // Named after Codex's `/raw` because that is the word the fingers of someone arriving from it
+  // produce, and described as what it actually does. Codex's is a transcript render-mode toggle;
+  // this prints once, because Ink hard-wraps everything inside its layout — `raw-command.ts`
+  // carries the measurement.
+  {
+    name: 'raw',
+    description: 'print the last reply above the frame as plain text for mouse selection',
+  },
+  // Codex names that point at a feature this build HAS under another name. In the menu because
+  // reading `/memories → /memory` there is how the real command gets discovered.
+  ...CODEX_NAME_COMMANDS,
 ]
 
 export const BUILTIN_COMMAND_NAMES: ReadonlySet<string> = new Set(
@@ -135,6 +203,10 @@ const EXACT_COMMANDS: ReadonlyMap<string, CommandAction> = new Map([
   ['/status', { kind: 'showStatus' }],
   ['/init', { kind: 'initAgents' }],
   ['/quit', { kind: 'quit' }],
+  ['/exit', { kind: 'quit' }],
+  ['/pwd', { kind: 'pwd' }],
+  ['/agents', { kind: 'showAgents' }],
+  ['/permissions', { kind: 'showPermissions' }],
   ['/diff', { kind: 'showDiff' }],
   ['/ps', { kind: 'listPtys' }],
   ['/stop', { kind: 'stopPtys' }],
@@ -165,6 +237,10 @@ const COMMANDS_WITH_ARGUMENT: readonly (readonly [
   ['/resume', (arg) => ({ kind: 'resume', arg })],
   ['/memory', (arg) => ({ kind: 'memoryInfo', arg })],
   ['/effort', (arg) => ({ kind: 'effort', arg })],
+  ['/theme', (arg) => ({ kind: 'theme', arg })],
+  ['/title', (arg) => ({ kind: 'title', arg })],
+  ['/statusline', (arg) => ({ kind: 'statusline', arg })],
+  ['/raw', (arg) => ({ kind: 'raw', arg })],
   ['/review', (arg) => ({ kind: 'review', arg })],
   ['/goal', (arg) => ({ kind: 'goal', arg })],
   ['/login', (arg) => ({ kind: 'login', arg })],
@@ -192,7 +268,14 @@ function routeWithArgument(trimmed: string): CommandAction | undefined {
  */
 function definitions(customNames?: ReadonlySet<string>): CommandDefinition[] {
   const builtins = [...EXACT_COMMANDS.keys(), ...COMMANDS_WITH_ARGUMENT.map(([name]) => name)]
-  const names = new Set([...builtins.map((n) => n.slice(1)), ...(customNames ?? [])])
+  const names = new Set([
+    ...builtins.map((n) => n.slice(1)),
+    // Every Codex name, INCLUDING the ones the menu does not offer: being answerable when typed
+    // and being advertised are different jobs, and only the first one is what stops a person
+    // arriving from Codex hitting `unknown command`.
+    ...CODEX_NAMES.keys(),
+    ...(customNames ?? []),
+  ])
   return [...names].map((name) => defineCommand({ name, description: '', arg: 'optional' }))
 }
 
@@ -225,5 +308,12 @@ export function routeCommand(input: string, customNames?: ReadonlySet<string>): 
   const slash = `/${routed.command.name}`
   const withArgument = routeWithArgument(routed.arg.length > 0 ? `${slash} ${routed.arg}` : slash)
   if (withArgument !== undefined) return withArgument
-  return EXACT_COMMANDS.get(slash) ?? { kind: 'send', text: trimmed }
+  const exact = EXACT_COMMANDS.get(slash)
+  if (exact !== undefined) return exact
+  // Checked AFTER this build's own verbs, so a Codex name we later implement for real takes over
+  // without anyone having to remember to delete the pointer.
+  if (CODEX_NAMES.has(routed.command.name)) {
+    return { kind: 'codexName', name: routed.command.name }
+  }
+  return { kind: 'send', text: trimmed }
 }

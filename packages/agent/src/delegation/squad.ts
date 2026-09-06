@@ -32,6 +32,30 @@ export interface TeamContext {
   hooks?: HookHandlers
 }
 
+/**
+ * Dispose every team member, report the ones that failed, and never throw.
+ *
+ * B-043 — `allSettled`, not `all`. Called from a `finally`, a rejection REPLACES the value the try
+ * block produced, so ONE member failing to dispose threw away the delegation result the user had
+ * been waiting for. A cleanup failure is worth reporting and is not worth losing the work over.
+ *
+ * Extracted from the handler's `finally` so the guarantee can be tested. It was implemented, it was
+ * explained in a comment, and it had no test — which is how B-043's third DoD bullet stayed both
+ * vague and unprotected while the item read `shipped`. Found 2026-09-03 by the backlog structure
+ * check flagging the bullet as unfalsifiable.
+ */
+export async function disposeMembers(
+  members: readonly { [Symbol.asyncDispose]: () => PromiseLike<void> }[],
+  report: (line: string) => void,
+): Promise<void> {
+  const disposals = await Promise.allSettled(members.map((m) => m[Symbol.asyncDispose]()))
+  for (const d of disposals) {
+    if (d.status === 'rejected') {
+      report(`[delegation] a team member failed to dispose: ${String(d.reason)}\n`)
+    }
+  }
+}
+
 export function createDelegateToTeamTool(context: TeamContext) {
   return Tool.create({
     name: 'delegate_to_team',
@@ -67,18 +91,7 @@ export function createDelegateToTeamTool(context: TeamContext) {
           steps: run.steps.length,
         })
       } finally {
-        // B-043 — `allSettled`, not `all`. In a `finally`, a rejection REPLACES the value the try
-        // block produced, so one member failing to dispose threw away the delegation result the
-        // user was waiting for. A cleanup failure is worth reporting and is not worth losing the
-        // work over.
-        const disposals = await Promise.allSettled(members.map((m) => m[Symbol.asyncDispose]()))
-        for (const d of disposals) {
-          if (d.status === 'rejected') {
-            process.stderr.write(
-              `[delegation] a team member failed to dispose: ${String(d.reason)}\n`,
-            )
-          }
-        }
+        await disposeMembers(members, (line) => process.stderr.write(line))
       }
     },
   })

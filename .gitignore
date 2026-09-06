@@ -16,6 +16,7 @@ data/
 *.swo
 *.pem
 code-review-output
+specs
 # Claude Code kit — LOCAL, never versioned. A tool for whoever develops this, not product
 # code: someone who clones TheoCode gets the agent, not the maintenance scaffolding of the
 # people who write it. Install it with `bash <squad>/scripts/install.sh .` when wanted.
@@ -120,3 +121,25 @@ halt-loop-prompts/
 # The audit trail that MATTERS — the agent definitions and the findings — lives in
 # `.claude/agents/review-*/`, and that one is versioned.
 .claude/skills/review-*-knowledge/
+
+# The OpenAI Codex study clone. NEVER commit it — this is a LICENCE boundary, not tidiness.
+#
+# `README.md` states the rule this entry enforces: "The study clone lived outside the tree,
+# gitignored, read-only … a literal copy would carry the upstream licence into this repository,
+# which is a legal problem and not a stylistic one." `NOTICE` records what was derived from it and
+# how; every derivation is design re-expressed in our own code, and none of it is Codex source.
+#
+# Measured 2026-08-25: `codex/` was present, 99 MB, untracked AND unignored — so it was not
+# outside the tree and not gitignored, and `git add -A` would have carried Apache-2.0 source into
+# a repository that is public (`gh api repos/usetheoai-lab/TheoCode --jq '{private}'` -> false).
+# Nothing had flagged it: `git status` shows it as one untracked directory line like any other.
+#
+# It is a legitimate thing to have on disk — it is the reference the parity work is measured
+# against. What must not happen is it entering a commit.
+codex/
+
+# One package manager, one lockfile — see pnpm-workspace.yaml.
+package-lock.json
+
+# Session transcripts dumped by the TUI export; evidence for one run, not project docs.
+/tui-*-*-*-*-*.md

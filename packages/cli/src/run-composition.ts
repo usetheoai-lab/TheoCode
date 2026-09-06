@@ -4,7 +4,7 @@ import type { CliOverrides } from './runtime/index.js'
 
 import { buildChatAgent } from '@theocode/agent'
 import {
-  TRUST_STORE,
+  trustStorePath,
   resolveEffectiveConfig,
   resolveHeadlessApproval,
   resolveTrustPosture,
@@ -31,21 +31,45 @@ export interface RunComposition {
   readonly cfg: EffectiveConfig
   readonly policy: ReturnType<typeof resolveHeadlessApproval>
   readonly mod: { readonly default: ReturnType<typeof buildChatAgent> }
+  /**
+   * The model id the agent was actually built on, AFTER `routeModel`.
+   *
+   * Returned because the caller has to resolve a credential for the same id it built the agent on.
+   * Resolving for one id and running on another is precisely the divergence this seam exists to
+   * close, and a caller that had to re-derive the routed id could re-derive it differently.
+   */
+  readonly model: string
 }
 
 export function composeRun(
   args: {
     readonly overrides: CliOverrides
     readonly model?: string
+    /**
+     * Rewrite the model id for the credential that will actually serve it.
+     *
+     * A ChatGPT sign-in is not an API key: the OAuth token is scoped to `chatgpt.com/backend-api/
+     * codex` and `api.openai.com` refuses it outright (`Missing scopes: api.responses.write`,
+     * measured 2026-08-25). `openai/…` selects the API-key provider, so an OAuth user's turn has to
+     * be re-pointed at `openai-chatgpt/…` before anything resolves — which is what
+     * `routeToCredential` does, and what the TUI has always done at its own composition point.
+     *
+     * Headless did not, so the SAME credential worked in the TUI and failed in the CLI. The
+     * rewrite is passed IN rather than performed here because it needs an already-resolved
+     * credential, and this function is synchronous by design.
+     */
+    readonly routeModel?: (model: string) => string
   },
   seams: CompositionSeams = {},
 ): RunComposition {
   const cwd = seams.cwd ?? process.cwd()
-  const store = seams.store ?? TRUST_STORE
 
   // B-033 — the same environment that feeds config resolution below. These used to be two
   // sources in one run: the posture from the ambient environment, the config from `seams.env`.
   const env = seams.env ?? process.env
+  // After `env`, and derived FROM it: the store is part of the same one-source answer B-033
+  // established, and reading it from the ambient environment would put the split back.
+  const store = seams.store ?? trustStorePath(env)
   const posture = resolveTrustPosture(cwd, store, env)
   const cfg = resolveEffectiveConfig({
     cwd,
@@ -60,9 +84,16 @@ export function composeRun(
     resolveSandboxPosture({ mode: cfg.sandbox_mode }),
   )
 
+  // `cfg.model` is what `buildChatAgent` would fall back to on its own (`overrides?.model ??
+  // cfg.model`), named here so `routeModel` sees the id that is actually going to be used rather
+  // than `undefined`.
+  const requested = args.model ?? cfg.model
+  const model = args.routeModel === undefined ? requested : args.routeModel(requested)
+
   return {
     cfg,
     policy,
+    model,
     mod: {
       default: buildChatAgent({
         surface: 'headless',
@@ -71,7 +102,7 @@ export function composeRun(
         cwd,
         config: cfg,
         posture,
-        ...(args.model !== undefined ? { model: args.model } : {}),
+        model,
       }),
     },
   }

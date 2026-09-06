@@ -1,5 +1,5 @@
 import process from 'node:process'
-import { execFileSync } from 'node:child_process'
+import { createGitRunner } from '@theocode/shared/git-runner'
 import type { ExecReview } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
 
@@ -29,16 +29,11 @@ export async function reviewCommand(args: ExecReview, shutdown: Shutdown): Promi
 
   try {
     const result = await runReview(args.target, {
-      git: (a) => {
-        try {
-          return {
-            ok: true,
-            stdout: execFileSync('git', a, { encoding: 'utf8', timeout: 10_000 }),
-          }
-        } catch {
-          return { ok: false, stdout: '' }
-        }
-      },
+      git: createGitRunner({
+        timeoutMs: execCfg.shell_timeout_ms,
+        // Headless: the reason goes to stderr, where the JSON on stdout stays parseable.
+        onWarn: (m) => process.stderr.write(`[review] ${m}\n`),
+      }),
       createAgent: createReviewAgent({
         config: execCfg,
         cwd: process.cwd(),

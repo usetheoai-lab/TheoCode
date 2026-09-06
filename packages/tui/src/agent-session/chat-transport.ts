@@ -1,10 +1,13 @@
 import { homedir } from 'node:os'
 import { recordMcpWarning, startMcpFailureTurn } from './mcp-failure-record.js'
-import { mcpFailureSink } from './mcp-failure-sink.js'
+import { currentAttempts, startRetryTurn } from './retry-record.js'
+import { runEventSink } from './run-event-sink.js'
 import { recordWiring } from './wiring-record.js'
 
 import { InProcessTransport } from '@theokit/agents/client'
 import { streamAgentTurnInProcess } from '@theokit/agents'
+import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
+import { turnErrorText } from '@theocode/shared/turn-error'
 
 import { buildChatAgent } from '@theocode/agent'
 import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/config'
@@ -41,6 +44,8 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
         // B-088 — a failure belongs to the turn that hit it. Clearing here, at the start of the
         // run, is what stops `/mcp` reporting a server that has since recovered.
         startMcpFailureTurn()
+        // A count carried over from the previous turn would be a number that is wrong, not missing.
+        startRetryTurn()
         const images = deps.takePendingImages()
         const c = deps.credential()
         const commandModel = deps.takePendingModel()
@@ -75,10 +80,23 @@ export function createChatTransport(deps: ChatTransportDeps): InProcessTransport
           {
             ...input,
             sessionId: deps.getSessionId(),
-            // B-088 — subscribe to the SDK's typed run events. Only `mcp_server_failed` is read
-            // (see `mcpFailureSink`); every other event is deliberately ignored, so an MCP panel
-            // never fills with unrelated runtime noise.
-            onRunEvent: mcpFailureSink,
+            // Without this the framework masks every failure to "An error occurred." — the right
+            // default for a public HTTP endpoint and the wrong one here, where the caller IS the
+            // operator. Same policy as the CLI, from `@theocode/shared/turn-error`, so the two
+            // surfaces cannot describe the same failure differently.
+            onError: (error) =>
+              turnErrorText(error, {
+                // B-130 — the transport retries three times and said so only under an environment
+                // variable nobody was told about. Same policy as the CLI, so the two surfaces cannot
+                // describe the same failure differently.
+                attempts: currentAttempts(),
+                diagnosticsEnabled: diagnosticsEnabled(),
+              }),
+            // B-088 — subscribe to the SDK's typed run events. Two members are read and every other
+            // is deliberately ignored: `mcp_server_failed` (see `mcpFailureSink`) so an MCP panel
+            // never fills with unrelated runtime noise, and `rate_limit` (see `sinkRetryEvent`) so a
+            // failure can say how many attempts it cost.
+            onRunEvent: runEventSink,
             ...(images !== undefined ? { images } : {}),
           },
         )

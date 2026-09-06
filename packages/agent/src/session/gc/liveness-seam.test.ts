@@ -21,6 +21,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { encodeProjectDir } from '@theokit/agents/persistence'
+
+import { claimRoot } from './root-ownership.js'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { planAllProjectsOnDisk } from './filesystem.js'
@@ -32,6 +34,11 @@ let live: string
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'theocode-gc-seam-'))
+  // The collector refuses a root it did not mark, so a test driving the real disk path has to own
+  // its scratch tree the way production owns `~/.theokit/projects`. Claiming here rather than
+  // exempting `opts.projectsRoot` in the guard: an internal seam that skips the check is the escape
+  // hatch that admits the defect the check exists for.
+  claimRoot(root)
   live = mkdtempSync(join(tmpdir(), 'theocode-live-project-'))
 })
 

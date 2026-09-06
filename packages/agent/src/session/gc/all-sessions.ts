@@ -103,12 +103,23 @@ function empty(): Record<CollectableKind, number> {
   return { transcript: 0, 'lock-file': 0, 'lock-directory': 0, tmp: 0, registry: 0 }
 }
 
+/**
+ * Either the guards, or WHICH read failed.
+ *
+ * B-143 moved the pointer read inside the guard that already wrapped the registry read, and left the
+ * caller reporting `registry unavailable` for both. A widened catch with an unwidened message sends
+ * the operator to the wrong file, so the failure carries its own name.
+ */
+type GuardResult =
+  | { protectedIds: Set<string>; registry: RegistryEntry[] }
+  | { failedRead: 'pointer' | 'registry' }
+
 async function resolveGuards(
   liveness: ReturnType<PlanAllOptions['classify']>,
   transcripts: readonly ProjectEntry[],
   keepLast: number,
   opts: PlanAllOptions,
-): Promise<{ protectedIds: Set<string>; registry: RegistryEntry[] } | undefined> {
+): Promise<GuardResult> {
   const protectedIds = new Set<string>()
   if (liveness.state !== 'ALIVE' && liveness.state !== 'DEAD') {
     return { protectedIds, registry: [] }
@@ -118,19 +129,49 @@ async function resolveGuards(
   // from. Returning an empty set here made `KEEP_PER_PROJECT` and the `--keep-last` flag apply
   // exclusively to the projects that were being spared anyway. Neither existing test could see it:
   // both force ALIVE or pass `keepLast: 0`.
-  for (const t of transcripts.slice(0, keepLast)) protectedIds.add(transcriptId(t.name))
+  // B-140 — the quota is spent on DATABLE entries only.
+  //
+  // An entry the collector could not `stat` has `mtimeMs: undefined`, and the sort above reads that
+  // as `Infinity` — so it lands at the FRONT, where `slice(0, keepLast)` spends a slot on it. Those
+  // entries are already safe: `collectableAge` returns undefined without an mtime and the planner
+  // skips them. So the quota was being spent on files that were never at risk, and the stale
+  // transcripts it exists to protect fell through to deletion. Measured: 10 unstattable entries
+  // beside 5 stale ones planned all 5 for removal, at the default quota of 10.
+  //
+  // This is the mirror of the bug B-020 fixed on the line above. `mtimeMs` used to be `0`, which
+  // sorted LAST and dated the file to 1970, so it was collected every window; that comment reasons
+  // about sort position and concludes `keepLast` "could not protect it either". Moving the entry to
+  // the front protected it twice and unprotected its neighbours.
+  const datable = transcripts.filter((t) => t.mtimeMs !== undefined)
+  for (const t of datable.slice(0, keepLast)) protectedIds.add(transcriptId(t.name))
 
   // The registry and pointer guards need a live cwd to consult, so they stay ALIVE-only.
   if (liveness.state === 'DEAD') return { protectedIds, registry: [] }
 
-  if (transcripts[0] !== undefined) protectedIds.add(transcriptId(transcripts[0].name))
-  const pointer = opts.readPointer(liveness.cwd)
-  if (pointer !== undefined) protectedIds.add(pointer)
+  // Same reason as the quota: an unstattable entry must not consume the most-recent slot either, or
+  // the genuinely newest transcript of a live project loses its guard to a file nobody could read.
+  if (datable[0] !== undefined) protectedIds.add(transcriptId(datable[0].name))
+  // B-143 — the pointer read is inside the same guard as the registry read, and for the same reason.
+  //
+  // `readPointerId` fails fast on any errno but ENOENT because what it returns is a deletion
+  // decision: swallowing an EACCES would drop a live session from the protected set. That argument
+  // is about THIS PROJECT. The call used to sit outside every `try` here, so the throw unwound past
+  // both catches, out of `planOneProject` and out of `planSessionGCAllProjects` — measured: the
+  // whole plan rejected. One project with a permissions problem meant nothing anywhere was
+  // collected, and under the automatic trigger the stamp was already written, so it would not retry
+  // for a day. Every day.
+  //
+  // Returning undefined skips THIS project and reports it, which is what the caller already does for
+  // an unavailable registry. The safe direction is kept where it belongs and stops being contagious.
   let registry: RegistryEntry[]
+  let reading: 'pointer' | 'registry' = 'pointer'
   try {
+    const pointer = opts.readPointer(liveness.cwd)
+    if (pointer !== undefined) protectedIds.add(pointer)
+    reading = 'registry'
     registry = await opts.listRegistry(liveness.cwd)
   } catch {
-    return undefined
+    return { failedRead: reading }
   }
   for (const e of registry) if (e.archived !== true) protectedIds.add(e.agentId)
   return { protectedIds, registry }
@@ -160,6 +201,14 @@ async function planOneProject(
   }
 
   const dir = `${opts.projectsRoot}/${project}`
+  // Newest first, BY MTIME rather than by id — and the reason is a decision nobody wrote down until
+  // an audit named it (SD-07.2). Session ids are random UUIDs handed out by the SDK
+  // (`session-ops.ts:52`), so they carry no order at all: sorting by name would produce an arbitrary
+  // permutation that LOOKS deterministic. The filesystem timestamp is the only ordering signal this
+  // layer has, which is why `keepLast` has to reason about entries that cannot be `stat`ed — the
+  // whole class of bug B-140 fixed below exists downstream of this choice.
+  //
+  // `localeCompare` is the tiebreaker so equal mtimes still yield a stable order.
   const transcripts = entries
     .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
     .sort(
@@ -168,8 +217,8 @@ async function planOneProject(
   const idsOnDisk = new Set(transcripts.map((t) => transcriptId(t.name)))
 
   const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
-  if (guards === undefined) {
-    errors.push(`${project}: registry unavailable — project skipped`)
+  if ('failedRead' in guards) {
+    errors.push(`${project}: ${guards.failedRead} unavailable — project skipped`)
     return
   }
   const { protectedIds, registry } = guards
@@ -217,6 +266,16 @@ interface ProjectState {
  *
  * B-020 — an entry with no mtime has NO AGE, and the window is the primary guard on this path. It
  * used to arrive here as `mtimeMs = 0`, which computed to ~20 000 days and cleared every window.
+ *
+ * DO NOT delete this line because a mutation test survives it. Measured 2026-09-03: removing it
+ * leaves every case green, because `now() - undefined` is NaN and `NaN > maxAgeDays` is false, so
+ * the entry is spared anyway. The OUTCOME is covered — `fail-open.test.ts` asserts an unreadable
+ * mtime produces no candidate — and what this line adds is that the sparing is INTENDED rather than
+ * a property of NaN comparison that a later refactor could remove without noticing.
+ *
+ * This shape recurred three times in this release (here, `readLastRun`'s NaN branch, and the env
+ * coercion guard) and only one of the three was independently observable. A surviving mutant is
+ * evidence about the test, not about the code.
  */
 function collectableAge(e: ProjectEntry, window: CollectionWindow): number | undefined {
   if (e.mtimeMs === undefined) return undefined

@@ -23,7 +23,7 @@ export const DEFAULT_THEME_BASE: ThemeBase = 'dark'
 export interface ThemeResolution {
   readonly base: ThemeBase
   /** Which input decided it — reported so `/status` can answer "why is it this colour?". */
-  readonly source: 'NO_COLOR' | 'THEOCODE_THEME' | 'default'
+  readonly source: 'NO_COLOR' | 'THEOCODE_THEME' | 'stored' | 'default'
   /**
    * The rejected value, when `THEOCODE_THEME` held something outside the vocabulary. Present so the
    * caller can SAY so: falling back silently after being asked for `drak` is the swallowed error
@@ -31,6 +31,13 @@ export interface ThemeResolution {
    * cosmetic knob must not end the session.
    */
   readonly invalid?: string
+}
+
+/** The answer once both environment signals have declined: the stored preference, or the default. */
+function fallback(stored?: ThemeBase): ThemeResolution {
+  return stored === undefined
+    ? { base: DEFAULT_THEME_BASE, source: 'default' }
+    : { base: stored, source: 'stored' }
 }
 
 function parseThemeBase(input: string): ThemeBase | null {
@@ -48,6 +55,12 @@ function parseThemeBase(input: string): ThemeBase | null {
  */
 export function resolveThemeBase(
   env: Readonly<Record<string, string | undefined>>,
+  /**
+   * What `/theme` last stored (#72). Below both environment signals: someone who exports a variable
+   * for this invocation is addressing this invocation, and a stored preference that silently won
+   * would make the variable inert — the same precedence `THEOKIT_HOME` has over `home_dir`.
+   */
+  stored?: ThemeBase,
 ): ThemeResolution {
   const noColor = env.NO_COLOR
   if (noColor !== undefined && noColor !== '') {
@@ -58,8 +71,10 @@ export function resolveThemeBase(
   if (requested !== undefined && requested.trim() !== '') {
     const parsed = parseThemeBase(requested)
     if (parsed !== null) return { base: parsed, source: 'THEOCODE_THEME' }
-    return { base: DEFAULT_THEME_BASE, source: 'default', invalid: requested }
+    // The rejected value travels with whatever decides instead. Dropping it here would hide the typo
+    // the user needs to see, and hiding it is what turns a silent fallback into a reported bug.
+    return { ...fallback(stored), invalid: requested }
   }
 
-  return { base: DEFAULT_THEME_BASE, source: 'default' }
+  return fallback(stored)
 }

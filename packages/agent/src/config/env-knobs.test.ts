@@ -17,29 +17,42 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { ENV_OPT_OUTS, keysWithoutEnvPath, optOutsThatExemptNothing } from './config.js'
+import {
+  CONFIG_SCHEMA_KEYS,
+  ENV_OPT_OUTS,
+  keysWithoutEnvPath,
+  optOutsThatExemptNothing,
+} from './config.js'
 import { ENV_KNOBS } from './env-knobs.js'
 
 const ROOT = join(import.meta.dirname, '../../../..')
 
-/** The config keys the schema accepts. */
-const SCHEMA_KEYS = [
-  'model',
-  'reasoning_effort',
-  'sandbox_mode',
-  'approval_policy',
-  'goal_oracle',
-  'context_window',
-  'skills',
-  'hooks',
-  'profile',
-  'profiles',
-]
+/**
+ * The config keys the schema accepts — DERIVED, not retyped.
+ *
+ * B-135. This was a hand-maintained list, and it had drifted: `memory` became a config key and was
+ * never added, so the detector below asserted "every config key is either reachable from the
+ * environment or explicitly exempt" while never looking at one of them. A gate whose input is a copy
+ * of the thing it checks stops being a gate the first time somebody forgets to update the copy — and
+ * it fails in the reassuring direction, reporting green about a key it never read.
+ *
+ * `profile` and `profiles` are appended because they live on the outer `configSchema` rather than in
+ * `CONFIG_SCHEMA_KEYS`, which covers the scalars. They are the only two, and both are exempt.
+ */
+const SCHEMA_KEYS = [...CONFIG_SCHEMA_KEYS, 'profile', 'profiles']
 
 /** The keys ENV_KNOBS says are reachable from the environment. */
 const WITH_ENV_PATH = new Set(ENV_KNOBS.map((k) => k.name.replace(/^THEOCODE_/, '').toLowerCase()))
 
 describe('B-041 — the config invariants are enforced, not merely written', () => {
+  it('test_the_key_list_is_derived_from_the_schema_rather_than_retyped', () => {
+    // B-135 — the anti-drift assertion. Without it the two lists can diverge again and the detector
+    // goes on reporting green about a key it never read.
+    for (const key of CONFIG_SCHEMA_KEYS) {
+      expect(SCHEMA_KEYS, `schema key ${key} is not covered by the detector`).toContain(key)
+    }
+  })
+
   it('test_every_config_key_is_reachable_from_the_environment_or_exempt', () => {
     expect(
       keysWithoutEnvPath(SCHEMA_KEYS, WITH_ENV_PATH, ENV_OPT_OUTS),

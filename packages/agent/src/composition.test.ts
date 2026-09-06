@@ -63,6 +63,9 @@ function config(sandbox_mode: string) {
     reasoning_effort: 'medium',
     hooks: [],
     skills: ['code-review'],
+    // Off, as `DEFAULTS` has it. The fixture used to omit the key entirely, which is how a gate
+    // that yields `undefined` instead of `false` reached a test suite unnoticed.
+    memory: false,
     declaredWindow: undefined,
     contextWindow: { window: 1000 },
     sandboxPosture: { enforced: true, detail: 'test', mode: sandbox_mode },
@@ -86,7 +89,26 @@ vi.mock('./config/index.js', async (orig) => ({
  * survived the first version of this file. The gate has to be the reason the map is empty, not
  * the filesystem.
  */
-const loadMcpJson = vi.fn(() => ({ 'some-server': { command: 'node', args: ['evil.js'] } }))
+/**
+ * #72 — keyed by DIRECTORY, because there are two scopes now and only one of them is gated.
+ *
+ * A mock that answered the same for every directory would let the repository's server pass as the
+ * operator's and report the gate as working when it was not. The project directory is the one the
+ * assertions below are about; the operator's home deliberately declares nothing here, so that this
+ * file keeps testing the trust gate and `mcp-scopes.test.ts` keeps testing the merge.
+ */
+const loadMcpJson = vi.fn((dir: string) =>
+  dir === '/p' ? { 'some-server': { command: 'node', args: ['evil.js'] } } : {},
+)
+
+/** What the project's `.theokit/agents/` declares in these tests. */
+const PROJECT_ROLES = {
+  explorer: { tools: ['read_file', 'grep', 'list_dir'] },
+  worker: { tools: ['read_file', 'apply_patch', 'run_shell'] },
+}
+
+/** What the operator's own `~/.theokit/agents/` declares. Empty unless a test fills it. */
+let operatorRoles: Record<string, unknown> = {}
 
 /**
  * The disk boundary path 3 reads. Mocked so the role's declared tool set is the test's input.
@@ -95,15 +117,18 @@ const loadMcpJson = vi.fn(() => ({ 'some-server': { command: 'node', args: ['evi
  * for an untrusted directory and the real loader then finds nothing. A mock that returned the
  * roles regardless would make the untrusted assertion below pass for the wrong reason — it would
  * be asserting that some later validation happened to throw, not that the gate closed.
+ *
+ * It also honours `cwd`, and that half was added after this mock started lying. #65 made
+ * `discoverRoles` call this function TWICE — once for the project and once for the operator's home,
+ * both with `settingSources: ['project']`, because that token selects the `<cwd>/.theokit/agents`
+ * LAYOUT and the layout is the same in both roots. A mock keyed only on the sources answered the
+ * home call with the project's roles, and the untrusted assertion below started passing an
+ * untrusted repository's definition off as the operator's own. The real loader keys on the
+ * directory; so does this now.
  */
-const discoverSubagents = vi.fn((_cwd: string, opts: { settingSources: string[] }) =>
+const discoverSubagents = vi.fn((cwd: string, opts: { settingSources: string[] }) =>
   Promise.resolve(
-    opts.settingSources.includes('project')
-      ? {
-          explorer: { tools: ['read_file', 'grep', 'list_dir'] },
-          worker: { tools: ['read_file', 'apply_patch', 'run_shell'] },
-        }
-      : {},
+    cwd === '/p' ? (opts.settingSources.includes('project') ? PROJECT_ROLES : {}) : operatorRoles,
   ),
 )
 
@@ -200,6 +225,109 @@ describe('path 1 — buildChatAgent composes the coding agent', () => {
   })
 })
 
+/**
+ * What the agent DECLARES, and what each declaration costs.
+ *
+ * Measured 2026-08-25 by instrumenting `fetch`: the tool schemas are re-sent on every round of a
+ * turn and cost MORE than the system prompt (15 115 characters against 10 146). That makes the
+ * declared set a budget, not just a capability list, and a tool that cannot work is not a harmless
+ * extra — it is a fixed toll on every round plus a round the model can waste choosing it.
+ *
+ * These tests pin the two decisions that follow from that measurement. They assert on the COMPILED
+ * definition, so they survive a rewrite of how the chain expresses them.
+ */
+describe('path 1 — buildChatAgent declares only what it can actually use', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.unstubAllEnvs()
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue(config('workspace-write'))
+  })
+
+  it('test_web_search_is_withheld_when_no_provider_is_configured', async () => {
+    // `createGenericHttpSearchAdapter` returns `[]` when unconfigured and never throws, so the tool
+    // was declared (761 characters/round, measured), approval-gated, and able to return only
+    // nothing. The model paid for it every round and the user was asked to approve a search that
+    // had nothing to search.
+    vi.stubEnv('THEOKIT_SEARCH_API_URL', '')
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const names = namesOf(agent)
+
+    expect(
+      names,
+      'web_search reached the model with no provider behind it — it can only ever return []',
+    ).not.toContain('web_search')
+    expect(
+      Object.keys(agent.approvals),
+      'an approval entry survived for a tool the agent was not given; the framework refuses that ' +
+        'map at construction, so the agent would fail to start',
+    ).not.toContain('web_search')
+    // Anti-vacuity: an agent that lost its whole web section, or compiled to nothing at all, would
+    // satisfy both assertions above for entirely the wrong reason.
+    expect(names, 'the web section did not survive withholding one tool from it').toContain(
+      'web_fetch',
+    )
+    expect(Object.keys(agent.approvals).length).toBeGreaterThan(3)
+  })
+
+  it('test_web_search_is_declared_and_gated_when_a_provider_is_configured', async () => {
+    // The counter-proof. Without it, withholding the tool unconditionally would pass the test above
+    // while silently deleting a capability — the worse outcome of the two.
+    vi.stubEnv('THEOKIT_SEARCH_API_URL', 'https://search.example.invalid/q')
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(
+      namesOf(agent),
+      'a configured search provider did not get its tool declared — the capability was dropped, ' +
+        'not scoped',
+    ).toContain('web_search')
+    expect(
+      Object.keys(agent.approvals),
+      'web_search reaches the network on the user behalf and lost its approval gate',
+    ).toContain('web_search')
+  })
+
+  it('test_the_model_can_look_at_an_image_in_the_working_tree', async () => {
+    // B-082 built `view_image` and registered it, and no agent ever held it: the registry resolved
+    // it, so the test named "view_image is wired" passed, while the compiled agent declared 16
+    // tools without it. The capability the item exists for — the model deciding to look at a
+    // screenshot it just produced — did not exist. Asserting on the AGENT is what the registry
+    // assertion could not do.
+    const headless = await compile({ surface: 'headless', cwd: '/p' })
+    const interactive = await compile({ surface: 'interactive', cwd: '/p' })
+
+    expect(
+      namesOf(headless),
+      'view_image is built by the registry and handed to no one — dead weight in the registry and ' +
+        'a capability the model does not have',
+    ).toContain('view_image')
+    expect(namesOf(interactive)).toContain('view_image')
+  })
+
+  it('test_reading_tools_including_view_image_are_not_approval_gated', async () => {
+    // The decision recorded at the registration site: `view_image` reads a file under the SAME root
+    // through the SAME containment rule as `read_file`, which is ungated. Gating it would gate the
+    // rendering rather than the access, and a card that protects nothing is what teaches users to
+    // click through the cards that do.
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+    const gated = new Set(Object.keys(agent.approvals))
+
+    for (const reads of ['read_file', 'view_image', 'list_dir', 'grep']) {
+      expect(
+        gated.has(reads),
+        `"${reads}" only reads inside the workspace and was given an approval card, which is ` +
+          'friction that protects nothing and devalues the cards on run_shell and apply_patch',
+      ).toBe(false)
+    }
+    // Anti-vacuity: an agent with an EMPTY approvals map passes the loop above trivially, and would
+    // mean every gate in the product had been dropped.
+    expect(
+      gated.has('run_shell'),
+      'the approvals map is empty or missing run_shell, so the loop above proved nothing',
+    ).toBe(true)
+  })
+})
+
 describe('path 1 — buildChatAgent gates what the directory is trusted with', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -243,18 +371,67 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     // The counter-proof to the untrusted case, in the M86 shape: `project` is present, and the grant
     // carries the posture that authorized it — including `source`, so a refusal further down can say
     // where the decision came from rather than only that it was refused.
-    expect(agent.settingSources).toEqual({
-      user: true,
-      project: {
-        trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
-      },
-    })
-    expect(agent.memory.enabled).toBe(true)
+    const grant = {
+      trustedBy: { level: 'trusted', source: 'store', allows: { projectSettings: true } },
+    }
+    // #65 — `claudeCode` carries the SAME grant, deliberately. `.claude/` is repository-controlled
+    // and holds a `hooks.json` that executes shell, so the second door takes the evidence the first
+    // one takes; a weaker grant would be a gate with a bypass named after another product.
+    expect(agent.settingSources).toEqual({ user: true, project: grant, claudeCode: grant })
+    // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
+    // a trusted directory alone leaves it off. The two halves are asserted apart, below, because
+    // collapsing them would let either one carry the other.
+    expect(agent.memory.enabled, 'a trusted directory turned memory on by itself').toBe(false)
     expect(
       Object.keys(agent.mcpServers),
       'the trusted build dropped the MCP server the loader offered — the gate is refusing what it ' +
         'should admit, and the untrusted assertion above would then pass for the wrong reason',
     ).toEqual(['some-server'])
+  })
+
+  it('test_memory_needs_BOTH_a_trusted_directory_and_a_config_that_asks_for_it', async () => {
+    // Two gates, and the failure mode is that one silently carries the other. Codex ships the same
+    // capability with `default_enabled: false`, and this product had it on for every trusted
+    // directory with no config key at all — so the trust gate was doing work the config gate should
+    // have been doing, and nobody could turn it off without editing files outside the product.
+    //
+    // Asserted as a truth table rather than one case, because three of the four combinations are
+    // "off" and only their CONJUNCTION is "on". A test of the on-case alone passes against a build
+    // that ignores trust; a test of one off-case alone passes against a build that ignores config.
+    resolveEffectiveConfig.mockReturnValue({ ...config('workspace-write'), memory: true })
+    const trustedAndAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    resolveTrustPosture.mockReturnValue(UNTRUSTED)
+    const untrustedButAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    resolveTrustPosture.mockReturnValue(TRUSTED)
+    resolveEffectiveConfig.mockReturnValue({ ...config('workspace-write'), memory: false })
+    const trustedNotAsked = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(trustedAndAsked.memory.enabled, 'both gates open and memory stayed off').toBe(true)
+    expect(
+      untrustedButAsked.memory.enabled,
+      'config re-enabled memory in a directory whose posture forbids writing to it',
+    ).toBe(false)
+    expect(
+      trustedNotAsked.memory.enabled,
+      'trust alone turned memory on — the config gate is not being read',
+    ).toBe(false)
+  })
+
+  it('test_an_absent_memory_key_is_off_rather_than_undefined', async () => {
+    // `&&` yields the first falsy OPERAND, so a config without the key produced `undefined` — which
+    // the SDK reads as off, and which no type check rejects because the field is optional upstream.
+    // It looks identical to `false` in every behavioural assertion and is not the same value.
+    const { memory: _dropped, ...withoutTheKey } = config('workspace-write')
+    // `as never` matches every other mock in this file. The fixture is deliberately MISSING a field
+    // the real config declares, which is the whole point of this case — so the cast is the subject,
+    // not a convenience.
+    resolveEffectiveConfig.mockReturnValue(withoutTheKey as never)
+
+    const agent = await compile({ surface: 'headless', cwd: '/p' })
+
+    expect(agent.memory.enabled, 'the gate leaked `undefined` instead of a boolean').toBe(false)
   })
 
   it('test_the_headless_profile_drops_the_tool_that_needs_a_terminal_to_answer', async () => {
@@ -387,6 +564,34 @@ describe('path 3 — buildRoleAgent composes a delegated team member', () => {
     const worker = await buildRole('worker', { subagents: true })
 
     expect(worker?.local.cwd).toBe('/p')
+  })
+
+  it('test_an_untrusted_directory_still_materialises_the_operator_own_role', async () => {
+    // #65 — the counterpart of the refusal below, and the reason it must be stated: the gate asks
+    // whether the code in THIS directory is trusted, and nobody's home is the repository. A role the
+    // operator wrote for themselves is theirs in every directory they visit; refusing it because a
+    // stranger's repository is untrusted would withhold someone's own configuration from them.
+    //
+    // What is NOT relaxed is the line above it: the definition here comes from the home, never from
+    // the untrusted repository, so nothing in that repository chooses the member's model, effort or
+    // sandbox flag.
+    const { buildRoleAgent } = await import('./delegation/roles.js')
+    operatorRoles = { explorer: { tools: ['read_file'] } }
+
+    try {
+      await expect(
+        buildRoleAgent('explorer', {
+          apiKey: 'test-key-not-a-real-credential',
+          parent: { model: 'gpt-5.4', reasoning_effort: 'medium' },
+          cwd: '/p',
+          sandbox,
+          posture: { level: 'untrusted', source: 'store', allows: { subagents: false } } as never,
+          createAgent: () => Promise.resolve({} as never),
+        } as never),
+      ).resolves.toBeDefined()
+    } finally {
+      operatorRoles = {}
+    }
   })
 
   it('test_an_untrusted_directory_refuses_to_materialise_a_repository_role', async () => {

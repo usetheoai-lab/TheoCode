@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 
 import { PermissionPrompt } from '@theokit/tui'
+import { APPROVAL_KEY_HINT, approvalChoices } from '../formatting/index.js'
 
 import { trustDir } from '@theocode/agent/config'
 import type { ApprovalMode } from '../consent/index.js'
@@ -36,6 +37,9 @@ export function HooksGate({ consent, pendingHooks, setToast }: HooksGateProps): 
           : `[new] ${h.spec.event}\n  ${h.spec.command}`) +
         '\n\nThis command runs on every matching tool call. Approve only what you recognise — ' +
         'declining leaves it inert, and you will be asked again next launch.')(pendingHooks[0]!)}
+      hint={APPROVAL_KEY_HINT}
+      hintPlacement="below"
+      choices={approvalChoices('No, leave it inert')}
       onDecision={(decision) => {
         void applyHookDecision(
           decision === 'yes' ? 'yes' : 'no',
@@ -79,6 +83,11 @@ export function TrustGate({
       toolType="Trust directory"
       command={workingDirectory()}
       description={`${AGENT.name} will read files here and may run commands or apply patches. Trust only directories you control — an untrusted repo's AGENTS.md could try to hijack the agent. Approve to trust this directory (remembered); reject to quit.`}
+      hint={APPROVAL_KEY_HINT}
+      hintPlacement="below"
+      // Rejecting the trust gate QUITS — the session cannot continue without an answer. Saying so
+      // on the button is the difference between an informed refusal and a surprise exit.
+      choices={approvalChoices('No, quit')}
       onDecision={(decision) => {
         if (decision === 'yes') {
           void trustDir(workingDirectory()).then(

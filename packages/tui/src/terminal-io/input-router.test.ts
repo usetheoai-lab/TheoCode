@@ -251,3 +251,44 @@ describe('routeKey — the composer', () => {
     expect(routeKey('a', ctrlA, IDLE)).toEqual([])
   })
 })
+
+/**
+ * ctrl+o — the transcript toggle (usetheokit/theokit-tui#61).
+ *
+ * The precedence cases are the ones worth pinning: a reading gesture must not fire while the
+ * keyboard belongs to something else, and it must not shadow ctrl+c, which is how a person stops a
+ * runaway turn. Both are properties of WHERE the branch sits, which is exactly the class of defect
+ * this file's header calls "the right branch never runs".
+ */
+describe('routeKey — ctrl+o toggles the transcript', () => {
+  it('test_ctrl_o_in_the_composer_toggles_verbose', () => {
+    expect(kinds(routeKey('o', CTRL_C, IDLE))).toEqual(['toggle-verbose'])
+  })
+
+  it('test_ctrl_c_still_wins_its_own_key', () => {
+    // Anti-shadow: the two share `key.ctrl`, and a branch ordered by `key.ctrl` alone would have
+    // swallowed the interrupt — the one key a person needs when a turn will not stop.
+    expect(kinds(routeKey('c', CTRL_C, IDLE))).toEqual(['arm-exit'])
+    expect(kinds(routeKey('c', CTRL_C, { ...IDLE, streaming: true }))).toEqual([
+      'interrupt-turn',
+    ])
+  })
+
+  it('test_a_bare_o_is_not_the_toggle', () => {
+    // Anti-vacuity: typing "o" into the composer must reach the composer.
+    expect(kinds(routeKey('o', PLAIN, IDLE))).toEqual([])
+  })
+
+  it('test_the_toggle_does_not_fire_while_another_surface_owns_the_keyboard', () => {
+    for (const state of [
+      { ...IDLE, hasOpenQuestion: true },
+      { ...IDLE, hasPendingApproval: true },
+      { ...IDLE, inDemoInput: true, mode: 'plan' as const },
+    ]) {
+      expect(
+        kinds(routeKey('o', CTRL_C, state)),
+        'a reading gesture stole a key from a surface that was waiting for an answer',
+      ).not.toContain('toggle-verbose')
+    }
+  })
+})

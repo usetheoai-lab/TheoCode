@@ -74,6 +74,31 @@ export function ensureAuthHome(env: Record<string, string | undefined>, home: st
   return env.THEOKIT_AUTH_HOME ?? credentialHome(home, env)
 }
 
+/**
+ * Point the SDK's credential store at THIS product's, by WRITING the variable the SDK reads.
+ *
+ * The SDK's OAuth store is `<home>/.theokit/auth.json` and ours is `<home>/.theocode/auth.json`.
+ * The only seam between them is `THEOKIT_AUTH_HOME`, which the SDK treats as the store DIRECTORY
+ * (`credentialHome` returns the override verbatim, ignoring its own `dirName`). Unset, the SDK's
+ * `openai-chatgpt` provider looks in a file this product never writes and reports "no ChatGPT
+ * credential found" for a credential that is sitting on disk.
+ *
+ * It exists because the two surfaces had two idioms for one fact and only one of them worked.
+ * B-034 correctly stopped `ensureAuthHome` from mutating its argument — a getter with a side effect
+ * — but the CLI's bootstrap kept calling it as though it still did, and DISCARDED the return. So
+ * the CLI never set the variable: measured 2026-08-25, `theocode run` failed on a ChatGPT sign-in
+ * while the TUI, which writes the variable itself, answered normally on the same credential.
+ *
+ * Naming the writing half separately is the point. `ensureAuthHome` ANSWERS where the store is;
+ * this one INSTALLS it. A caller cannot silently get the first when it meant the second, which is
+ * exactly the mistake that shipped.
+ */
+export function installAuthHome(env: Record<string, string | undefined>, home: string): string {
+  const resolved = ensureAuthHome(env, home)
+  env.THEOKIT_AUTH_HOME = resolved
+  return resolved
+}
+
 export { CredentialError }
 
 class MissingCredentialError extends CredentialError {

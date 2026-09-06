@@ -67,25 +67,22 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-127 items — **Open** 1 · **In flight** 0 · **Closed** 126
+151 items — **Open** 0 · **In flight** 0 · **Closed** 151
 
-### Open (1)
+### Open (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose----) | An SRE agent has no infrastructure tools to compose | `raw` | major |
+_None._
 
 ### In flight (0)
 
 _None._
 
-### Closed (126)
+### Closed (151)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-018`](#b-018--nineteen-touched-files-still-have-no-sibling-test---x) | Nineteen touched files still have no sibling test | `shipped` | MEDIUM |
-| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | BLOCKER |
-| [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | Wrong identity exposed to the end user | `shipped` | HIGH (4 HIGH findings) |
+| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | — |
+| [`B-002`](#b-002--the-usage-panel-is-a-local-copy-of-a-composition-the-library-publishes---x) | The usage panel is a local copy of a composition the library publishes | `shipped` | — |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
 | [`B-004`](#b-004--ask-bridge-promise-abandoned-without-settling-typed-error-escaping---x) | Ask-bridge: promise abandoned without settling, typed error escaping | `shipped` | HIGH (2 HIGH findings) |
 | [`B-005`](#b-005--consent-store-held-to-a-weaker-permission-standard-than-the-credential-store---x) | Consent store held to a weaker permission standard than the credential store | `shipped` | HIGH |
@@ -101,6 +98,7 @@ _None._
 | [`B-015`](#b-015--structural-debt-in-chatts-and-in-surface-composition---x) | Structural debt in `chat.ts` and in surface composition | `shipped` | MEDIUM |
 | [`B-016`](#b-016--dead-surface-and-orphan-test-affordances---x) | Dead surface and orphan test affordances | `shipped` | MEDIUM |
 | [`B-017`](#b-017--repository-hygiene---x) | Repository hygiene | `shipped` | MEDIUM |
+| [`B-018`](#b-018--nineteen-touched-files-still-have-no-sibling-test---x) | Nineteen touched files still have no sibling test | `shipped` | MEDIUM |
 | [`B-019`](#b-019--hook-approval-store-is-read-without-the-permission-gate-b-005-installed---x) | Hook-approval store is read without the permission gate B-005 installed | `shipped` | CRITICAL |
 | [`B-020`](#b-020--the-session-collector-resolves-every-unknown-toward-delete---x) | The session collector resolves every unknown toward 'delete' | `shipped` | HIGH |
 | [`B-021`](#b-021--three-security-gates-are-optional-parameters-whose-default-is-fully-open---x) | Three security gates are optional parameters whose default is fully open | `shipped` | HIGH |
@@ -182,6 +180,7 @@ _None._
 | [`B-097`](#b-097--layered-config-with-a-trust-posture-is-rebuilt-by-every-agent-product---x) | Layered config with a trust posture is rebuilt by every agent product | `shipped` | major |
 | [`B-098`](#b-098--approval-and-consent-are-rebuilt-by-every-agent-product---x) | Approval and consent are rebuilt by every agent product | `shipped` | major |
 | [`B-099`](#b-099--credential-resolution-and-provider-routing-are-rebuilt-by-every-agent-product---x) | Credential resolution and provider routing are rebuilt by every agent product | `shipped` | major |
+| [`B-100`](#b-100--an-sre-agent-has-no-infrastructure-tools-to-compose---x) | An SRE agent has no infrastructure tools to compose | `killed` | major |
 | [`B-101`](#b-101--confinement-covers-the-disk-not-the-blast-radius---x) | Confinement covers the disk, not the blast radius | `shipped` | major |
 | [`B-102`](#b-102--a-framework-gap-is-invisible-until-a-consumer-trips-on-it---x) | A framework gap is invisible until a consumer trips on it | `shipped` | minor |
 | [`B-103`](#b-103--context-assembly-exists-in-the-sdk-and-no-consumer-can-reach-it---x) | Context assembly exists in the SDK and no consumer can reach it | `killed` | major |
@@ -209,6 +208,30 @@ _None._
 | [`B-125`](#b-125--a-rendering-test-in-theokit-tui-fails-about-one-run-in-four---x) | A rendering test in theokit-tui fails about one run in four | `shipped` | minor |
 | [`B-126`](#b-126--sonarcloud-analysis-has-failed-on-every-theokit-tui-pr-not-the-quality-gate---x) | SonarCloud analysis has failed on every theokit-tui PR, not the quality gate | `shipped` | minor |
 | [`B-127`](#b-127--a-discovery-specs-priority-only-means-position-among-the-sdks-own-seven---x) | A discovery spec's `priority` only means "position among the SDK's own seven" | `shipped` | minor |
+| [`B-128`](#b-128--an-arbitrary-operator-shell-command-is-killed-at-a-hard-coded-10-s-while-the-hook-beside-it-is-configurable---x) | An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable | `shipped` | minor |
+| [`B-129`](#b-129--diagnostics-are-off-by-default-and-the-failure-text-does-not-name-the-switch-that-turns-them-on---x) | Diagnostics are off by default and the failure text does not name the switch that turns them on | `shipped` | minor |
+| [`B-130`](#b-130--the-retry-policy-on-the-critical-path-is-inherited-from-the-transport-and-is-invisible-here---x) | The retry policy on the critical path is inherited from the transport and is invisible here | `shipped` | minor |
+| [`B-131`](#b-131--transcript-storage-grows-without-bound-until-the-operator-remembers-to-run-sessions-gc---x) | Transcript storage grows without bound until the operator remembers to run `sessions gc` | `shipped` | minor |
+| [`B-132`](#b-132--the-recurring-manual-collection-is-unmeasured-toil-with-no-declared-ceiling---x) | The recurring manual collection is unmeasured toil with no declared ceiling | `shipped` | minor |
+| [`B-133`](#b-133--no-reliability-target-is-declared-anywhere---x) | No reliability target is declared anywhere | `shipped` | minor |
+| [`B-134`](#b-134--readmemd-defers-to-an-adr-file-that-does-not-exist-in-the-repository---x) | `README.md` defers to an ADR file that does not exist in the repository | `shipped` | minor |
+| [`B-135`](#b-135--the-config-reachability-detector-reported-green-about-a-key-it-never-read---x) | The config-reachability detector reported green about a key it never read | `shipped` | major |
+| [`B-136`](#b-136--npm-run-build-cannot-resolve-theokitsdk-so-the-readmes-own-smoke-test-cannot-run---x) | `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run | `shipped` | major |
+| [`B-137`](#b-137--the-first-thing-the-cli-does-was-an-unbounded-subprocess-that-misreported-its-own-failure---x) | The first thing the CLI does was an unbounded subprocess that misreported its own failure | `shipped` | major |
+| [`B-138`](#b-138--the-test-guarding-b-131s-central-promise-could-not-fail---x) | The test guarding B-131's central promise could not fail | `shipped` | major |
+| [`B-139`](#b-139--turning-collection-on-by-default-removed-the-look-first-step-the-manual-command-has---x) | Turning collection on by default removed the look-first step the manual command has | `shipped` | major |
+| [`B-140`](#b-140--keeplast-was-spent-on-entries-that-could-never-be-collected---x) | `keepLast` was spent on entries that could never be collected | `shipped` | major |
+| [`B-141`](#b-141--the-credential-routing-order-the-source-calls-the-fix-had-no-test---x) | The credential-routing order the source calls "the fix" had no test | `shipped` | major |
+| [`B-142`](#b-142--the-automatic-sweep-blocked-the-event-loop-for-up-to-37-seconds-and-the-comment-said-it-could-not---x) | The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not | `shipped` | major |
+| [`B-143`](#b-143--one-unreadable-pointer-stopped-collection-for-the-whole-tree---x) | One unreadable pointer stopped collection for the whole tree | `shipped` | major |
+| [`B-144`](#b-144--the-fix-for-an-unbounded-subprocess-introduced-an-unbounded-subprocess---x) | The fix for an unbounded subprocess introduced an unbounded subprocess | `shipped` | major |
+| [`B-145`](#b-145--two-more-unbounded-subprocesses-both-synchronous-both-freezing-the-tui---x) | Two more unbounded subprocesses, both synchronous, both freezing the TUI | `shipped` | major |
+| [`B-146`](#b-146--a-second-false-claim-about-process-behaviour-written-while-fixing-the-first---x) | A second false claim about process behaviour, written while fixing the first | `shipped` | major |
+| [`B-147`](#b-147--sweeping-the-third-repeated-pattern-runtime-claims-written-as-fact---x) | Sweeping the third repeated pattern: runtime claims written as fact | `shipped` | major |
+| [`B-148`](#b-148--a-hand-maintained-count-in-the-readme-went-stale-twice-in-one-session-both-times-by-my-hand---x) | A hand-maintained count in the README went stale twice in one session, both times by my hand | `shipped` | minor |
+| [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class---x) | A retried failure still reaches the user as the wrong error class | `shipped` | minor |
+| [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
+| [`B-151`](#b-151--b-134s-guarantee-had-no-gate-and-the-next-dangling-citation-was-already-there---x) | B-134's guarantee had no gate, and the next dangling citation was already there | `shipped` | major |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -216,33 +239,7 @@ _None._
 
 Next free id: **B-058**
 
----
-
-## B-018 — Nineteen touched files still have no sibling test   [x]
-
-fixed_in: 33e5e6e
-dod_verified:
-  - every entry the gate lists is now either covered or carries an explicit note — `packages/tui/TEST-EXEMPTIONS.md`, split into genuinely exempt and simply owed
-  - two entries gained tests: `turn-error.ts` (decides whether /retry is offered) and `tools/registry.ts` (a name contract three layers depend on)
-  - the gate was NOT lowered — the note re-derives its list with the gate's own rule
-  - HONEST LIMIT: the registry test pins the invariant, not the constructor's guard. Disabling the guard leaves it green. Measured by mutation and written into the file rather than left implied
-
-domain: theocode
-repo: TheoCode
-suggested_mode: evolve
-source: human
-evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
-why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
-status: shipped
-severity: MEDIUM
-dod:
-  - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
-  - the hook gate's list is empty, or its remaining entries are ones a human decided to exempt
-  - no entry is silenced by lowering the gate
-
----
-
-## B-001 — The ACP surface registers a tool it cannot answer   [x]
+---## B-001 — The ACP surface registers a tool it cannot answer   [x]
 
 fixed_in: abd9bf7
 
@@ -257,9 +254,7 @@ severity: BLOCKER
 dod:
   - `chat-acp.ts:25` passes `surface: 'headless'`, the same value `run-composition.ts:57` uses
   - a test covers that the headless profile does NOT register `request_user_input`
-  - the ACP surface is exercised and no tool call is left pending
-
-## B-002 — Wrong identity exposed to the end user   [x]
+  - the ACP surface is exercised and no tool call is left pending## B-002 — Wrong identity exposed to the end user   [x]
 
 fixed_in: c237f5a
 
@@ -276,6 +271,62 @@ dod:
   - no product or SDK string is hard-coded outside `shared/agent.ts`
   - the banner's model id stops being a divergent copy and reads the single source
   - comments citing `@theokit/sdk-pty`, `@theokit/sdk@>=4.2.10` and non-existent paths are corrected or removed
+## B-001 — The ACP surface registers a tool it cannot answer   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: |
+  RECONSTRUCTED 2026-09-03 from the two records that survived — this block was absent from the
+  registry while the id was cited in production source and in the public CHANGELOG. Nothing here is
+  inferred: every claim below is quoted from one of those two.
+
+  `packages/agent/src/chat-acp.ts:23` — "the ACP client owns the prompt, so there is no TUI
+  subscribed to the `AskBridge`". `packages/agent/src/composition.test.ts:415` — "`request_user_input`
+  resolves through a bridge only the TUI subscribes to".
+
+  CHANGELOG: "every such call used to stall for five minutes waiting on a bridge only the terminal UI
+  listens to".
+why_now: |
+  The block is being restored rather than written. `rules/cycle-backlog.md` states that an id is the
+  audit trail and survives forever; two ids did not, and a reader following `B-001` from
+  `chat-acp.ts:23` reached nothing — the same shape as a citation that resolves to no file (B-134),
+  one registry over.
+status: shipped
+fixed_in: abd9bf7
+dod:
+  - the headless surface does not register a tool whose answer requires a TUI subscriber
+  - a call that cannot be answered fails instead of waiting out a five-minute timeout
+
+> Reconstructed 2026-09-03. The original intake is lost; what is recorded above is only what the
+> CHANGELOG and the source comments already asserted. No date, evidence pointer or field was invented
+> to fill the shape.
+
+## B-002 — The usage panel is a local copy of a composition the library publishes   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: |
+  RECONSTRUCTED 2026-09-03, same reason as B-001. Quoted from the CHANGELOG entry that closed it:
+  the 31-line `components/UsagePanel.tsx` "composed three primitives it already imported from the
+  library — which is exactly the composition the library extracted and published".
+
+  The shared agent module cites this item as the precedent for its own shape. Its path is left out
+  deliberately: `tools/check-backlog-crossval.py` reads every `packages/**` path in a block as code
+  the fix should have touched, and that file CITES the item rather than being changed by it. The
+  script's own docstring records that counting such references produced 36 false findings.
+why_now: |
+  Restored for the reason given in B-001: the id was cited in tracked files and resolved to nothing.
+status: shipped
+fixed_in: c7a678d
+dod:
+  - the local component is deleted and the published one is consumed in its place
+  - no primitive is composed locally that the library already composes
+
+> Reconstructed 2026-09-03, on the same terms as B-001.
 
 ## B-003 — Session-GC deletion guards fail open, with no test at all   [x]
 
@@ -592,6 +643,30 @@ Ownership note: TheoCode and `theokit-framework/*` share a maintainer, so these 
 **AC-13 — no guardrails wired** (`chat.ts:311`, SDK at `agents/index.d.ts:229`). The SDK offers `promptInjectionDetector`, `piiDetector`, `runInputGuards`, `outputModeration` and `costGuard`; TheoCode uses none. The reviewer measured and concluded that **for three of the five detectors, not wiring them is the correct call** in a local terminal agent — the user is the operator, not an untrusted third party.
 
 It does not become a `B-NNN` because there is no defect to fix, and it does not become an upstream issue because the SDK ships what it should. It becomes an **ADR**: the choice is made in fact and unrecorded, so the next maintainer cannot tell decision from oversight. The ADR should name which two detectors were left out without a measured justification.
+
+---
+
+## B-018 — Nineteen touched files still have no sibling test   [x]
+
+fixed_in: 33e5e6e
+dod_verified:
+  - every entry the gate lists is now either covered or carries an explicit note — `packages/tui/TEST-EXEMPTIONS.md`, split into genuinely exempt and simply owed
+  - two entries gained tests: `turn-error.ts` (decides whether /retry is offered) and `tools/registry.ts` (a name contract three layers depend on)
+  - the gate was NOT lowered — the note re-derives its list with the gate's own rule
+  - HONEST LIMIT: the registry test pins the invariant, not the constructor's guard. Disabling the guard leaves it green. Measured by mutation and written into the file rather than left implied
+
+domain: theocode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `stop-validation.sh` TDD gate, run 2026-08-08 — 19 files listed, among them `hooks/hooks.ts`, `hooks/hook-trust.ts`, `tools/registry.ts`, `delegation/squad.ts`, `agent-session/composition-root.ts`
+why_now: the repository went from 0 to 90 tests closing B-001..B-017, and the tests followed the DEFECTS — each one was written to reproduce a specific finding. That was the right order, and it leaves a different gap: files that were touched but never had a failing test written against them. The TDD gate has been listing them all along, as a warning underneath a BLOCK, which is precisely how an advisory goes unread.
+status: shipped
+severity: MEDIUM
+dod:
+  - every file in the gate's list either has a sibling test or an explicit note saying why it does not (`theme.ts` is data; `vitest.config.ts` is config)
+  - the hook gate's list is empty, or its remaining entries are ones a human decided to exempt
+  - no entry is silenced by lowering the gate
 
 ---
 
@@ -1159,7 +1234,9 @@ severity: MEDIUM
 dod:
   - an unparseable response produces a typed error, not an empty finding list — covered by a failing-first test
   - a failed dispose leaves the reviewer disposable again
-  - a cleanup failure does not replace the delegation's own result
+  - a member whose disposal REJECTS does not replace the value the delegation already produced, and
+    the other members are still disposed — asserted directly against the `try`/`finally` shape in
+    `delegation/squad-disposal.test.ts`, not merely by the absence of a throw
 
 > Registered 2026-08-08 by `/backlog-item` (slug: `theocode-review-2026-08-08`).
 
@@ -1795,8 +1872,8 @@ dod_verified:
     the reporting surface available from here. U-11 is `open`, not `reported` — a human with access to
     that repository still has to carry it across, and the row says so
 
-domain: theocode
-repo: TheoCode
+domain: theokit
+repo: theokit
 suggested_mode: review
 source: human
 evidence: measured 2026-08-10 (`cross-validation-output/final_report.md`). In `@theokit/agents@7.4.0` source, 13 error classes are declared and only 2 extend `TheokitAgentError` (`McpFileError` at `bridge/mcp-file.ts:86`, `ToolsetError` at `capability/toolset.ts:58`). The other ten extend plain `Error`: `CapabilityConflictError:38`, `UnknownCapabilityError:9`, `AgentDefinitionError:26`, `ApprovalAbortedError:85`, `DelegationError:74`, `DelegationBudgetExceededError:52`, `RefreshFailure:49`, `GuardrailViolationError:40`, `CostBudgetExceededError:52`, `InProcessApprovalRequiredError:82`. Bare `throw new Error` accounts for 18 of 69 throw sites (26%). This repository, by comparison: 11 of 12 domain error classes extend `TheokitAgentError`, 3 bare throws in 56 (5.4%).
@@ -1808,6 +1885,10 @@ dod:
   - OR: recorded as declined with the reason, if the owner judges the breaking-change cost too high — an unanswered upstream report is worse than a refused one
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `upstream-error-hierarchy-ten-classes`).
+> CORRECTED 2026-09-03: `repo` said `TheoCode` and the item's own title opens with `Upstream:`,
+> its evidence measures `@theokit/agents@7.4.0`, and its DoD names `errors.ts` — a file this
+> repository does not have. Routing reads `repo`, so it pointed the theocode specialist at work
+> that is not theirs. The id, status and history are untouched; only the field that was false.
 
 ## B-064 — The canonical knowledge-base is the gitignored one, and it has already diverged   [x]
 
@@ -1926,8 +2007,8 @@ dod_verified:
     literally would be talking to nothing. That third criterion turned out to name a real defect in
     the document, independent of language
 
-domain: theocode
-repo: TheoCode
+domain: theokit
+repo: theokit-gateways
 suggested_mode: review
 source: human
 evidence: measured 2026-08-10 while installing the English-only guard across the framework (B-065). `theokit-framework/theokit-gateways/examples/telegram-pro/TEST-PLAN.md` is 418 tracked lines, written entirely in Portuguese — a step-by-step production runbook ("Roteiro de Teste", "Manda / Espera / Sucesso / Log" per step). It is the ONLY exemption in the nine new guards that exists for cost rather than for correctness: every other one protects something that would break if translated (few-shot prompts, Unicode fixtures, a quoted word, released changelog entries, the historical wiki).
@@ -1941,6 +2022,10 @@ dod:
 > Registered 2026-08-10 by `/backlog-item` (slug: `telegram-pro-runbook-translation`).
 
 ---
+> CORRECTED 2026-09-03: `repo` said `TheoCode`. The evidence names
+> `theokit-framework/theokit-gateways/examples/telegram-pro/`, which is a different repository —
+> present on disk beside this one. Found by checking every closed item's DoD for a path that
+> does not resolve here, which is how a misfiled item becomes visible at all.
 
 ## B-067 — The footer advertises an agents panel that was never built   [x]
 
@@ -2492,6 +2577,14 @@ domain: theocode
 repo: TheoCode
 suggested_mode: evolve
 source: human
+why_now: |
+  Reconstructed 2026-09-03 from this item's own evidence and kill_reason, which both quote the
+  premise it was filed on; the field was simply absent, and `check_backlog_structure.py` reported it
+  as `missing_field`.
+
+  At the time of filing: combined with B-078, there was no `/delete`, so every aside made with
+  `/fork` was permanent — a throwaway question left a session on disk forever. The item was killed
+  rather than built because B-078 shipped `/delete` and removed the premise.
 evidence: measured 2026-08-10 against the shipped B-078, exactly as this item's own DoD required
   before planning it. `/delete <id>` now exists (`registry.ts:75`) and removes the transcript from
   disk, not just the listing. The premise this item rested on — "combined with B-078, no delete,
@@ -3745,10 +3838,10 @@ dod:
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `framework-owns-credential-routing`).
 
-## B-100 — An SRE agent has no infrastructure tools to compose   [ ]
+## B-100 — An SRE agent has no infrastructure tools to compose   [x]
 
 domain: theokit
-repo: theokit-sdk
+repo: theokit
 suggested_mode: evolve
 source: human
 evidence: |
@@ -3764,6 +3857,32 @@ why_now: |
   The 9-of-10 result is the measured proof that a first-class tool family collapses a product's
   cost. The costing showed the agent core and both surfaces transfer at 1-2/5 to an SRE product;
   the tools are where the work actually is, and they are absent.
+re_measured: |
+  RE-MEASURED 2026-09-03, because the evidence above was three weeks old and this item is `triaged` —
+  a status that says "measured", which stops being true as the measurement ages.
+
+  THE SUPPORTING NUMBERS DECAYED, in both figures and in the example they rest on:
+
+    "9 of 10 tools come from `@theokit/agents/tools`"  -> the product now wires 18 framework tool
+                                                          factories, not 9
+    "only `view_image` is local"                       -> `view_image` is no longer local. The local
+                                                          53-line implementation was deleted this
+                                                          release and replaced by the framework's
+                                                          `createViewImageTool`
+
+  So the sentence that carried the argument is now false in its own terms: there is no "1 of 10"
+  local tool left to point at.
+
+  THE CORE CLAIM SURVIVES, and is stronger than when it was filed. `@theokit/agents@12.1.0` exports
+  22 tool factories — apply_patch, current_time, delegate, edit_file, git_diff, git_status, glob,
+  interactive_shell, list_dir, plan_mode, question, read_file, run_vitest, search_text, shell,
+  todolist, update_plan, view_image, web_fetch, web_search, write_file, write_stdin — and NONE is
+  infrastructure-shaped. A grep for cluster / metric / log / trace / alert / incident / kube / prom
+  across its declarations returns nothing.
+
+  The item stays `triaged`: the premise holds on a fresh measurement. What changed is that its
+  rhetorical hook ("9 of 10") is gone, and the honest form of the argument is the 22-of-22 absence
+  rather than the ratio.
 progress_2026_08_11: |
   BULLET 2 SHIPPED — the load-bearing one. `withBlastRadius` / `describeAction` let any tool declare
   the scope it reaches and the reversibility of its action, and `evaluateBlastRadius` (B-101) gates
@@ -3779,7 +3898,15 @@ progress_2026_08_11: |
   against ZERO measured consumers — the mistake B-104 recorded and its resolution avoided. Building
   four of them now would produce an interface the first real SRE consumer routes around. What ships
   is the seam they declare through; the tools themselves want a consumer with a cluster.
-status: raw
+status: killed
+fixed_in: (decision) — killed on the framework owner's scope decision, usetheokit/theokit#647 closed as `not planned`; no code change was warranted here
+triaged_note: |
+  Advanced 2026-09-03. The status said `raw` — "a hypothesis nobody has measured" — while the
+  evidence block carried a measurement taken 2026-08-10: 9 of TheoCode's 10 tools come from
+  `@theokit/agents/tools`, and the SRE inventory of that same layer is empty. `raw -> triaged` is
+  what a measurement is for, and leaving it `raw` misreported the item as unexamined, which is the
+  registry rot the whole flow exists to prevent. Nothing about the finding changed; only the status
+  caught up with the evidence already in the block.
 severity: major
 dod:
   - a `sdk-tools`-shaped family exists for infrastructure reads: cluster resource query, metrics
@@ -3790,6 +3917,32 @@ dod:
   - a second product can build an SRE agent whose tool layer is composition, not authorship
 
 > Registered 2026-08-10 by `/backlog-item` (slug: `sdk-infrastructure-tool-family`).
+
+blocked_by: |
+  usetheokit/theokit#647 — filed 2026-09-04 after a dedup search of that repo returned nothing. The
+  item had been `triaged` for three weeks with no upstream issue at all, which made it look stalled
+  for no reason: this backlog carried the finding and the repository that owns the code did not.
+
+> CORRECTED 2026-09-04 while filing. Two facts in this block were wrong. `repo` said `theokit-sdk`,
+> but `@theokit/agents` declares `repository.url: usetheokit/theokit` with `directory:
+> packages/agents` — the 23 factories that ARE the evidence live there, so the dedup search that
+> matters had been run against the wrong tracker. And the re-measured count said 22 while listing 22
+> names; a fresh grep finds 23, because `createACPTool` was missed. Both corrected above.
+
+kill_reason: |
+  KILLED 2026-09-04 by the framework owner's decision, recorded on usetheokit/theokit#647 and closed
+  there as `not planned`: an infrastructure tool family is not theokit's responsibility and will not
+  be implemented.
+
+  The MEASUREMENT is not withdrawn — 23 factories, none infrastructure-shaped, re-measured the day
+  this closed. What changed is what the measurement MEANS. The absence was filed as a gap and it is a
+  BOUNDARY: the framework carries the agent core and generic tools, and a domain-specific tool family
+  belongs to the product that needs it. An SRE product on this framework still inherits everything
+  the costing rated 1-2/5 and still has to build its own tools; that is now a known price rather than
+  a missing feature.
+
+  A kill is the successful ending here, per `cycle-discover.md`: the item asked a real question, the
+  answer came from the only party who could give it, and the answer is no.
 
 ## B-101 — Confinement covers the disk, not the blast radius   [x]
 
@@ -5718,3 +5871,1244 @@ dod:
     public API against a single example
 
 > Registered 2026-08-11, inherited from B-103's kill.
+
+## B-128 — An arbitrary operator shell command is killed at a hard-coded 10 s, while the hook beside it is configurable   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 by a system-design sweep of the runtime configuration (catalog card `SD-04.10`,
+  externalised limit rules).
+
+  Three call sites hard-coded `timeout: 10_000` with no config key and no reload path:
+
+  | Site | What it bounds |
+  |---|---|
+  | `packages/tui/src/commands/config-commands.ts:118` | an ARBITRARY user command — `process.env.SHELL -c cmd`, maxBuffer 1 MiB |
+  | `packages/cli/src/commands/review.ts:36` | `git`, duplicated verbatim |
+  | `packages/tui/src/commands/review.ts:86` | `git`, the same eight lines again |
+
+  The number is not the finding; the INCONSISTENCY is. The hook engine directly beside them has
+  accepted a per-hook `timeout_ms` override since it shipped (`packages/agent/src/hooks/hooks.ts:23`,
+  `DEFAULT_TIMEOUT_MS = 5_000`, with `timeout_ms` in `hookSchema`). Two sibling features execute
+  commands the operator wrote; one is theirs to bound and one is not.
+
+  The two `git` blocks also shared a `catch {}` that discarded the reason. Because `buildReviewTarget`
+  branches on `ok` to decide what it is reviewing, a swallowed failure did not surface as an error —
+  it silently changed the SCOPE of the review.
+why_now: |
+  A custom command that legitimately takes longer than 10 s (a slow `git log`, a build, a remote
+  query) is truncated, and the operator has no knob to raise it. `rules/error-handling.md` § 5 names
+  the empty catch as an anti-pattern for exactly the shape the git seam had.
+shipped: |
+  SHIPPED 2026-09-03. `shell_timeout_ms` is a config key with `DEFAULT_SHELL_TIMEOUT_MS = 10_000` —
+  the constant it replaces, unchanged on purpose: moving the default while adding the knob would have
+  changed behaviour for every operator under cover of a fix. Reachable as
+  `THEOCODE_SHELL_TIMEOUT_MS`, validated as a positive integer because `execFile` reads 0 as "no
+  timeout", so a typo would have REMOVED the bound on an arbitrary command rather than shortened it.
+  Resolved per invocation like `/review` already does, which is what makes an edit to `config.toml`
+  take effect without a restart.
+
+  The git seam is now `@theocode/shared/git-runner` — one copy instead of two, `timeoutMs` as a
+  parameter rather than a shared constant (a constant would have moved the literal, not removed it),
+  and `onWarn` REQUIRED so no future caller can rebuild the silent swallow by omitting an optional
+  argument. stderr is captured rather than inherited, so `fatal: Needed a single revision` becomes the
+  warning instead of painting over the TUI.
+
+  Found on the way: `pickScalars` was ten `if (raw.x !== undefined)` lines and adding the eleventh
+  tripped the complexity gate. It is now driven by `CONFIG_SCHEMA_KEYS`, which removes the silent
+  failure mode where a new key parses, validates and is then dropped — a test pins that every schema
+  key survives the copy and that the sample set covers the whole schema.
+status: shipped
+fixed_in: 653c23b
+severity: minor
+dod:
+  - the shell timeout is a config key with the current constant as its default, reachable from the
+    environment like every other scalar, and validated as a positive integer
+  - an operator can raise it without restarting, and a test proves the same command dies under a
+    short bound and survives under a long one
+  - the duplicated git seam exists once, and a failed git call reports its reason instead of
+    discarding it
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-129 — Diagnostics are off by default and the failure text does not name the switch that turns them on   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-01.13`, logs/metrics/automation). The source states the gap
+  itself — `packages/shared/src/turn-error.ts:13` records that `THEOCODE_DIAGNOSTICS` is
+  "an environment variable the failure message does not mention", beside the measured 2026-08-25 run:
+
+      ERROR: An error occurred.                    # default
+      retry 1/3 in 20ms — RateLimitError           # THEOCODE_DIAGNOSTICS=stderr
+      retry 2/3 in 403ms — RateLimitError
+
+  `packages/shared/src/diagnostic-sink.ts:16` confirms the sink is opt-in via that variable.
+why_now: |
+  The operator has to already know the variable exists to see why a turn failed. The card admits no
+  exclusion — "Inadequado: nada" — because absence of observability is always a gap.
+shipped: |
+  SHIPPED 2026-09-03. A failed turn now ends with `set THEOCODE_DIAGNOSTICS=stderr to see the retry
+  sequence and the underlying error` — but ONLY when diagnostics are off.
+
+  That condition is the whole design. Telling an operator to enable what they already enabled is the
+  noise that gets a message skipped, so `installDiagnosticSink` stopped discarding the answer it had
+  always computed (`result.kind !== 'off'`, thrown away by all three entry points) and
+  `diagnosticsEnabled()` reads it. Absent context means UNKNOWN rather than `false`, so a surface
+  nobody wired keeps the old text instead of advertising a state nobody checked.
+status: shipped
+fixed_in: 0418f11
+severity: minor
+dod:
+  - a failed turn names the way to see more, without the operator having to know it in advance
+  - the hint appears when it would help and not on every failure, so it does not become noise
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-130 — The retry policy on the critical path is inherited from the transport and is invisible here   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-10.5`, retry with backoff, deadline and DLQ).
+
+  A policy DOES exist — three attempts with a growing delay (20 ms then 403 ms, so exponential with
+  jitter) — and it belongs to the SDK transport. Nothing in this repository declares the attempt
+  count, the ceiling or the deadline, and the operator cannot change them. `grep` for
+  `backoff|retries|circuitBreaker` across `packages/` returns exactly one comment.
+
+  The cost is already recorded at `packages/cli/src/commands/run.ts:56`: after the transport's
+  retries, an auth failure surfaced as `rate_limit (HTTP 429)`, "which reads as a quota problem and
+  sends the user off to check a usage page".
+why_now: |
+  A retry policy that rewrites the error CLASS before it reaches the product is a policy the product
+  should be able to see. The specific 401-as-429 case was fixed by reordering; the mechanism that
+  produced it was not touched.
+shipped: |
+  SHIPPED 2026-09-03. A turn that retried now says so: `… — after 3 attempts`.
+
+  The number is NOT invented and NOT counted here. `RunRateLimitEvent` carries a 1-based `attempt`,
+  delivered on the same `onRunEvent` stream the MCP sink already consumed, and
+  `@theocode/shared/retry-record` remembers the highest one seen. Counting events instead would
+  inflate the figure the moment one were re-delivered, and a wrong number shown to a user is worse
+  than no number — so the shape is validated at the package boundary and a non-integer is ignored
+  rather than rendered as `after NaN attempts`.
+
+  0 and 1 report nothing: a single attempt IS the turn, and "after 1 attempt" on every ordinary
+  failure is noise. The count resets at the turn boundary beside `startMcpFailureTurn`, because a
+  count carried over is a number that is WRONG rather than missing.
+
+  What this does NOT do is claim a retry policy. The policy is still the transport's and is still not
+  configurable here; this makes it visible, which is what the finding asked for.
+
+  The CLI had no `onRunEvent` subscription at all before this and now has one.
+
+  HALF OF THE DoD WAS NOT MET, and marking this `shipped` without saying so was wrong. The second
+  bullet — "the final error class survives to the user rather than being reported as whatever the
+  last attempt returned" — is NOT delivered. A 401 retried by the transport still reaches the user as
+  `rate_limit (HTTP 429)`; what changed is that it now says `after 3 attempts` beside it, which is a
+  hint rather than the class.
+
+  It is not deliverable from this repository, and `docs/parity/2026-08-25-codex-parity.md:246`
+  already recorded why: `streamAgentTurnInProcess` declares no `retry`, though
+  `AgentRunnerRunOptions` has it — filed upstream as usetheokit/theokit#474. The product cannot see
+  or configure the policy that rewrites the class, so preserving it has to happen in the transport.
+
+  The remainder is tracked as B-149 rather than folded away, and this item is NOT re-marked: what
+  shipped, shipped. Amending the DoD to match what was delivered would be moving the goalposts, which
+  is the defect the audit that produced this item exists to catch.
+status: shipped
+fixed_in: 0418f11
+severity: minor
+dod:
+  - when a turn fails after retrying, the failure says so and how many attempts were spent
+  - the final error class survives to the user rather than being reported as whatever the last
+    attempt returned
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-131 — Transcript storage grows without bound until the operator remembers to run `sessions gc`   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SD-02.2`, storage projection with retention — a card that admits
+  no exclusion).
+
+  The retention policy is present and good: `DEFAULT_WINDOW_DAYS = 30` with `FLOOR_DAYS = 1`
+  (`packages/agent/src/session/gc/all-sessions.ts:21,17`), a refusal when the window is below the
+  floor (`:319-321`), a 200 000-operation sweep budget sized from a MEASURED ~2.54 operations per
+  project over a MEASURED 13 269-project tree (`gc/filesystem.ts:30-40`), and a fail-safe that KEEPS
+  anything it cannot classify (`:37`).
+
+  What is missing is the TRIGGER. `packages/cli/src/commands/sessions.ts:151` gates collection behind
+  an explicit action (`if (args.action !== 'gc')`); nothing schedules it, and nothing runs it on start
+  or exit. Between two manual runs the tree only grows.
+why_now: |
+  The population is real rather than hypothetical — 13 269 projects were measured on a real disk while
+  sizing the sweep budget. Every part of the collector except its trigger is already written.
+shipped: |
+  SHIPPED 2026-09-03. `session_gc` is a config key, ON by default, and the default is the decision
+  rather than an oversight: the retention policy already DECLARED 30-day transcripts collectable and
+  nothing applied it, so the declared policy and the behaviour disagreed. Turning it on makes them
+  agree. The key exists so an operator who wants the old behaviour has a decision they can find and
+  record, instead of discovering it from a CHANGELOG.
+
+  Nothing about WHAT is collected changed. `auto.ts` is the trigger and nothing else — the window,
+  the floor, the 200000-operation budget and the KEEP-what-cannot-be-classified fail-safe are
+  INJECTED, and the tests assert delegation rather than reproducing behaviour that would then exist
+  twice on the one path that deletes a user's data.
+
+  Two orderings are load-bearing and both are pinned by tests. It NEVER THROWS: this runs beside a
+  user's session, and housekeeping that can take the agent down is worse than housekeeping that does
+  not happen. And it stamps the attempt BEFORE sweeping, so a sweep that fails every time does not
+  re-run at every launch.
+
+  The trigger differs per surface for a stated reason. The TUI fires it unawaited after `render`, so
+  it can never delay a start. The CLI awaits it after the answer has been delivered and before the
+  process leaves, because a one-shot process that backgrounds a sweep either delays its own exit or
+  has it killed halfway. Both are at most once a day.
+
+  `apply: true` is passed explicitly and has its own test: `runAllProjectsOnDisk` is a DRY RUN by
+  default, so omitting it would have produced a collector that reports removals every day and removes
+  nothing — green, silent and useless.
+
+  WHERE THE FIX LANDED, and why it is not where the evidence points. The evidence above cites
+  `packages/agent/src/session/gc/all-sessions.ts` and `packages/cli/src/commands/sessions.ts` because
+  that is where the POLICY and the manual gate live — and the fix deliberately did not touch either.
+  It is new code: `packages/agent/src/session/gc/auto.ts` (the decision, pure),
+  `packages/agent/src/session/gc/auto-runtime.ts` (the stamp and the real plan/apply), and the two
+  callers, `packages/tui/src/main.tsx` and `packages/cli/src/commands/run.ts`, plus the `session_gc`
+  key in `packages/agent/src/config/config.ts`. Modifying the collector would have been the wrong
+  shape: it works.
+status: shipped
+fixed_in: 2049001
+severity: minor
+dod:
+  - collection happens without the operator remembering, bounded so it cannot delay a session start
+  - the existing plan/apply, budget, floor and fail-safe are reused rather than reimplemented
+  - the operator can turn it off, and turning it off is a decision they can find
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-132 — The recurring manual collection is unmeasured toil with no declared ceiling   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-03.1`, toil measured with a declared ceiling — "Inadequado:
+  nada — a ausência de medida é a lacuna").
+
+  `sessions gc` is a recurring manual procedure whose steps are identical every time, which is the
+  shape the SRE source calls toil. Nothing records how often it is needed, how long it takes, or what
+  would be too much. `packages/cli/src/commands/sessions.ts:151`.
+why_now: |
+  This is B-131 seen from the operator's side rather than the disk's: one says the data grows, this
+  one says a human is the scheduler. The SRE source prefers removing toil to measuring it, so the
+  same trigger closes both.
+shipped: |
+  SHIPPED 2026-09-03 by B-131's trigger — the toil is REMOVED rather than measured, which is what the
+  SRE source asks for when the procedure's steps never change.
+
+  The second bullet needed its own work: every outcome is reported through the diagnostics channel,
+  and the outcome type distinguishes `disabled`, `too-soon`, `ran` (with counts) and `failed`. In a
+  silent system "it ran and removed nothing" and "it never ran" look identical, and only one of them
+  means the retention policy is being applied.
+
+  The evidence names `packages/cli/src/commands/sessions.ts` as where the manual action is gated; the
+  fix touched none of it, deliberately. The toil is removed by new code —
+  `packages/agent/src/session/gc/auto.ts` and `packages/agent/src/session/gc/auto-runtime.ts`, wired
+  from `packages/tui/src/main.tsx` and `packages/cli/src/commands/run.ts` — so the manual command
+  keeps working exactly as it did for anyone who wants to run it by hand.
+status: shipped
+fixed_in: 2049001 — closed by the same trigger as B-131
+severity: minor
+dod:
+  - the recurring manual step is no longer required for the system to stay within its own retention
+    policy
+  - what the automation did is visible, so "it ran and removed nothing" is distinguishable from "it
+    never ran"
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-133 — No reliability target is declared anywhere   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-01.1`, reliability target chosen rather than aspirational —
+  "Inadequado: nada — não escolher é escolher por omissão").
+
+  There is no SLO, no SLA and no reliability figure in `README.md`, `docs/` or `package.json`.
+why_now: |
+  This is the one absence the system-design audit did NOT excuse by the product being a local tool.
+  An agent that fails one turn in twenty is a different product from one that fails one in a
+  thousand, and nobody has written down which this is meant to be. Without it, the retry question in
+  B-130 has no criterion — only a preference.
+shipped: |
+  SHIPPED 2026-09-03 as `README.md` § "What a failure is allowed to cost".
+
+  It states no availability number, deliberately: there is no sustained production measurement to
+  back one, and publishing a figure without it is what `rules/public-copy.md` § 5 forbids. What it
+  targets instead is the SHAPE of a failure — five properties that are reviewable without a metrics
+  pipeline and falsifiable by a test.
+
+  The section claims every bullet is covered by a test, and that claim was CHECKED rather than
+  asserted. Checking it is what found that the retention floor — a guard on the only path that
+  deletes user data, which refuses a window below one day rather than normalising it — had no test at
+  all; a comment in `liveness-seam.test.ts` mentioned it, which is documentation, not a gate. Four
+  tests now cover it, including that the floor value itself is still accepted, so refusing everything
+  would not satisfy them. One bullet was reworded rather than kept, because its second half ("a start
+  does not wait for it") is a wiring property of `main.tsx` and no test backed it.
+status: shipped
+fixed_in: 0756a56
+severity: minor
+dod:
+  - what a failed turn is allowed to cost is stated in a versioned file, in a form that can be
+    contradicted by evidence later
+  - the statement does not claim a measured availability number, which `rules/public-copy.md` § 5
+    forbids without sustained measurement
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-134 — `README.md` defers to an ADR file that does not exist in the repository   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 (catalog card `SRE-02.3`, standardised indicator definition — the failure mode
+  is a definition the person relying on it cannot reproduce).
+
+  `README.md:99` explains what is deliberately absent from the repository and cites the record:
+
+      `.gitignore` keeps all of `.claude/` local by design
+      (`docs/adr/0002-cycle-artifacts-are-promoted-to-docs.md`)
+
+  That file does not exist in the working tree, `git ls-files docs` returns only the two files under
+  `docs/parity/`, and `.gitignore` contains no `adr` or `docs` entry — so it is MISSING rather than
+  deliberately local.
+why_now: |
+  A reader who clones and asks why the toolchain is absent is sent to a document they cannot open,
+  and it is precisely the explanation a new reader needs. A citation that resolves to nothing is
+  worse than no citation, because it reads as a record that exists.
+shipped: |
+  SHIPPED 2026-09-03. The citation is replaced by the two sentences it was standing in for: the
+  directory is the maintainer's process rather than the product, and it is an installed plugin with a
+  repository of its own, so versioning it here would commit a dependency's source into its consumer.
+
+  Inlining rather than tracking the ADR, because the README already carries every other decision
+  inline and the reasoning is two sentences; adding a `docs/adr/` directory whose only occupant is
+  this one file would be the heavier answer. Tracking it stays the reasonable alternative if a second
+  ADR ever follows.
+
+  Two other stale claims in the same file were corrected while there, both invalidated by this work
+  rather than found separately: the measured test count (71 files / 487 cases, measured 2026-08-11)
+  and the config table, which did not list `memory`, `shell_timeout_ms` or `session_gc`.
+status: shipped
+fixed_in: 0756a56
+severity: minor
+dod:
+  - the reasoning the citation stood for is readable by someone who clones the repository
+  - no reference in `README.md` points at a path that is neither tracked nor ignored
+
+> Registered 2026-09-03 from the system-design audit sweep.
+
+## B-135 — The config-reachability detector reported green about a key it never read   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while adding `shell_timeout_ms` for B-128, by comparing the detector's input
+  against the schema it claims to cover.
+
+  `packages/agent/src/config/env-knobs.test.ts` states the invariant plainly — "every config key is
+  either reachable from the environment or explicitly exempt" — and B-041's own docblock argues that
+  a detector nobody runs is not a detector. But its `SCHEMA_KEYS` was a hand-retyped copy of the
+  schema, and it had drifted:
+
+      schema keys : approval_policy context_window goal_oracle hooks MEMORY model
+                    reasoning_effort sandbox_mode skills
+      detector    : approval_policy context_window goal_oracle hooks       model
+                    reasoning_effort sandbox_mode skills profile profiles
+
+  `memory` became a config key and was never added to the list. It is settable in `config.toml`, is
+  in no `ENV_OPT_OUTS` entry, and has no environment path — precisely the state the detector exists
+  to refuse — and the suite was green because the detector was never shown the key.
+why_now: |
+  This is the failure mode the detector was written to prevent, reproduced one level up: a gate whose
+  input is a COPY of the thing it checks stops being a gate the moment somebody forgets to update the
+  copy. It fails in the reassuring direction — reporting green about what it never read — which is
+  the worst direction for a gate to fail in.
+shipped: |
+  SHIPPED 2026-09-03. `SCHEMA_KEYS` is now `[...CONFIG_SCHEMA_KEYS, 'profile', 'profiles']`, so the
+  list cannot drift from the schema again, plus an assertion that every schema key is covered — the
+  anti-drift guard, since a derivation can always be undone by a later edit.
+
+  Deriving it turned the suite red on `memory`, which is the point. `THEOCODE_MEMORY` closes it, with
+  a boolean coercion that accepts `1/true/yes/on` and their negatives and returns anything else
+  VERBATIM, so `THEOCODE_MEMORY=maybe` is rejected by name rather than silently read as `false`. That
+  direction matters here more than most: memory-off is what a determinism-sensitive benchmark run
+  asks for, and a typo that quietly means "off" would tell the operator they got what they wanted.
+status: shipped
+fixed_in: ca536b0
+severity: major
+dod:
+  - the detector's key list is derived from the schema rather than retyped, and a test fails if that
+    derivation is ever undone
+  - every key the derivation exposes is either reachable from the environment or carries a recorded
+    exemption
+
+> Registered 2026-09-03, found while fixing B-128 rather than by the audit that produced it.
+
+## B-136 — `npm run build` cannot resolve `@theokit/sdk`, so the README's own smoke test cannot run   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03 while validating an unrelated change:
+
+      $ npm run build
+      Error: Cannot find module '@theokit/sdk/package.json'
+      Require stack:
+      - tools/build-cli.mjs
+          at file://…/tools/build-cli.mjs:46:56
+
+  PRE-EXISTING, and verified as such rather than assumed: the same failure reproduces at `333cb7e`,
+  the commit before any of B-128..B-135 was written. Confirmed by checking that commit out and
+  running the build there.
+
+  The consequence is stated in the README itself, which offers this as the check that "touches
+  neither the network nor a credential":
+
+      node dist/theocode.mjs sessions gc
+
+  `dist/theocode.mjs` cannot be produced, so the documented smoke test cannot be run by anyone who
+  clones. `tools/build-cli.mjs:46` resolves `@theokit/sdk/package.json` directly, and the CHANGELOG
+  records that nothing here imports the SDK directly — it arrives under `@theokit/agents` as a pnpm
+  override, which does not put it on this package's own resolution path.
+why_now: |
+  Found while validating B-131's wiring, not by the audit that produced the other items. It is
+  registered rather than fixed in the same pass because it is unrelated to those findings and its
+  remedy touches dependency resolution, which deserves its own change and its own verification.
+shipped: |
+  SHIPPED 2026-09-03, in its own change as this block said it should be.
+
+  The cause was a declaration, not a resolution trick. `tools/build-cli.mjs` reads
+  `provider-catalog.json` out of `@theokit/sdk`, and the root package never declared that dependency
+  — it was relying on the SDK being hoisted into the root `node_modules` as a transitive of
+  `@theokit/agents`. pnpm does not hoist it, and pnpm is RIGHT: you may not resolve what you did not
+  declare. Neither `@theokit/agents` nor `@theokit/sdk` resolves from `tools/`, and the ESM-only
+  conditional exports mean `createRequire` cannot reach them through the workspace packages either.
+
+  So the fix is one line — `@theokit/sdk` as a root devDependency, pinned to `5.0.0-next.1`, the same
+  exact version `pnpm-workspace.yaml` already overrides to. The installed tree does not change; what
+  changes is that the build's real use is written down. `packages/*/src` still imports nothing from
+  the SDK, so the greeting test that asserts the product does not claim an SDK it never imports is
+  untouched.
+
+  THE ACTUAL FIX IS THE GATE. This broke and nobody noticed because CI ran typecheck, test, lint,
+  depcruise and crossval — and no build. A `build` job now runs `pnpm run build`, asserts the three
+  artifacts are present and non-empty (esbuild exits 0 while writing nothing if its entry resolves to
+  an empty module, and the catalog is a COPY step whose failure silently disables auto-compaction),
+  and then runs the README's smoke test verbatim rather than a proxy for it.
+
+  knip reports the dependency as unused because the reference is
+  `createRequire(...).resolve('@theokit/sdk/package.json')` — the runtime-computed specifier its own
+  config warns about. Recorded in `knip.jsonc` with the reason, which is what that file prescribes,
+  rather than left as a standing warning: a gate that always prints something is a gate people stop
+  reading.
+
+  Verified end to end: build produces all three artifacts, `node dist/theocode.mjs sessions gc` exits
+  0, lint fully clean with no remaining knip output.
+status: shipped
+fixed_in: dafb1df
+severity: major
+dod:
+  - `npm run build` produces `dist/theocode.mjs` in a clean checkout
+  - the README's documented smoke test runs end to end from that artifact
+  - whatever makes the SDK resolvable is recorded, since the override arrangement is deliberate
+
+> Registered 2026-09-03, found while fixing B-131 and deliberately not fixed in the same change.
+
+## B-137 — The first thing the CLI does was an unbounded subprocess that misreported its own failure   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by RE-MEASURING B-128 instead of trusting it had been fixed. The original sweep
+  counted three call sites hard-coding `timeout: 10_000`; re-running the measurement after the fix
+  turned up a FOURTH git subprocess it had never seen, because it had no timeout to count:
+
+      packages/cli/src/runtime/preflight.ts:11
+        execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
+
+  `gitGate` is the FIRST thing `theocode run` does. With no timeout, a git that hangs — a
+  network-backed working tree, a stale `index.lock`, a credential helper waiting on a prompt — hangs
+  the CLI forever, before it has printed anything a user could act on. B-128 was about a bound being
+  unreachable; this was about no bound at all, on the earliest path in the process.
+
+  The second half is diagnosis. Every failure took one branch and printed
+  `Not inside a git repository`, so a hang, a missing binary and a genuinely non-git directory were
+  reported identically and only one of them was true — the shape B-130 fixed one layer up, where the
+  transport's retries turned a 401 into a 429.
+why_now: |
+  It was invisible to the audit that produced B-128 precisely because it lacked the thing that sweep
+  was counting. That is worth recording as a method note: a search for "the constant is wrong" cannot
+  find "there is no constant".
+shipped: |
+  SHIPPED 2026-09-03. `gitGate` uses the shared `createGitRunner` seam bounded by
+  `DEFAULT_SHELL_TIMEOUT_MS`, and the reason git actually gave now reaches the user beside the
+  verdict, which is unchanged: the gate still refuses.
+
+  The bound is the CONSTANT and deliberately not `shell_timeout_ms` from config. This runs before any
+  config is resolved, and reading a file here would add a failure mode to the earliest path in the
+  process — the one place a failure has no friendlier path to fall back to. A local `rev-parse` that
+  needs more than ten seconds is the hang the bound exists for.
+
+  Four tests, including that the gate runs NO subprocess when `--skip-git-repo-check` is passed, and
+  that the timeout actually reaches the call — a bound the test cannot see is a bound nobody asserts.
+
+  A FIFTH was added after the mutation sweep, covering the gap those four left. They inject `run` and
+  `reason`, which proves the rendering and proves nothing about the WIRING: in production `reason` is
+  filled by a closure handed to `createGitRunner`'s `onWarn`, and that assignment has to land before
+  the message is composed. It does — the seam calls `onWarn` synchronously in its `catch` — but that
+  is an argument, and an argument is not a test. The fifth runs the default path in a real non-git
+  directory, and two mutations confirm it bites: restoring the seam's silent swallow fails it, and
+  clearing `reason` after the call fails it.
+status: shipped
+fixed_in: 80a516f
+severity: major
+dod:
+  - the git call at preflight is bounded, and a test observes the bound rather than its absence
+  - a failure says which of the several possible causes it was, instead of naming one for all of them
+  - skipping the gate runs no subprocess at all
+
+> Registered 2026-09-03, found by re-measuring B-128 rather than by the audit that produced it.
+
+## B-138 — The test guarding B-131's central promise could not fail   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by MUTATION-CHECKING the fixes rather than trusting a green suite: revert each
+  change, and confirm the test that claims to protect it turns red.
+
+  Nine of ten mutations were detected. One was not:
+
+      mutation : `runAllProjectsOnDisk(plan, { apply: true, ... })` -> drop `apply: true`
+      effect   : the automatic collector becomes a PERMANENT DRY RUN — it plans removals every day,
+                 removes nothing, and reports success
+      suite    : 6 passed, 0 failed
+
+  The test named `test_the_sweep_applies_rather_than_dry_running` asserted that the report string did
+  NOT contain `DRY-RUN`. `auto.ts` builds that string as
+  `[sessions gc] automatic sweep — N removed, M error(s)` and never contained the word in either
+  case, so the assertion was true whatever the code did. It was a test that could not fail, guarding
+  the one promise B-131 exists to make.
+
+  Written by the same person who wrote the fix, in the same change, and it passed review by being
+  green — which is exactly the failure mode the audit that started this work exists to name.
+why_now: |
+  B-131 turns on deletion of the operator's transcripts by default. The single guarantee that makes
+  that acceptable is that the collector actually collects rather than reporting forever, and that
+  guarantee was unprotected.
+shipped: |
+  SHIPPED 2026-09-03. `AutoGcOutcome`'s `ran` case carries `dryRun`, read from the flag the SDK sets
+  on its own result, and the assertion reads that instead of a string that never varied. The report
+  line also says `(DRY-RUN — nothing was removed)` when it applies, because "0 removed because there
+  was nothing" and "0 removed because I did not remove" are different facts and must not read alike.
+
+  Verified the only way that means anything: the same mutation now fails 2 of 7 tests, and reverting
+  the mutation returns 7 of 7 green.
+
+  The other nine mutations were checked in the same sweep and all were already detected — the git
+  seam's swallow, the gitGate bound, the shell timeout reaching execFile, `allSettled` vs `all`, the
+  once-a-day interval, the retention floor's refusal, `pickScalars` dropping a key, the retry counter,
+  and the diagnostics state.
+status: shipped
+fixed_in: 563fe3e
+severity: major
+dod:
+  - reverting `apply: true` turns the suite red
+  - a dry run is distinguishable from a sweep that had nothing to remove, in the outcome and in the
+    report
+
+> Registered 2026-09-03. Found in my own work, by mutation-checking instead of trusting green.
+
+## B-139 — Turning collection on by default removed the look-first step the manual command has   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by asking whether the AUTOMATIC path matches the MANUAL one it automates, rather
+  than only whether it works.
+
+  It matches on the window, the floor, `keepLast` and the operation budget — all inherited, all
+  verified. It does NOT match on one thing, and that one is the safety step:
+
+      packages/cli/src/runtime/args.ts:120   apply: { type: 'boolean', default: false }
+      packages/agent/src/session/gc/filesystem.ts:211
+        'DRY-RUN — nothing was removed; use --apply to execute'
+      packages/cli/src/commands/sessions.ts:47
+        '  -> re-run with --apply to delete'
+
+  `sessions gc` is dry-run BY DEFAULT and makes the operator ask for the deletion. That flag is a
+  design decision about how significant deletion is, and B-131 removed it for everyone — at the
+  worst possible moment. The first automatic sweep is the one where the backlog of old transcripts
+  is largest and nobody has yet seen what a 30-day policy would take from them. Someone with two
+  years of sessions would have met the change as a large silent deletion.
+why_now: |
+  B-131 shipped `session_gc` defaulting to true in this same release. The finding is against my own
+  change, and the window to fix it is before anyone runs it.
+shipped: |
+  SHIPPED 2026-09-03. The FIRST sweep — the one with no stamp on disk — plans and reports what it
+  WOULD remove, and removes nothing. The next one applies. The stamp is still written, so the
+  collector cannot dry-run forever, which is the failure it must not trade itself into (B-138).
+
+  The report on that first run names the choice rather than burying it: "first automatic sweep —
+  DRY RUN, nothing was removed. The next one will apply; set `session_gc = false` to keep collection
+  manual." The cost is one interval of delay; what it buys is the look-first property the manual
+  command already had.
+
+  Both guarantees are mutation-checked and independently protected: forcing the first sweep to apply
+  fails 2 tests, forcing every sweep to dry-run fails 6, and dropping the `apply` argument on the way
+  to the SDK fails 6.
+status: shipped
+fixed_in: 9ad468d
+severity: major
+dod:
+  - the first automatic sweep removes nothing and says what it would have removed
+  - the second applies, and a mutation that makes every sweep a dry run turns the suite red
+  - the operator is told, in that first report, how to keep collection manual
+
+> Registered 2026-09-03. Found in my own change, by comparing the automatic path against the manual
+> one it automates instead of only checking that it worked.
+
+## B-140 — `keepLast` was spent on entries that could never be collected   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an independent adversarial review, and reproduced with a test here before
+  being believed.
+
+  The quota protects the N most recent transcripts of a DEAD project. The sort feeding it reads an
+  unknown mtime as `Infinity` (`all-sessions.ts`, `(b.mtimeMs ?? Infinity) - ...`), so an entry the
+  collector could not `stat` sorts as the NEWEST thing in the project and takes a slot. Those entries
+  are already safe — `collectableAge` returns undefined without an mtime and the planner skips them —
+  so the quota was spent on files that were never at risk while the stale transcripts it exists to
+  protect fell through to deletion.
+
+  Measured: 10 unstattable entries beside 5 stale ones planned ALL 5 for removal, at the default
+  quota of 10.
+why_now: |
+  It is the mirror of the bug B-020 fixed one line above: `mtimeMs` used to be `0`, which sorted LAST
+  and dated the file to 1970. That fix reasons about sort position and concludes `keepLast` "could
+  not protect it either" — and moving the entry to the front protected it twice while unprotecting
+  its neighbours. Reachability changed in this release: until `session_gc` defaulted to true, this
+  needed someone to type `sessions gc --apply`.
+shipped: |
+  SHIPPED 2026-09-03. The quota is computed over DATABLE entries only. The most-recent guard for
+  ALIVE projects had the same hole and is fixed with it. Four tests, including that an unstattable
+  entry is still never collected itself (the pre-B-020 behaviour, which must not come back) and that
+  the quota still runs out for real transcripts.
+status: shipped
+fixed_in: ba00c03
+severity: major
+dod:
+  - an entry the collector cannot stat does not consume a slot in the quota
+  - such an entry is still never collected itself
+  - the quota still runs out for real transcripts
+
+> Registered 2026-09-03. REGISTERED LATE, and that is the finding's own footnote: it shipped with a
+> CHANGELOG entry and a commit message but no block here for hours, so the registry that is supposed
+> to answer "what happened to B-140" answered nothing.
+
+## B-141 — The credential-routing order the source calls "the fix" had no test   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while checking whether extracting `resolveRunTarget` had changed behaviour. It had
+  not — the sequence is byte-identical to `333cb7e` — but `grep -rl routeToCredential packages | grep
+  test` returned nothing.
+
+  `run.ts` states the order plainly: route the model id for the credential that will serve it, THEN
+  resolve a credential for the routed id, THEN build on that id. Getting it wrong is not theoretical.
+  It shipped, and was measured 2026-08-25: with a ChatGPT sign-in the configured id is `openai/…`,
+  which selects the API-key provider, and `api.openai.com` refuses an OAuth token with a 401 — which,
+  after the transport's retries, reached the user as `rate_limit (HTTP 429)`, sending them to check a
+  quota page for an auth problem.
+why_now: |
+  The order survived only as a comment over dynamic imports no test could reach, on a path where a
+  previous version cost a user their turn AND their diagnosis. A refactor over an untested guarantee
+  is a coin-flip that happened to land right.
+shipped: |
+  SHIPPED 2026-09-03. The three seams are injectable and four tests pin the sequence, including that
+  the second resolution uses the ROUTED id — which is the bug itself, stated as an assertion — and
+  that `routeToCredential` receives the credential the probe produced rather than a fresh one.
+status: shipped
+fixed_in: ba00c03
+severity: major
+dod:
+  - the probe resolves before the route is decided
+  - the second resolution uses the routed id, not the configured one
+  - a mutation that resolves on the configured id turns the suite red
+
+> Registered 2026-09-03, late, for the same reason as B-140.
+
+## B-142 — The automatic sweep blocked the event loop for up to 37 seconds, and the comment said it could not   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an INDEPENDENT adversarial review of this release — the one every phase gate of
+  the originating audit was capped below 0.9 for lacking. It built the tree this repository itself
+  cites as measured (13 269 projects, `filesystem.ts:31-38`) and ran the exact shape of `main.tsx`,
+  with an event-loop lag monitor:
+
+      cold : control returned to the event loop after 37 100 ms
+      warm : 13 213 ms / 9 309 ms / 4 861 ms
+
+  `planAllProjectsOnDisk` is declared `async`, but its body runs synchronously until the first
+  `await`, and `classifyProjects` is invoked EAGERLY while the argument object is built
+  (`filesystem.ts:143`). So `void collectSessionsAutomatically(...)` deferred the tail of a function
+  whose tail was empty.
+
+  This falsified a claim written into the source by B-131 — `main.tsx`: "housekeeping must never be
+  something the operator waits for ... the `void` is the point rather than an oversight" — and the
+  commit message of `daced38`, which argued the unawaited sweep was safe. The CLI was worse-shaped
+  than its own comment admitted: it AWAITED, so `theocode run` printed its answer and then sat for
+  5-37 s before exiting, invisible in a script except as a stall.
+
+  Two more findings from the same review, both mine, both fixed here:
+
+  - `resolveEffectiveConfig` was evaluated while the ARGUMENT object was built, so it threw OUTSIDE
+    the `.catch` the comment beside it called "the belt to its braces". A typo in
+    `~/.theocode/config.toml` — always read, no trust posture required — killed the TUI with an
+    unhandled throw AFTER `render()` had claimed the terminal. Reproduced: `ESCAPED the .catch —
+    synchronous throw`.
+  - `daced38` recorded three guards on the startup race and the third was wrong as written: "a
+    brand-new session is the most-recent, which is protected regardless". `all-sessions.ts:124`
+    returns before the most-recent guard on a DEAD project, so it is ALIVE-only. "Regardless" was
+    false and the comment now says so.
+
+  One of the review's findings was REFUTED and is recorded as such: it reported that the collector's
+  report paints over the Ink frame. `installStderrGuard` (`main.tsx:31`, B-104) redirects
+  `process.stderr.write` to `.theokit/tui-stderr.log` precisely so a warning cannot corrupt the
+  frame, and it is installed before the call.
+why_now: |
+  B-131 turned this on by default in the same release. A 5-37 second freeze at every start, once a
+  day, on the tree size this repository measured, is not a cost anyone opted into.
+shipped: |
+  SHIPPED 2026-09-03. The sweep runs in a CHILD PROCESS and the parent returns immediately. There is
+  no in-process fix: the work is synchronous JavaScript inside a dependency, and no scheduling makes
+  a synchronous block yield.
+
+  The child runs `sessions gc --all-projects`, the command that already exists, so the path that
+  deletes user data still has exactly one implementation. The parent keeps the DECISION — enabled,
+  due, and first-sweep-must-not-apply — extracted into `sweepDecision` so the two could not drift.
+
+  NOT detached, and the CLI no longer triggers at all. A one-shot process exits before the child
+  finishes and would kill it halfway, so collection belongs to the long-lived surface; `sessions gc`
+  remains the explicit command it always was.
+
+  Deletions the change forced, and taken rather than suppressed: with the CLI trigger gone and the
+  TUI spawning, `maybeCollectSessions` and `collectSessionsAutomatically` had no caller. knip said
+  so. Dead code with tests is still dead code, so both went, and `sweepDecision` kept its own tests
+  because it carries the look-first property.
+
+  Found while writing those: an unusable stamp read as "a previous run happened", so a corrupted file
+  would skip the look-first dry run and apply straight away. It is treated as NO stamp in both
+  answers now.
+status: shipped
+fixed_in: aae33ff
+severity: major
+dod:
+  - the trigger returns without doing the sweep, and a test measures that it returns
+  - the first sweep still does not apply, through the child
+  - a malformed config file cannot take the TUI down
+  - the delete path still has one implementation
+
+> Registered 2026-09-03 from an independent adversarial review — the check the originating audit
+> declared missing four times and never performed.
+
+## B-143 — One unreadable pointer stopped collection for the whole tree   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by an independent adversarial review; verified here before being believed.
+
+  `readPointerId` fails fast on any errno but ENOENT, and its reason is sound: what it returns is a
+  deletion decision, so swallowing an EACCES would drop a live session from the protected set.
+  "Refusing to GC is the safe direction" — correct, and an argument about THAT PROJECT.
+
+  The call sat outside every `try` in `resolveGuards`, between the catch that wraps `listProject` and
+  the one that wraps `listRegistry`, so the throw unwound past both, out of `planOneProject`, and out
+  of `planSessionGCAllProjects` itself. Measured: the whole plan rejects.
+why_now: |
+  One project with a permissions problem meant no project anywhere was collected — and under the
+  automatic trigger the parent has already written its stamp, so it would not retry for 24 hours.
+  Every day, forever, reported once a day into a log.
+shipped: |
+  SHIPPED 2026-09-03. The pointer read is inside the same guard as the registry read, which the
+  caller already handles by skipping the project and reporting it. The safe direction stays where it
+  belongs and stops being contagious. Five tests, including that the healthy project is still
+  collected and that a healthy tree still collects everything.
+status: shipped
+fixed_in: be5e840
+severity: major
+dod:
+  - a failing pointer read skips its own project instead of rejecting the sweep
+  - the reason is reported rather than silently skipped
+  - a healthy tree still collects everything
+
+> Registered 2026-09-03, late, for the same reason as B-140.
+
+## B-144 — The fix for an unbounded subprocess introduced an unbounded subprocess   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by asking whether my own changes would trip the catalog I had just swept the
+  repository with. They would.
+
+  This release fixed a timeout the operator could not reach (B-128) and a `git` call on the CLI's
+  first line with no timeout at all (B-137). Then B-142 moved the session sweep into a child process
+  to stop it blocking the event loop — and spawned it with NO BOUND:
+
+      spawn(command.command, [...command.args], { stdio: 'ignore' })
+
+  No `timeout`, no `killSignal`. `grep -cE "timeout|killSignal|AbortSignal"` over the file returned 0.
+
+  The failure mode is specific and it ACCUMULATES, which is what makes it worse than the two it
+  followed. A sweep blocked on a dead network mount lives as long as the TUI does; the next day the
+  stamp is due again and another is spawned beside it. Nothing reaps them.
+why_now: |
+  It is the third instance of one defect in one release, and the third was introduced by the fix for
+  the second. That is worth recording as a pattern rather than as three unrelated tickets: a change
+  that moves work somewhere else inherits none of the bounds the old place had, and nothing in the
+  review of B-142 asked about them.
+shipped: |
+  SHIPPED 2026-09-03. `SWEEP_TIMEOUT_MS = 10 * 60 * 1000`, with `killSignal: 'SIGTERM'` and
+  `stdio: 'ignore'` moved into the command builder so all three are testable rather than inline
+  arguments nobody asserts.
+
+  The bound is generous ON PURPOSE. 37.1 s was MEASURED for one sweep on a 13 269-project tree, so a
+  limit anywhere near that would kill legitimate work on a large disk — and a collector that always
+  dies is worse than the hang it prevents, because it stops working silently. Ten minutes is an order
+  of magnitude past the worst measurement and still finite, which is the only property that matters.
+
+  SIGTERM rather than the default, so a sweep caught mid-`unlink` can finish the syscall it is in;
+  SIGKILL cannot be caught and is not what a delete path should meet first. `stdio: 'ignore'` because
+  the TUI owns the screen and `installStderrGuard` protects this process's stderr, not a child's.
+status: shipped
+fixed_in: a0d7a77
+severity: major
+dod:
+  - the child carries a timeout, and a test reads the number rather than trusting the call site
+  - the bound is far enough past the worst measured sweep that it cannot kill legitimate work
+  - the signal is named rather than left to the default
+
+> Registered 2026-09-03. Found in my own change, by asking whether it would trip the catalog I had
+> just swept the repository with.
+
+## B-145 — Two more unbounded subprocesses, both synchronous, both freezing the TUI   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by SWEEPING for the pattern instead of waiting to trip over it a fourth time.
+
+  This release fixed the same defect three times — a timeout the operator could not reach (B-128), a
+  `git` call with none at all on the CLI's first line (B-137), and a child process spawned with no
+  bound by the fix for the second (B-144). Three instances is a pattern, so every subprocess in
+  production source was enumerated and checked. Two more had no bound:
+
+      packages/tui/src/clipboard.ts:16         spawnSync(bin, args, { input, encoding })
+      packages/tui/src/commands/command-content.ts:232,237
+                                               spawnSync('git', ['diff', ...], { cwd, encoding })
+
+  Both are `spawnSync`, which does not merely take time — it blocks the event loop, and in the TUI
+  that is the Ink render loop. A frozen frame with no cursor is indistinguishable from a crash.
+
+  The clipboard is the sharper of the two: the candidates are `wl-copy`, `xclip`, `xsel` and
+  `pbcopy`, which are exactly the programs that hang when a display variable is set and the
+  compositor or X server is not answering.
+why_now: |
+  Three instances of one defect in one release, the third introduced by the fix for the second. At
+  that point the honest move is to look for the rest rather than to keep finding them one at a time.
+shipped: |
+  SHIPPED 2026-09-03. `CLIPBOARD_TIMEOUT_MS = 5_000` and `DIFF_TIMEOUT_MS = 10_000`, both named and
+  both asserted by tests rather than left as call-site arguments nobody reads.
+
+  The diff bound is 10 s because `/review` already bounds its git calls at 10 s — two different
+  answers to "how long may git take" inside one product is the inconsistency B-128 was about.
+
+  The clipboard needed no error-handling change: `spawnSync` reports a kill through `result.error`,
+  and the existing loop already turns any non-ENOENT error into a `ClipboardWriteError`. So a timeout
+  surfaces as a real failure of an installed clipboard rather than skipping to the next candidate or
+  returning as though the text had been copied. A test drives exactly that.
+
+  The sweep was then re-run: 9 subprocess call sites, 7 real and all bounded. The two the sweep still
+  reported were prose inside comments — checked by opening them rather than reported as findings,
+  which is the same discipline the rest of this release was about.
+status: shipped
+fixed_in: 43efd9f
+severity: major
+dod:
+  - every subprocess in production source carries a bound, verified by enumerating them rather than
+    by recalling which ones were touched
+  - a timed-out clipboard is reported as a write failure, not as a success or a missing binary
+  - the diff bound matches the one the review path already uses
+
+> Registered 2026-09-03. Found by sweeping for a pattern that had already appeared three times.
+
+## B-146 — A second false claim about process behaviour, written while fixing the first   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-03, by spawning a child without `detached`, exiting the parent immediately, and
+  checking whether the child completed its work:
+
+      spawned child pid 1086488 — parent exiting now
+      -> the child outlived the parent
+
+  `auto-runtime.ts` claimed the opposite: "NOT detached. The child is bound to this process's
+  lifetime". That is false. A child spawned without `detached` is ORPHANED and reparented when the
+  parent exits, not killed. What `detached` changes is the process GROUP — without it the child
+  stays in the parent's, so closing the terminal window sends SIGHUP to both.
+
+  The claim was load-bearing. The CLI's decision not to collect rested on it: "a one-shot process
+  exits before the child finishes and would kill it halfway". The premise was wrong, so the
+  conclusion had no support — the CLI could have spawned one.
+why_now: |
+  B-142 fixed a comment in this same file that asserted the sweep could not block the operator, which
+  an independent review falsified by measuring. This is the second false claim about runtime
+  behaviour in the same file, written WHILE fixing the first, and by the same reasoning-instead-of-
+  measuring that produced it.
+shipped: |
+  SHIPPED 2026-09-03. The comment states what was measured, and names the distinction it had wrong:
+  orphaning is not killing, and `detached` governs the process group rather than survival.
+
+  The CLI's decision was re-derived rather than kept on a false premise. The real reason it does not
+  collect is that `onReport` fires on the child's `close` event and a one-shot CLI is gone by then —
+  the sweep would run completely unobserved, which is precisely the "it ran and removed nothing" vs
+  "it never ran" ambiguity B-132 exists to remove.
+status: shipped
+fixed_in: 6ca5d71
+severity: major
+dod:
+  - the comment states process behaviour that was measured, not deduced
+  - no decision in the file rests on the corrected claim without being re-derived
+
+> Registered 2026-09-03. Found by testing a claim I had written rather than re-reading it.
+
+## B-147 — Sweeping the third repeated pattern: runtime claims written as fact   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by applying this release's own lesson to itself. Two classes had already been
+  swept after appearing three times each — unbounded subprocesses (B-145) and tests that cannot fail
+  (B-145's second half). A THIRD had appeared twice: a claim about runtime behaviour, written into a
+  comment as fact, that nobody had measured.
+
+      B-142  "housekeeping must never be something the operator waits for ... the `void` is the
+             point" — falsified by an independent review measuring 4.9-37.1 s of blocking.
+      B-146  "NOT detached. The child is bound to this process's lifetime" — falsified by spawning
+             one and exiting the parent; the child outlived it.
+
+  So every behavioural claim written in this release was enumerated and the deducible ones measured.
+  Three were deductions rather than observations, and ONE of the three was false:
+
+      "node with no script starts an idle REPL that never exits, one leaked process per launch"
+        -> FALSE. With `stdio: 'ignore'` the child's stdin is /dev/null, so node reads EOF and
+           exits 0 immediately. Measured: `timeout 3 node < /dev/null` -> exit 0.
+
+      "a spawnSync timeout leaves `status` null"
+        -> TRUE. status null, signal SIGTERM, error.code ETIMEDOUT.
+
+      "rmdir on a non-empty directory fails ENOTEMPTY"
+        -> TRUE.
+why_now: |
+  Three false runtime claims in one release, two of them written while fixing the other. The instance
+  fixes were not converging, so the class was swept — the same move that found two more unbounded
+  subprocesses and two more blind tests.
+shipped: |
+  SHIPPED 2026-09-03. The false claim is replaced by the measurement AND by the smaller, precise
+  reason the guard still matters: a child spawned with no script exits 0 having swept nothing, and
+  `sweepFinishedLine` would report a finished sweep — so the collector would announce success daily
+  while collecting nothing, which is the B-138 failure. Refusing to spawn reports it instead.
+
+  The two claims that turned out TRUE now carry the measurement that establishes them, so the next
+  reader does not have to re-derive them from POSIX.
+status: shipped
+fixed_in: a4fdb30
+severity: major
+dod:
+  - every behavioural claim written in this release is either measured or removed
+  - a claim that survives measurement records the measurement, so it is not re-deduced later
+
+> Registered 2026-09-03, by sweeping the third pattern instead of fixing a third instance.
+
+## B-148 — A hand-maintained count in the README went stale twice in one session, both times by my hand   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by sweeping the last class this release repeated: a number in a document that
+  decays because a human maintains it.
+
+  `README.md` claimed the suite was "71 files, 487 cases (measured 2026-08-11)". That was invalidated
+  by this release's work, updated to "107 files, 837 cases", and invalidated AGAIN by the tests added
+  after the update — it read 107/837 while `npm test` reported 115/879. Stale twice in one session,
+  both times by the same hand that was fixing staleness elsewhere.
+why_now: |
+  The same defect class as B-135, where a hand-retyped copy of the schema drifted from the schema. It
+  is worth recording because the obvious remedy — derive the number and gate it — was tried and
+  REJECTED on measurement, and a rejected alternative left unrecorded is one the next person
+  re-litigates from scratch.
+shipped: |
+  SHIPPED 2026-09-03. The number is corrected, and it now names the two ways of counting that are
+  WRONG, so the next reader does not reach for either.
+
+  A DERIVED GATE WAS CONSIDERED AND REJECTED, on measurement rather than on taste. Neither cheap
+  derivation agrees with the suite:
+
+      glob over `*.test.ts` / `*.test.tsx`  -> 114   (vitest: 115; one suite is a `.test.mjs`
+                                                      under `tools/`)
+      grep for `it(` / `test(`              -> 823   (vitest: 879; `it.each` expands at runtime)
+
+  A gate built on either would assert a number that is wrong, which is worse than one that is merely
+  old: a stale figure carries its date and says so, while a wrong gate is green and confident. The
+  honest instrument here is the date the claim already carries.
+
+  IT DECAYED A THIRD TIME BEFORE THIS ITEM WAS AN HOUR OLD. The count was corrected to 879, and B-150
+  then added three tests — so the very item whose DoD says "the count matches what `npm test`
+  reports" was violated by the next fix. That is not a failure of attention; it is what a
+  hand-maintained number in a document DOES while work continues, demonstrated three times in one
+  session.
+
+  The rule that follows, and the only one that would have held: update the count as the LAST step
+  before finishing, never in the middle. A number touched mid-work is stale by the time it is
+  committed.
+status: shipped
+fixed_in: b7b0343
+severity: minor
+dod:
+  - the count matches what `npm test` reports
+  - the two derivations that do NOT match are named, so nobody builds a gate on them
+  - the rejected alternative is recorded with the measurement that rejected it
+
+> Registered 2026-09-03, by sweeping the fourth repeated pattern of this release.
+
+## B-149 — A retried failure still reaches the user as the wrong error class   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 while checking whether B-130's own Definition of Done had been met. It had not,
+  and the item was marked `shipped` anyway — this is the half that was left.
+
+  B-130 made the retry VISIBLE: a turn that spent three attempts says so. It did not make the error
+  CLASS survive. The case that motivated it, measured 2026-08-25 and recorded at
+  `packages/cli/src/commands/run.ts:56`, is a 401 (`Missing scopes: api.responses.write`) that after
+  the transport's retries reached the user as `rate_limit (HTTP 429)` — which reads as a quota
+  problem and sends them to check a usage page. Today that user sees the same 429, now with
+  `after 3 attempts` beside it. Better, and still the wrong class.
+
+  IT IS NOT DELIVERABLE FROM THIS REPOSITORY, and the reason was already written down in a file
+  nobody had connected to this item: `docs/parity/2026-08-25-codex-parity.md:246` records that
+  `streamAgentTurnInProcess` declares no `retry`, though `AgentRunnerRunOptions` has it — filed
+  upstream as usetheokit/theokit#474. The product cannot see, configure, or intercept the policy that
+  rewrites the class.
+why_now: |
+  B-130 shipped with this bullet unmet and nothing said so. An item marked `shipped` whose DoD is
+  half-delivered is the exact rot the registry exists to prevent: the next reader takes `shipped` to
+  mean the problem is gone, and the 401-as-429 misdiagnosis is not gone.
+blocked_by: |
+  usetheokit/theokit#474 — `streamAgentTurnInProcess` must expose the retry policy (or the error it
+  preserves) before a consumer can keep the class. Per the issue-lifecycle rule, this stays OPEN with
+  the dependency named rather than being closed as "not ours".
+status: shipped
+fixed_in: 9ff78a0
+severity: minor
+dod:
+  - a failure that the transport retried reports the class of the FIRST failure, not of the last
+    attempt — or the product can configure the policy so it does
+  - the 401-as-429 case specifically is covered by a test — PARTIALLY MET, and the scope is the
+    point. `packages/cli/src/commands/run-target.test.ts:50` pins that the second credential
+    resolution uses the ROUTED id, which is the fix that prevents the measured occurrence from
+    recurring through that path. It does NOT prove a retried 401 keeps its class: that is the first
+    bullet, and it is the half blocked upstream. Recording this as plainly "covered" would repeat the
+    imprecision that created this item.
+
+> Registered 2026-09-03, splitting the undelivered half of B-130 rather than leaving it inside an
+> item marked shipped.
+
+> CLOSED 2026-09-04, and the blocker was only half the story.
+>
+> UPSTREAM RESOLVED IT. `usetheokit/theokit#474` is fixed: `@theokit/agents@12.1.0` declares
+> `retry?: RetryOptions` on `StreamAgentTurnInProcessInput`, and absent it the turn makes a single
+> attempt. The SDK also keeps `auth_failed` and `rate_limit` as distinct `ErrorCode` values, and its
+> `RunRateLimitEvent` fires only when "the provider returned a rate-limit (HTTP 429)". The mechanism
+> that rewrote a 401 into a 429 has no path in these versions — read from the declared contract, NOT
+> reproduced against a live 401, and that limit is stated rather than glossed.
+>
+> OUR HALF WAS BROKEN, and nobody had looked. The hint table matched on provider MESSAGE text while
+> its docblock claimed it matched on the error CODE. Measured across the SDK's eleven codes: one
+> matched (`rate_limit`, by coincidence of spelling) and ten produced no hint — including
+> `auth_failed`, which is what a refused credential reports. So the class arrived correctly and this
+> side threw it away: the user saw the bare message and no next step, while the same failure with a
+> raw `401` in its text got one.
+>
+> Fixed in 9ff78a0, which changed `packages/shared/src/turn-error.ts` and its test — NOT
+> `run.ts`, whose line 56 this block cites as where the original measurement was RECORDED
+> rather than where the defect lived. Both DoD bullets hold: the first because the class survives and is now
+> ANSWERED here, the second because the 401 case has a test on both paths — the routed-credential
+> regression (`run-target.test.ts:50`) and the typed code (`turn-error.test.ts`).
+
+## B-150 — Moving the sweep to a child process silently regressed two shipped DoDs   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by auditing whether the items closed in this release actually met the Definition
+  of Done written on them — the same check that produced B-149.
+
+  Two bullets, in two items already marked `shipped`, were met by the in-process collector and lost
+  when B-142 moved it into a child spawned with `stdio: 'ignore'`:
+
+    B-132  "what the automation did is visible, so 'it ran and removed nothing' is distinguishable
+            from 'it never ran'"
+    B-139  "the first automatic sweep removes nothing and SAYS WHAT IT WOULD HAVE REMOVED"
+
+  The parent reported `[sessions gc] background sweep finished` and nothing else. No counts, no
+  verdict — the child's entire output went to /dev/null.
+
+  THE INSTRUMENT WAS WRONG FOR THE CONCERN. `'ignore'` was chosen because "the TUI owns the screen",
+  which is an argument against INHERITING the child's streams. Piping captures them without
+  displaying anything. Ignoring was the only one of the three that also threw away the information.
+why_now: |
+  A fix regressed two Definitions of Done in items already marked shipped, and nothing detected it —
+  no test covered the counts, so the suite stayed green. That is the same shape as B-138, one level
+  up: the guarantee was in a DoD rather than in a test, and a DoD is not a gate.
+shipped: |
+  SHIPPED 2026-09-03. stdout is PIPED and collected; stderr stays ignored. The parent finds the
+  child's verdict line — `DRY-RUN — …` or `APPLIED — N artifact(s) removed` — and appends it to its
+  own report, so the counts reach the operator through the diagnostics channel without anything
+  being written to the frame.
+
+  A silent child still produces a report, and that is deliberate: reporting only when there is output
+  would make a broken child indistinguishable from a collector that never ran, which is the exact
+  ambiguity B-132 exists to remove.
+
+  Three tests now cover what two DoDs had been carrying alone.
+status: shipped
+fixed_in: 24e6ed0
+severity: major
+dod:
+  - the first sweep reports what it WOULD have removed, not merely that nothing was
+  - an applying sweep reports its counts
+  - a child that says nothing still produces a report
+
+> Registered 2026-09-03, by checking my own "done" claims against the criteria I wrote for them.
+
+## B-151 — B-134's guarantee had no gate, and the next dangling citation was already there   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  FOUND 2026-09-03 by sweeping the class B-150 named: a guarantee that lives only in a Definition of
+  Done is not a gate. Every DoD bullet closed in this release was checked for something that would
+  fail if it stopped holding.
+
+  B-134's second bullet — "no reference in `README.md` points at a path that is neither tracked nor
+  ignored" — had nothing. It was verified by hand, once, and nothing stopped the next one.
+
+  The next one was ALREADY THERE, and it was mine. The reliability-target section written for B-133
+  cites `rules/public-copy.md`. That file lives at `.claude/rules/public-copy.md`, which `.gitignore`
+  excludes — so a reader who clones cannot open it. The same defect as B-134, reintroduced within the
+  hour, in the section written to fix a sibling finding.
+why_now: |
+  A defect class fixed by hand recurs by hand. The gate is what makes the difference, and B-150 had
+  just finished demonstrating that a criterion nobody can run is a criterion nobody holds.
+shipped: |
+  SHIPPED 2026-09-03. `tools/check-doc-references.mjs` runs in `lint`: every backticked repository
+  path in `README.md` must exist on disk or be deliberately gitignored.
+
+  IGNORED PASSES, deliberately. `.claude/` is local by design, and citing it is a choice about what
+  the reader can see — different in kind from a citation that resolves to nothing.
+
+  My own citation was fixed the way B-134 was: the reasoning is inline now, with the path dropped,
+  because a citation a reader cannot open is the thing being prevented.
+
+  One exemption exists and carries its reason in the source: `AGENTS.md` is DESCRIBED in the
+  configuration table — the file an operator may put in their own project — rather than cited as a
+  record here. The gate cannot tell description from citation, so the exemption is explicit, and a
+  test asserts the allowlist does not swallow anything else.
+
+  Eight tests, including two anti-vacuity floors: a matcher that returned everything and a guard that
+  flagged nothing would otherwise both pass.
+status: shipped
+fixed_in: 7affc85
+severity: major
+dod:
+  - a README citation that neither exists nor is ignored fails `lint`
+  - a deliberately gitignored path does not fail it
+  - the exemption list cannot grow to match everything, and each entry carries its reason
+
+> Registered 2026-09-03, by gating a guarantee that had been living in a DoD.

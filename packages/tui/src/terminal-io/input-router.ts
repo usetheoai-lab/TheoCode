@@ -59,9 +59,20 @@ export type KeyAction =
   | { readonly kind: 'quit' }
   | { readonly kind: 'disarm-exit' }
   | { readonly kind: 'close-demo' }
+  | { readonly kind: 'toggle-verbose' }
 
 /** The key that means "stop", spelled the way a terminal delivers it. */
 const isCtrlC = (input: string, key: KeyPress): boolean => key.ctrl && input === 'c'
+
+/**
+ * The transcript toggle, spelled the way Claude Code spells it.
+ *
+ * ctrl+o and not a slash command: this is a READING gesture, reached mid-answer while the eye is on
+ * the output, and a command would cost a round trip through the composer to change nothing but what
+ * is on screen. `@theokit/tui` names the same key in its own docblock for `verbose`, so both halves
+ * of the contract agree on the binding.
+ */
+const isCtrlO = (input: string, key: KeyPress): boolean => key.ctrl && input === 'o'
 
 /**
  * The layers, in precedence order. The order IS the contract — reading it top to bottom answers
@@ -105,16 +116,26 @@ const LAYERS: readonly KeyLayer<KeyboardState, { input: string; key: KeyPress },
     name: 'composer',
     when: () => true,
     route: ({ input, key }, s) =>
-      key.escape ? routeEscape(s) : routeInComposer(key, s, isCtrlC(input, key)),
+      key.escape ? routeEscape(s) : routeInComposer(key, s, isCtrlC(input, key), isCtrlO(input, key)),
   },
 ]
 
-function routeInComposer(key: KeyPress, state: KeyboardState, ctrlC: boolean): KeyAction[] {
+function routeInComposer(
+  key: KeyPress,
+  state: KeyboardState,
+  ctrlC: boolean,
+  ctrlO: boolean,
+): KeyAction[] {
   const actions: KeyAction[] = []
 
   if (state.backtrackArmed) {
     if (key.return) return [{ kind: 'confirm-backtrack' }]
     actions.push({ kind: 'reset-backtrack' })
+  }
+
+  if (ctrlO) {
+    actions.push({ kind: 'toggle-verbose' })
+    return actions
   }
 
   if (ctrlC) {

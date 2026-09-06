@@ -1,5 +1,9 @@
+import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
-import { wiredCapabilities, type WiredCapabilities } from './wired-capabilities.js'
+
+import { mcpScopes } from './mcp-scopes.js'
+import { wiringRecord } from './composition-record.js'
+import type { WiredCapabilities } from './wired-capabilities.js'
 import { memoryEnabledForSession } from './memory-switch.js'
 import { sandboxModeForSession } from './sandbox-switch.js'
 import { withSandboxMode } from './config/effective-config.js'
@@ -16,11 +20,11 @@ import type { CustomTool } from '@theokit/agents'
 import { Provider } from '@theokit/agents'
 import type { InteractiveBackend } from '@theokit/agents/interactive'
 
-import { PtyInteractiveBackend } from '@theokit/agents/pty'
+import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, composeInstructions, loadAgentsMd } from './context/index.js'
-import { loadRules } from './context/index.js'
+import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
+import { loadRules, loadUserRules } from './context/index.js'
 import {
   resolveEffectiveConfig,
   type EffectiveConfig,
@@ -39,7 +43,9 @@ import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
-import { projectSettingsPosture, projectSourceAllowed } from './config/project-source.js'
+import { settingSourcesFor } from './setting-sources.js'
+
+
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void
@@ -105,7 +111,12 @@ export function buildChatAgent(overrides: {
   // SDK's design (see `buildHookHandlers`).
   const lifecycleHooks = chatHookChain(cfg, posture, cwd, overrides?.onHookVeto)
   const providerPlugins = resolveProviderPlugins(overrides?.model, modelId)
-  const base = baseAgent({ cfg, modelId, posture, providerPlugins, registry, overrides, cwd })
+  // Decided ONCE, here, for the same reason `mcpServers` is: the tool and its approval entry are
+  // written by two different functions, and the framework refuses a map naming a tool it was not
+  // given — so two reads that disagreed would crash the user's terminal at construction.
+  const searchConfigured = webSearchConfigured()
+  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd }
+  const base = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
     writePolicy,
@@ -122,7 +133,7 @@ export function buildChatAgent(overrides: {
   // to be loaded inside the chain, where the result was passed to `.mcp()` and then unreachable —
   // which is why every listing that wanted it had to re-read the file and could disagree with what
   // actually ran.
-  const mcpServers = mcpServersFor(posture, cwd, overrides?.onMcpWarn)
+  const mcp = mcpScopes(posture, cwd, overrides?.onMcpWarn)
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
@@ -133,21 +144,14 @@ export function buildChatAgent(overrides: {
     modelId,
     writePolicy,
     cwd,
-    mcpServers,
+    mcpServers: mcp.servers,
+    searchConfigured,
   })
 
   // Derived from the SAME values the builder just received, at the point it received them. That is
   // the DoD bullet B-071 was reopened for: not a second read of config, but a record of the
   // decision.
-  const wired = wiredCapabilities({
-    posture,
-    projectSourcesAllowed: projectSourceAllowed(posture.allows),
-    mcpServers,
-    configuredSkills: cfg.skills,
-    hookEvents: configuredHookEvents(cfg),
-    // Already carries the session override — `chatContext` applied it once, above.
-    sandboxMode: cfg.sandbox_mode,
-  })
+  const wired = wiringRecord(posture, cwd, cfg, mcp)
 
   overrides?.onWired?.(wired)
 
@@ -164,16 +168,6 @@ export function buildChatAgent(overrides: {
  * list here and is surfaced by the consent gate, which already reports it (B-039) — this record is
  * not the place to raise it a second time.
  */
-function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
-  try {
-    // B-071 — event AND command: a listing that showed only the event would tell a user something
-    // is allowed to block them without saying what runs, which is the half that matters when the
-    // directory came from a clone.
-    return parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`)
-  } catch {
-    return []
-  }
-}
 
 function chatContext(overrides: {
   posture?: TrustPosture
@@ -213,9 +207,24 @@ function resolveInteractiveBackend(
   )
 }
 
+/**
+ * The instruction document, in precedence order: the operator's, then the repository's.
+ *
+ * The USER layer is outside the trust gate on purpose (#65). That gate is the defence against a
+ * repository hijacking the agent through instructions, and it answers "do I trust the code in this
+ * directory?" — a question about `~/.theocode/AGENTS.md` that has no meaning, since nobody's home
+ * directory is the directory in question. `settingSourcesFor` already keeps `user: true` through an
+ * untrusted cwd for exactly this reason.
+ *
+ * Project LAST, so it wins: the two are concatenated, and the closer instruction is the one the
+ * model reads last. Same order the config layers already resolve in, and the same one the README
+ * states for them.
+ */
 function projectDocument(posture: TrustPosture, cwd: string): string {
-  if (!posture.allows.agentsMd) return ''
-  return [loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
+  const home = homedir()
+  const user = [loadUserAgentsMd(home), loadUserRules(home).text].filter(Boolean).join('\n\n')
+  if (!posture.allows.agentsMd) return user
+  return [user, loadAgentsMd(cwd), loadRules(cwd).text].filter(Boolean).join('\n\n')
 }
 
 function resolveProviderPlugins(
@@ -305,6 +314,12 @@ function withShellAndProjectEntities(
     cwd: string
     /** B-069 — loaded by the caller so the record and the builder cannot disagree. */
     mcpServers: ReturnType<typeof loadMcpJson>
+    /**
+     * Decided by the caller, for the same reason: this function writes the `web_search` APPROVAL
+     * entry while `baseAgent` registers the tool, and the framework refuses a map naming a tool the
+     * agent does not hold.
+     */
+    searchConfigured: boolean
   },
 ) {
   const { registry, interactiveBackend, posture, cfg, lifecycleHooks, modelId, writePolicy } = ctx
@@ -338,7 +353,7 @@ function withShellAndProjectEntities(
         ),
       )
       // M14 — interactive session as a surface-agnostic built-in from @theokit/agents/tools, backed by the
-      // injected @theokit/agents/pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
+      // injected @theokit/agents-pty (local node-pty). `interactive_shell` starts a REPL/prompting session;
       // `write_stdin` drives it. Both gated below. Replaces the bespoke run_shell-interactive + write_stdin.
       // M101 #188 — OUR `interactive_shell`: the SDK's collapses `MaxSessionsError` into
       // `{"ok":false,"error":"interactive_unavailable"}`, so `max`/`liveSessionIds` — the only
@@ -371,7 +386,9 @@ function withShellAndProjectEntities(
         interactive_shell: { question: 'Start this interactive session?' },
         write_stdin: { question: 'Send this input to the interactive session?' },
         web_fetch: { question: 'Fetch this URL?' },
-        web_search: { question: 'Search the web for this?' },
+        // Present only when the tool is. An approval entry for a tool the agent was not given is
+        // refused by the framework at construction, so this ternary is load-bearing, not cosmetic.
+        ...(ctx.searchConfigured ? { web_search: { question: 'Search the web for this?' } } : {}),
       })
       // M8 — MCP tools (Codex parity): wire external Model Context Protocol servers declared in the
       // project's `.mcp.json`. The SDK owns MCP execution (spawn + tools/list + tools/call); their tools
@@ -434,6 +451,7 @@ function withShellAndProjectEntities(
 const READ_TOOLS = [
   'current_time',
   'read_file',
+  'view_image',
   'list_dir',
   'grep',
   'repo_status',
@@ -468,6 +486,8 @@ function baseAgent(ctx: {
   cwd: string
   providerPlugins: ReturnType<typeof Provider.builtins>
   registry: ToolRegistry
+  /** See `webSearchConfigured`. Decided by the caller so the tool and its approval agree. */
+  searchConfigured: boolean
   overrides?: {
     baseInstructions?: string
     appendInstructions?: string
@@ -502,7 +522,7 @@ function baseAgent(ctx: {
       // point (`exec/main.ts`), derived from `headlessApprovalPosture` — including the F-arch-3 refusal
       // ("no bwrap means no confinement") that M70 added.
       .plugins([...providerPlugins])
-      // M20 — reasoning budget from config (default "medium" matches Codex's gpt-5.4 default, so the harness
+      // M20 — reasoning budget from config (default "medium" matches Codex's own default, so the harness
       // comparison still isolates harness behavior when no config overrides it).
       .reasoningEffort(overrides?.reasoning_effort ?? cfg.reasoning_effort)
       // M5 — fold any project AGENTS.md (root→cwd) into the persona so per-project rules are honored, but
@@ -524,7 +544,23 @@ function baseAgent(ctx: {
       // B-077 — trust decides whether memory is POSSIBLE; the session switch can only restrict it
       // further. ANDed rather than overridden, so `/memory off` cannot be read as permission and a
       // session cannot re-enable what an untrusted directory forbids.
-      .memory({ enabled: posture.allows.memory && memoryEnabledForSession() })
+      // Three gates, ANDed, each answering a different question:
+      //   posture.allows.memory     — may this directory have memory at all (the store writes into
+      //                               the cwd, so an untrusted repository must not get one);
+      //   cfg.memory                — did anyone ASK for it. Off by default, matching Codex, whose
+      //                               equivalent ships as a feature with `default_enabled: false`;
+      //   memoryEnabledForSession() — `/memory off`, which can only ever RESTRICT further.
+      //
+      // ANDed rather than overridden so neither the config nor the session reads as permission: an
+      // untrusted directory still forbids it, and `/memory on` cannot re-enable what config declined.
+      //
+      // `cfg.memory === true` rather than `cfg.memory`: `&&` yields the first falsy OPERAND, so a
+      // config object without the key made the whole expression `undefined` — which reads as "off"
+      // to the SDK and as a type error to nobody, because the field is optional upstream. It cost a
+      // test that asserted `false` and got `undefined`.
+      .memory({
+        enabled: posture.allows.memory && cfg.memory === true && memoryEnabledForSession(),
+      })
       // B-059 — WHICH registry tools this agent holds is decided by the shared composition entry
       // (`composition/agent-spec.ts`), the same one the reviewer and the delegated roles go
       // through. The fluent chain is untouched: the entry returns a SHAPE and the tools are fed in
@@ -539,6 +575,19 @@ function baseAgent(ctx: {
       // model cites/edits by), offset/limit paging, and allowAbsolute (Codex reads-anywhere; the secret guard
       // blocks .env/.git/… at any depth). Retired the bespoke read-file.ts + read-file-core.ts.
       .tool(readTool(registry, 'read_file'))
+      // B-082 registered `view_image` and never handed it to an agent. Measured 2026-08-25: the
+      // registry built it, `image-root.test.ts` asserted it was resolvable BY THE REGISTRY under a
+      // describe block named "view_image is wired", and no agent held it — the compiled chat agent
+      // declared 16 tools and this was not among them. So the model could not look at a screenshot
+      // it had just produced, which is the entire capability the item exists for, and the test
+      // that would have caught it was checking the wrong end of the wire.
+      //
+      // Ungated, like every other read. It reads a file under the SAME root through the SAME
+      // containment rule as `read_file`, which is ungated; `read_file` can already hand the model
+      // the bytes of any file in the workspace. Gating this one would gate the RENDERING, not the
+      // ACCESS, and would train the user to click through cards that protect nothing — which is
+      // what makes the cards on `run_shell` and `apply_patch` worth reading.
+      .tool(readTool(registry, 'view_image'))
       .tool(readTool(registry, 'list_dir'))
       // M17: grep is now the `createSearchTextTool` built-in in regex mode (grep semantics) + allowAbsolute
       // (Codex reads-anywhere), aliased to the `grep` name. Retired the bespoke grep.ts + grep-core.ts.
@@ -568,7 +617,12 @@ function baseAgent(ctx: {
       // — so the agent builds and runs with or without a search provider (Brave would throw `no_api_key` at
       // creation). Both are `@theokit/agents/tools` built-ins — wired, not reinvented (Rule 9).
       .tool(createWebFetchTool())
-      .tool(createWebSearchTool({ search: createGenericHttpSearchAdapter() }))
+      // `web_search` is declared ONLY when a provider is configured — see `webSearchConfigured`.
+      // `.when` (M69) is the seam for exactly this: a conditional link in the MIDDLE of a fluent
+      // chain, which is what `chat.ts:320` records as impossible without it.
+      .when(ctx.searchConfigured, (b) =>
+        b.tool(createWebSearchTool({ search: createGenericHttpSearchAdapter() })),
+      )
   )
 
   // M23 — write tools exist ONLY when the sandbox mode grants writes (Codex `read-only` removes the
@@ -608,45 +662,29 @@ function profileTools(
   }
 }
 
-/**
- * Which on-disk config roots this build may read.
- *
- * Lifted out of the chain for one mechanical reason and one better one: the ternary took
- * `buildChatAgent` from 10 to 11 cyclomatic complexity, over the lint ceiling — and a TRUST decision
- * buried in a builder link is where nobody looks when they ask "why did this repo manage to load
- * hooks?".
- *
- * `project` is OMITTED, not passed with a denying posture. The framework REFUSES a
- * requested-but-ungranted `project` — right for a caller that asked, and this build is not asking.
- * An untrusted directory here has always degraded to user-only and kept working; passing the grant
- * unconditionally would turn that into a hard failure on every untrusted repo. Omitting a root is
- * not enabling it.
- */
-function settingSourcesFor(posture: TrustPosture): {
-  user: true
-  project?: { trustedBy: ReturnType<typeof projectSettingsPosture> }
-} {
-  return projectSourceAllowed(posture.allows)
-    ? { user: true, project: { trustedBy: projectSettingsPosture(posture) } }
-    : { user: true }
-}
+
 
 /**
- * The MCP servers this build will start — or none.
+ * Whether a web-search PROVIDER is actually reachable — and therefore whether `web_search` is
+ * declared to the model at all.
  *
- * Lifted out for the same reason as `settingSourcesFor`: it is a TRUST GATE, and a gate buried in a
- * ternary inside a 60-line function is where nobody looks. An MCP server is local process execution
- * at agent init, before any per-tool approval exists to refuse it.
+ * `createGenericHttpSearchAdapter` documents that it "degrades gracefully: when unconfigured OR on
+ * any network/parse failure it returns `[]` and never throws". Graceful for the RUN, and wrong for
+ * the PROMPT. With no provider configured — the default for anyone who has not set
+ * `THEOKIT_SEARCH_API_URL` — the tool was still declared on every round, measured at 761 characters
+ * of schema against a total tool surface of 12 857, was approval-gated, and could return only `[]`.
+ * So the model paid for a capability it did not have, could spend a whole round discovering the
+ * emptiness, and the user was shown an approval card for a search that had nothing to search.
  *
- * `onWarn` travels with it deliberately. Without it the framework sends warnings to stderr — which
- * under the TUI is a log file nobody has open — while `/mcp` cheerfully lists the servers that DID
- * load and never says one was ignored.
+ * That is the same defect shape as the runtime builtin `shell` (`hooks/veto-builtin-shell.ts`):
+ * advertise a tool that cannot work, then deal with the consequences at call time. The difference
+ * is that this one is OURS to withhold — the SDK injects `shell` with no opt-out — so it is
+ * withheld at composition time instead of explained away afterwards.
+ *
+ * Only the URL is checked, deliberately. The adapter treats the key as optional, because an
+ * endpoint that needs no auth is legitimate; demanding a key here would withhold a tool that would
+ * have worked. The endpoint is the one value without which the adapter cannot even try.
  */
-function mcpServersFor(
-  posture: TrustPosture,
-  cwd: string,
-  onWarn?: (warning: string) => void,
-): ReturnType<typeof loadMcpJson> {
-  if (!posture.allows.mcp) return {}
-  return loadMcpJson(cwd, { onWarn })
+function webSearchConfigured(): boolean {
+  return (process.env['THEOKIT_SEARCH_API_URL'] ?? '').trim() !== ''
 }
