@@ -87,8 +87,8 @@ export async function runReviewCommand(
       createAgent: createReviewAgent({
         config: reviewCfg,
         cwd: workingDirectory(),
-        resolveCredential: async (model) =>
-          (await resolveCredentialForModel(model, { env: process.env, home: homedir() })).apiKey,
+        credential: async (model) =>
+          await resolveCredentialForModel(model, { env: process.env, home: homedir() }),
         hooks: surfaceHooks,
         registerCleanup: (fn) => {
           // Named for the framework's watchdog, which reports WHICH cleanup hung.
