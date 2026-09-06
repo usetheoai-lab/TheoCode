@@ -67,21 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-154 items — **Open** 3 · **In flight** 0 · **Closed** 151
+155 items — **Open** 0 · **In flight** 0 · **Closed** 155
 
-### Open (3)
+### Open (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude----) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `triaged` | — |
-| [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody----) | hooks declared in `.claude/settings.json` are read by nobody | `triaged` | — |
-| [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word----) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `triaged` | — |
+_None._
 
 ### In flight (0)
 
 _None._
 
-### Closed (151)
+### Closed (155)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -236,6 +232,10 @@ _None._
 | [`B-149`](#b-149--a-retried-failure-still-reaches-the-user-as-the-wrong-error-class---x) | A retried failure still reaches the user as the wrong error class | `shipped` | minor |
 | [`B-150`](#b-150--moving-the-sweep-to-a-child-process-silently-regressed-two-shipped-dods---x) | Moving the sweep to a child process silently regressed two shipped DoDs | `shipped` | major |
 | [`B-151`](#b-151--b-134s-guarantee-had-no-gate-and-the-next-dangling-citation-was-already-there---x) | B-134's guarantee had no gate, and the next dangling citation was already there | `shipped` | major |
+| [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
+| [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
+| [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
 
 <!-- BACKLOG-INDEX:END -->
 
@@ -7117,7 +7117,7 @@ dod:
 
 > Registered 2026-09-03, by gating a guarantee that had been living in a DoD.
 
-## B-152 — `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/`   [ ]
+## B-152 — `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/`   [x]
 
 domain: theokit
 repo: theokit
@@ -7156,7 +7156,19 @@ why_now: |
 
   The fix belongs upstream rather than here: the loader is the framework's, so a foreign-root
   parameter makes it the default for every consumer instead of a workaround in one.
-status: triaged
+status: killed
+kill_reason: |
+  ROUTED UPSTREAM, not refuted. The defect is real and confirmed on 2026-09-06 with a positive
+  control: `/tk-` lists `/tk-probe` from `.theokit/commands/`, and `/cc-` lists nothing for the
+  identical file under `.claude/commands/`. `commands` is not a member of the SDK's `CompatSurface`
+  ("hooks" | "plugins" | "skills" | "subagents"), and `loadCustomCommands` is implemented in
+  `@theokit/agents` with two roots and no third.
+
+  So nothing here can fix it, and a registry that governs this scope should not carry an item whose
+  whole remedy lives in another repository. Handed to the `theokit` session with the measurement.
+  Removed from the open set by the owner's instruction, and killed rather than deleted because the
+  id is the audit trail — the next person to notice commands failing finds this block and the
+  evidence instead of rediscovering both.
 dod:
   - `LoadCustomCommandsInput` accepts a foreign-root declaration, in the same shape `discoverSubagents` already uses for the same question
   - a `.claude/commands/<name>.md` in a trusted project is invocable by `/<name>`, verified on a built binary with a positive control — the identical file under `.theokit/commands/` — so the arm distinguishes "read from the foreign root" from "read at all"
@@ -7166,7 +7178,7 @@ dod:
 > Registered 2026-09-06. The justification is the gap between what this product documents about
 > `.claude/` and what it reads — not that another product has commands.
 
-## B-153 — hooks declared in `.claude/settings.json` are read by nobody   [ ]
+## B-153 — hooks declared in `.claude/settings.json` are read by nobody   [x]
 
 domain: theokit
 repo: theokit
@@ -7194,7 +7206,26 @@ why_now: |
 
   Not "Claude Code has hooks". The local reason is that this product already accepts the dialect's
   event names, already ships a helper for its scripts, and stops one step short of the file.
-status: triaged
+status: killed
+kill_reason: |
+  REFUTED BY MEASUREMENT 2026-09-06. Hooks declared in `.claude/settings.json` ARE read.
+
+      settings.json present   -> hook fired (1 side effect)
+      settings.json removed   -> 0            (negative control)
+      settings.json restored  -> hook fired (1)
+
+  The item asserted absence from a grep for the literal path, and the path is COMPOSED, never
+  literal: `hookConfigCandidates` builds `projectConfigRoots(cwd, compatSources, "hooks")` and then
+  tries `hooks.json`, `settings.json`, `settings.local.json` under each admitted root. A bare
+  `compatSources: ["claude-code"]` — which this product already passes — admits every surface.
+
+  The "translation" the item described was wrong in the same breath: the SDK's hook shape IS the
+  dialect's shape, nested with `type: "command"`. The flat array with `event`/`timeout_ms` is this
+  product's own, and it is the second form, not the first.
+
+  Killing this is the cycle working. The measurement gate exists to stop a hunch from reaching a
+  plan, and it stopped one that had already been written up in detail — which is the more expensive
+  kind to stop late.
 dod:
   - a `hooks` block in `.claude/settings.json` is honoured in a trusted project, under the same per-hook approval gate `.theokit/hooks.json` goes through — a foreign root must not be a weaker gate
   - verified on a built binary by observing the hook's own side effect, with a negative control in which the same file is absent
@@ -7252,7 +7283,7 @@ here (`packages/agent/src/hooks/`). If the answer is "the SDK exposes the declar
 consumer translates", half of this is local work and I do it. Asked upstream; not assumed.
 
 
-## B-154 — `.claude/plugins/` is not read, and nothing in the tree knows the word   [ ]
+## B-154 — `.claude/plugins/` is not read, and nothing in the tree knows the word   [x]
 
 domain: theokit
 repo: theokit
@@ -7275,7 +7306,23 @@ why_now: |
   written in terms of observable behaviour rather than of a design nobody has chosen yet. If the
   first phase of work shows the scope is a different size than this item assumes, the honest move is
   to reclassify it rather than stretch the criteria to fit.
-status: triaged
+status: killed
+kill_reason: |
+  REFUTED BY MEASUREMENT 2026-09-06. A bundle under `.claude/plugins/` contributes its skills.
+
+      bundle present  -> the skill answers PLUGIN-SKILL-OK
+      bundle removed  -> "no skill_read tool or documented skills are available"  (control)
+      bundle restored -> PLUGIN-SKILL-OK
+
+  `pluginBundleDirs(cwd, compatSources)` admits the root, and `plugins` is a member of
+  `CompatSurface`. Same defect as B-153 in the evidence: a grep for the literal word over this
+  product's tree, when the reading happens in the framework through a composed path.
+
+  What the run did NOT establish, stated so the kill is not read as more than it is: commands and
+  hooks contributed BY a bundle were not exercised, nor was precedence against the project's own
+  roots, nor marketplaces. The hypothesis that the surface is unsupported is dead; a narrower
+  question about what a bundle may carry is not, and would need its own item and its own
+  measurement.
 dod:
   - a plugin bundle present under `.claude/plugins/` in a trusted project contributes its skills, commands and agents, each verified by invoking it and each with a positive control placing the identical file at the already-read root
   - precedence against the project's own roots is decided, written down, and asserted by a test — not left to directory order
@@ -7285,3 +7332,39 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-155 — `doctor` called a working bundled skill a missing file   [x]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: human
+evidence: |
+  FOUND 2026-09-06 while measuring B-154, and it is the reason that item was refuted rather than the
+  reason it was filed.
+
+  A skill at `.claude/plugins/<bundle>/skills/<name>/SKILL.md` answers on the built binary —
+  `PLUGIN-SKILL-OK`, with the bundle removed as the control. `theocode doctor` reported it anyway:
+
+      ✓ skills: plug-skill
+      ! skills-on-disk: declared with no SKILL.md: plug-skill
+
+  Third instance of ONE defect in this check, each time naming a cause that is false about a file
+  that is there: it knew the project roots, then learned the operator's root (#65), and never learned
+  that a root can NEST bundles.
+why_now: |
+  The row's whole purpose is to tell a reader which remedy applies. "Write the file" about a file
+  that exists and is loading sends them to do work that is already done, and — worse — teaches them
+  that the row is unreliable, which is how a diagnostic stops being read.
+status: shipped
+dod:
+  - a declared skill that exists only inside a bundle is not listed as absent
+  - it is not offered the "declare it" remedy either — a bundle is another tool's inventory, the same reason the foreign root is excluded from that direction
+  - a genuinely absent skill is still named, verified on the binary as a control
+shipped: |
+  SHIPPED 2026-09-06. `bundledSkillNames` walks one level — `<root>/plugins/<bundle>/skills/` — and
+  contributes to presence only. One level deliberately: that is the shape measured working, and
+  walking deeper would count files this product has no evidence are loaded.
+
+  Verified on the built binary in both directions: the bundled skill no longer appears in the row,
+  and a skill declared nowhere on disk still does.

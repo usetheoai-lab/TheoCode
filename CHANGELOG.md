@@ -16,6 +16,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+- **`theocode doctor` stopped calling a working bundled skill a missing file** (B-155). A skill inside a `.claude/plugins/<bundle>/skills/` bundle loads and answers — measured on the built binary with the bundle removed as the control — and the row reported `declared with no SKILL.md` regardless. Third instance of one defect in this check: it knew the project roots, then learned the operator's root, and never learned that a root can nest bundles. Each time it named a cause that is false about a file that is there, which is how a diagnostic teaches people to stop reading it.
+
+
 ### Added
 - **Three surfaces of the `.claude/` dialect are registered as work rather than left as a footnote** (B-152, B-153, B-154). This product documents that it reads the foreign root, and three surfaces measured on 2026-09-06 reach nothing: `commands/` (the framework's loader takes two roots and no third), hooks declared in `settings.json` (the parser's own first line scopes it to `.theokit/hooks.json`, while a sibling module exists purely to make a *borrowed* hook script run), and `plugins/` (no occurrence anywhere in the tree). A partial dialect is worse than none — someone who saw rules, skills and subagents work there has no reason to suspect these, and each failure is silent. All three route upstream so the fix is the default for every consumer instead of a workaround in one.
 

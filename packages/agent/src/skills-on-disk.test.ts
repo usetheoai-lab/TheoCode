@@ -170,6 +170,37 @@ describe('#67 — declared against what is on disk', () => {
     expect(skillsOnDisk(cwd, ['theirs']).declaredButAbsent).toEqual([])
   })
 
+
+  it('test_a_skill_from_a_plugin_bundle_is_not_reported_as_missing', () => {
+    // Measured 2026-09-06 on the built binary: a bundle at `.claude/plugins/<n>/skills/<name>/SKILL.md`
+    // contributes its skill — it answers, and the control with the bundle removed does not. `doctor`
+    // reported it as `declared with no SKILL.md` anyway.
+    //
+    // Third instance of one defect: this check knew the project roots, then learned the operator's,
+    // and never learned that a root can nest bundles. Each time the row named a cause that is false —
+    // "write the file" — about a file that is there and working.
+    mkdirSync(join(cwd, '.claude', 'plugins', 'demo', 'skills', 'bundled'), { recursive: true })
+    writeFileSync(
+      join(cwd, '.claude', 'plugins', 'demo', 'skills', 'bundled', 'SKILL.md'),
+      '---\nname: bundled\n---\nbody\n',
+    )
+
+    expect(skillsOnDisk(cwd, ['bundled']).declaredButAbsent).toEqual([])
+  })
+
+  it('test_a_bundled_skill_is_not_offered_the_declare_it_remedy_either', () => {
+    // `presentButUndeclared` says "add a config line and it loads". A bundle is another tool's
+    // inventory, exactly like `.claude/skills/` — the remedy does not fit, so the name must not
+    // appear there.
+    mkdirSync(join(cwd, '.claude', 'plugins', 'demo', 'skills', 'bundled'), { recursive: true })
+    writeFileSync(
+      join(cwd, '.claude', 'plugins', 'demo', 'skills', 'bundled', 'SKILL.md'),
+      '---\nname: bundled\n---\nbody\n',
+    )
+
+    expect(skillsOnDisk(cwd, []).presentButUndeclared).toEqual([])
+  })
+
   it('test_no_skills_anywhere_is_not_an_error', () => {
     expect(skillsOnDisk(cwd, [])).toEqual({
       declaredButAbsent: [],
