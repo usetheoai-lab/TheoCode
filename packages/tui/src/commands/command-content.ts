@@ -20,7 +20,7 @@ import { THEME_RESOLUTION } from '../theme.js'
 import { themeResolutionLine } from './theme-command.js'
 import { sessionThemeBase } from '../theme-session.js'
 import type { WiredCapabilities } from '@theocode/agent'
-import { BASE_NAMES, agentsMdChain } from '@theocode/agent/context'
+import { BASE_NAMES, agentsMdChain, loadRules, loadUserRules } from '@theocode/agent/context'
 
 /** Paths as the user reads them — relative to the directory the session is in. */
 const relative = (paths: readonly string[]): string =>
@@ -94,11 +94,48 @@ export function agentsMdRow(
  * chars" is a row people learn to skip, and then the one time it says something different, nobody
  * is reading it.
  */
-export function rulesRow(rules: WiredCapabilities['rules']): string {
-  // Distinguished from "no rules", the same way `agentsMdRow` distinguishes on-disk from loaded.
-  // Collapsing them would answer an unasked question in the reassuring direction.
-  if (rules === undefined) return '<not loaded yet>'
+export function rulesRow(
+  rules: WiredCapabilities['rules'],
+  /**
+   * #61 item C — what a walk of the disk WOULD load, for the window before the first turn.
+   *
+   * Codex answers `/status` immediately because it resolves at startup; this product builds the
+   * agent per turn, so until one runs there is no record. `<not loaded yet>` was honest and was not
+   * an answer. `agentsMdRow` solved the same window one row up by walking the disk and labelling
+   * the result, and this follows it rather than inventing a second convention.
+   *
+   * Injectable for the reason that row's walk is: with the ambient reader the arms would depend on
+   * whether the checkout the suite runs in happens to have rules.
+   */
+  onDisk: (cwd: string) => WiredCapabilities['rules'] = defaultRulesOnDisk,
+): string {
+  if (rules === undefined) {
+    const found = onDisk(workingDirectory())
+    // Nothing on disk is `<none>`, not `<none> (on disk — not loaded yet)`: the label answers "this
+    // may still change", and there is nothing here to change into.
+    if (found === undefined || found.read === 0) return '<none>'
+    return `${rulesBody(found)}  (on disk — not loaded yet)`
+  }
   if (rules.read === 0) return '<none>'
+  return rulesBody(rules)
+}
+
+function defaultRulesOnDisk(cwd: string): WiredCapabilities['rules'] {
+  // The loader, not a second reader of the same convention — the row exists to say what the prompt
+  // holds, and a row computing its own answer is a row that can be wrong about it.
+  const project = loadRules(cwd)
+  const user = loadUserRules(homedir())
+  const both = [project, user]
+  return {
+    count: both.reduce((n, r) => n + r.count, 0),
+    read: both.reduce((n, r) => n + r.read, 0),
+    chars: both.reduce((n, r) => n + r.chars, 0),
+    kept: both.reduce((n, r) => n + r.kept, 0),
+    truncated: both.some((r) => r.truncated),
+  }
+}
+
+function rulesBody(rules: NonNullable<WiredCapabilities['rules']>): string {
   if (!rules.truncated) return `${String(rules.count)} loaded`
 
   // From the two numbers the record carries — never from the ceiling, which lives in the loader

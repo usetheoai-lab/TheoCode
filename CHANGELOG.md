@@ -16,6 +16,14 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-06
+
+### Changed
+
+- `/status` answers about your rules before the first turn, reading the disk and saying so, instead
+  of `<not loaded yet>` — matching the `agents.md` row beside it and Codex, which answers at
+  startup (#61 item C).
+
 ## [0.9.0] - 2026-09-06
 
 ### Added

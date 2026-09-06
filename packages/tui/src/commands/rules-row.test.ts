@@ -27,15 +27,37 @@ describe('#91 — the rules row', () => {
     expect(row).toContain('74% dropped')
   })
 
-  it('test_no_record_yet_is_not_reported_as_no_rules', () => {
-    // The distinction the `agents.md` row already draws with its `on disk — not loaded yet`. An
-    // absent record means nobody has built an agent; printing `<none>` would answer a question that
-    // was not asked, in the direction that reads as reassuring.
-    expect(rulesRow(undefined)).toBe('<not loaded yet>')
+  it('test_no_record_yet_is_never_collapsed_into_no_rules', () => {
+    // The distinction `agentsMdRow` draws, and the direction that matters: "no agent has been built"
+    // and "this project has no rules" are different facts, and reporting the first as the second
+    // answers an unasked question reassuringly. Superseded `<not loaded yet>`, which was honest and
+    // was not an answer — the row now reads the disk and labels what it finds.
+    expect(
+      rulesRow(undefined, () => ({ count: 3, read: 3, chars: 900, kept: 900, truncated: false })),
+    ).not.toBe('<none>')
   })
 
   it('test_a_project_with_no_rules_at_all_says_none', () => {
     // Anti-vacuity for the arm above: `<not loaded yet>` hard-coded would satisfy it.
     expect(rulesRow({ count: 0, read: 0, chars: 0, kept: 0, truncated: false })).toBe('<none>')
+  })
+
+  it('test_before_the_first_turn_it_reports_what_is_on_disk_and_says_so', () => {
+    // Codex answers `/status` immediately because it resolves at startup; this product builds the
+    // agent per turn, so before the first one there is no record. `agentsMdRow` already solved this
+    // one row up — it walks the disk and labels the answer `on disk`, because the trust gate has
+    // not run and what the walk finds is what WOULD load, not what did.
+    //
+    // `<not loaded yet>` was honest and was not an answer. This says the true thing instead of
+    // saying nothing, which is the choice that row's own comment argues for.
+    expect(rulesRow(undefined, () => ({ count: 8, read: 34, chars: 246_582, kept: 64_000, truncated: true })))
+      .toBe('8 of 34 — 74% dropped (246,582 chars over the ceiling)  (on disk — not loaded yet)')
+  })
+
+  it('test_a_disk_read_that_finds_nothing_still_says_none', () => {
+    // Anti-vacuity for the arm above: appending the label unconditionally would make an empty
+    // project report `<none> (on disk — not loaded yet)`, which reads as though something is pending.
+    expect(rulesRow(undefined, () => ({ count: 0, read: 0, chars: 0, kept: 0, truncated: false })))
+      .toBe('<none>')
   })
 })
