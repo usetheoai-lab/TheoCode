@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-06
+
 ### Fixed
 
 - `theocode review` works when you signed in with OAuth, which is the default. It failed on every
