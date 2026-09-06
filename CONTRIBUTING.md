@@ -74,6 +74,23 @@ snapshot had added read as absent — twice, across two rounds, while the answer
 worktree had installed. When an override is in play, read every signature from the worktree's
 `node_modules`, by absolute path, or the reading is stale by construction.
 
+That instruction has a hole, and it was found from the other side: it assumes you KNOW which tree
+you are in. The `theokit` session reported a type as absent from `@theokit/sdk@5.0.1`, ran the
+recursive search on what it believed was the right path, and got an honest zero — because its
+`node_modules/@theokit/sdk` symlink still pointed at `4.52.1`, left behind when a temporary override
+was removed. Not the query lying. **The object.**
+
+So the practice is mechanical, and it costs one line:
+
+```bash
+L=$(readlink -f node_modules/@scope/pkg) && node -e "console.log(require('$L/package.json').version)"
+```
+
+Resolve the symlink and print the version BEFORE concluding anything from a search under
+`node_modules`. Run here while writing this, it reports `5.0.1` in the checkout and
+`5.1.0-compat-581-…` in a worktree still on disk — two trees, one package name, live on this machine
+right now.
+
 ### A test double must branch on everything the real function branches on
 
 `composition.test.ts` mocks the subagent loader so a role's declared tools are the test's input. The
