@@ -67,11 +67,15 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-151 items — **Open** 0 · **In flight** 0 · **Closed** 151
+154 items — **Open** 3 · **In flight** 0 · **Closed** 151
 
-### Open (0)
+### Open (3)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude----) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `triaged` | — |
+| [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody----) | hooks declared in `.claude/settings.json` are read by nobody | `triaged` | — |
+| [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word----) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `triaged` | — |
 
 ### In flight (0)
 
@@ -7112,3 +7116,124 @@ dod:
   - the exemption list cannot grow to match everything, and each entry carries its reason
 
 > Registered 2026-09-03, by gating a guarantee that had been living in a DoD.
+
+## B-152 — `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/`   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-09-06 by reading the loader's own signature, not by inference from behaviour.
+
+  `loadCustomCommands` is the framework's — `@theokit/agents@13.0.0-next.0`, `dist/config.d.ts`. Its
+  input carries the two roots it reads and no third:
+
+      interface LoadCustomCommandsInput {
+        readonly projectDir?: string;   // its `.theokit/commands/`, when trusted
+        readonly homeDir?: string;      // its `.theokit/commands/`
+        readonly projectTrusted: boolean;
+        readonly builtinNames?: readonly string[];
+        readonly onWarn?: (message: string) => void;
+      }
+
+  There is no parameter a caller could use to ask for a foreign dialect, and `grep -c claude` over
+  that `.d.ts` returns 0. So a repository holding `.claude/commands/` gets nothing — no command, no
+  warning, no row in `doctor`.
+
+  Not a fabricated gap: the loader's own docblock states the shape of the problem, in the SDK's
+  words — "Claude Code's custom commands declare `model` and `argument-hint`. Two vocabularies
+  already, and neither is the framework's to adopt."
+why_now: |
+  This product ADVERTISES the foreign root. `README.md` documents `.claude/rules/*.md` and
+  `.claude/agents/<name>.md` as read, and three surfaces were measured working there on 2026-09-05:
+  a rule reaches the model, a skill is invocable, a subagent is delegated to. Commands are the
+  surface that looks identical from outside and is not wired at all.
+
+  A partial dialect is worse than none. Someone who saw the other three work has no reason to
+  suspect this one, and the failure is silent — the file is on disk, the name never appears, and
+  nothing anywhere says why.
+
+  The fix belongs upstream rather than here: the loader is the framework's, so a foreign-root
+  parameter makes it the default for every consumer instead of a workaround in one.
+status: triaged
+dod:
+  - `LoadCustomCommandsInput` accepts a foreign-root declaration, in the same shape `discoverSubagents` already uses for the same question
+  - a `.claude/commands/<name>.md` in a trusted project is invocable by `/<name>`, verified on a built binary with a positive control — the identical file under `.theokit/commands/` — so the arm distinguishes "read from the foreign root" from "read at all"
+  - the project's own root still wins a name collision, asserted by a test
+  - the two frontmatter vocabularies stay separate: the loader keeps carrying the lines verbatim and adopts neither product's keys
+
+> Registered 2026-09-06. The justification is the gap between what this product documents about
+> `.claude/` and what it reads — not that another product has commands.
+
+## B-153 — hooks declared in `.claude/settings.json` are read by nobody   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: human
+evidence: |
+  MEASURED 2026-09-06 by grepping every reader in this product and in the SDK.
+
+  What reads hooks here is `packages/agent/src/hooks/hooks.ts`, and its own first line scopes it:
+  "The PARSER for `.theokit/hooks.json` — and nothing else." Nothing in `packages/*/src` opens
+  `.claude/settings.json`; the only mention of that path in the whole tree is a comment.
+
+  The near-miss that makes this specific rather than vague: `hooks/claude-project-dir.ts` exists
+  precisely so a hook COPIED out of a `.claude/settings.json` keeps working — it supplies the
+  `CLAUDE_PROJECT_DIR` that such a command assumes. So the product went to the trouble of making a
+  borrowed hook script run, while the file that declares it stays unread.
+
+  Event names already match. `hooks/build-handlers.ts` records that `.theokit/hooks.json` "uses
+  Claude Code's names — `PreToolUse`…", so what is missing is the source, not the vocabulary.
+why_now: |
+  The same asymmetry as B-152, one surface over, and with a sharper edge: a hook is the surface a
+  repository uses to enforce something. A repository whose guard rails live in
+  `.claude/settings.json` runs here with those guards silently absent — and the operator's evidence
+  that they are absent is nothing at all.
+
+  Not "Claude Code has hooks". The local reason is that this product already accepts the dialect's
+  event names, already ships a helper for its scripts, and stops one step short of the file.
+status: triaged
+dod:
+  - a `hooks` block in `.claude/settings.json` is honoured in a trusted project, under the same per-hook approval gate `.theokit/hooks.json` goes through — a foreign root must not be a weaker gate
+  - verified on a built binary by observing the hook's own side effect, with a negative control in which the same file is absent
+  - `theocode doctor` names which file each active hook came from, so "declared and not wired" stays distinguishable from "not declared"
+  - an untrusted directory contributes no hook from either root, asserted by a test
+
+> Registered 2026-09-06. Upstream, so the dialect is read the same way for every consumer rather
+> than translated in one product.
+
+## B-154 — `.claude/plugins/` is not read, and nothing in the tree knows the word   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: evolve
+source: human
+evidence: |
+  MEASURED 2026-09-06: `grep -rn plugins packages/*/src` filtered for the foreign root returns zero
+  matches. Not a partial implementation, not a stub — the subsystem is absent.
+
+  Scope, stated because it is what makes this item different from B-152 and B-153: a plugin in that
+  dialect is not one file. It is a bundle that can carry skills, commands, agents and hooks at once,
+  plus a marketplace it was installed from and a resolution order against the roots already read.
+  The two items above each open one door; this one opens a container that holds all of them.
+why_now: |
+  Same local reason as its siblings — this product documents that it reads the foreign root, and a
+  repository that keeps its skills and commands inside a plugin bundle gets nothing, silently.
+
+  It is registered as implementation, at the owner's decision, with the risk stated rather than
+  hidden: no measurement has been made of what the bundle format requires, so the DoD below is
+  written in terms of observable behaviour rather than of a design nobody has chosen yet. If the
+  first phase of work shows the scope is a different size than this item assumes, the honest move is
+  to reclassify it rather than stretch the criteria to fit.
+status: triaged
+dod:
+  - a plugin bundle present under `.claude/plugins/` in a trusted project contributes its skills, commands and agents, each verified by invoking it and each with a positive control placing the identical file at the already-read root
+  - precedence against the project's own roots is decided, written down, and asserted by a test — not left to directory order
+  - an untrusted directory contributes nothing from a bundle, asserted by a test, under the same gate the other foreign surfaces pass through
+  - `theocode doctor` lists which bundles were loaded and which were seen and skipped, with the reason
+  - what the work did NOT cover is stated in the shipped note — marketplaces and installation are separate questions from reading a bundle that is already on disk
+
+> Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
+> the DoD was stated; this note is that statement, kept where the next reader meets it.

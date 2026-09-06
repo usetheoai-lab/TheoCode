@@ -17,6 +17,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 ## [Unreleased]
 
 ### Added
+- **Three surfaces of the `.claude/` dialect are registered as work rather than left as a footnote** (B-152, B-153, B-154). This product documents that it reads the foreign root, and three surfaces measured on 2026-09-06 reach nothing: `commands/` (the framework's loader takes two roots and no third), hooks declared in `settings.json` (the parser's own first line scopes it to `.theokit/hooks.json`, while a sibling module exists purely to make a *borrowed* hook script run), and `plugins/` (no occurrence anywhere in the tree). A partial dialect is worse than none — someone who saw rules, skills and subagents work there has no reason to suspect these, and each failure is silent. All three route upstream so the fix is the default for every consumer instead of a workaround in one.
+
+
+### Added
 - **`CONTRIBUTING.md` records a fifth way a careful measurement lies**: a filter narrower than the signal reports absence, and absence reads exactly like a negative. Four instances in one day across two repositories, each of which would have produced a confident wrong conclusion — the sharpest being a version-floor guard that had switched a feature off before the test could reach it, so the arm did not fail, it was void. A wrong command produces an error and demands attention; a narrow filter produces silence, which is what a true negative looks like.
 
 
