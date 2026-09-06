@@ -16,6 +16,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- `@theokit/sdk` 5.1.0 → 5.2.0, which publishes `effectiveToolNames` — the instrument that answers
+  what the runtime will actually put in front of the model, without a credential and before the
+  agent runs. The `analyst`'s read-only boundary is now asserted against that catalog rather than
+  against its declared tool list (#80, upstream #583).
+
 ## [0.7.1] - 2026-09-06
 
 ### Fixed
