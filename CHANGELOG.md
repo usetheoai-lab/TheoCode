@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-06
+
 ### Added
 
 - A skill in your own `~/.theokit/skills/` is loaded and offered to the agent, so something that
