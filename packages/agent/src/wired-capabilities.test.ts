@@ -91,7 +91,10 @@ describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
   it('test_the_listener_receives_what_the_build_wired', async () => {
     const { buildChatAgent } = await import('./chat.js')
     let seen: unknown
-    buildChatAgent({
+    // #65 — `buildChatAgent` became async when the operator's skills started being read from disk.
+    // Without the await, `onWired` had not fired yet and `seen` was `undefined` — a real failure, not
+    // a fixture detail: the record is published DURING the build, so the assertion has to wait for it.
+    await buildChatAgent({
       cwd: process.cwd(),
       surface: 'headless',
       onWired: (w) => {
