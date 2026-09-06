@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-06
+
 ### Fixed
 
 - `/status` now reports how much of the rules block reached the prompt. A project whose rules exceed
