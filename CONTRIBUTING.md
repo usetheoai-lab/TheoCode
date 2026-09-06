@@ -65,6 +65,32 @@ So the question is not *"did I inspect an artifact?"* but **"which artifact does
 execute?"** Answer it by following the call path, or by instrumenting the real call site and
 rebuilding.
 
+**The sharpest form of this is two trees on one machine.** Testing an upstream change means
+installing it in a worktree with a dependency override — and the main checkout still holds the
+pinned version. Both `.d.ts` files are real, both are on disk, and an editor or a `grep` run from the
+repository root resolves the *pinned* one. Measured here: a type read from the release tree's
+`@theokit/sdk@5.0.1` was compared against behaviour from a snapshot build, and the field that the
+snapshot had added read as absent — twice, across two rounds, while the answer sat in the file the
+worktree had installed. When an override is in play, read every signature from the worktree's
+`node_modules`, by absolute path, or the reading is stale by construction.
+
+That instruction has a hole, and it was found from the other side: it assumes you KNOW which tree
+you are in. The `theokit` session reported a type as absent from `@theokit/sdk@5.0.1`, ran the
+recursive search on what it believed was the right path, and got an honest zero — because its
+`node_modules/@theokit/sdk` symlink still pointed at `4.52.1`, left behind when a temporary override
+was removed. Not the query lying. **The object.**
+
+So the practice is mechanical, and it costs one line:
+
+```bash
+L=$(readlink -f node_modules/@scope/pkg) && node -e "console.log(require('$L/package.json').version)"
+```
+
+Resolve the symlink and print the version BEFORE concluding anything from a search under
+`node_modules`. Run here while writing this, it reports `5.0.1` in the checkout and
+`5.1.0-compat-581-…` in a worktree still on disk — two trees, one package name, live on this machine
+right now.
+
 ### A test double must branch on everything the real function branches on
 
 `composition.test.ts` mocks the subagent loader so a role's declared tools are the test's input. The
@@ -89,6 +115,37 @@ it.
 
 Before trusting a double, list the inputs the real function branches on and check the double branches
 on each. If it does not, it is answering a different question than the code does.
+
+### A filter narrower than the signal reports absence, and absence reads as a negative
+
+Four times in one day, across two repositories, a measurement was nearly reported backwards because
+the output was trimmed before it was read:
+
+| filter | what it cut | the conclusion it would have produced |
+|---|---|---|
+| `tail -3` | a version-floor warning printed at the top | "the snapshot does not fix #74" |
+| `grep -A2` | an `env:` twelve lines below the match | "the token never reached the branch" |
+| `tail -30` of a push log | the gate's own diagnostic | "the push failed, reason unknown" |
+| the test runner from the repo root | a package's setup | "72 tests broke, this is a regression" |
+
+The asymmetry is what makes this dangerous. A **wrong command** produces an error, and an error
+demands attention. A **narrow filter** produces silence — and silence is exactly what a true negative
+looks like, so nothing about it feels wrong. The first case above was caught only because the same
+command was re-run without the pipe.
+
+The version-floor case is the sharpest: `compatSources` had been switched off by a guard before the
+test could exercise it, so the arm did not fail, it was **void**. Reporting it as a failure would
+have sent someone hunting for a bug in code that was correct.
+
+Before trusting a negative result, re-run the command with no filter at all and read the whole
+output. If that is impractical, filter for the signal AND for the words a guard would use when it
+disables something.
+
+**Write the rule and you will still break it.** Both later instances above happened *after* this
+section existed, by its own author. Knowing a pattern does not fire at the moment of confidence; it
+fires afterwards, re-reading what you already wrote. So the practice is not "remember this" — it is
+mechanical: **every empty or negative output that is about to become a claim gets a second read with
+a wider window.** Two lines of cost, and it does not depend on having been suspicious.
 
 ## Filing upstream
 

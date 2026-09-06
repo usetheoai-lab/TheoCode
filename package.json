@@ -1,6 +1,6 @@
 {
   "name": "theocode",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "packageManager": "pnpm@11.22.0",
   "private": true,
   "type": "module",
@@ -28,7 +28,8 @@
     "format": "prettier --write .",
     "lint:english": "node tools/check-english-only.mjs",
     "crossval": "python3 tools/check-backlog-crossval.py",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "blockers": "node tools/check-upstream-blockers.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -41,7 +42,7 @@
     "eslint": "^10.9.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "ink-testing-library": "^4.0.0",
-    "knip": "^6.32.2",
+    "knip": "^6.34.0",
     "prettier": "^3.0.0",
     "tsx": "^4.19.0",
     "typescript": "^6.0.3",
