@@ -7157,6 +7157,7 @@ why_now: |
   The fix belongs upstream rather than here: the loader is the framework's, so a foreign-root
   parameter makes it the default for every consumer instead of a workaround in one.
 status: killed
+fixed_in: (decision) — routed to the `theokit` session and implemented there as `e7a4d6505`; nothing in this repository could close it, and nothing here did
 kill_reason: |
   ROUTED UPSTREAM, not refuted. The defect is real and confirmed on 2026-09-06 with a positive
   control: `/tk-` lists `/tk-probe` from `.theokit/commands/`, and `/cc-` lists nothing for the
@@ -7207,6 +7208,7 @@ why_now: |
   Not "Claude Code has hooks". The local reason is that this product already accepts the dialect's
   event names, already ships a helper for its scripts, and stops one step short of the file.
 status: killed
+fixed_in: (decision) — killed by measurement; the surface already works and no code change was warranted here
 kill_reason: |
   REFUTED BY MEASUREMENT 2026-09-06. Hooks declared in `.claude/settings.json` ARE read.
 
@@ -7307,6 +7309,7 @@ why_now: |
   first phase of work shows the scope is a different size than this item assumes, the honest move is
   to reclassify it rather than stretch the criteria to fit.
 status: killed
+fixed_in: (decision) — killed by measurement; the surface already works and no code change was warranted here
 kill_reason: |
   REFUTED BY MEASUREMENT 2026-09-06. A bundle under `.claude/plugins/` contributes its skills.
 
@@ -7357,6 +7360,7 @@ why_now: |
   that exists and is loading sends them to do work that is already done, and — worse — teaches them
   that the row is unreliable, which is how a diagnostic stops being read.
 status: shipped
+fixed_in: 62f6de8
 dod:
   - a declared skill that exists only inside a bundle is not listed as absent
   - it is not offered the "declare it" remedy either — a bundle is another tool's inventory, the same reason the foreign root is excluded from that direction
