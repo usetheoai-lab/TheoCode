@@ -1,4 +1,6 @@
 import process from 'node:process'
+import { createGitRunner } from '@theocode/shared/git-runner'
+
 import {
   createHumanProcessor,
   createJsonlProcessor,
@@ -36,7 +38,13 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
     out: (l: string) => process.stdout.write(`${l}\n`),
     err: (l: string) => process.stderr.write(`${l}\n`),
   }
-  return json ? createJsonlProcessor(io, sessionId) : createHumanProcessor(io, sessionId)
+  // #105 — the human surface ends a turn with what the tree now holds. NOT the JSONL one: its
+  // consumers parse a stream of typed events, and a diff has no event type — appending it would
+  // hand a machine reader an unannounced shape. A `--json` consumer that wants the diff already has
+  // the repository in front of it.
+  return json
+    ? createJsonlProcessor(io, sessionId)
+    : createHumanProcessor(io, sessionId, createGitRunner({ timeoutMs: 10_000, onWarn: () => {} }))
 }
 
 /**
