@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-06
+
 ### Fixed
 
 - A rules corpus too large for the prompt is now cut **between** rules instead of mid-sentence, and
