@@ -44,7 +44,31 @@ type RebindableAction = (typeof REBINDABLE)[number]
  * Their reserved list, verbatim. `ctrl+c` is the one that matters most here: it is how an operator
  * stops a runaway turn, and no configuration file may take it away.
  */
-const RESERVED = new Set(['ctrl+c', 'ctrl+d', 'ctrl+m', 'ctrl+[', 'ctrl+i', 'ctrl+h'])
+export const RESERVED_FOR_REFERENCE = new Set([
+  'ctrl+c',
+  'ctrl+d',
+  'ctrl+m',
+  'ctrl+[',
+  'ctrl+i',
+  'ctrl+h',
+])
+
+/**
+ * Keys THIS router always claims, so a binding on one could never fire.
+ *
+ * A second set rather than an addition to theirs, and the separation is the point. Their list is
+ * copied verbatim; folding one of our built-ins into it would stop it being a faithful copy, and
+ * provenance-as-the-rule is what this whole slice is built on.
+ *
+ * Found on the bench (#135): `ctrl+o` is not reserved by them, has the right shape, and names an
+ * action in `REBINDABLE` — so it passed every check and was counted as bound, while `boundAction` is
+ * consulted only where nothing built-in claimed the key and the built-in claims this one always.
+ * `/status` then reported `honoured` for a binding that can never run — #132's family exactly.
+ *
+ * `ctrl+c` is in both sets, and that is correct: it is reserved by them AND claimed here, and the
+ * reserved message is the more useful of the two.
+ */
+export const CLAIMED_BY_ROUTER = new Set(['ctrl+o', 'ctrl+c'])
 
 export interface Keybinding {
   readonly ctrl: true
@@ -78,8 +102,15 @@ function readOne(
   notApplied: string[],
 ): void {
   const key = keystroke.trim().toLowerCase()
-  if (RESERVED.has(key)) {
+  if (RESERVED_FOR_REFERENCE.has(key)) {
     notApplied.push(`"${keystroke}" is reserved and cannot be rebound`)
+    return
+  }
+  if (CLAIMED_BY_ROUTER.has(key)) {
+    notApplied.push(
+      `"${keystroke}" is a built-in gesture here and always claims the key — a binding on it ` +
+        'could never fire',
+    )
     return
   }
   if (action === null) {
