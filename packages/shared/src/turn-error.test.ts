@@ -230,3 +230,38 @@ describe('the SDK typed error codes reach a hint', () => {
     expect(turnErrorText({ message: '401 Unauthorized' }, {})).toContain('/login')
   })
 })
+
+describe('a tool result the provider cannot carry', () => {
+  it('test_the_failure_says_a_tool_returned_the_image', () => {
+    // Measured 2026-09-07, and it cost two sessions hours. A turn failed with
+    // `provider "openai-responses" does not support image content in tool results` right after the
+    // user attached an image with /image, and the natural reading — "my attachment is unsupported" —
+    // is wrong: the guard is reachable ONLY from a `tool_result` part, so a TOOL returned the image.
+    // The attachment itself takes the `input_image` branch and never reaches it.
+    const said = turnErrorText({
+      message: 'provider "openai-responses" does not support image content in tool results',
+    })
+
+    expect(said).toContain('a tool returned an image')
+  })
+
+  it('test_it_points_at_the_key_that_reveals_which_tool_ran', () => {
+    // The other half of why this was invisible: the transcript collapses tool activity to
+    // `Used 1 tool` unless ctrl+o is pressed, so the run that failed looked identical to the ones
+    // that passed. One keystroke away, and nothing said so.
+    const said = turnErrorText({
+      message: 'provider "openai-responses" does not support image content in tool results',
+    })
+
+    expect(said).toContain('ctrl+o')
+  })
+
+  it('test_an_unrelated_image_failure_does_not_claim_a_tool_ran', () => {
+    // Anti-vacuity floor, and the honesty floor: the claim "a tool returned an image" is only true
+    // for THIS error, whose guard sits behind a tool_result part. A message that merely mentions an
+    // image must not inherit it.
+    const said = turnErrorText({ message: 'the image file could not be read' })
+
+    expect(said).not.toContain('a tool returned an image')
+  })
+})
