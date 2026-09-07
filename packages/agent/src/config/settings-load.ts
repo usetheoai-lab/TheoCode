@@ -10,7 +10,7 @@ import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
 import process from 'node:process'
 
-import { CONFIG_SCHEMA_KEYS, ConfigError } from './config.js'
+import { CONFIG_SCHEMA_KEYS, ConfigError } from './config-contract.js'
 import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR, homeStateDir } from './home-dir.js'
 import { translateSettings } from './settings-json.js'
 

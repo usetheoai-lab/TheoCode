@@ -1,5 +1,5 @@
+import { CONFIG_SCHEMA_KEYS, ConfigError, type SchemaKey } from './config-contract.js'
 import { auditEnvReachability } from '@theokit/agents'
-import { TheokitAgentError } from '@theokit/agents'
 import { homedir } from 'node:os'
 import process from 'node:process'
 import { join } from 'node:path'
@@ -143,23 +143,6 @@ export interface AgentConfig {
   profile?: string
 }
 
-export const CONFIG_SCHEMA_KEYS = [
-  'model',
-  'reasoning_effort',
-  'sandbox_mode',
-  'approval_policy',
-  'goal_oracle',
-  'skills',
-  'hooks',
-  'memory',
-  'home_dir',
-  'shell_timeout_ms',
-  'session_gc',
-  'context_window',
-  'output_style',
-] as const
-
-export type SchemaKey = (typeof CONFIG_SCHEMA_KEYS)[number]
 
 interface EnvPath {
   readonly knob: string
@@ -303,13 +286,6 @@ export function modelLabel(modelId: string): string {
   return slash >= 0 ? modelId.slice(slash + 1) : modelId
 }
 
-export class ConfigError extends TheokitAgentError {
-  override readonly name = 'ConfigError'
-
-  constructor(message: string) {
-    super(message)
-  }
-}
 
 const scalarSchema = z
   .object({
@@ -437,6 +413,8 @@ function envLayer(env: Record<string, string | undefined>): RawScalars {
     throw toConfigError(err, 'env')
   }
 }
+
+export { CONFIG_SCHEMA_KEYS, ConfigError, type SchemaKey }
 
 export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
   const fromFile = (raw: unknown, where: string): z.infer<typeof configSchema> => {

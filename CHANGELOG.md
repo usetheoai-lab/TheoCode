@@ -81,6 +81,9 @@ for `release.yml` in this repository will not find it, and should not have been 
   first. Root cause is upstream (theokit-sdk#613): the SDK has two hook subsystems, and
   `on_session_start` exists only in the one that hook handlers never reach. The three events that do
   fire are exactly the three with a member in the other (#132)
+- `pnpm lint` now runs `depcruise`, which CI already ran and the local gate did not. A circular
+  import between the config schema and its disk loader passed every local check and failed on the
+  PR — the same shape as a CI suite that is green on a broken build, in reverse (#127)
 - Corrected a false claim in the source: a comment stated that hooks translated from a
   `settings.json` "go through the same fingerprint approval gate as every other hook". Measured in
   the TUI with a real TTY — three hooks declared in this product's own file fired three times with
