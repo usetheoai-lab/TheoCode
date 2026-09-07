@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-09-07
+
 ### Changed
 
 - `@theokit/agents` 13.0.0-next.1 → 13.0.0-next.2, which narrows the agent-module parameter from
