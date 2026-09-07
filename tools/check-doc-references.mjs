@@ -42,6 +42,18 @@ const DESCRIBED_NOT_CITED = new Map([
       'we did NOT write steers the agent. Requiring it here would mean the README could not ' +
       'describe the interop it just gained.',
   ],
+  [
+    'settings.json',
+    "the configuration file an operator writes in THEIR project or home — the same category as " +
+      'AGENTS.md. This repository has none to cite, and the README has to be able to name the file ' +
+      'by itself when explaining that it replaced config.toml.',
+  ],
+  [
+    'config.toml',
+    'the file settings.json replaced. The README names it to say it is no longer read and how to ' +
+      'convert it; requiring a copy in this repository would mean documenting the migration only ' +
+      'by keeping the very file the migration removes.',
+  ],
 ])
 
 /** Backticked paths that look like repository files, not URLs, globs or shell fragments. */

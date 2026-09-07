@@ -39,12 +39,32 @@ node dist/theocode.mjs sessions gc
 | `@theocode/agent`  | The composition of the SDK with this product's policy. Not a library of agents — the SDK is `@theokit/agents`; this is what decides how it behaves. | `@theocode/agent/config`, `/auth`, `/session`, `/hooks`, … |
 | `@theocode/shared` | Shutdown, the diagnostic sink, the agent seam.                                                                                                      | `@theocode/shared/shutdown`, `/diagnostic-sink`, `/agent`  |
 | `@theocode/tui`    | Ink + React. Owns nothing about the agent beyond driving it.                                                                                        | `npm run dev`                                              |
-| `@theocode/cli`    | Headless. Six modes: `run`, `resume`, `review`, `goal`, `sessions gc`, `doctor` (prints the RESOLVED state for a support session; exits non-zero on a failure, never prints a credential).                                                                             | `npm run exec`                                             |
+| `@theocode/cli`    | Headless. Seven modes: `run`, `resume`, `review`, `goal`, `sessions gc`, `doctor` (prints the RESOLVED state for a support session; exits non-zero on a failure, never prints a credential), `migrate-config` (converts a leftover `config.toml` into `settings.json`; runs before configuration is resolved, so it stays reachable when the loader refuses to start).                                                                             | `npm run exec`                                             |
 
 ## Where configuration lives
 
+The file is **`settings.json`**, and the name is Claude Code's on purpose: paste a real one in and
+this product starts. Keys it does not implement are ignored and **named** by `theocode doctor`, so
+you can always tell an unsupported setting from a misspelt one.
+
+Where it is read from, ours before theirs, per layer:
+
+```
+~/<home_dir>/settings.json          →  ~/.claude/settings.json            (your defaults)
+<project>/.theokit/settings.json    →  <project>/.claude/settings.json    (the project)
+<project>/.theokit/settings.local.json → <project>/.claude/settings.local.json  (personal, gitignored — wins)
+```
+
+**Tolerance depends on whose file it is.** Under `.claude/`, an unknown key is theirs and is
+tolerated; under this product's own root it is a typo, and the loader refuses by name — so
+`sandboxMode` never gets silently discarded in place of `sandbox_mode`.
+
+`config.toml` **replaced.** A leftover one with no `settings.json` in the same scope refuses the
+start and names `theocode migrate-config`, which converts it through the same schema the loader
+parses with. Silently ignoring it would drop your whole configuration with no error.
+
 One directory per side — `<project>/.theokit/` in a repository, `~/<home_dir>/` under your home.
-It used to be two of each, and getting it wrong failed silently: a `[[hooks]]` block in the other one
+It used to be two of each, and getting it wrong failed silently: a hooks block in the other one
 was ignored with no error, and a hook is arbitrary command execution on every tool call (B-086).
 
 `.theocode/` was the other one. It is still **read**, so nothing you already configured stops
@@ -53,8 +73,8 @@ alternative is that moving your file has no visible effect.
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theokit/config.toml`  | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `[[hooks]]`, profiles |
-| `~/<home_dir>/config.toml`        | this product       | the same keys, as your defaults; the project layer wins                                         |
+| `<project>/.theokit/settings.json` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `hooks`, profiles |
+| `~/<home_dir>/settings.json`      | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/<home_dir>/AGENTS.md`          | this product       | instructions that belong to YOU, in every project; the project's own file is read after it. `~/.theocode/AGENTS.md` still works |
 | `~/<home_dir>/rules/*.md`         | this product       | your own rules, scoped or not; the project's rules are read after them. `~/.theocode/rules/` and `~/.claude/rules/` are read too — rules are additive |
@@ -66,14 +86,21 @@ alternative is that moving your file has no visible effect.
 | `~/<home_dir>/.mcp.json`          | this product       | YOUR MCP servers, in every project — not gated on whether a repository is trusted, because that gate is about the repository. A project cannot shadow one by reusing its name |
 | `~/<home_dir>/tui-theme`          | this product       | what `/theme` last picked; `NO_COLOR` and `THEOCODE_THEME` both still override it                |
 | `~/.theocode/auth.json`           | this product       | your credential — the one file deliberately left where it is; moving a live login is the one step of the unification that can log you out, so `theocode doctor` reports any copy in another state directory instead |
-| `<project>/.theocode/config.toml` | this product       | the previous location — still read, never written; the row above wins when both exist           |
+| `<project>/.theocode/settings.json` | this product     | the previous location — still read, never written; the row above wins when both exist           |
+| `<project>/.claude/settings.json` | this product       | read when neither of the two above is there. Keys this product does not implement are ignored and named by `doctor`; its `hooks` are left to the compatibility loader that already runs them, so nothing fires twice |
 
 The project layer is read **only for a trusted directory** — an untrusted
 one falls back to your user layer, and no repository hook is wired at all. `/hooks` reports which of
 those two you are in; `/status` reports the resolved model, effort, approval and sandbox.
 
-Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. An unknown event name is a
-loud parse failure, not a skipped hook.
+Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. In this product's own file an
+unknown event name is a loud parse failure, not a skipped hook. In a `.claude/settings.json` — where
+the vocabulary is Claude Code's and is larger — an event we do not have is dropped and named by
+`doctor` instead, because refusing would stop a valid file of theirs from starting the product.
+
+`hooks` may be written in either dialect in this product's own file: the flat array
+(`{ "event": "Stop", "command": "…", "timeout_ms": 5000 }`) or Claude Code's nested-by-event shape,
+whose `timeout` is in **seconds** and whose `matcher: "*"` means every tool.
 
 ## Testing an unreleased theokit fix
 

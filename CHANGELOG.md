@@ -16,6 +16,37 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `config.toml` is replaced by `settings.json`.** The configuration file is now JSON and
+  carries Claude Code's filename, so a real `settings.json` can be pasted in and the product starts.
+  A leftover `config.toml` with no `settings.json` in the same scope refuses the start and names
+  `theocode migrate-config`; ignoring it would drop the whole configuration with no error (#127)
+- Configuration is read from this product's own root before the foreign one, per layer:
+  `~/<home_dir>/settings.json` then `~/.claude/settings.json`; `<project>/.theokit/settings.json`
+  then `<project>/.claude/settings.json` (#127)
+- Keys a `settings.json` carries that this product does not implement are ignored and **named** by
+  `theocode doctor`, split into "not implemented here" and "unrecognised" — a key that is dropped
+  without being nameable teaches an operator that a setting is read when it is not (#127)
+- Tolerance for unknown keys depends on whose file it is, not on a list of key names. Under
+  `.claude/` an unknown key is theirs and is tolerated; under this product's own root it is a typo
+  and the loader refuses by name, so `sandboxMode` is never silently discarded in place of
+  `sandbox_mode`. An earlier inventory of 141 Claude Code keys was measured against a real
+  `~/.claude/settings.json` and missed five of them (#127)
+
+### Added
+
+- `.claude/settings.local.json` and `.theokit/settings.local.json` are read as their own layer,
+  above the committed project file and below profiles — Claude Code's precedence, and its own layer
+  so hooks accumulate across the two rather than one replacing the set (#127)
+- `theocode migrate-config` converts every leftover `config.toml` — in the project and in the user
+  directory — into `settings.json`, through the same schema the loader parses with. It runs before
+  configuration is resolved, so it stays reachable when the loader refuses to start (#127)
+- `hooks` may be written in Claude Code's nested-by-event dialect in this product's own
+  `settings.json`: `timeout` is converted from seconds to `timeout_ms`, `matcher: "*"` becomes
+  match-all rather than an invalid regex that would fail at boot, and an event this product does not
+  have is dropped and named instead of throwing (#127)
+
 ### Fixed
 
 - The pin guard now checks the tree, not only the files. An install can report success and leave the

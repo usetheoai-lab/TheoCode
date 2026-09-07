@@ -22,3 +22,7 @@ export { sandboxWritePolicy } from './sandbox-policy.js'
 export { headlessApprovalPosture, resolveHeadlessApproval } from './approval-policy.js'
 
 export { ENV_HOME } from './env-knobs.js'
+
+export { findStrandedConfigs, migrateConfigFile } from './migrate-config.js'
+
+export { settingsReport } from './settings-load.js'

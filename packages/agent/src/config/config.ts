@@ -1,10 +1,8 @@
 import { auditEnvReachability } from '@theokit/agents'
 import { TheokitAgentError } from '@theokit/agents'
-import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+import process from 'node:process'
 import { join } from 'node:path'
-
-import { parse as parseToml } from 'smol-toml'
 
 import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR, homeStateDir, isValidHomeDirName } from './home-dir.js'
 import { z } from 'zod'
@@ -21,6 +19,11 @@ import {
   ENV_SHELL_TIMEOUT_MS,
 } from './env-knobs.js'
 import { LAYERS, foldLayers, type Layer } from './layers.js'
+import {
+  firstSettings,
+  refuseStrandedToml,
+  settingsCandidates,
+} from './settings-load.js'
 import type { TrustPosture } from './trust-posture.js'
 import { applySecurityFloor } from './security-floor.js'
 
@@ -319,7 +322,13 @@ const scalarSchema = z
   })
   .strict()
 
-const configSchema = scalarSchema
+/**
+ * Exported for ONE consumer: `migrate-config.ts`, which converts a `config.toml` into a
+ * `settings.json` through this exact schema. A conversion that used a hand-written key map could
+ * accept what the loader rejects, and the operator would meet that failure one command later, on a
+ * file they were told was converted.
+ */
+export const configSchema = scalarSchema
   .extend({
     profile: z.string().optional(),
     profiles: z.record(z.string(), scalarSchema).optional(),
@@ -328,7 +337,7 @@ const configSchema = scalarSchema
 
 type RawScalars = z.infer<typeof scalarSchema>
 
-function toConfigError(err: unknown, where: string): ConfigError {
+export function toConfigError(err: unknown, where: string): ConfigError {
   if (err instanceof z.ZodError) {
     const issue = err.issues[0]
     const keys =
@@ -365,6 +374,8 @@ function pickScalars(raw: RawScalars): Partial<AgentConfig> {
 export interface ConfigLayers {
   user?: unknown
   project?: unknown
+  /** `.claude/settings.local.json` — personal and gitignored, above the committed project file. */
+  projectLocal?: unknown
   env?: Record<string, string | undefined>
   cli?: unknown
 }
@@ -392,9 +403,25 @@ function chosenProfile(layers: readonly z.infer<typeof configSchema>[]): {
   if (name === undefined) return { name, values: {} }
   const chosen = profiles[name]
   if (chosen === undefined) {
-    throw new ConfigError(`config.toml: unknown profile "${name}" [profile]`)
+    throw new ConfigError(`settings.json: unknown profile "${name}" [profile]`)
   }
   return { name, values: chosen }
+}
+
+/** The environment layer: only the keys `ENV_BY_KEY` declares a knob for, coerced and validated. */
+function envLayer(env: Record<string, string | undefined>): RawScalars {
+  const scalars: Record<string, unknown> = {}
+  for (const key of CONFIG_SCHEMA_KEYS) {
+    const path = ENV_BY_KEY[key]
+    if (path === undefined) continue
+    const raw = env[path.knob]
+    if (raw !== undefined) scalars[key] = path.coerce(raw)
+  }
+  try {
+    return scalarSchema.parse(scalars)
+  } catch (err) {
+    throw toConfigError(err, 'env')
+  }
 }
 
 export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
@@ -406,31 +433,25 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
       throw toConfigError(err, where)
     }
   }
-  const user = fromFile(layers.user, 'config.toml')
-  const project = fromFile(layers.project, 'config.toml')
+  const user = fromFile(layers.user, 'settings.json')
+  const project = fromFile(layers.project, 'settings.json')
+  const projectLocal = fromFile(layers.projectLocal, 'settings.local.json')
   const cli = fromFile(layers.cli, 'cli (-c)')
 
-  const { name: selectedProfile, values: profile } = chosenProfile([user, project, cli])
+  const { name: selectedProfile, values: profile } = chosenProfile([
+    user,
+    project,
+    projectLocal,
+    cli,
+  ])
 
-  const env = layers.env ?? {}
-  const envScalars: Record<string, unknown> = {}
-  for (const key of CONFIG_SCHEMA_KEYS) {
-    const path = ENV_BY_KEY[key]
-    if (path === undefined) continue
-    const raw = env[path.knob]
-    if (raw !== undefined) envScalars[key] = path.coerce(raw)
-  }
-  let envParsed: RawScalars
-  try {
-    envParsed = scalarSchema.parse(envScalars)
-  } catch (err) {
-    throw toConfigError(err, 'env')
-  }
+  const envParsed = envLayer(layers.env ?? {})
 
   const perLayer: Record<Layer, Partial<AgentConfig>> = {
     defaults: { ...DEFAULTS, skills: [...DEFAULTS.skills], hooks: [...DEFAULTS.hooks] },
     user: pickScalars(user),
     project: pickScalars(project),
+    project_local: pickScalars(projectLocal),
     profile: pickScalars(profile),
     env: pickScalars(envParsed),
     cli: pickScalars(cli),
@@ -452,6 +473,7 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
       defaults: perLayer.defaults[key] as string | undefined,
       user: perLayer.user[key] as string | undefined,
       project: perLayer.project[key] as string | undefined,
+      project_local: perLayer.project_local[key] as string | undefined,
       profile: perLayer.profile[key] as string | undefined,
       env: perLayer.env[key] as string | undefined,
       cli: perLayer.cli[key] as string | undefined,
@@ -462,18 +484,26 @@ export function resolveConfig(layers: ConfigLayers = {}): AgentConfig {
   return { ...(folded as unknown as AgentConfig), profile: selectedProfile }
 }
 
-function readTomlIfPresent(path: string): unknown | null {
-  let text: string
-  try {
-    text = readFileSync(path, 'utf8')
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
-    throw new ConfigError(`cannot read ${path}: ${(err as Error).message}`)
-  }
-  try {
-    return parseToml(text)
-  } catch (err) {
-    throw new ConfigError(`malformed TOML at ${path}: ${(err as Error).message}`)
+/** The three file layers, read from disk, with the trust gate applied to the two project-scoped ones. */
+function discoverSettings(opts: {
+  projectDir: string
+  userDir: string
+  env: Record<string, string | undefined>
+  projectAllowed: boolean
+}): {
+  user: unknown | null
+  project: unknown | null
+  projectLocal: unknown | null
+  projectAllowed: boolean
+  ourHome: string
+} {
+  const candidates = settingsCandidates(opts)
+  return {
+    user: firstSettings(candidates.user),
+    project: opts.projectAllowed ? firstSettings(candidates.project) : null,
+    projectLocal: opts.projectAllowed ? firstSettings(candidates.projectLocal) : null,
+    projectAllowed: opts.projectAllowed,
+    ourHome: homeStateDir(opts.env, opts.userDir),
   }
 }
 
@@ -487,26 +517,40 @@ export function loadConfig(opts: {
   const projectDir = opts.projectDir ?? process.cwd()
   const userDir = opts.userDir ?? homedir()
   const env = opts.env ?? process.env
-  // B-086 — these two paths are DOCUMENTED in README § "Where configuration lives". They are not
-  // guessable: the SDK filebase next door is `.theokit/` (subagents, skills, rules), and a setting
-  // written into the wrong one is ignored with no error at all. That was measured, not imagined —
-  // a valid `[[hooks]]` block in `.theokit/config.toml` produced `hooks: []` from a trusted
-  // directory and read exactly like a product defect. Changing either path here means changing the
-  // README in the same commit; a hook is arbitrary command execution on every tool call, and its
-  // location must not become folklore.
-  // #72 — the unified directory first, the previous one as a fallback that is read and never
-  // written. The unified one wins when both exist: the alternative is that an operator who moves
-  // their file sees no effect, which is the worse silence of the two.
-  const user =
-    readTomlIfPresent(join(homeStateDir(env, userDir), 'config.toml')) ??
-    readTomlIfPresent(join(userDir, LEGACY_HOME_DIR, 'config.toml'))
-  const project = opts.posture.allows.projectConfig
-    ? (readTomlIfPresent(join(projectDir, DEFAULT_HOME_DIR, 'config.toml')) ??
-      readTomlIfPresent(join(projectDir, LEGACY_HOME_DIR, 'config.toml')))
-    : null
+  // #124-adjacent, and the reason these paths are spelled out rather than composed elsewhere: a
+  // setting written into the wrong directory is ignored with NO error at all. That was measured, not
+  // imagined — a valid hook block under the unused root produced `hooks: []` from a trusted
+  // directory and read exactly like a product defect. Changing any path here means changing
+  // README § "Where configuration lives" in the same commit.
+  const { user, project, projectLocal, projectAllowed, ourHome } = discoverSettings({
+    projectDir,
+    userDir,
+    env,
+    projectAllowed: opts.posture.allows.projectConfig,
+  })
+
+  refuseStrandedToml(
+    'user',
+    [join(ourHome, 'config.toml'), join(userDir, LEGACY_HOME_DIR, 'config.toml')],
+    user !== null,
+  )
+  // Only when the project scope is read at all: refusing in an untrusted directory would block every
+  // run over a file whose contents this product has already decided to ignore.
+  refuseStrandedToml(
+    'project',
+    projectAllowed
+      ? [
+          join(projectDir, DEFAULT_HOME_DIR, 'config.toml'),
+          join(projectDir, LEGACY_HOME_DIR, 'config.toml'),
+        ]
+      : [],
+    project !== null,
+  )
+
   return resolveConfig({
     ...(user !== null ? { user: user } : {}),
     ...(project !== null ? { project: project } : {}),
+    ...(projectLocal !== null ? { projectLocal: projectLocal } : {}),
     env,
     ...(opts.cli !== undefined ? { cli: opts.cli } : {}),
   })

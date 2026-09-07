@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { USAGE, parseExecArgs } from './args.js'
+import { parseExecArgs } from './args.js'
+import { USAGE } from './usage.js'
 
 /** Every invocation the usage text teaches, as a user would type it after `theocode`. */
 const DOCUMENTED = [
@@ -27,6 +28,7 @@ const DOCUMENTED = [
   ['resume', '--last'],
   ['doctor'],
   ['sessions', 'list'],
+  ['migrate-config'],
 ]
 
 describe('B-022 — every documented invocation routes to its command', () => {
@@ -51,7 +53,15 @@ describe('B-022 — every documented invocation routes to its command', () => {
     // The drift itself. `exec` is the npm SCRIPT name (`npm run exec`), not a subcommand of the
     // built binary — the usage text baked one into the other.
     const taught = [...USAGE.matchAll(/^\s*(?:Usage:)?\s*theocode\s+(\S+)/gm)].map((m) => m[1])
-    const routed = new Set(['resume', 'review', 'goal', 'sessions', 'doctor', '[OPTIONS]'])
+    const routed = new Set([
+      'resume',
+      'review',
+      'goal',
+      'sessions',
+      'doctor',
+      'migrate-config',
+      '[OPTIONS]',
+    ])
 
     for (const token of taught) {
       expect(

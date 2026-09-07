@@ -46,7 +46,9 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
   const agent = await import('@theocode/agent')
   const { authFilePath, strayCredentialFiles } = await import('@theocode/agent/auth')
   const { skillsOnDisk } = await import('@theocode/agent')
-  const { resolveEffectiveConfig, resolveTrustPosture } = await import('@theocode/agent/config')
+  const { resolveEffectiveConfig, resolveTrustPosture, settingsReport } = await import(
+    '@theocode/agent/config'
+  )
   const cwd = opts.cd ?? process.cwd()
 
   const posture = resolveTrustPosture(cwd)
@@ -85,6 +87,10 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // #67 — the skills row is the DECLARED list, so it ticked green for a name with no SKILL.md and
     // said nothing about a file no configuration named. This holds the two against each other.
     skillsOnDisk: skillsOnDisk(cwd, cfg.skills),
+    // `settings.json` wears Claude Code's filename, so the file often carries their settings. The
+    // loader tolerates them — a real one must not stop the product from starting — and this row is
+    // the other half of that trade: a key we ignore has to be nameable somewhere.
+    settingsIgnored: settingsReport({ projectDir: cwd }),
     wired,
   })
   const result = agent.diagnose(checks)

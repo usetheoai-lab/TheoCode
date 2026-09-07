@@ -1,0 +1,169 @@
+/**
+ * Finding, reading and reporting on `settings.json` — the disk half of configuration.
+ *
+ * Split out of `config.ts` when that file crossed its line budget. The division is not arbitrary:
+ * `config.ts` owns the SCHEMA and the pure fold across layers; this file owns WHERE the files are
+ * and what each one carried that the schema never saw.
+ */
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, sep } from 'node:path'
+import process from 'node:process'
+
+import { CONFIG_SCHEMA_KEYS, ConfigError } from './config.js'
+import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR, homeStateDir } from './home-dir.js'
+import { translateSettings } from './settings-json.js'
+
+/**
+ * The foreign root, read by name and not by guess. Both roots are consulted for every file layer and
+ * THIS PRODUCT'S OWN ROOT WINS — the same rule `config.toml` discovery already records below, for
+ * the same reason: an operator who moves their file must see the move take effect, and the opposite
+ * silence is the worse of the two.
+ */
+const FOREIGN_ROOT = '.claude'
+
+const SETTINGS_FILE = 'settings.json'
+const LOCAL_SETTINGS_FILE = 'settings.local.json'
+
+/**
+ * Read one `settings.json`, translate the foreign dialect out of it, and hand back what the schema
+ * can parse. Foreign keys are dropped and REPORTED — `translateSettings` returns them by name, and
+ * `doctor` is where they surface; dropping them without a record would teach an operator that a
+ * setting is read when it is not.
+ */
+function readSettingsIfPresent(path: string, foreignRoot: boolean): unknown | null {
+  let text: string
+  try {
+    text = readFileSync(path, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw new ConfigError(`cannot read ${path}: ${(err as Error).message}`)
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (err) {
+    throw new ConfigError(`malformed JSON at ${path}: ${(err as Error).message}`)
+  }
+  return translateSettings(parsed, { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot }).values
+}
+
+/**
+ * `config.toml` was replaced by `settings.json`, and a replacement that leaves the old file in place
+ * without saying so is the worst outcome available: the operator's settings simply stop applying,
+ * with no error, and the product looks like it lost their configuration. So a stranded `config.toml`
+ * REFUSES TO START, and the refusal carries the conversion command rather than only the diagnosis.
+ *
+ * PER SCOPE, not globally. The first version asked "is there a settings.json anywhere?", which meant
+ * a user-level `settings.json` silenced a stranded project-level `config.toml` — the project's whole
+ * configuration dropped, with no error, which is the exact silence this refusal exists to break.
+ * A scope has migrated when ITS OWN settings file is there.
+ *
+ * Once that file exists the refusal lifts for that scope, and the leftover is reported by `doctor`
+ * instead of blocking every run.
+ */
+export function refuseStrandedToml(scope: string, tomls: readonly string[], foundSettings: boolean): void {
+  if (foundSettings) return
+  const stranded = tomls.filter((p) => existsSync(p))
+  if (stranded.length === 0) return
+  throw new ConfigError(
+    `${stranded.join(', ')} is no longer read — the ${scope} configuration file is now ` +
+      "settings.json, in the same directory. Convert it with `theocode migrate-config`, " +
+      'or delete it if it is obsolete.',
+  )
+}
+
+/**
+ * Where each file layer may live, ours before theirs, declared ONCE. `loadConfig` reads from these
+ * lists and `settingsReport` walks the same ones — a reporter with its own copy would eventually
+ * describe files the loader does not read, which is the failure mode of every diagnostic that
+ * recomputes what it reports on.
+ */
+export function settingsCandidates(opts: {
+  projectDir: string
+  userDir: string
+  env: Record<string, string | undefined>
+}): { user: string[]; project: string[]; projectLocal: string[] } {
+  const ourHome = homeStateDir(opts.env, opts.userDir)
+  return {
+    user: [
+      join(ourHome, SETTINGS_FILE),
+      join(opts.userDir, LEGACY_HOME_DIR, SETTINGS_FILE),
+      join(opts.userDir, FOREIGN_ROOT, SETTINGS_FILE),
+    ],
+    project: [
+      join(opts.projectDir, DEFAULT_HOME_DIR, SETTINGS_FILE),
+      join(opts.projectDir, LEGACY_HOME_DIR, SETTINGS_FILE),
+      join(opts.projectDir, FOREIGN_ROOT, SETTINGS_FILE),
+    ],
+    projectLocal: [
+      join(opts.projectDir, DEFAULT_HOME_DIR, LOCAL_SETTINGS_FILE),
+      join(opts.projectDir, FOREIGN_ROOT, LOCAL_SETTINGS_FILE),
+    ],
+  }
+}
+
+export interface SettingsFileReport {
+  readonly path: string
+  /** Claude Code settings this product recognises and does not implement. */
+  readonly ignored: readonly string[]
+  /** Keys in neither vocabulary, tolerated because the file is under the foreign root. */
+  readonly unrecognised: readonly string[]
+  /** Hooks that could not be translated, each with its reason. */
+  readonly droppedHooks: readonly string[]
+}
+
+/**
+ * What each `settings.json` actually read carried that this product did NOT act on.
+ *
+ * The contract this satisfies: a key we ignore must be nameable. A configuration file that silently
+ * accepts anything teaches an operator that a setting is read when it is not, and the cost lands
+ * later, on a behaviour they configured and never got.
+ */
+export function settingsReport(opts: {
+  projectDir?: string
+  userDir?: string
+  env?: Record<string, string | undefined>
+}): SettingsFileReport[] {
+  const env = opts.env ?? process.env
+  const candidates = settingsCandidates({
+    projectDir: opts.projectDir ?? process.cwd(),
+    userDir: opts.userDir ?? homedir(),
+    env,
+  })
+  const out: SettingsFileReport[] = []
+  for (const list of [candidates.user, candidates.project, candidates.projectLocal]) {
+    for (const path of list) {
+      if (!existsSync(path)) continue
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(readFileSync(path, 'utf8'))
+      } catch {
+        // The loader already refuses on malformed JSON with the file named; a diagnostic that threw
+        // here would fail on exactly the input it exists to explain.
+        break
+      }
+      const read = translateSettings(parsed, {
+        ownKeys: CONFIG_SCHEMA_KEYS,
+        foreignRoot: path.includes(`${sep}${FOREIGN_ROOT}${sep}`),
+      })
+      out.push({
+        path,
+        ignored: read.ignored,
+        unrecognised: read.unrecognised,
+        droppedHooks: read.droppedHooks,
+      })
+      break // only the first of each list is read — the report describes what the loader used
+    }
+  }
+  return out
+}
+
+/** The first of `candidates` that exists, ours before theirs. */
+export function firstSettings(candidates: readonly string[]): unknown | null {
+  for (const path of candidates) {
+    const read = readSettingsIfPresent(path, path.includes(`${sep}${FOREIGN_ROOT}${sep}`))
+    if (read !== null) return read
+  }
+  return null
+}
