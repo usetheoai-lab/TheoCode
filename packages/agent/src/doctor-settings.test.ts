@@ -106,3 +106,4 @@ describe('the output-style row', () => {
     expect(collectChecks(base).find((c) => c.name === 'output-style')).toBeUndefined()
   })
 })
+

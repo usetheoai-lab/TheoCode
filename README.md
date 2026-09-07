@@ -114,6 +114,29 @@ Your `~/.claude/output-styles/` is read, while your `~/.claude/skills/` and `~/.
 not. That asymmetry is a stated rule, not an oversight: a foreign root under your home may contribute
 text that **constrains** the agent, never artifacts that **add invokable surface**.
 
+## Keybindings
+
+`~/.claude/keybindings.json` — Claude Code's file and format
+(`{ bindings: [{ context, bindings: { "ctrl+r": "toggle-verbose" } }] }`), read at startup.
+
+**Small on purpose, and the product says how small.** This product has no key-to-action table to
+rebind: the router *computes* what a key means from what is on screen — Escape is a dismiss ladder
+whose meaning is the visual stacking order, and Ctrl-C means abandon, interrupt, arm-exit or quit
+depending on five state fields. Three keys in total.
+
+So what a file can bind here is the set of gestures that mean one thing regardless of screen state:
+**`toggle-verbose`, `interrupt-turn`, `quit`**, on `ctrl+<letter>`. Everything else a file asks for
+is refused **by name**: a reserved keystroke, an action this product does not expose, a shape the
+router cannot match (`shift+tab`, chords), or an unbind — this product's built-in keys are computed,
+so there is no table entry to remove.
+
+A built-in gesture always wins a collision: binding `ctrl+o` to `quit` leaves it toggling verbose
+rather than exiting. A binding cannot reach past the gate that withholds keys from an untrusted
+directory or a pending approval.
+
+`/status` names what the file asked for and did not get. The file is read once at startup, so an
+edit needs a restart.
+
 ## Custom themes
 
 `~/.claude/themes/*.json` — Claude Code's format (`{ name?, base?, overrides? }`). Select one with

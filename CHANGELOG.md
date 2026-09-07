@@ -36,6 +36,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- **Keybindings** from `~/.claude/keybindings.json`, in Claude Code's format, read at startup.
+  Deliberately small, and the product says how small: this router computes a key's meaning from
+  screen state rather than looking it up, so what a file can bind is the set of gestures that mean
+  one thing regardless — `toggle-verbose`, `interrupt-turn`, `quit`, on `ctrl+<letter>`. A reserved
+  keystroke, an action this product does not expose, a shape the router cannot match, and an unbind
+  are each refused by name and reported in `/status`. A built-in gesture wins a collision, and a
+  binding cannot reach past the gate that withholds keys from an untrusted directory (#127)
 - **Custom themes** from `~/.claude/themes/*.json`, in Claude Code's format, selected with
   `/theme custom:<slug>`; `/theme` with no argument lists what is on disk. Six of their ~40 colour
   tokens map onto this product's structured theme (`claude`, `error`, `success`, `warning`,

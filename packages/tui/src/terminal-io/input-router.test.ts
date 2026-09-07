@@ -292,3 +292,41 @@ describe('routeKey — ctrl+o toggles the transcript', () => {
     }
   })
 })
+
+describe('a configured keybinding', () => {
+  const S = { ...IDLE, trusted: true }
+
+  it('test_a_bound_key_produces_its_action', () => {
+    expect(routeKey('r', { ctrl: true, escape: false, return: false }, S, [
+      { ctrl: true, letter: 'r', action: 'toggle-verbose' },
+    ])).toEqual([{ kind: 'toggle-verbose' }])
+  })
+
+  it('test_the_same_key_without_the_binding_does_nothing', () => {
+    // Anti-vacuity floor, and the only arm that distinguishes "the binding worked" from "ctrl+r
+    // already did that". Without it the assertion above passes against a router that ignores the
+    // configuration entirely.
+    expect(routeKey('r', { ctrl: true, escape: false, return: false }, S, [])).toEqual([])
+  })
+
+  it('test_a_binding_does_not_reach_past_the_gate', () => {
+    // The `gated` layer swallows keys while an approval, a login or an untrusted directory is in
+    // force. A configured binding must not be a way around it — that layer is the one that stops a
+    // repository the operator has not trusted from getting a keystroke.
+    expect(
+      routeKey('r', { ctrl: true, escape: false, return: false }, { ...IDLE, trusted: false }, [
+        { ctrl: true, letter: 'r', action: 'toggle-verbose' },
+      ]),
+    ).toEqual([])
+  })
+
+  it('test_a_binding_does_not_displace_the_built_in_meaning_of_the_same_key', () => {
+    // ctrl+o already toggles verbose. Binding it to `quit` must not turn a reading gesture into an
+    // exit: the built-in layers are tried first, so a collision loses rather than shadowing.
+    expect(
+      routeKey('o', { ctrl: true, escape: false, return: false }, S, [
+        { ctrl: true, letter: 'o', action: 'quit' },
+      ]),
+    ).toEqual([{ kind: 'toggle-verbose' }])
+  })
+})
