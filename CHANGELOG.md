@@ -16,6 +16,15 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- `@theokit/sdk` pinned to `5.3.1`, which carries the fix for `Agent.delete` never hydrating the
+  registry from disk (theokit-sdk#612). **What that changes here:** `sessions delete` re-reads the
+  listing to classify the registry half, and the state that re-read observes moves from
+  `still-present` to `removed` — the verification is unchanged, what it verifies now happens.
+  The SDK half was measured by the publisher against the installed npm package in a clean project;
+  it is **not** re-verified end-to-end here, because a registered session needs a real turn (#125)
+
 ### Added
 
 - A failed turn that reports `does not support image content in tool results` now says what it
