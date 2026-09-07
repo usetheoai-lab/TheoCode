@@ -16,6 +16,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- **Correction to the 0.10.1 entry below.** It said `sessions gc` "no longer deletes a transcript it
+  could not read". The guard is real and tested, and it is **inert in this product**: it fires on an
+  `idSource: "unavailable"` field that only `@theokit/sdk`'s `listSessions` supplies, and this
+  product's own transcript reader does not. Measured on the production path — a registered session
+  whose transcript is corrupt is kept regardless, because protection is derived from the registry
+  and never from reading the file. So the case the entry described was never at risk here.
+
+  The guard stays, for a caller that does supply the field. The published entry is left as written,
+  per the rule against editing released history.
+
 ## [0.10.2] - 2026-09-07
 
 ### Changed
