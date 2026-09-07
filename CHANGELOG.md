@@ -16,14 +16,19 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+
 ### Changed
 
-- `@theokit/sdk` pinned to `5.3.1`, which carries the fix for `Agent.delete` never hydrating the
-  registry from disk (theokit-sdk#612). **What that changes here:** `sessions delete` re-reads the
-  listing to classify the registry half, and the state that re-read observes moves from
-  `still-present` to `removed` — the verification is unchanged, what it verifies now happens.
-  The SDK half was measured by the publisher against the installed npm package in a clean project;
-  it is **not** re-verified end-to-end here, because a registered session needs a real turn (#125)
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.13.0] - 2026-09-07
 
 ### Added
 
@@ -35,15 +40,15 @@ for `release.yml` in this repository will not find it, and should not have been 
   tool activity to `Used 1 tool` unless `ctrl+o` is pressed, so the run that failed looked identical
   to the five that passed (#133)
 
+
 ### Changed
 
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
+- `@theokit/sdk` pinned to `5.3.1`, which carries the fix for `Agent.delete` never hydrating the
+  registry from disk (theokit-sdk#612). **What that changes here:** `sessions delete` re-reads the
+  listing to classify the registry half, and the state that re-read observes moves from
+  `still-present` to `removed` — the verification is unchanged, what it verifies now happens.
+  The SDK half was measured by the publisher against the installed npm package in a clean project;
+  it is **not** re-verified end-to-end here, because a registered session needs a real turn (#125)
 
 ## [0.12.0] - 2026-09-07
 
