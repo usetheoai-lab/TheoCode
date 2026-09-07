@@ -125,7 +125,12 @@ export function resolveEffectiveConfig(
     loadConfig({
       ...withCliLayer(opts),
       projectDir: opts.projectDir ?? cwd,
-      posture: resolveTrustPosture(cwd, opts.store),
+      // B-033, one hop lower. `env` was omitted here, so a caller injecting an environment got its
+      // CONFIGURATION from the injection and its TRUST DECISION from the ambient process — the exact
+      // split `run-composition.ts:83-87` records closing at the layer above. It was already wrong;
+      // `settings.json` makes it expensive, because the posture now decides whether a whole
+      // configuration file is read at all.
+      posture: resolveTrustPosture(cwd, opts.store, opts.env),
     }),
   )
 }

@@ -174,5 +174,10 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   // M111 (promotion unblock): the four `theo-promptly` knobs arrived with the persona resolved
   // per service and were born outside the registry — the M104 gate caught them, which is exactly what
-  // it exists to do. Registered here so `docs/CONFIGURATION.md` is derivable again.
+  // it exists to do. Registered here so the environment surface is derivable from ONE list.
+  //
+  // This line used to say "so `docs/CONFIGURATION.md` is derivable again". That file has never
+  // existed in this repository. The `reader`-path gate only checks `ENV_KNOBS[].reader`, so a
+  // citation in prose beside it was invisible — the same shape as B-134, one field over.
+  // The README's configuration table is the document this list feeds.
 ]

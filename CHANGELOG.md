@@ -61,6 +61,16 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `resolveEffectiveConfig` resolved the trust posture from the ambient environment while resolving
+  the configuration from the one the caller injected — B-033's split, one layer lower. Already
+  wrong, and expensive now: the posture decides whether a project's whole `settings.json` is read
+  (#127)
+- Two docblock citations that pointed at nothing: `env-knobs.ts` named `docs/CONFIGURATION.md`,
+  which has never existed here, and `hooks/hooks.ts` called itself the parser for
+  `.theokit/hooks.json`, which no caller has ever handed it. The `reader`-path gate only checks the
+  `reader` field, so a citation in the prose beside it was invisible — the same shape as B-134, one
+  field over (#127)
+
 - The pin guard now checks the tree, not only the files. An install can report success and leave the
   previous version in place; every declaration then agrees while the build runs against something
   else (#120).
