@@ -51,13 +51,33 @@ import type { HookEvent, HookSpec } from './hooks-spec.js'
  * until somebody decides where it goes — which is the point. A partial map would let a new event
  * parse, fingerprint, be approved, and silently do nothing.
  */
-const EVENT_TO_FRAMEWORK: Readonly<Record<HookEvent, FrameworkEvent>> = {
+/**
+ * `null` means THIS PRODUCT delivers the event, not the framework.
+ *
+ * Kept in the map rather than removed, because the map is total over `HookEvent` and the totality is
+ * the guard: a new event fails to compile until somebody decides where it goes. Deleting the entry
+ * would restore exactly the silence the docblock below warns about, while `null` states the decision
+ * and keeps the compile error.
+ */
+type Delivery = FrameworkEvent | null
+
+const EVENT_TO_FRAMEWORK: Readonly<Record<HookEvent, Delivery>> = {
   PreToolUse: 'pre_tool_call',
   // NOT `post_tool_call`: our PostToolUse hooks append feedback the model reads, which is what
   // `transform_tool_result` does and what a notification-shaped `post_tool_call` does not.
   PostToolUse: 'transform_tool_result',
   Stop: 'post_assistant_reply',
-  SessionStart: 'on_session_start',
+  // `hooks/session-start.ts` fires this, at the moment a surface mints a session id.
+  //
+  // It used to be `on_session_start`, and the event never ran. Registration was never the problem —
+  // measured: our map carried it, the compiled plugin registered it, and the framework fires what is
+  // registered. What differs is MEANING: `on_session_start` is once per loop context, and this
+  // product builds a new agent module per turn, so the mapping would run a `SessionStart` hook on
+  // every user message. That is worse than not running it, because it is exactly the hook an author
+  // writes assuming it happens once.
+  //
+  // `null` here is what stops it being delivered twice once the surface fires it.
+  SessionStart: null,
 }
 
 export interface BuildHookHandlersOptions {
@@ -91,10 +111,14 @@ export function buildHookHandlers(
   // Each translated spec remembers where it came from, so the fingerprint below can hash the
   // original — the only form the approval store knows.
   const origin = new Map<FrameworkSpec, HookSpec>()
-  const translated = specs.map((spec) => {
+  // Events this product delivers itself are filtered out BEFORE translation, so the framework never
+  // sees a spec it would fire in parallel with the surface.
+  const delegated = specs.filter((spec) => EVENT_TO_FRAMEWORK[spec.event] !== null)
+  const translated = delegated.map((spec) => {
     const next: FrameworkSpec = {
       command: spec.command,
-      event: EVENT_TO_FRAMEWORK[spec.event],
+      // Non-null by construction: `delegated` dropped every event this product delivers itself.
+      event: EVENT_TO_FRAMEWORK[spec.event] as FrameworkEvent,
       ...(spec.matcher !== undefined && { matcher: spec.matcher }),
       timeout_ms: spec.timeout_ms,
     }

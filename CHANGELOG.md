@@ -16,6 +16,24 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `hooks` array in `.theokit/settings.json` refused every turn.** `.theokit/` is the SDK's own
+  filebase, so its settings loader reads that same file and validates `hooks` against Claude Code's
+  nested-by-event shape; our flat array failed it, fatally, on every turn. Released in v0.11.0 —
+  it did not exist while the file was `config.toml`, because the SDK does not read TOML, and
+  renaming the file put it inside a filename another loader already owns. The loader now refuses the
+  flat array first, naming the nested form; `hooks` in a `settings.json` is the nested shape in every
+  root (#144)
+- `SessionStart` hooks run. They are fired by the surface that mints the session id — at launch, at
+  `/new`, and on a headless run that is not a resume — rather than mapped onto the framework's
+  `on_session_start`. Measured: registration was never the problem, the framework fires what is
+  registered; what differs is meaning. `on_session_start` is once per *loop context*, and this
+  product builds an agent per turn, so the mapping would have run a `SessionStart` hook on every
+  user message — worse than not running it, because that is exactly the hook an author writes
+  assuming it happens once. `inert-events.ts` and its `DECLARED BUT NEVER RUNS` marker are deleted,
+  as its own docblock instructed (#132)
+
 ### Added
 
 ### Changed
