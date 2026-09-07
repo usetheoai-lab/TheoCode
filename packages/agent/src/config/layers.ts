@@ -13,7 +13,14 @@ class LayerError extends TheokitAgentError {
   override readonly name = 'LayerError'
 }
 
-export type Layer = 'defaults' | 'user' | 'project' | 'profile' | 'env' | 'cli'
+export type Layer =
+  | 'defaults'
+  | 'user'
+  | 'project'
+  | 'project_local'
+  | 'profile'
+  | 'env'
+  | 'cli'
 
 export interface DeclaredLayer {
   readonly layer: Layer
@@ -24,6 +31,11 @@ export const LAYERS: readonly DeclaredLayer[] = Object.freeze([
   Object.freeze({ layer: 'defaults' as const, precedence: 10 }),
   Object.freeze({ layer: 'user' as const, precedence: 20 }),
   Object.freeze({ layer: 'project' as const, precedence: 30 }),
+  // `.claude/settings.local.json` — the personal, gitignored file, which Claude Code ranks above
+  // the committed one. Its own layer rather than a second file inside `project`, because the two
+  // must ACCUMULATE for the keys in `ACCUMULATING_KEYS`: a personal hook adds to the project's,
+  // it does not replace the set.
+  Object.freeze({ layer: 'project_local' as const, precedence: 35 }),
   Object.freeze({ layer: 'profile' as const, precedence: 40 }),
   Object.freeze({ layer: 'env' as const, precedence: 50 }),
   Object.freeze({ layer: 'cli' as const, precedence: 60 }),

@@ -12,6 +12,7 @@ export const ENV_REASONING_EFFORT = `${AB}REASONING_EFFORT`
 export const ENV_SANDBOX_MODE = `${AB}SANDBOX_MODE`
 export const ENV_APPROVAL_POLICY = `${AB}APPROVAL_POLICY`
 export const ENV_GOAL_ORACLE = `${AB}GOAL_ORACLE`
+export const ENV_OUTPUT_STYLE = `${AB}OUTPUT_STYLE`
 export const ENV_CONTEXT_WINDOW = `${AB}CONTEXT_WINDOW`
 export const ENV_SHELL_TIMEOUT_MS = `${AB}SHELL_TIMEOUT_MS`
 export const ENV_MEMORY = `${AB}MEMORY`
@@ -64,6 +65,13 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: 'judge',
     effect:
       'Who decides the objective is done: the LLM judge (+1 call per turn) or the `update_goal` tool the model calls itself.',
+  },
+  {
+    name: ENV_OUTPUT_STYLE,
+    reader: CONFIG,
+    default: '—',
+    effect:
+      "The output style to apply, by name — a `.md` file under `~/.claude/output-styles/` or the project's. Absent means the built-in instructions, unchanged. A style REPLACES them unless its frontmatter says `keep-coding-instructions: true`.",
   },
   {
     name: ENV_CONTEXT_WINDOW,
@@ -166,5 +174,10 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   // M111 (promotion unblock): the four `theo-promptly` knobs arrived with the persona resolved
   // per service and were born outside the registry — the M104 gate caught them, which is exactly what
-  // it exists to do. Registered here so `docs/CONFIGURATION.md` is derivable again.
+  // it exists to do. Registered here so the environment surface is derivable from ONE list.
+  //
+  // This line used to say "so `docs/CONFIGURATION.md` is derivable again". That file has never
+  // existed in this repository. The `reader`-path gate only checks `ENV_KNOBS[].reader`, so a
+  // citation in prose beside it was invisible — the same shape as B-134, one field over.
+  // The README's configuration table is the document this list feeds.
 ]

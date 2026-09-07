@@ -16,7 +16,89 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `config.toml` is replaced by `settings.json`.** The configuration file is now JSON and
+  carries Claude Code's filename, so a real `settings.json` can be pasted in and the product starts.
+  A leftover `config.toml` with no `settings.json` in the same scope refuses the start and names
+  `theocode migrate-config`; ignoring it would drop the whole configuration with no error (#127)
+- Configuration is read from this product's own root before the foreign one, per layer:
+  `~/<home_dir>/settings.json` then `~/.claude/settings.json`; `<project>/.theokit/settings.json`
+  then `<project>/.claude/settings.json` (#127)
+- Keys a `settings.json` carries that this product does not implement are ignored and **named** by
+  `theocode doctor`, split into "not implemented here" and "unrecognised" — a key that is dropped
+  without being nameable teaches an operator that a setting is read when it is not (#127)
+- Tolerance for unknown keys depends on whose file it is, not on a list of key names. Under
+  `.claude/` an unknown key is theirs and is tolerated; under this product's own root it is a typo
+  and the loader refuses by name, so `sandboxMode` is never silently discarded in place of
+  `sandbox_mode`. An earlier inventory of 141 Claude Code keys was measured against a real
+  `~/.claude/settings.json` and missed five of them (#127)
+
+### Added
+
+- **Keybindings** from `~/.claude/keybindings.json`, in Claude Code's format, read at startup.
+  Deliberately small, and the product says how small: this router computes a key's meaning from
+  screen state rather than looking it up, so what a file can bind is the set of gestures that mean
+  one thing regardless — `toggle-verbose`, `interrupt-turn`, `quit`, on `ctrl+<letter>`. A reserved
+  keystroke, an action this product does not expose, a shape the router cannot match, and an unbind
+  are each refused by name and reported in `/status`. A built-in gesture wins a collision, and a
+  binding cannot reach past the gate that withholds keys from an untrusted directory (#127)
+- **Custom themes** from `~/.claude/themes/*.json`, in Claude Code's format, selected with
+  `/theme custom:<slug>`; `/theme` with no argument lists what is on disk. Six of their ~40 colour
+  tokens map onto this product's structured theme (`claude`, `error`, `success`, `warning`,
+  `diffAdded`, `diffRemoved`) and everything else — an unmapped token, a colour notation this
+  product does not render, a base variant with no equivalent — is named in the toast rather than
+  dropped. Base names keep their light/dark axis, so an accessibility variant we cannot reproduce
+  does not repaint a light terminal to the default (#127)
+- **Output styles.** `output_style` names a `.md` file under `~/.claude/output-styles/` or
+  `<project>/.claude/output-styles/` — Claude Code's feature, in its directories, with its
+  frontmatter (`name`, `description`, `keep-coding-instructions`). A style **replaces** the built-in
+  coding instructions and only appends when `keep-coding-instructions: true`; that key defaults to
+  false, and getting it backwards would make every style a no-op with a suffix. The project wins a
+  name collision, `THEOCODE_OUTPUT_STYLE` sets it from the environment, and a name that matches no
+  file falls back to the built-in instructions rather than refusing the turn — `theocode doctor`
+  names it instead (#127)
+- In a `settings.json` the style may be spelled `outputStyle`, Claude Code's name: it is the one
+  setting besides `model` whose name and meaning are identical in both products, so it is translated
+  rather than ignored. Every other apparent overlap between the two vocabularies is a name collision
+  with a different meaning behind it and is deliberately NOT translated (#127)
+- `.claude/settings.local.json` and `.theokit/settings.local.json` are read as their own layer,
+  above the committed project file and below profiles — Claude Code's precedence, and its own layer
+  so hooks accumulate across the two rather than one replacing the set (#127)
+- `theocode migrate-config` converts every leftover `config.toml` — in the project and in the user
+  directory — into `settings.json`, through the same schema the loader parses with. It runs before
+  configuration is resolved, so it stays reachable when the loader refuses to start (#127)
+- `hooks` may be written in Claude Code's nested-by-event dialect in this product's own
+  `settings.json`: `timeout` is converted from seconds to `timeout_ms`, `matcher: "*"` becomes
+  match-all rather than an invalid regex that would fail at boot, and an event this product does not
+  have is dropped and named instead of throwing (#127)
+
 ### Fixed
+
+- `/hooks` reported a `SessionStart` hook as active while it can never fire. It now lists it marked
+  — `DECLARED BUT NEVER RUNS` — rather than as wired, and marked rather than hidden: a row that
+  disappeared would answer "was my file read?" with silence, a second false answer in place of the
+  first. Root cause is upstream (theokit-sdk#613): the SDK has two hook subsystems, and
+  `on_session_start` exists only in the one that hook handlers never reach. The three events that do
+  fire are exactly the three with a member in the other (#132)
+- `pnpm lint` now runs `depcruise`, which CI already ran and the local gate did not. A circular
+  import between the config schema and its disk loader passed every local check and failed on the
+  PR — the same shape as a CI suite that is green on a broken build, in reverse (#127)
+- Corrected a false claim in the source: a comment stated that hooks translated from a
+  `settings.json` "go through the same fingerprint approval gate as every other hook". Measured in
+  the TUI with a real TTY — three hooks declared in this product's own file fired three times with
+  zero approval prompts and no approvals file written. Directory trust is what stood between them
+  and the operator, not the fingerprint. The comment now carries the measurement; whether project
+  scope is covered by directory trust deliberately is asked in #130 (#127)
+- `resolveEffectiveConfig` resolved the trust posture from the ambient environment while resolving
+  the configuration from the one the caller injected — B-033's split, one layer lower. Already
+  wrong, and expensive now: the posture decides whether a project's whole `settings.json` is read
+  (#127)
+- Two docblock citations that pointed at nothing: `env-knobs.ts` named `docs/CONFIGURATION.md`,
+  which has never existed here, and `hooks/hooks.ts` called itself the parser for
+  `.theokit/hooks.json`, which no caller has ever handed it. The `reader`-path gate only checks the
+  `reader` field, so a citation in the prose beside it was invisible — the same shape as B-134, one
+  field over (#127)
 
 - The pin guard now checks the tree, not only the files. An install can report success and leave the
   previous version in place; every declaration then agrees while the build runs against something

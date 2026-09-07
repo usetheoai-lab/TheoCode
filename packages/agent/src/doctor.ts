@@ -24,6 +24,7 @@
  * non-zero, because a product whose check list failed to load would otherwise announce that an
  * installation nobody examined is fine. The local version had exactly that hole.
  */
+import type { SettingsFileReport } from './config/settings-load.js'
 import type { Check } from '@theokit/agents/doctor'
 
 /**
@@ -143,6 +144,43 @@ function skillsOnDiskCheck(
   return [{ name: 'skills-on-disk', status: 'warn', detail: parts.join(' · ') }]
 }
 
+function settingsCheck(reports: readonly SettingsFileReport[] = []): Check[] {
+  const said = reports
+    .map((r) => {
+      const parts = [
+        r.ignored.length > 0 ? `not implemented here: ${r.ignored.join(', ')}` : '',
+        r.unrecognised.length > 0 ? `unrecognised: ${r.unrecognised.join(', ')}` : '',
+        r.droppedHooks.length > 0 ? `hooks not translated: ${r.droppedHooks.join('; ')}` : '',
+      ].filter((p) => p !== '')
+      return parts.length > 0 ? `${r.path} — ${parts.join('; ')}` : ''
+    })
+    .filter((line) => line !== '')
+  // Appended only when there is something to say: a row that permanently reads "none" is noise, and
+  // noise is what makes a diagnostic stop being read.
+  if (said.length === 0) return []
+  return [
+    {
+      name: 'settings',
+      // A warning, never a failure. Nothing is broken by a key this product chose not to implement.
+      status: 'warn' as const,
+      detail: said.join(' | '),
+    },
+  ]
+}
+
+function outputStyleCheck(style?: { name: string; resolved: boolean }): Check[] {
+  if (style === undefined) return []
+  return [
+    {
+      name: 'output-style',
+      status: style.resolved ? ('ok' as const) : ('warn' as const),
+      detail: style.resolved
+        ? style.name
+        : `${style.name} — no such file under .claude/output-styles/; the built-in instructions are in use`,
+    },
+  ]
+}
+
 export function collectChecks(input: {
   readonly cwd: string
   readonly trustLevel: string
@@ -165,6 +203,16 @@ export function collectChecks(input: {
     readonly presentButUndeclared: readonly string[]
     readonly declaredUserOnlySoNotLoaded?: readonly string[]
   }
+  /**
+   * Per `settings.json` actually read: what it carried that this product did not act on. Optional,
+   * so a caller that did not look says nothing rather than asserting the files were clean.
+   */
+  readonly settingsIgnored?: readonly SettingsFileReport[]
+  /**
+   * The configured output style and whether a file was found for it. Optional: a caller that did not
+   * look says nothing, rather than asserting no style is configured.
+   */
+  readonly outputStyle?: { readonly name: string; readonly resolved: boolean }
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
@@ -193,6 +241,13 @@ export function collectChecks(input: {
     // file to write, against a config line to add. A green tick for a skill that is not there is the
     // shape this repository has fixed three times.
     ...skillsOnDiskCheck(input.skillsOnDisk),
+    // `settings.json` is Claude Code's filename, so a real one carries their settings. Tolerating
+    // them is what lets the product start; naming them is what stops the tolerance from teaching an
+    // operator that a key is read when it is not.
+    ...settingsCheck(input.settingsIgnored),
+    // The style is applied silently — a name that matches no file falls back to the built-in
+    // instructions so a typo cannot take the turn away. That fallback has to be loud somewhere.
+    ...outputStyleCheck(input.outputStyle),
     // Appended only when there is something to say. A row that permanently reads "none" is noise in
     // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
     ...((input.strayCredentials ?? []).length > 0

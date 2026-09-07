@@ -19,6 +19,7 @@ import { workingDirectory } from '../working-directory.js'
 import { THEME_RESOLUTION } from '../theme.js'
 import { themeResolutionLine } from './theme-command.js'
 import { sessionThemeBase } from '../theme-session.js'
+import { keybindingsNotApplied } from '../terminal-io/use-tui-keyboard.js'
 import type { WiredCapabilities } from '@theocode/agent'
 import { BASE_NAMES, agentsMdChain, loadRules, loadUserRules } from '@theocode/agent/context'
 
@@ -287,11 +288,30 @@ export function statusPanel(
     // a panel that reported only the active base would leave a user unable to tell a switch they
     // made from an environment they need to go and fix.
     ['theme', themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())],
+    // The keybindings file is silent by construction: a binding that was not applied is a key that
+    // does nothing, which reads as a broken terminal rather than as an unsupported action. This row
+    // is the only place that says otherwise, and it is here rather than in `theocode doctor`
+    // because the CLI does not depend on the TUI — the boundary `theme-base.ts` records.
+    ['keybindings', keybindingsRow(keybindingsNotApplied())],
   ]
   return {
     title: 'session status',
     body: alignedRows(rows),
   }
+}
+
+/**
+ * What a `~/.claude/keybindings.json` asked for and did not get.
+ *
+ * Answers on BOTH branches. A row that vanishes when everything applied is indistinguishable from a
+ * row nobody wrote, and `/status` is a fixed set of labels read at a glance. Long lists are counted
+ * rather than printed: seven refusals would push the rows below this one off the screen, and the
+ * count is what makes an operator go and look.
+ */
+export function keybindingsRow(notApplied: readonly string[]): string {
+  if (notApplied.length === 0) return 'honoured'
+  if (notApplied.length <= 2) return `not applied: ${notApplied.join('; ')}`
+  return `${String(notApplied.length)} not applied: ${notApplied.slice(0, 2).join('; ')}; …`
 }
 
 /**

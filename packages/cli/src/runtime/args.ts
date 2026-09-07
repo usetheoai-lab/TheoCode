@@ -1,3 +1,4 @@
+import { USAGE } from './usage.js'
 import { parseArgs } from 'node:util'
 
 export type StdinBehavior = 'none' | 'required' | 'forced' | 'append'
@@ -77,30 +78,25 @@ export interface ExecDoctor {
   cd?: string
 }
 
+export interface ExecMigrateConfig {
+  mode: 'migrate-config'
+  cd?: string
+}
+
 export interface ExecHelp {
   mode: 'help'
   usage: string
 }
 
 export type ExecArgs =
-  ExecRun | ExecReview | ExecGoal | ExecSessions | ExecDoctor | ExecHelp | ExecUsageError
-
-// B-022 — no `exec` here. It is the npm SCRIPT name (`npm run exec`), not a subcommand of the
-// built binary, and the parser has no branch for it: the token fell through to the PROMPT, so
-// following this text started a billable model turn instead of running the command. `README.md`
-// had the correct form all along.
-export const USAGE = `Usage: theocode [OPTIONS] [PROMPT]
-       theocode resume [--last] [SESSION_ID] [PROMPT]
-       theocode review (--uncommitted | --base <BRANCH> | --commit <SHA> | [PROMPT])
-       theocode goal <OBJECTIVE> [--max-turns <N>] [--token-budget <N>]
-       theocode sessions gc [--all-projects] [--apply] [--keep <N>] [--max-age-days <D>]
-       theocode sessions (list | archive <ID> | rename <ID> <NAME> | delete <ID> | fork <ID>)
-       theocode doctor   (reports the resolved install; exits non-zero when something is broken)
-
-Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
-         -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>
-Stdout carries ONLY the final message (or JSONL with --json); progress goes to stderr.
-Exit code is 1 when the turn fails or is interrupted (review findings do NOT affect it).`
+  | ExecRun
+  | ExecReview
+  | ExecGoal
+  | ExecSessions
+  | ExecDoctor
+  | ExecMigrateConfig
+  | ExecHelp
+  | ExecUsageError
 
 const OPTIONS = {
   // B-023 — the usage text used to be reachable ONLY by triggering an error, so a user asking for
@@ -221,6 +217,30 @@ function parseDoctor(values: OptionValues): ExecArgs {
   return {
     mode: 'doctor',
     json: values.json === true,
+    ...(values.cd !== undefined ? { cd: values.cd } : {}),
+  }
+}
+
+interface SubcommandInput {
+  values: OptionValues
+  positionals: string[]
+  overrides: string[]
+  overridesPresent: string[]
+}
+
+/** Every subcommand the binary routes, keyed by the token a user types after `theocode`. */
+const SUBCOMMANDS: Record<string, (i: SubcommandInput) => ExecArgs> = {
+  review: (i) => parseReview(i.values, i.positionals, i.overrides),
+  sessions: (i) => parseSessions(i.values, i.positionals, i.overrides, i.overridesPresent),
+  doctor: (i) => parseDoctor(i.values),
+  'migrate-config': (i) => parseMigrateConfig(i.values),
+  goal: (i) => parseGoal(i.values, i.positionals, i.overrides),
+}
+
+/** Named by the loader's refusal when a `config.toml` is stranded — see `migrate-config.ts`. */
+function parseMigrateConfig(values: OptionValues): ExecArgs {
+  return {
+    mode: 'migrate-config',
     ...(values.cd !== undefined ? { cd: values.cd } : {}),
   }
 }
@@ -453,16 +473,9 @@ export function parseExecArgs(argv: string[], stdinIsTTY: boolean): ExecArgs {
 
   const { overrides, overridesPresent } = collectOverrides(values)
 
-  switch (positionals[0]) {
-    case 'review':
-      return parseReview(values, positionals, overrides)
-    case 'sessions':
-      return parseSessions(values, positionals, overrides, overridesPresent)
-    case 'doctor':
-      return parseDoctor(values)
-    case 'goal':
-      return parseGoal(values, positionals, overrides)
-    default:
-      return parseResumeOrPrompt(values, positionals, overrides, stdinIsTTY)
-  }
+  // A table rather than a switch: adding a subcommand is then an entry, not a branch, and the
+  // routing gate in `args.test.ts` reads the same list the usage text is checked against.
+  const sub = SUBCOMMANDS[positionals[0] ?? '']
+  if (sub !== undefined) return sub({ values, positionals, overrides, overridesPresent })
+  return parseResumeOrPrompt(values, positionals, overrides, stdinIsTTY)
 }

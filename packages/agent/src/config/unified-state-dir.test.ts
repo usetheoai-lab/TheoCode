@@ -39,9 +39,15 @@ afterEach(() => {
   rmSync(project, { recursive: true, force: true })
 })
 
-function writeToml(dir: string, rel: string, body: string): void {
+/**
+ * The file these assertions are about changed name — `config.toml` became `settings.json` when the
+ * two dialects were unified. What #72 fixed did NOT change: one root for this product's state, the
+ * previous root still read so nobody is stranded, and the trust gate deciding the project side
+ * regardless of which root the project used. Those are the invariants below.
+ */
+function writeSettings(dir: string, rel: string, values: Record<string, unknown>): void {
   mkdirSync(join(dir, rel), { recursive: true })
-  writeFileSync(join(dir, rel, 'config.toml'), body)
+  writeFileSync(join(dir, rel, 'settings.json'), JSON.stringify(values))
 }
 
 describe('#72 — homeStateDir is the one answer', () => {
@@ -54,9 +60,9 @@ describe('#72 — homeStateDir is the one answer', () => {
   })
 })
 
-describe('#72 — config.toml is read from the unified directory', () => {
+describe('#72 — settings.json is read from the unified directory', () => {
   it('test_the_unified_home_location_is_read', () => {
-    writeToml(home, '.theokit', 'model = "unified/one"\n')
+    writeSettings(home, '.theokit', { model: 'unified/one' })
 
     expect(loadConfig({ projectDir: project, userDir: home, env: {}, posture: OPEN }).model).toBe(
       'unified/one',
@@ -66,7 +72,7 @@ describe('#72 — config.toml is read from the unified directory', () => {
   it('test_the_previous_home_location_still_works', () => {
     // Nobody is stranded. An operator who configured this product before the directories were one
     // does not get a silent reset to defaults.
-    writeToml(home, '.theocode', 'model = "legacy/one"\n')
+    writeSettings(home, '.theocode', { model: 'legacy/one' })
 
     expect(loadConfig({ projectDir: project, userDir: home, env: {}, posture: OPEN }).model).toBe(
       'legacy/one',
@@ -74,8 +80,8 @@ describe('#72 — config.toml is read from the unified directory', () => {
   })
 
   it('test_the_unified_location_wins_when_both_exist', () => {
-    writeToml(home, '.theokit', 'model = "unified/one"\n')
-    writeToml(home, '.theocode', 'model = "legacy/one"\n')
+    writeSettings(home, '.theokit', { model: 'unified/one' })
+    writeSettings(home, '.theocode', { model: 'legacy/one' })
 
     expect(loadConfig({ projectDir: project, userDir: home, env: {}, posture: OPEN }).model).toBe(
       'unified/one',
@@ -83,7 +89,7 @@ describe('#72 — config.toml is read from the unified directory', () => {
   })
 
   it('test_a_project_config_is_read_from_the_unified_directory', () => {
-    writeToml(project, '.theokit', 'model = "project/unified"\n')
+    writeSettings(project, '.theokit', { model: 'project/unified' })
 
     expect(loadConfig({ projectDir: project, userDir: home, env: {}, posture: OPEN }).model).toBe(
       'project/unified',
@@ -91,7 +97,7 @@ describe('#72 — config.toml is read from the unified directory', () => {
   })
 
   it('test_the_previous_project_location_still_works', () => {
-    writeToml(project, '.theocode', 'model = "project/legacy"\n')
+    writeSettings(project, '.theocode', { model: 'project/legacy' })
 
     expect(loadConfig({ projectDir: project, userDir: home, env: {}, posture: OPEN }).model).toBe(
       'project/legacy',
@@ -101,8 +107,8 @@ describe('#72 — config.toml is read from the unified directory', () => {
   it('test_an_untrusted_project_config_is_still_withheld_from_both', () => {
     // The trust gate is about the project, not about which of our two directories it used. Widening
     // the search must not widen what an untrusted repository may say.
-    writeToml(project, '.theokit', 'model = "hostile/unified"\n')
-    writeToml(project, '.theocode', 'model = "hostile/legacy"\n')
+    writeSettings(project, '.theokit', { model: 'hostile/unified' })
+    writeSettings(project, '.theocode', { model: 'hostile/legacy' })
     const closed = {
       allows: { projectConfig: false, hooks: false, skills: false, mcp: false, memory: false, agentsMd: false },
     } as unknown as Parameters<typeof loadConfig>[0]['posture']

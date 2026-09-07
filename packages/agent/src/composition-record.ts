@@ -7,6 +7,7 @@ import { projectSourceAllowed } from './config/project-source.js'
 import { agentsMdChain, loadRules, loadUserRules } from './context/index.js'
 import type { RulesLoad } from './context/rules.js'
 import { parseHooks } from './hooks/index.js'
+import { markInertEvents } from './hooks/inert-events.js'
 import type { McpScopes } from './mcp-scopes.js'
 import { wiredCapabilities } from './wired-capabilities.js'
 import type { WiredCapabilities } from './wired-capabilities.js'
@@ -17,7 +18,11 @@ function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
     // B-071 — event AND command: a listing that showed only the event would tell a user something
     // is allowed to block them without saying what runs, which is the half that matters when the
     // directory came from a clone.
-    return parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`)
+    // Marked, not filtered: `SessionStart` parses and cannot fire (theokit-sdk#613), and a listing
+    // that reported it as active would make `/hooks` — the one place an operator checks — state
+    // something false with a UI attached. Hiding it instead would answer "was my file read?" with
+    // silence, which is a second false answer rather than a fix for the first.
+    return markInertEvents(parseHooks(cfg.hooks).map((h) => `${h.event}  ${h.command}`))
   } catch {
     return []
   }
