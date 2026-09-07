@@ -16,6 +16,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-07
+
+### Fixed
+
+- `sessions gc` no longer deletes a transcript it could not read. "I could not read this" and
+  "this belongs to nobody" are opposite claims, and only the second justifies deletion (#106).
+
+### Changed
+
+- `@theokit/sdk` 5.2.1 → 5.3.0, which publishes `listSessions` — a listing that reads each session
+  id from inside its transcript and reports `unavailable` rather than guessing from the filename.
+
 ## [0.10.0] - 2026-09-06
 
 ### Fixed
