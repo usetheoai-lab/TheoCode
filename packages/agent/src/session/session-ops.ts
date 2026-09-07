@@ -100,9 +100,41 @@ export class LiveSessionDeletionError extends TheokitAgentError {
   }
 }
 
+/**
+ * What happened to the registry entry, MEASURED by re-reading the listing.
+ *
+ * Three states rather than a boolean, because a boolean would have to lie about the third: a session
+ * that was not listed before the delete (archived sessions are excluded from the listing) is absent
+ * after it too, and calling that a removal is a false success of exactly the shape #125 filed.
+ */
+export type RegistryOutcome = 'removed' | 'still-present' | 'unverified'
+
 export interface DeleteSessionResult {
   /** Whether a transcript file was found and unlinked. False when the registry outlived the file. */
   readonly transcriptRemoved: boolean
+  /** What happened to the registry entry — re-read, never taken from the removal's own report. */
+  readonly registryEntry: RegistryOutcome
+}
+
+/**
+ * #125 — classify the registry half from the listing before and after.
+ *
+ * Its own function, and pure, so the RULE is testable without a registry on disk. The I/O around it
+ * was never the part that was wrong: what was wrong is that nothing asked the question.
+ *
+ * Why not the SDK's `registryRemoved`: measured 2026-09-07, it is `true` even when the injected
+ * removal returns `undefined` and removes nothing. It reports that the call did not REJECT, and with
+ * `Agent.delete(id): Promise<void>` never throwing on a miss (theokit-sdk#612) that is
+ * indistinguishable from success. Carrying it through would move the false assertion, not remove it.
+ */
+export function classifyRegistryOutcome(seen: {
+  before: readonly string[]
+  after: readonly string[]
+  id: string
+}): RegistryOutcome {
+  if (seen.after.includes(seen.id)) return 'still-present'
+  if (!seen.before.includes(seen.id)) return 'unverified'
+  return 'removed'
 }
 
 export interface DeleteSessionOptions {
@@ -137,6 +169,8 @@ export async function deleteSession(
   }
 
   const removeFromRegistry = opts.removeFromRegistry ?? ((id: string) => Agent.delete(id))
+  // Read BEFORE, so a session that was never listed can be told apart from one that was removed.
+  const before = (await listAgents(cwd)).map((a) => a.agentId)
   await removeFromRegistry(agentId)
 
   // The transcript removal is the framework's — and not only to avoid a second copy.
@@ -162,7 +196,14 @@ export async function deleteSession(
     root: dir,
     force: true,
   })
-  return { transcriptRemoved }
+  // #125 — the registry half is MEASURED, not reported. The removal returns `Promise<void>` and does
+  // not throw when it removes nothing, so awaiting it is indistinguishable from success; the only
+  // evidence available is the listing itself.
+  const after = (await listAgents(cwd)).map((a) => a.agentId)
+  return {
+    transcriptRemoved,
+    registryEntry: classifyRegistryOutcome({ before, after, id: agentId }),
+  }
 }
 
 /**

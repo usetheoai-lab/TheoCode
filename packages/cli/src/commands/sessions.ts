@@ -105,12 +105,20 @@ async function runTargeted(args: ExecSessions, ops: SessionOps, say: Say): Promi
   }
   if (args.action === 'delete') {
     const r = await ops.deleteSession(target)
-    return say(
-      { type: 'sessions.delete', id: target, transcriptRemoved: r.transcriptRemoved },
-      r.transcriptRemoved
-        ? `deleted ${target} — transcript removed from disk`
-        : `deleted ${target} from the session list; its transcript was already gone`,
+    const report = deleteReport(target, r)
+    say(
+      {
+        type: 'sessions.delete',
+        id: target,
+        transcriptRemoved: r.transcriptRemoved,
+        registryEntry: r.registryEntry,
+      },
+      report.message,
     )
+    // #125 — a delete that left the entry behind must reach the exit code. A script deleting in a
+    // loop has no other way to learn that nothing was deleted.
+    if (report.failed) process.exit(1)
+    return
   }
   const r = ops.forkSession(target, `${target}-fork-${String(process.pid)}`)
   if (!r.copied) {
@@ -145,6 +153,44 @@ async function sessionOperation(args: ExecSessions): Promise<void> {
     )
     process.exit(1)
   }
+}
+
+/**
+ * #125 — what to say about a delete, per store, and whether it failed.
+ *
+ * Both branches of the previous message opened with `deleted ${id}`, and the second asserted about
+ * the registry — the half nothing had checked. A session left registered with its transcript gone
+ * was reported as a success, exit 0.
+ *
+ * Three registry outcomes and three sentences, because collapsing them is how the false success
+ * happened: `unverified` is not a failure (an archived session is excluded from the listing this
+ * verification reads, so absence proves nothing) and it is not a removal either.
+ */
+export function deleteReport(
+  id: string,
+  r: { transcriptRemoved: boolean; registryEntry: 'removed' | 'still-present' | 'unverified' },
+): { message: string; failed: boolean } {
+  const transcript = r.transcriptRemoved
+    ? 'transcript removed from disk'
+    : 'its transcript was already gone'
+  if (r.registryEntry === 'still-present') {
+    return {
+      message:
+        `${id} is STILL REGISTERED after the delete — ${transcript}. ` +
+        'The registry half did not happen (theokit-sdk#612); the session will keep appearing in ' +
+        '`sessions list` with no transcript behind it.',
+      failed: true,
+    }
+  }
+  if (r.registryEntry === 'unverified') {
+    return {
+      message:
+        `${id}: ${transcript}. Whether the registry entry went could not be verified — it was not ` +
+        'in the listing before the delete either, which is what an archived session looks like.',
+      failed: false,
+    }
+  }
+  return { message: `deleted ${id} — ${transcript}`, failed: false }
 }
 
 export async function sessionsCommand(args: ExecSessions): Promise<void> {

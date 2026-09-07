@@ -32,6 +32,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `sessions delete` reported success about the half nothing had checked: it removed the transcript,
+  left the registry entry, and printed `deleted <id>` with exit 0 — leaving a registered session
+  whose transcript no longer exists. The registry half is now MEASURED by re-reading the listing
+  before and after, in three states: `removed`, `still-present` (named, and exit 1) and
+  `unverified` (an archived session is excluded from that listing, so absence proves nothing there).
+  The SDK's own `registryRemoved` is deliberately not used — measured 2026-09-07 it is `true` even
+  when the removal removes nothing, because it reports that the call did not reject (#125)
 - `sessions list` could not list a single session created by the headless CLI. It kept only ids
   beginning with `tui-`, and three surfaces mint ids — the TUI, the headless CLI (`exec-`) and the
   review runner (`review-`) — so every headless session was invisible to the only command that
