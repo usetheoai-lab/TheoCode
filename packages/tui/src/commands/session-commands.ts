@@ -1,3 +1,4 @@
+import { compactReport } from './compact-report.js'
 import {
   memoryFacts,
   withFactRemoved,
@@ -367,7 +368,10 @@ export function handleCompact(sessionId: string, setToast: SetToast): void {
       const { preTokens, postTokens } = await compactSession(sessionId)
       process.stderr.write(`[compact] pre=${preTokens} post=${postTokens}\n`)
       setToast({
-        message: `Context compacted (~${preTokens}→~${postTokens} tokens) — next turn runs on the compacted history. Heads up: multiple compactions can reduce accuracy; consider /new for unrelated work.`,
+        // #126 — the wording is in `compact-report.ts`, with the measurement that decided it. The
+        // previous sentence called this number "context" while the footer used the same word for a
+        // different, much larger quantity, and left the two contradicting each other in one frame.
+        message: compactReport(preTokens, postTokens),
         variant: 'success',
       })
     } catch (err) {

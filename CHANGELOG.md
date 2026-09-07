@@ -32,6 +32,14 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `/compact` reported a real measurement of the wrong quantity: it said
+  `Context compacted (~348→~188 tokens)` while the footer read the same `40.3k/121.6k context`
+  before and after — two numbers for one word in one frame, leaving only two readings available and
+  neither of them what happened. Those numbers count the TEXT of user/assistant/system messages;
+  `tool_use` and `tool_result` blocks are not counted, and on a real session they were ~83% of the
+  transcript. The compaction itself works — 28.7k → 5.5k measured, tool output genuinely removed.
+  The numbers stay and are now labelled for what they count, which is the M94 shape from the footer
+  one line above the meter this contradicted (#126)
 - `sessions delete` reported success about the half nothing had checked: it removed the transcript,
   left the registry entry, and printed `deleted <id>` with exit 0 — leaving a registered session
   whose transcript no longer exists. The registry half is now MEASURED by re-reading the listing
