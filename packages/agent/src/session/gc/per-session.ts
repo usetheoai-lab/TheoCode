@@ -80,6 +80,35 @@ function resolvePlanOptions(opts: PlanSessionGCOptions) {
   }
 }
 
+/**
+ * #102 — the candidate carries the SESSION id it was matched from, so the deletion can address the
+ * registry in the registry's vocabulary. `find`, not `some`: discarding the match is what made
+ * `Agent.delete` receive a transcript name.
+ */
+function candidateFor(
+  id: string,
+  ageDays: number,
+  registryAll: ReadonlySet<string>,
+  namesOf: (session: string) => string[],
+): SessionGCCandidate {
+  const agentId = [...registryAll].find((a) => namesOf(a).includes(id))
+  return {
+    id,
+    ageDays,
+    inRegistry: agentId !== undefined,
+    ...(agentId !== undefined ? { agentId } : {}),
+  }
+}
+
+/** #106 — only an EXPLICIT `unavailable` counts; an absent field is not doubt. See the call site. */
+function unreadable(entry: { id: string; mtimeMs: number }): boolean {
+  // `readdir` is typed for this repository's own seam, which has no `idSource`. A caller that hands
+  // in `listSessions` output carries one, so the field is read defensively rather than declared —
+  // widening the seam's type would make every existing caller look as though it supplied something
+  // it does not.
+  return (entry as { idSource?: unknown }).idSource === 'unavailable'
+}
+
 export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<SessionGCPlan> {
   const { cwd, baseDir, now, keepLast, maxAgeDays, listFn, readdir, readPointer } =
     resolvePlanOptions(opts)
@@ -125,20 +154,43 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
 
   const candidates: SessionGCCandidate[] = []
   const kept: string[] = []
-  for (const { id, mtimeMs } of onDisk) {
+  for (const entry of onDisk) {
+    const { id, mtimeMs } = entry
     const ageDays = (now() - mtimeMs) / 86_400_000
+    // #106 — "I could not read this" is not "this belongs to nobody", and only the second justifies
+    // deletion. `@theokit/sdk@5.3.0`'s `listSessions` reports `idSource: "unavailable"` instead of
+    // falling back to the filename — the fallback that produced this whole family of defect in two
+    // independent consumers. Without the distinction an unreadable transcript matched no registry
+    // id, fell into "not registered", and was unlinked.
+    //
+    // ABSENT means "no reason to doubt", not "unreadable": this repository's own `readdir` seam does
+    // not supply the field, and reading its absence as doubt would switch `gc` off entirely for
+    // every caller that has not adopted the new listing. Pinned by an arm.
+    //
+    // The asymmetry is the argument. Keeping a file that turns out to be junk costs disk; deleting
+    // one that turns out to be a live session costs the session, and `unlink` has no undo.
+    if (unreadable(entry)) {
+      kept.push(id)
+      continue
+    }
+    // #106 — "I could not read this" is not "this belongs to nobody", and only the second justifies
+    // deletion. `@theokit/sdk@5.3.0`'s `listSessions` reports `idSource: "unavailable"` rather than
+    // falling back to the filename — the fallback that produced this whole family of defect in two
+    // independent consumers. Without the distinction an unreadable transcript matched no registry
+    // id, fell into "not registered", and was unlinked.
+    //
+    // ABSENT means "no reason to doubt", not "unreadable": this repository's own `readdir` seam does
+    // not supply the field, and reading its absence as doubt would switch `gc` off entirely for
+    // every caller that has not adopted the new listing.
+    //
+    // The asymmetry is the argument. Keeping a file that turns out to be junk costs disk; deleting
+    // one that turns out to be a live session costs the session, and `unlink` has no undo.
     if (!protectedIds.has(id) && ageDays > maxAgeDays) {
       // `registryAll` holds SESSION ids and `id` is a transcript name — comparing them directly is
       // what made this field permanently false. Ask the registry in its own vocabulary.
       // #102 — `find`, not `some`: the matching id is the one `Agent.delete` needs, and discarding
       // it here is what made the deletion address a name the registry has never heard of.
-      const agentId = [...registryAll].find((a) => namesOf(a).includes(id))
-      candidates.push({
-        id,
-        ageDays,
-        inRegistry: agentId !== undefined,
-        ...(agentId !== undefined ? { agentId } : {}),
-      })
+      candidates.push(candidateFor(id, ageDays, registryAll, namesOf))
     } else {
       kept.push(id)
     }
