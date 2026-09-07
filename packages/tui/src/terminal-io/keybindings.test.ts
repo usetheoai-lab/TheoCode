@@ -22,7 +22,12 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { loadKeybindings, REBINDABLE } from './keybindings.js'
+import {
+  CLAIMED_BY_ROUTER,
+  loadKeybindings,
+  REBINDABLE,
+  RESERVED_FOR_REFERENCE,
+} from './keybindings.js'
 
 let home: string
 
@@ -110,5 +115,34 @@ describe('reading the file', () => {
 
   it('test_the_rebindable_set_is_not_empty_so_these_arms_are_not_vacuous', () => {
     expect(REBINDABLE.length).toBeGreaterThan(0)
+  })
+})
+
+describe('a key the router always claims', () => {
+  it('test_it_is_refused_rather_than_counted_as_honoured', () => {
+    // Found on the bench (#135) by the negative arm, not by this suite. `ctrl+o` is not in their
+    // RESERVED list — it is not theirs — and it passes every other check: right shape, action in
+    // REBINDABLE. So it was counted as bound while `boundAction` is consulted only where nothing
+    // built-in claimed the key, and the built-in claims this one always. `/status` then said
+    // `honoured` about a binding that can never fire, which is #132's family exactly: declared,
+    // confirmed active by the product's own report, structurally incapable of running.
+    bindings({ bindings: [{ context: 'Chat', bindings: { 'ctrl+o': 'quit' } }] })
+    const read = loadKeybindings(home)
+
+    expect(read.bound).toEqual([])
+    expect(read.notApplied.join(' ')).toContain('ctrl+o')
+  })
+
+  it('test_a_key_the_router_does_not_claim_is_still_bound', () => {
+    // Anti-vacuity floor: a loader that refused every ctrl+letter would satisfy the arm above.
+    bindings({ bindings: [{ context: 'Chat', bindings: { 'ctrl+r': 'quit' } }] })
+    expect(loadKeybindings(home).bound).toHaveLength(1)
+  })
+
+  it('test_the_two_sets_stay_separate', () => {
+    // Their RESERVED list is copied verbatim on purpose. Folding a built-in of ours into it would
+    // stop it being a faithful copy, and the provenance split is what this whole slice is built on.
+    expect(RESERVED_FOR_REFERENCE.has('ctrl+o')).toBe(false)
+    expect(CLAIMED_BY_ROUTER.has('ctrl+o')).toBe(true)
   })
 })

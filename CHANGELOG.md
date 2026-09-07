@@ -30,6 +30,14 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [0.11.0] - 2026-09-07
 
+### Fixed
+
+- A keybinding on a key this router always claims was counted as honoured while it could never fire:
+  `ctrl+o` is not on Claude Code's reserved list, has the right shape and names a real action, so it
+  passed every check — and the binding is consulted only where nothing built-in claimed the key. It
+  is now refused by name, through a set kept SEPARATE from the reserved one: their list is copied
+  verbatim, and folding one of ours into it would stop it being a faithful copy (#135)
+
 ### Added
 
 - **Keybindings** from `~/.claude/keybindings.json`, in Claude Code's format, read at startup.

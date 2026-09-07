@@ -130,8 +130,8 @@ is refused **by name**: a reserved keystroke, an action this product does not ex
 router cannot match (`shift+tab`, chords), or an unbind — this product's built-in keys are computed,
 so there is no table entry to remove.
 
-A built-in gesture always wins a collision: binding `ctrl+o` to `quit` leaves it toggling verbose
-rather than exiting. A binding cannot reach past the gate that withholds keys from an untrusted
+A built-in gesture always wins a collision, and a binding on a key the router always claims
+(`ctrl+o`, `ctrl+c`) is refused by name rather than accepted and left inert. A binding cannot reach past the gate that withholds keys from an untrusted
 directory or a pending approval.
 
 `/status` names what the file asked for and did not get. The file is read once at startup, so an
