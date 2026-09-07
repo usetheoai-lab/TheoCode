@@ -52,7 +52,21 @@ describe('#96 — the composed module loads', () => {
   it('test_a_promise_in_default_is_refused_so_this_arm_is_not_vacuous', () => {
     // Anti-vacuity, and it reproduces the exact 0.7.0 defect. Without this, an arm asserting
     // `not.toThrow()` would pass against a loader that accepted everything.
-    expect(() => compileAgentModule({ default: Promise.resolve({}) }, 'smoke')).toThrow(
+    //
+    // The cast is the good news. Reported from here as `theokit#663`; in `@theokit/agents@13.0.0-
+    // next.2` the parameter is `AgentModule`, so this line no longer compiles without help — the
+    // shape that shipped broken in 0.7.0 and 0.7.1 is now a COMPILE error, caught before a commit
+    // rather than on the first turn of a released version.
+    //
+    // The arm stays anyway, and the cast is what keeps it honest. The type guards a TypeScript
+    // caller; the runtime guard is what stands between a JS consumer — or a module arriving from a
+    // dynamic `import()`, where the type is `unknown` by construction — and a loader that would
+    // accept anything. Deleting this because the compiler now covers one of the two paths would
+    // leave the other unasserted.
+    const promiseModule = { default: Promise.resolve({}) } as unknown as Parameters<
+      typeof compileAgentModule
+    >[0]
+    expect(() => compileAgentModule(promiseModule, 'smoke')).toThrow(
       /must default-export a defineAgent/,
     )
   })

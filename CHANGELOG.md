@@ -16,6 +16,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- `@theokit/agents` 13.0.0-next.1 → 13.0.0-next.2, which narrows the agent-module parameter from
+  `unknown` to a real type. The shape that shipped unable to start a turn in 0.7.0 and 0.7.1 is now
+  a compile error rather than a runtime one (upstream theokit#663, reported from here).
+
 ## [0.10.1] - 2026-09-07
 
 ### Fixed
