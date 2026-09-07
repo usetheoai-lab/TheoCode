@@ -19,7 +19,7 @@ export const USAGE = `Usage: theocode [OPTIONS] [PROMPT]
        theocode doctor   (reports the resolved install; exits non-zero when something is broken)
        theocode migrate-config   (converts a leftover config.toml into settings.json)
 
-Options: --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
+Options: --version/-v  --json  -m/--model <id>  -C/--cd <dir>  -o/--output-last-message <file>  --skip-git-repo-check
          -c/--config <key=value> (repeatable)  --sandbox <mode>  -a/--approval <policy>  --effort <level>
 Stdout carries ONLY the final message (or JSONL with --json); progress goes to stderr.
 Exit code is 1 when the turn fails or is interrupted (review findings do NOT affect it).`
