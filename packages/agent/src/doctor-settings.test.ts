@@ -112,10 +112,15 @@ describe('the version row', () => {
   it('test_doctor_names_the_build', () => {
     // #128 — `doctor` reports the resolved install, and the version is the one fact every bug
     // report asks for first. Without it the answer to "which build are you on?" was to read a file.
-    const check = collectChecks({ ...base, version: '0.11.0' }).find((c) => c.name === 'version')
+    // A value that is NOT the current version, deliberately: a fixture equal to the real one passes
+    // whether or not it flows through, and `bump_version.py` then has to ask whether a test is a
+    // release site. It is not — which is exactly what it refused to guess.
+    const check = collectChecks({ ...base, version: '9.9.9-fixture' }).find(
+      (c) => c.name === 'version',
+    )
 
     expect(check?.status).toBe('ok')
-    expect(check?.detail).toBe('0.11.0')
+    expect(check?.detail).toBe('9.9.9-fixture')
   })
 
   it('test_a_caller_that_did_not_look_says_nothing', () => {
