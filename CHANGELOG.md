@@ -18,17 +18,26 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.12.0] - 2026-09-07
+
+### Added
+
 - `theocode --version` / `-v` prints the build and exits 0. It used to be rejected as an unknown
   option with a usage dump and exit 1 — the first thing anyone types against an unfamiliar binary,
   answered as though they had used the tool wrong. It runs before anything is set up, because a
   version that needs a working configuration is useless in the bug report that needs it most, and
   `doctor` now carries the same line (#128)
 
-### Changed
-
-### Deprecated
-
-### Removed
 
 ### Fixed
 
@@ -55,8 +64,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   the session and `sessions gc` counted it as kept. The filter is removed rather than widened —
   the deletion-protection set is already built from this same listing with no filter, and two
   answers to "what is a session" is how the two come to disagree (#124)
-
-### Security
 
 ## [0.11.0] - 2026-09-07
 

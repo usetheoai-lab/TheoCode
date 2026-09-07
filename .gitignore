@@ -143,3 +143,8 @@ package-lock.json
 
 # Session transcripts dumped by the TUI export; evidence for one run, not project docs.
 /tui-*-*-*-*-*.md
+
+# A scratch agent definition that appeared in the working tree and was swept into a
+# release commit by `git add -A`. It is environment-specific (it names a local MCP server)
+# and is nobody's source.
+deep_researcher.yaml
