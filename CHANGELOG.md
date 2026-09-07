@@ -16,6 +16,15 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+
+- `@theokit/sdk` pinned to `5.3.2`. No runtime change reaches this product: it carries the
+  session-hook cadence on the published `.d.ts` (`fire once per RUN, not once per agent lifetime` —
+  the fact #132 turned on) and a better refusal for a malformed `hooks` block, which an operator
+  here never sees because our own refusal fires first. Tracked because this repository pins theokit
+  exactly and by policy exercises it: a pin that only moves when someone remembers accumulates
+  divergence, which is what #148 records
+
 ### Added
 
 ### Changed
