@@ -88,6 +88,32 @@ const HINTS: readonly {
     matches: (p) => p.includes('context') && p.includes('length'),
     hint: 'the conversation outgrew the model window — /compact frees context',
   },
+  {
+    /**
+     * The hint that cost two sessions hours before it existed (#133).
+     *
+     * A turn failed with `provider "…" does not support image content in tool results` immediately
+     * after the user attached an image with `/image`, and the natural reading — "my attachment is
+     * unsupported" — is wrong. Measured in the provider mapper: the guard is reachable ONLY from a
+     * part whose type is `tool_result`, and it inspects the content INSIDE it. An attachment is an
+     * `image` part of a user message and takes the `input_image` branch, never reaching the guard.
+     *
+     * So whenever this error appears, a TOOL returned image content — which is an assertion this
+     * hint can make because the guard has exactly one reachable caller.
+     *
+     * The second half is why nobody could see it: the transcript collapses tool activity to
+     * `Used 1 tool` unless `ctrl+o` is pressed, so the run that failed looked identical to the five
+     * that passed. The answer was one keystroke away and nothing said so.
+     *
+     * Matched on the message rather than a code: `ConfigurationError` covers far more than this, and
+     * claiming a tool ran on every configuration error would be the fabrication this hint exists to
+     * prevent. The substring names the error's own subject, not a phrase that could be reworded.
+     */
+    matches: (p) => p.includes('image content in tool results'),
+    hint:
+      'a tool returned an image and this provider carries tool results as text only — ' +
+      'ctrl+o shows which tool ran; the attachment itself is fine',
+  },
 ]
 
 /**
