@@ -1,4 +1,6 @@
-export { USAGE, parseExecArgs } from './args.js'
+export { parseExecArgs } from './args.js'
+export type { ExecArgs, ExecHelp, ExecUsageError } from './args.js'
+export { USAGE } from './usage.js'
 export type { ExecGoal, ExecReview, ExecRun, ExecSessions, CliOverrides } from './args.js'
 export {
   createHumanProcessor,

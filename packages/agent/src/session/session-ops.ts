@@ -5,7 +5,7 @@ import { dirname } from 'node:path'
 
 import { Agent, TheokitAgentError } from '@theokit/agents'
 import { forkTranscript, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
-import { deleteSession as deleteInFramework, protectedTranscripts } from '@theokit/agents/session'
+import { deleteSession as deleteInFramework, protectedTranscriptPaths } from '@theokit/agents/session'
 
 import { listAgents } from './agent-list.js'
 
@@ -153,18 +153,31 @@ export async function deleteSession(
  * that is already backstopped."* The stated cost was losing the typed `LiveSessionError` in favour
  * of a bare `EEXIST` — not losing the protection.
  *
- * `protectedTranscripts` (M71) covers that third category SYNCHRONOUSLY, through the SDK's writer
+ * `protectedTranscriptPaths` (M71) covers that third category SYNCHRONOUSLY, through the SDK's writer
  * lease instead of the async registry. The constraint that forced the omission does not apply to it,
  * so the guard is complete now and neither caller became async.
  *
  * It also carries the REASON per session (`'resumable session pointer'`, `'most recent session'`,
  * `'active writer lease'`) — which is what a refusal needs to say. This projection drops it because
  * both callers here take paths; anything wanting the reason calls the primitive directly.
+ *
+ * ## The keys are already paths — and the rename is why relying on that is safe
+ *
+ * This mapped each key forward through `transcriptPath`, because the keys used to be session ids.
+ * They are paths now, so the mapping built a path out of a path: garbage matching nothing, an empty
+ * array, and an open guard in `deleteSession`.
+ *
+ * Measured against the upstream candidate BEFORE it was published, over a symlink into their build:
+ * `deleteSession` resolved `{ transcriptRemoved: true }` on a LIVE session instead of refusing, and
+ * a transcript with an active writer lease was collectable. Five tests, of 1244.
+ *
+ * Nothing in the type said so — `Map<string, string>` before and after, identical signature,
+ * opposite meaning. Upstream removed the old NAME rather than aliasing it, so the same change is now
+ * a compile error here instead of a deletion. That is the only reason this comment describes a near
+ * miss rather than an incident.
  */
 export function protectedSessions(cwd: string, baseDir: string): string[] {
-  return [...protectedTranscripts(cwd, baseDir).keys()].map((id) =>
-    transcriptPath(baseDir, cwd, id),
-  )
+  return [...protectedTranscriptPaths(cwd, baseDir).keys()]
 }
 
 export function forkSession(

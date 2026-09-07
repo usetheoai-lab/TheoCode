@@ -16,7 +16,11 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 
-const SCHEMA = 'packages/agent/src/config/config.ts'
+// The list moved out of `config.ts` when `settings-load.ts` was split from it and the two started
+// importing each other; `depcruise` refused the cycle and both now read the list from here. The
+// guard follows the source of truth rather than the file that re-exports it — pointing at the
+// re-export would make this pass on a stale copy the day someone adds one.
+const SCHEMA = 'packages/agent/src/config/config-contract.ts'
 const README = 'README.md'
 const CLI = 'packages/cli/src/main.ts'
 

@@ -4,7 +4,13 @@ import { HOOK_EVENTS, type HookEvent, type HookSpec } from './hooks-spec.js'
 import { HookError } from './hook-error.js'
 
 /**
- * The PARSER for `.theokit/hooks.json` — and nothing else.
+ * The PARSER for the `hooks` a user declares in configuration — and nothing else.
+ *
+ * It used to say `.theokit/hooks.json`, and no caller has ever handed it one. Every call site —
+ * `chat.ts:267`, `composition-record.ts:20`, the TUI's consent and review paths — passes
+ * `EffectiveConfig.hooks`, which comes from `settings.json` (from `config.toml` before that). A
+ * docblock naming a file the code does not read sends the next reader looking for a loader that is
+ * not there.
  *
  * The engine moved to `@theokit/agents/hooks` (`build-handlers.ts` bridges to it). What stays is the
  * one thing the framework cannot know: the VOCABULARY users write in their file — `PreToolUse`,

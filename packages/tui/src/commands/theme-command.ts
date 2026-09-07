@@ -19,10 +19,55 @@
  * the variable exists and then edit a shell profile. What survives is the honesty: the toast names
  * the file, says the variable still overrides it, and says plainly when the write did not land.
  */
+import { homedir } from 'node:os'
+
 import type { ToastPayload } from '../screen-types.js'
+import { listCustomThemes, loadCustomTheme } from '../custom-theme.js'
 import { THEME_BASES, type ThemeBase, type ThemeResolution } from '../theme-base.js'
-import { sessionThemeBase, setSessionThemeBase } from '../theme-session.js'
+import { sessionThemeBase, setSessionTheme, setSessionThemeBase } from '../theme-session.js'
 import { THEME_RESOLUTION } from '../theme.js'
+
+/**
+ * Their prefix, not one invented here. Their docs say a custom theme "appears as `custom:<slug>`
+ * where `<slug>` is the filename without `.json`"; reading their directory in their format and then
+ * naming the result differently would make the two halves disagree for no gain.
+ */
+const CUSTOM_PREFIX = 'custom:'
+
+/**
+ * `/theme custom:<slug>`.
+ *
+ * A slug with no file is REFUSED rather than falling back to a base. An operator who typed a slug is
+ * asking for that theme; repainting to `dark` and reporting success is the shape that gets read as
+ * a rendering bug rather than as a missing file.
+ */
+function selectCustom(
+  slug: string,
+  setToast: (toast: ToastPayload) => void,
+  home: string,
+): void {
+  const loaded = loadCustomTheme(slug, home)
+  if (loaded === null) {
+    const available = listCustomThemes(home).map((t) => `${CUSTOM_PREFIX}${t.slug}`)
+    setToast({
+      message:
+        `no custom theme "${slug}" under ~/.claude/themes/` +
+        (available.length > 0 ? ` — found ${available.join(', ')}` : ''),
+      variant: 'error',
+    })
+    return
+  }
+  setSessionTheme(loaded.prop, `${CUSTOM_PREFIX}${slug}`)
+  // Six of their ~40 tokens map onto this product's theme. Saying which parts of the file did not
+  // arrive is the other half of accepting it at all — the alternative teaches the operator that a
+  // theme they wrote is fully in force when a sixth of it is.
+  const lost =
+    loaded.notApplied.length > 0 ? ` — not applied: ${loaded.notApplied.join('; ')}` : ''
+  setToast({
+    message: `theme: ${loaded.name} (${CUSTOM_PREFIX}${slug}), this session${lost}`,
+    variant: 'success',
+  })
+}
 
 /**
  * How the active theme reads: the base being drawn, what decided it, and the value thrown away.
@@ -71,13 +116,23 @@ export function handleTheme(
    */
   persist: (base: ThemeBase) => boolean,
   describeStore: () => string,
+  /** Injected so the suite never reads — or reports on — the machine's real `~/.claude/themes/`. */
+  home: string = homedir(),
 ): void {
   const requested = arg.trim()
   if (requested.length === 0) {
+    // The custom themes are listed here because nothing else tells an operator which slugs exist;
+    // a feature discoverable only by reading the source is a feature nobody uses.
+    const custom = listCustomThemes(home).map((t) => `${CUSTOM_PREFIX}${t.slug}`)
+    const also = custom.length > 0 ? ` — also ${custom.join(', ')}` : ''
     setToast({
-      message: `theme: ${themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())} — ${HOW_TO_CHANGE}`,
+      message: `theme: ${themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())} — ${HOW_TO_CHANGE}${also}`,
       variant: 'info',
     })
+    return
+  }
+  if (requested.toLowerCase().startsWith(CUSTOM_PREFIX)) {
+    selectCustom(requested.slice(CUSTOM_PREFIX.length), setToast, home)
     return
   }
   // Lower-cased before the lookup because `DARK` is the value, typed the way a shell exports it.

@@ -47,13 +47,16 @@ describe('B-024 — the composition seam is real', () => {
   })
 
   it('test_the_store_seam_decides_whether_the_project_config_is_read', async () => {
-    // Anti-vacuity floor with teeth. A project `.theokit/config.toml` is read ONLY for a trusted
+    // Anti-vacuity floor with teeth. A project `.theokit/settings.json` is read ONLY for a trusted
     // directory — that is the anti-prompt-injection gate. So the same directory composed against a
     // trusting store and an empty one must produce DIFFERENT config. If the seam were ignored and
     // the real ~/.theokit store consulted, both cases would answer identically and this could not
     // fail.
     mkdirSync(join(dir, '.theocode'), { recursive: true })
-    writeFileSync(join(dir, '.theocode', 'config.toml'), 'reasoning_effort = "high"\n')
+    writeFileSync(
+      join(dir, '.theocode', 'settings.json'),
+      JSON.stringify({ reasoning_effort: 'high' }),
+    )
 
     writeFileSync(store, JSON.stringify({ trusted: [] }), { mode: 0o600 })
     const untrusted = await composeRun({ overrides: [] }, { cwd: dir, store })

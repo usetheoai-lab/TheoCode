@@ -29,15 +29,41 @@ import type { ReactElement, ReactNode } from 'react'
 
 import { TheoTUIProvider } from '@theokit/tui'
 
+import type { TheoThemeProp } from '@theokit/tui'
+
 import type { ThemeBase } from './theme-base.js'
 import { THEME_RESOLUTION, THEMES } from './theme.js'
 
-let override: ThemeBase | undefined
+/**
+ * The one-slot override, holding a whole THEME PROP rather than a base name.
+ *
+ * It was a `ThemeBase`, which is all a built-in switch needs. A custom theme
+ * (`~/.claude/themes/*.json`) carries a base AND an override object, and neither half survives being
+ * reduced to a name. Storing the resolved prop keeps the referential stability the toolkit's
+ * provider requires — it memoizes on the IDENTITY of the prop, so the object is built ONCE at
+ * selection rather than per read; building it inside `activeTheme()` would re-merge and re-render
+ * every consumer on every parent render.
+ */
+let override: TheoThemeProp | undefined
 const listeners = new Set<() => void>()
 
 /** The base `/theme` picked for this session, or `undefined` while the environment still decides. */
 export function sessionThemeBase(): ThemeBase | undefined {
-  return override
+  return sessionBaseName
+}
+
+let sessionBaseName: ThemeBase | undefined
+
+/**
+ * What `/theme` selected, for the status line: a base name, or `custom:<slug>`.
+ *
+ * A second fact rather than a widening of `sessionThemeBase`, whose callers ask specifically
+ * "which of the three built-in bases", and would silently start receiving a slug.
+ */
+let sessionLabelValue: string | undefined
+
+export function sessionThemeLabel(): string | undefined {
+  return sessionLabelValue
 }
 
 /**
@@ -48,13 +74,36 @@ export function sessionThemeBase(): ThemeBase | undefined {
  * repaints on unrelated keystrokes is read as a rendering bug rather than as a command.
  */
 export function setSessionThemeBase(base: ThemeBase): void {
-  override = base
+  sessionBaseName = base
+  sessionLabelValue = base
+  setSessionTheme(THEMES[base])
+}
+
+/**
+ * Switch to a whole theme prop — the path a custom theme takes.
+ *
+ * `label` is what `/status` and `/theme` report; a custom theme passes `custom:<slug>` so the line
+ * names the file the operator wrote rather than the base it happens to sit on.
+ */
+export function setSessionTheme(prop: TheoThemeProp, label?: string): void {
+  override = prop
+  if (label !== undefined) {
+    sessionLabelValue = label
+    sessionBaseName = undefined
+  }
   for (const listener of listeners) listener()
 }
 
-/** A primitive, so `useSyncExternalStore` can compare snapshots by value and skip equal writes. */
-function activeThemeBase(): ThemeBase {
-  return override ?? THEME_RESOLUTION.base
+/**
+ * The prop the provider is given.
+ *
+ * It used to return a primitive so `useSyncExternalStore` could compare snapshots by value. It now
+ * returns an OBJECT, and the comparison is by identity — which is why the object is stored in the
+ * slot rather than built here. `THEMES` is frozen and hoisted, and a custom prop is built once at
+ * selection, so every read of an unchanged selection returns the same reference.
+ */
+function activeTheme(): TheoThemeProp {
+  return override ?? THEMES[THEME_RESOLUTION.base]
 }
 
 function subscribe(listener: () => void): () => void {
@@ -73,13 +122,15 @@ function subscribe(listener: () => void): () => void {
  * assert the value while `App` kept rendering the old constant.
  */
 export function ThemedSurface({ children }: { children: ReactNode }): ReactElement {
-  const base = useSyncExternalStore(subscribe, activeThemeBase, activeThemeBase)
-  return <TheoTUIProvider theme={THEMES[base]}>{children}</TheoTUIProvider>
+  const theme = useSyncExternalStore(subscribe, activeTheme, activeTheme)
+  return <TheoTUIProvider theme={theme}>{children}</TheoTUIProvider>
 }
 
 /** Test-only: drop the override so each test starts from the environment's answer. */
 export function resetSessionThemeForTest(): void {
   override = undefined
+  sessionBaseName = undefined
+  sessionLabelValue = undefined
 }
 
 /**

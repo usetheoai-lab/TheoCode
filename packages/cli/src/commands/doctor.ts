@@ -45,8 +45,10 @@ export function credentialState(path: string, now: number = Date.now()): Credent
 export async function doctorCommand(opts: { json: boolean; cd?: string }): Promise<void> {
   const agent = await import('@theocode/agent')
   const { authFilePath, strayCredentialFiles } = await import('@theocode/agent/auth')
-  const { skillsOnDisk } = await import('@theocode/agent')
-  const { resolveEffectiveConfig, resolveTrustPosture } = await import('@theocode/agent/config')
+  const { skillsOnDisk, loadOutputStyle } = await import('@theocode/agent')
+  const { resolveEffectiveConfig, resolveTrustPosture, settingsReport } = await import(
+    '@theocode/agent/config'
+  )
   const cwd = opts.cd ?? process.cwd()
 
   const posture = resolveTrustPosture(cwd)
@@ -85,6 +87,20 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // #67 — the skills row is the DECLARED list, so it ticked green for a name with no SKILL.md and
     // said nothing about a file no configuration named. This holds the two against each other.
     skillsOnDisk: skillsOnDisk(cwd, cfg.skills),
+    // `settings.json` wears Claude Code's filename, so the file often carries their settings. The
+    // loader tolerates them — a real one must not stop the product from starting — and this row is
+    // the other half of that trade: a key we ignore has to be nameable somewhere.
+    settingsIgnored: settingsReport({ projectDir: cwd }),
+    // Resolved through the product's own loader, not by a second existsSync here — a diagnostic that
+    // recomputes what it reports on eventually reports on a file the product does not read.
+    ...(cfg.output_style !== undefined
+      ? {
+          outputStyle: {
+            name: cfg.output_style,
+            resolved: loadOutputStyle(cfg.output_style, { project: cwd }) !== null,
+          },
+        }
+      : {}),
     wired,
   })
   const result = agent.diagnose(checks)

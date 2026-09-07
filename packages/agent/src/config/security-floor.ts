@@ -32,7 +32,7 @@ export const MORE_PERMISSIVE = {
 export type SecurityKey = keyof typeof MORE_PERMISSIVE
 
 /** Layers that may only tighten the user's choice. */
-const CANNOT_LOOSEN = ['project', 'profile', 'env'] as const
+const CANNOT_LOOSEN = ['project', 'project_local', 'profile', 'env'] as const
 
 /** The layer that wins outright in both directions — the operator's explicit flag. */
 const OPERATOR_OVERRIDE = 'cli'
@@ -41,6 +41,7 @@ export interface LayeredValues {
   defaults?: string | undefined
   user?: string | undefined
   project?: string | undefined
+  project_local?: string | undefined
   profile?: string | undefined
   env?: string | undefined
   cli?: string | undefined

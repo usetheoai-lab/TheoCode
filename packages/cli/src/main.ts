@@ -6,11 +6,13 @@ import { installConfiguredHome, resolveEffectiveConfig } from '@theocode/agent/c
 import { installClaudeProjectDir } from '@theocode/agent/hooks'
 import { createShutdown } from '@theokit/agents/commands'
 import { loadProjectEnv, gitGate, parseExecArgs, USAGE } from './runtime/index.js'
+import type { ExecArgs, ExecHelp, ExecUsageError } from './runtime/index.js'
 import { goalCommand } from './commands/goal.js'
 import { reviewCommand } from './commands/review.js'
 import { runCommand } from './commands/run.js'
 import { sessionsCommand } from './commands/sessions.js'
 import { doctorCommand } from './commands/doctor.js'
+import { migrateConfigCommand } from './commands/migrate-config.js'
 import { setDiagnosticsSink } from '@theokit/agents'
 import { installDiagnosticSink } from '@theocode/shared/diagnostic-sink'
 
@@ -49,6 +51,24 @@ function bootstrap(): void {
   installClaudeProjectDir(process.env, process.cwd())
 }
 
+/**
+ * The modes that answer before anything is set up: a usage error, and help.
+ *
+ * B-023 — help is a SUCCESS. It used to be reachable only by triggering the error path, so asking
+ * for help exited 1 and printed a complaint about a mistake the user had not made.
+ */
+function handledBeforeBootstrap(args: ExecArgs): args is ExecUsageError | ExecHelp {
+  if (args.mode === 'error') {
+    process.stderr.write(`${args.message}\n\n${USAGE}\n`)
+    process.exit(1)
+  }
+  if (args.mode === 'help') {
+    process.stdout.write(`${args.usage}\n`)
+    return true
+  }
+  return false
+}
+
 async function main(): Promise<void> {
   // The local `shared/shutdown.ts` was deleted in favour of the framework's, which is the same
   // mechanism with more information: cleanups are NAMED (a watchdog timeout can say WHICH one hung,
@@ -70,17 +90,16 @@ async function main(): Promise<void> {
   })
 
   const args = parseExecArgs(process.argv.slice(2), process.stdin.isTTY === true)
-  if (args.mode === 'error') {
-    process.stderr.write(`${args.message}\n\n${USAGE}\n`)
-    process.exit(1)
-  }
-  // B-023 — help is a SUCCESS. It used to be reachable only by triggering the error path above,
-  // so asking for help exited 1 and printed a complaint about a mistake the user had not made.
-  if (args.mode === 'help') {
-    process.stdout.write(`${args.usage}\n`)
+  if (handledBeforeBootstrap(args)) return
+  if (args.cd !== undefined) process.chdir(args.cd)
+
+  // BEFORE `bootstrap()`: the whole point of this command is to be reachable when configuration
+  // cannot be loaded, and `bootstrap` resolves the effective config. Running it after would mean the
+  // command the loader's refusal names is itself blocked by that refusal.
+  if (args.mode === 'migrate-config') {
+    migrateConfigCommand(process.cwd())
     return
   }
-  if (args.cd !== undefined) process.chdir(args.cd)
 
   // AFTER chdir: `.env` belongs to the directory the user selected, not the one they started in.
   bootstrap()

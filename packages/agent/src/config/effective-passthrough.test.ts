@@ -34,6 +34,7 @@ const NON_DEFAULT: Record<SchemaKey, unknown> = {
   shell_timeout_ms: 45_000,
   session_gc: false,
   context_window: 123_456,
+  output_style: 'terse',
 }
 
 describe('EffectiveConfig carries what the schema declared', () => {

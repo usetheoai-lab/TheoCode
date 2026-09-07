@@ -31,6 +31,8 @@ export class EffectiveConfig {
   readonly shell_timeout_ms: number
   /** Whether the session collector runs on its own. See `AgentConfig.session_gc`. */
   readonly session_gc: boolean
+  /** The output style to apply, by name; `undefined` means the built-in instructions, unchanged. */
+  readonly output_style: string | undefined
   readonly profile: string | undefined
 
   readonly #contextWindow: number | undefined
@@ -45,6 +47,7 @@ export class EffectiveConfig {
     this.home_dir = cfg.home_dir
     this.shell_timeout_ms = cfg.shell_timeout_ms
     this.session_gc = cfg.session_gc
+    this.output_style = cfg.output_style
     this.profile = cfg.profile
     this.#contextWindow = cfg.context_window
 
@@ -122,7 +125,12 @@ export function resolveEffectiveConfig(
     loadConfig({
       ...withCliLayer(opts),
       projectDir: opts.projectDir ?? cwd,
-      posture: resolveTrustPosture(cwd, opts.store),
+      // B-033, one hop lower. `env` was omitted here, so a caller injecting an environment got its
+      // CONFIGURATION from the injection and its TRUST DECISION from the ambient process — the exact
+      // split `run-composition.ts:83-87` records closing at the layer above. It was already wrong;
+      // `settings.json` makes it expensive, because the posture now decides whether a whole
+      // configuration file is read at all.
+      posture: resolveTrustPosture(cwd, opts.store, opts.env),
     }),
   )
 }

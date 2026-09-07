@@ -16,13 +16,14 @@
 import { routeThroughLayers, type KeyLayer } from '@theokit/tui/keys'
 
 import { stepBacktrack } from '../backtrack-select.js'
+import type { Keybinding } from './keybindings.js'
 
 export interface KeyboardState {
   readonly hasOpenQuestion: boolean
   readonly trusted: boolean
   readonly hasPendingApproval: boolean
   readonly inDemoInput: boolean
-  readonly emLogin: boolean
+  readonly inLogin: boolean
   readonly rotating: boolean
   readonly mode: string
   readonly showingUsage: boolean
@@ -78,7 +79,18 @@ const isCtrlO = (input: string, key: KeyPress): boolean => key.ctrl && input ===
  * The layers, in precedence order. The order IS the contract — reading it top to bottom answers
  * "what does Esc do right now?" without following a call chain.
  */
-const LAYERS: readonly KeyLayer<KeyboardState, { input: string; key: KeyPress }, KeyAction>[] = [
+/**
+ * What a layer is handed. `bindings` travels HERE rather than as a third `route` argument because
+ * the framework's `route` takes `(key, state)` — widening the key object is the seam that exists,
+ * and it keeps `LAYERS` hoisted instead of rebuilt per keystroke.
+ */
+interface RoutedInput {
+  readonly input: string
+  readonly key: KeyPress
+  readonly bindings: readonly Keybinding[]
+}
+
+const LAYERS: readonly KeyLayer<KeyboardState, RoutedInput, KeyAction>[] = [
   {
     // An open question owns the screen: Ctrl-C abandons it AND stops the turn behind it, and
     // nothing else reaches the composer while it is up.
@@ -102,7 +114,7 @@ const LAYERS: readonly KeyLayer<KeyboardState, { input: string; key: KeyPress },
     // than let the composer act on it. An untrusted directory is in the same set — nothing it can
     // reach should respond until the operator has said yes.
     name: 'gated',
-    when: (s) => !s.trusted || s.hasPendingApproval || s.emLogin || s.rotating,
+    when: (s) => !s.trusted || s.hasPendingApproval || s.inLogin || s.rotating,
     route: () => [],
   },
   {
@@ -115,16 +127,48 @@ const LAYERS: readonly KeyLayer<KeyboardState, { input: string; key: KeyPress },
     // distinction exists to make visible.
     name: 'composer',
     when: () => true,
-    route: ({ input, key }, s) =>
-      key.escape ? routeEscape(s) : routeInComposer(key, s, isCtrlC(input, key), isCtrlO(input, key)),
+    route: ({ input, key, bindings }, s) =>
+      key.escape
+        ? routeEscape(s)
+        : routeInComposer(input, key, s, isCtrlC(input, key), isCtrlO(input, key), bindings),
   },
 ]
 
+/**
+ * A configured binding (`~/.claude/keybindings.json`), consulted only where nothing built-in claimed
+ * the key.
+ *
+ * Inside the composer layer rather than as a layer of its own, and that placement IS the collision
+ * rule. A layer before `composer` would let a file displace `ctrl+o`; a layer after it can never
+ * run, because `composer` claims every key. Consulting bindings last means a built-in gesture always
+ * wins a collision and a binding fills in what was unclaimed — a file cannot take a key away, only
+ * give one a meaning it did not have.
+ *
+ * It is inside `composer` for a second reason: `gated` sits above, so a binding cannot reach past
+ * the layer that withholds keys from an untrusted directory or a pending approval.
+ */
+function boundAction(
+  input: string,
+  key: KeyPress,
+  bindings: readonly Keybinding[],
+): KeyAction | null {
+  if (!key.ctrl) return null
+  const hit = bindings.find((b) => b.letter === input)
+  if (hit === undefined) return null
+  // The three rebindable gestures, spelled once. A `kind` that took a payload could not live in this
+  // set — which is why `keybindings.ts` declares the set rather than deriving it from `KeyAction`.
+  if (hit.action === 'toggle-verbose') return { kind: 'toggle-verbose' }
+  if (hit.action === 'interrupt-turn') return { kind: 'interrupt-turn' }
+  return { kind: 'quit' }
+}
+
 function routeInComposer(
+  input: string,
   key: KeyPress,
   state: KeyboardState,
   ctrlC: boolean,
   ctrlO: boolean,
+  bindings: readonly Keybinding[],
 ): KeyAction[] {
   const actions: KeyAction[] = []
 
@@ -141,6 +185,13 @@ function routeInComposer(
   if (ctrlC) {
     if (state.streaming) actions.push({ kind: 'interrupt-turn' })
     else actions.push(state.exitArmed ? { kind: 'quit' } : { kind: 'arm-exit' })
+    return actions
+  }
+
+  // Last, so a built-in gesture wins a collision and a configured key only fills in silence.
+  const bound = boundAction(input, key, bindings)
+  if (bound !== null) {
+    actions.push(bound)
     return actions
   }
 
@@ -172,6 +223,11 @@ function routeEscape(state: KeyboardState): KeyAction[] {
   return [{ kind: 'advance-backtrack', next, total: state.backtrackTotal }]
 }
 
-export function routeKey(input: string, key: KeyPress, state: KeyboardState): KeyAction[] {
-  return [...routeThroughLayers(LAYERS, { input, key }, state).actions]
+export function routeKey(
+  input: string,
+  key: KeyPress,
+  state: KeyboardState,
+  bindings: readonly Keybinding[] = [],
+): KeyAction[] {
+  return [...routeThroughLayers(LAYERS, { input, key, bindings }, state).actions]
 }
