@@ -1,3 +1,4 @@
+import { fireSessionStart } from './session-start.js'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -65,6 +66,10 @@ function build(): TuiRoot {
 
   const session = createTuiSession({ cwd, sessionPointer })
 
+  // #132 — a launch that does NOT resume is a session starting. Resuming is not: a hook that ran on
+  // every resume would be announcing an event that did not happen.
+  if (!resumeOnStartup) void fireSessionStart(session.session(), cwd)
+
   // B-032 — resolved ONCE here and consumed locally. It used to be exposed on `TuiRoot` as well,
   // where nothing read it: a seam built for the injected-directory work that never gained a
   // consumer, and therefore read as though the TUI honoured an injected posture when it does not.
@@ -108,6 +113,11 @@ function build(): TuiRoot {
       session.setSession(`tui-${randomUUID()}`)
       ptyOwner.rotate()
       void persistSessionId(sessionPointer, session.session())
+      // #132 — `/new` starts a session, so `SessionStart` fires here. NOT through the framework's
+      // `on_session_start`: that one is once per loop context, and this product builds an agent per
+      // turn, so the mapping would run the hook on every message. `void` because a hook must not
+      // hold the frame — its failures are reported through `onWarn`, never by blocking the reset.
+      void fireSessionStart(session.session(), cwd)
     },
     sessionFork: () =>
       forkCurrentSessionWith({

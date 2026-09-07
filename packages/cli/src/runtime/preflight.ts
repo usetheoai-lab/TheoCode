@@ -66,17 +66,32 @@ function defaultWarn(message: string): void {
   process.stderr.write(message)
 }
 
-export async function resolveSessionId(
+/**
+ * #132 — the id AND whether resolving it STARTED a session.
+ *
+ * Both, from one function, because only the resolution knows. A rule written off the ARGUMENTS
+ * cannot tell: `resume --last` carries no explicit id, so "no id given" reads as "new session" —
+ * and on the bench that fired `SessionStart` on a resume, with the previous turn's id, which is the
+ * tell. The fallback inside this function is also a real start, and an argument-shaped rule would
+ * have to call it a resume.
+ *
+ * There is no id-only sibling. There was one, for a moment, and keeping both would have been two
+ * near-identical resolutions of the same question — the shape that drifts until they disagree about
+ * which session `resume --last` reopens.
+ */
+export async function resolveSession(
   args: Extract<ExecArgs, { mode: 'run' | 'resume' }>,
-): Promise<string> {
-  if (args.mode === 'run' || args.resume === undefined) return `exec-${randomUUID()}`
-  if (args.resume.id !== undefined) return args.resume.id
+): Promise<{ id: string; started: boolean }> {
+  if (args.mode === 'run' || args.resume === undefined) {
+    return { id: `exec-${randomUUID()}`, started: true }
+  }
+  if (args.resume.id !== undefined) return { id: args.resume.id, started: false }
   try {
     const items = await listAgents(process.cwd())
     const mine = items
       .filter((a) => a.cwd === undefined || a.cwd === process.cwd())
       .sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))
-    if (mine[0] !== undefined) return mine[0].agentId
+    if (mine[0] !== undefined) return { id: mine[0].agentId, started: false }
   } catch (err) {
     if (err instanceof CursorNotDrainedError) throw err
     // listing unavailable — fall through to the fallback
@@ -84,5 +99,6 @@ export async function resolveSessionId(
   process.stderr.write(
     '[exec] resume --last: no session found for this cwd — starting a NEW session\n',
   )
-  return `exec-${randomUUID()}`
+  return { id: `exec-${randomUUID()}`, started: true }
 }
+

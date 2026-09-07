@@ -165,9 +165,21 @@ unknown event name is a loud parse failure, not a skipped hook. In a `.claude/se
 the vocabulary is Claude Code's and is larger — an event we do not have is dropped and named by
 `doctor` instead, because refusing would stop a valid file of theirs from starting the product.
 
-`hooks` may be written in either dialect in this product's own file: the flat array
-(`{ "event": "Stop", "command": "…", "timeout_ms": 5000 }`) or Claude Code's nested-by-event shape,
-whose `timeout` is in **seconds** and whose `matcher: "*"` means every tool.
+**`hooks` is written in Claude Code's nested-by-event shape, in every root** — `timeout` in
+**seconds**, `matcher: "*"` meaning every tool:
+
+```json
+{ "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "./check.sh" } ] } ] } }
+```
+
+Not a flat array. `.theokit/` is the SDK's own filebase, so its settings loader reads this same file
+and rejects any other shape — a flat array there refuses **every turn**. The loader refuses it first,
+naming the form above.
+
+`SessionStart` fires once, when a session begins — at launch, at `/new`, and on a headless run that
+is not a resume. It is fired by the surface that mints the session id rather than mapped onto the
+framework's `on_session_start`, which fires once per *loop context*: this product builds an agent per
+turn, so that mapping would run the hook on every message.
 
 ## Testing an unreleased theokit fix
 

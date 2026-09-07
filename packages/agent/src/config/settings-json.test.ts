@@ -89,10 +89,13 @@ describe('hooks — the two dialects, and the four ways the foreign one breaks o
     expect(hooks.every((h) => h.matcher === 'Edit|Write')).toBe(true)
   })
 
-  it('test_our_own_flat_array_passes_through_untouched', () => {
-    // Negative control for the translator: a file already in our dialect must not be re-shaped.
-    const ours = [{ event: 'Stop', command: 'check.sh', timeout_ms: 5000 }]
-    expect(translateSettings({ hooks: ours }, OURS).values['hooks']).toEqual(ours)
+  it('test_a_flat_array_under_our_own_root_is_refused', () => {
+    // #144 — this used to assert the opposite, and the opposite refused every turn. `.theokit/` is
+    // the SDK's filebase, so its own settings loader reads this same file and rejects any shape but
+    // the nested one. The flat array is the internal shape, never a shape a `settings.json` carries.
+    expect(() =>
+      translateSettings({ hooks: [{ event: 'Stop', command: 'check.sh' }] }, OURS),
+    ).toThrow(/hooks/)
   })
 })
 
