@@ -16,6 +16,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.13.1] - 2026-09-07
+
 ### Fixed
 
 - **A `hooks` array in `.theokit/settings.json` refused every turn.** `.theokit/` is the SDK's own
@@ -33,18 +47,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   user message — worse than not running it, because that is exactly the hook an author writes
   assuming it happens once. `inert-events.ts` and its `DECLARED BUT NEVER RUNS` marker are deleted,
   as its own docblock instructed (#132)
-
-### Added
-
-### Changed
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.13.0] - 2026-09-07
 
