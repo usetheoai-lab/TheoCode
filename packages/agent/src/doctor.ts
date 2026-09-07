@@ -183,6 +183,11 @@ function outputStyleCheck(style?: { name: string; resolved: boolean }): Check[] 
 
 export function collectChecks(input: {
   readonly cwd: string
+  /**
+   * The build this install is. Optional so a caller that did not look says nothing — but the CLI
+   * always passes it: #128 recorded that a bug reporter had no in-product way to name their build.
+   */
+  readonly version?: string
   readonly trustLevel: string
   readonly model: string
   readonly effort: string
@@ -220,6 +225,10 @@ export function collectChecks(input: {
   }
 }): Check[] {
   return [
+    // First, because it is the first thing a support session asks for.
+    ...(input.version === undefined
+      ? []
+      : [{ name: 'version', status: 'ok' as const, detail: input.version }]),
     { name: 'cwd', status: 'ok', detail: input.cwd },
     {
       name: 'trust',

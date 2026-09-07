@@ -67,8 +67,12 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
   })
   agent.buildChatAgent({ cwd, surface: 'headless', onWired: (w) => (wired = w) })
 
+  const { AGENT } = await import('@theocode/shared/agent')
   const checks = agent.collectChecks({
     cwd,
+    // #128 — the one fact every bug report asks for, from the literal `agent.test.ts` holds against
+    // the manifest. Reading the manifest here would be a second answer to one question.
+    version: AGENT.version,
     trustLevel: posture.level,
     model: cfg.model,
     effort: cfg.reasoning_effort,

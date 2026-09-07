@@ -18,16 +18,39 @@ export interface SessionInfo {
   lastModified?: number
 }
 
+/**
+ * #124 — the registry entries this product calls sessions, which is all of them.
+ *
+ * This used to keep only ids beginning with `tui-`. Three surfaces mint ids — the TUI (`tui-`), the
+ * headless CLI (`exec-`) and the review runner (`review-`) — so every session the headless surface
+ * created was invisible to the only command that reveals an id, and `archive`/`rename`/`delete`/
+ * `fork` all take one. Four operations unreachable from that surface, reported as `no sessions for
+ * this directory`: an assertion of absence, not a description of a filter.
+ *
+ * Listing the three known prefixes instead would be the same defect in miniature — a fourth surface
+ * mints a fourth prefix and disappears, silently, exactly as `exec-` did from the first commit.
+ *
+ * What settles it is that this codebase already answers "what is a session", and the answer is not
+ * the name: `gc/filesystem.ts:98` and `gc/per-session.ts:203` build the DELETION PROTECTION SET from
+ * this same listing with no filter at all. Two answers to one question is how they come to disagree,
+ * and here the stricter one guarded a display while the looser one guarded deletion.
+ *
+ * Split from `listSessions` so the rule is testable without a registry on disk — the I/O is the
+ * other half, and it was never the part that was wrong.
+ */
+export function sessionsFrom(
+  items: readonly { agentId: string; name?: string; archived?: boolean; lastModified?: number }[],
+): SessionInfo[] {
+  return items.map((i) => ({
+    agentId: i.agentId,
+    name: i.name,
+    archived: i.archived ?? false,
+    lastModified: i.lastModified,
+  }))
+}
+
 export async function listSessions(cwd: string = process.cwd()): Promise<SessionInfo[]> {
-  const items = await listAgents(cwd)
-  return items
-    .filter((i) => i.agentId.startsWith('tui-'))
-    .map((i) => ({
-      agentId: i.agentId,
-      name: i.name,
-      archived: i.archived ?? false,
-      lastModified: i.lastModified,
-    }))
+  return sessionsFrom(await listAgents(cwd))
 }
 
 export function legacyRootHint(found: number, legacyRoot: string): string | undefined {
