@@ -16,6 +16,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-07
+
 ### Fixed
 
 - `sessions gc` no longer deletes a transcript it could not read. "I could not read this" and
