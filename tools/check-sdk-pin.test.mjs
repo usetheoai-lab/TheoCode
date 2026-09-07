@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { disagreement } from './check-sdk-pin.mjs'
+import { disagreement, resolvedDisagreement } from './check-sdk-pin.mjs'
 
 describe('the SDK pin', () => {
   it('test_matching_declarations_pass', () => {
@@ -112,5 +112,68 @@ describe('#70 — the workspace package that now declares the SDK', () => {
   it('test_no_workspace_argument_behaves_exactly_as_before', () => {
     // Anti-regression: the guard is called with two arguments everywhere it existed before.
     expect(disagreement(root, ws)).toBeUndefined()
+  })
+})
+
+/**
+ * #120 — an EXACT pin must equal what the tree resolved.
+ *
+ * The three declarations this file already reconciles are all declarative: they agree with each
+ * other while every one of them can be wrong about the tree. Measured 2026-09-07:
+ *
+ *   package.json          @theokit/agents  13.0.0-next.3
+ *   pnpm-workspace.yaml   @theokit/agents  13.0.0-next.3
+ *   node_modules          @theokit/agents  13.0.0-next.2      ← what actually ran
+ *
+ * `pnpm install --force` reported success and left the older copy in place, because the
+ * `minimumReleaseAge` supply-chain policy rejected the newer entry and the default path swallowed
+ * the rejection. Only `--no-frozen-lockfile` surfaced it.
+ *
+ * That matters here specifically because every upstream verification starts with *raise the pin,
+ * then measure*. A pin that silently does not move means the next measurement answers about the
+ * wrong artifact while the files and the operator all believe otherwise. It was caught by a habit —
+ * `readlink -f` right after a bump — and a habit is not a gate.
+ */
+describe('#120 — the declared pin and the resolved tree', () => {
+  it('test_an_exact_pin_that_does_not_match_the_resolved_copy_is_reported', () => {
+    const found = resolvedDisagreement(
+      [{ path: 'package.json', name: '@theokit/agents', version: '13.0.0-next.3' }],
+      new Map([['@theokit/agents', '13.0.0-next.2']]),
+    )
+    expect(found).toMatch(/13\.0\.0-next\.3/)
+    expect(found).toMatch(/13\.0\.0-next\.2/)
+  })
+
+  it('test_a_matching_pin_is_silent', () => {
+    // Anti-vacuity. A rule that reported on every pin would satisfy the arm above and fail every run.
+    expect(
+      resolvedDisagreement(
+        [{ path: 'package.json', name: '@theokit/sdk', version: '5.3.0' }],
+        new Map([['@theokit/sdk', '5.3.0']]),
+      ),
+    ).toBeUndefined()
+  })
+
+  it('test_a_RANGE_is_not_checked_by_equality', () => {
+    // The design decision, and the one that would make this guard noise if it were wrong. Three of
+    // the five `@theokit/*` declarations here are ranges (`^0.2.1`, `^0.8.0`, `^0.80.0`). A range
+    // resolving ABOVE its floor is the range working, not drift. Only an exact pin asserts identity.
+    expect(
+      resolvedDisagreement(
+        [{ path: 'packages/tui/package.json', name: '@theokit/tui', version: '^0.80.0' }],
+        new Map([['@theokit/tui', '0.81.4']]),
+      ),
+    ).toBeUndefined()
+  })
+
+  it('test_a_pin_with_nothing_installed_is_reported_rather_than_passed', () => {
+    // Absence is not agreement. A tree with no copy at all passes an equality check that skips
+    // missing entries, and reads as "the pin is honoured" — the direction this guard exists to
+    // refuse.
+    const found = resolvedDisagreement(
+      [{ path: 'package.json', name: '@theokit/agents', version: '13.0.0-next.3' }],
+      new Map(),
+    )
+    expect(found).toMatch(/not installed|no resolved copy/i)
   })
 })

@@ -16,6 +16,35 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+
+- The pin guard now checks the tree, not only the files. An install can report success and leave the
+  previous version in place; every declaration then agrees while the build runs against something
+  else (#120).
+
+### Fixed
+
+- `sessions gc` and `theocode sessions delete` keep protecting a live session after the upstream
+  rename of `protectedTranscripts`. The map is keyed by transcript path now, not by session id, and
+  this product was still mapping each key forward as though it were an id — which produced an empty
+  guard. Caught before the upstream release, over a link into their candidate build (#107).
+
+### Changed
+
+- `@theokit/agents` 13.0.0-next.2 → 13.0.0-next.3.
+
+### Changed
+
+- **Correction to the 0.10.1 entry below.** It said `sessions gc` "no longer deletes a transcript it
+  could not read". The guard is real and tested, and it is **inert in this product**: it fires on an
+  `idSource: "unavailable"` field that only `@theokit/sdk`'s `listSessions` supplies, and this
+  product's own transcript reader does not. Measured on the production path — a registered session
+  whose transcript is corrupt is kept regardless, because protection is derived from the registry
+  and never from reading the file. So the case the entry described was never at risk here.
+
+  The guard stays, for a caller that does supply the field. The published entry is left as written,
+  per the rule against editing released history.
+
 ## [0.10.2] - 2026-09-07
 
 ### Changed
