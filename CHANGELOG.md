@@ -36,6 +36,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- **Output styles.** `output_style` names a `.md` file under `~/.claude/output-styles/` or
+  `<project>/.claude/output-styles/` — Claude Code's feature, in its directories, with its
+  frontmatter (`name`, `description`, `keep-coding-instructions`). A style **replaces** the built-in
+  coding instructions and only appends when `keep-coding-instructions: true`; that key defaults to
+  false, and getting it backwards would make every style a no-op with a suffix. The project wins a
+  name collision, `THEOCODE_OUTPUT_STYLE` sets it from the environment, and a name that matches no
+  file falls back to the built-in instructions rather than refusing the turn — `theocode doctor`
+  names it instead (#127)
+- In a `settings.json` the style may be spelled `outputStyle`, Claude Code's name: it is the one
+  setting besides `model` whose name and meaning are identical in both products, so it is translated
+  rather than ignored. Every other apparent overlap between the two vocabularies is a name collision
+  with a different meaning behind it and is deliberately NOT translated (#127)
 - `.claude/settings.local.json` and `.theokit/settings.local.json` are read as their own layer,
   above the committed project file and below profiles — Claude Code's precedence, and its own layer
   so hooks accumulate across the two rather than one replacing the set (#127)

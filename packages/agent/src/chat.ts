@@ -37,7 +37,7 @@ import { loadApprovedHooks } from './hooks/index.js'
 import { buildHookHandlers, withBuiltinShellVeto, parseHooks } from './hooks/index.js'
 import { sandboxWritePolicy } from './config/index.js'
 import { resolveTrustPosture, type TrustPosture } from './config/index.js'
-import { BASE_INSTRUCTIONS } from './context/index.js'
+import { baseInstructionsFor } from './output-style-wiring.js'
 import { createAnalystSubagent, createDelegateToTeamTool } from './delegation/index.js'
 import { abandonQuestion, ask } from './ask/index.js'
 import { createInteractiveShellTool } from './ask/index.js'
@@ -553,7 +553,10 @@ function baseAgent(ctx: {
       // NOT loaded, so it cannot hijack the agent. The TUI prompts to trust the cwd on first run.
       .system(
         composeInstructions(
-          overrides?.baseInstructions ?? BASE_INSTRUCTIONS,
+          // M?? — an output style REPLACES the built-in instructions unless its frontmatter says
+          // `keep-coding-instructions: true`. `overrides.baseInstructions` still wins over both: it
+          // is a caller passing an explicit persona, which is a stronger statement than a file.
+          overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
           projectDocument(ctx.posture, ctx.cwd, ctx.rules),
           overrides?.appendInstructions ?? '',
           { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },

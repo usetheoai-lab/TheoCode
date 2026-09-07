@@ -51,7 +51,7 @@ export const FOREIGN_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   'forceLoginOrgUUID', 'forceRemoteSettingsRefresh', 'gcpAuthRefresh', 'httpHookAllowedEnvVars',
   'includeCoAuthoredBy', 'includeGitInstructions', 'inputNeededNotifEnabled', 'isolatePeerMachines',
   'keybindingFlavor', 'language', 'managedSourcesBehavior', 'minimumVersion', 'modelOverrides',
-  'modelPicker', 'modelPricing', 'modelSettings', 'otelHeadersHelper', 'outputStyle',
+  'modelPicker', 'modelPricing', 'modelSettings', 'otelHeadersHelper',
   'parentSettingsBehavior', 'permissionExplainerEnabled', 'permissions', 'plansDirectory',
   'pluginConfigs', 'pluginSuggestionMarketplaces', 'pluginTrustMessage', 'policyHelper',
   'preferredNotifChannel', 'prefersReducedMotion', 'processWrapper', 'promptCacheTtl',

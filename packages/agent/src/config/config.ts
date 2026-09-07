@@ -11,6 +11,7 @@ import {
   ENV_APPROVAL_POLICY,
   ENV_CONTEXT_WINDOW,
   ENV_GOAL_ORACLE,
+  ENV_OUTPUT_STYLE,
   ENV_MODEL,
   ENV_REASONING_EFFORT,
   ENV_SANDBOX_MODE,
@@ -129,6 +130,16 @@ export interface AgentConfig {
    */
   session_gc: boolean
   context_window?: number
+  /**
+   * The output style to apply, by name — Claude Code's feature, read from its directories.
+   *
+   * Snake_case here and `outputStyle` in a `settings.json`, and BOTH are the same setting: this is
+   * the second key (after `model`) whose name and meaning are identical across the two products, so
+   * `settings-json.ts` translates theirs onto ours rather than ignoring it. The internal spelling
+   * stays snake_case because `env-knobs` derives the variable name from the key, and a camelCase key
+   * would have no reachable environment knob at all.
+   */
+  output_style?: string
   profile?: string
 }
 
@@ -145,6 +156,7 @@ export const CONFIG_SCHEMA_KEYS = [
   'shell_timeout_ms',
   'session_gc',
   'context_window',
+  'output_style',
 ] as const
 
 export type SchemaKey = (typeof CONFIG_SCHEMA_KEYS)[number]
@@ -184,6 +196,7 @@ export const ENV_BY_KEY: Readonly<Partial<Record<SchemaKey, EnvPath>>> = {
   shell_timeout_ms: { knob: ENV_SHELL_TIMEOUT_MS, coerce: numberFromEnv },
   memory: { knob: ENV_MEMORY, coerce: booleanFromEnv },
   session_gc: { knob: ENV_SESSION_GC, coerce: booleanFromEnv },
+  output_style: { knob: ENV_OUTPUT_STYLE, coerce: (s) => s },
 }
 
 interface EnvOptOut {
@@ -319,6 +332,7 @@ const scalarSchema = z
       .optional(),
     session_gc: z.boolean().optional(),
     context_window: z.number().int().positive().optional(),
+    output_style: z.string().min(1, 'output_style: empty style name').optional(),
   })
   .strict()
 

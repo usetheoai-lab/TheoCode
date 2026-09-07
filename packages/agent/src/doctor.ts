@@ -168,6 +168,19 @@ function settingsCheck(reports: readonly SettingsFileReport[] = []): Check[] {
   ]
 }
 
+function outputStyleCheck(style?: { name: string; resolved: boolean }): Check[] {
+  if (style === undefined) return []
+  return [
+    {
+      name: 'output-style',
+      status: style.resolved ? ('ok' as const) : ('warn' as const),
+      detail: style.resolved
+        ? style.name
+        : `${style.name} — no such file under .claude/output-styles/; the built-in instructions are in use`,
+    },
+  ]
+}
+
 export function collectChecks(input: {
   readonly cwd: string
   readonly trustLevel: string
@@ -195,6 +208,11 @@ export function collectChecks(input: {
    * so a caller that did not look says nothing rather than asserting the files were clean.
    */
   readonly settingsIgnored?: readonly SettingsFileReport[]
+  /**
+   * The configured output style and whether a file was found for it. Optional: a caller that did not
+   * look says nothing, rather than asserting no style is configured.
+   */
+  readonly outputStyle?: { readonly name: string; readonly resolved: boolean }
   readonly wired: {
     readonly mcp: { active: readonly string[]; suppressedByTrust: boolean }
     readonly skills: { active: readonly string[]; suppressedByTrust: boolean }
@@ -227,6 +245,9 @@ export function collectChecks(input: {
     // them is what lets the product start; naming them is what stops the tolerance from teaching an
     // operator that a key is read when it is not.
     ...settingsCheck(input.settingsIgnored),
+    // The style is applied silently — a name that matches no file falls back to the built-in
+    // instructions so a typo cannot take the turn away. That fallback has to be loud somewhere.
+    ...outputStyleCheck(input.outputStyle),
     // Appended only when there is something to say. A row that permanently reads "none" is noise in
     // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
     ...((input.strayCredentials ?? []).length > 0

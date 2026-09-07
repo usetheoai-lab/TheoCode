@@ -99,6 +99,23 @@ const MATCH_ALL = '*'
  * deliberately wrote with a leading underscore, and no key of this product's schema has one — which
  * `settings-json.test.ts` asserts rather than assumes.
  */
+/**
+ * Their key name, ours, for the settings whose NAME and MEANING are both the same.
+ *
+ * Deliberately tiny, and it will stay tiny. `model` needs no entry — the two products spell it
+ * identically. Every other apparent overlap between the two vocabularies is a name collision with a
+ * different meaning behind it (`effortLevel` and `reasoning_effort` do not share a value set;
+ * `sandbox.enabled` is a boolean where `sandbox_mode` is a three-value enum; `cleanupPeriodDays` is
+ * a number of days where `session_gc` is on/off), and translating one of those would silently give
+ * an operator a setting they did not ask for.
+ *
+ * `outputStyle` is the exception that earns the mechanism: same feature, same values, same files on
+ * disk. Ours is snake_case only because `env-knobs` derives the variable name from the key.
+ */
+const SAME_SETTING_DIFFERENT_SPELLING: Readonly<Record<string, string>> = {
+  outputStyle: 'output_style',
+}
+
 function isNonSettingConvention(key: string): boolean {
   return key === '$schema' || key.startsWith('_')
 }
@@ -178,7 +195,8 @@ export function translateSettings(raw: unknown, opts: TranslateOptions): Setting
   const values: Record<string, unknown> = {}
   const ignored: string[] = []
   const unrecognised: string[] = []
-  for (const [key, value] of Object.entries(raw)) {
+  for (const [rawKey, value] of Object.entries(raw)) {
+    const key = SAME_SETTING_DIFFERENT_SPELLING[rawKey] ?? rawKey
     if (ours.has(key)) {
       values[key] = value
     } else if (FOREIGN_SETTINGS_KEYS.has(key) || isNonSettingConvention(key)) {

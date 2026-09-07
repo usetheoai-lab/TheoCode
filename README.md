@@ -73,7 +73,7 @@ alternative is that moving your file has no visible effect.
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theokit/settings.json` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `hooks`, profiles |
+| `<project>/.theokit/settings.json` | this product       | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `hooks`, `output_style`, profiles |
 | `~/<home_dir>/settings.json`      | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/<home_dir>/AGENTS.md`          | this product       | instructions that belong to YOU, in every project; the project's own file is read after it. `~/.theocode/AGENTS.md` still works |
@@ -92,6 +92,27 @@ alternative is that moving your file has no visible effect.
 The project layer is read **only for a trusted directory** — an untrusted
 one falls back to your user layer, and no repository hook is wired at all. `/hooks` reports which of
 those two you are in; `/status` reports the resolved model, effort, approval and sandbox.
+
+## Output styles
+
+`output_style` names a `.md` file under `~/.claude/output-styles/` or `<project>/.claude/output-styles/`
+— Claude Code's feature, in Claude Code's directories, with its frontmatter (`name`, `description`,
+`keep-coding-instructions`). The project wins a name collision.
+
+A style **replaces** the built-in coding instructions. It only appends to them when its frontmatter
+says `keep-coding-instructions: true` — that key defaults to `false`, and getting it backwards would
+make every style a no-op with a suffix.
+
+In a `settings.json` the key may be spelled `outputStyle`, Claude Code's name: it is the one setting
+besides `model` whose name and meaning are identical in both products, so it is translated rather
+than ignored. `THEOCODE_OUTPUT_STYLE` sets it from the environment.
+
+A name that matches no file falls back to the built-in instructions rather than refusing the turn —
+a typo in an optional setting should not take the product away — and `theocode doctor` names it.
+
+Your `~/.claude/output-styles/` is read, while your `~/.claude/skills/` and `~/.claude/agents/` are
+not. That asymmetry is a stated rule, not an oversight: a foreign root under your home may contribute
+text that **constrains** the agent, never artifacts that **add invokable surface**.
 
 Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. In this product's own file an
 unknown event name is a loud parse failure, not a skipped hook. In a `.claude/settings.json` — where

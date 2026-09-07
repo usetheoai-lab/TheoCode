@@ -77,3 +77,32 @@ describe('the settings row', () => {
     expect(collectChecks(base).find((c) => c.name === 'settings')).toBeUndefined()
   })
 })
+
+describe('the output-style row', () => {
+  it('test_a_configured_style_that_resolved_to_nothing_is_named', () => {
+    // `baseInstructionsFor` falls back to the built-in instructions rather than refusing the turn —
+    // a typo in an optional setting must not take the product away. This row is the other half of
+    // that trade: the fallback is silent in the prompt, so it has to be loud somewhere.
+    const check = collectChecks({ ...base, outputStyle: { name: 'terse', resolved: false } }).find(
+      (c) => c.name === 'output-style',
+    )
+
+    expect(check?.status).toBe('warn')
+    expect(check?.detail).toContain('terse')
+  })
+
+  it('test_a_style_that_resolved_is_reported_as_ok', () => {
+    const check = collectChecks({ ...base, outputStyle: { name: 'terse', resolved: true } }).find(
+      (c) => c.name === 'output-style',
+    )
+
+    expect(check?.status).toBe('ok')
+    expect(check?.detail).toContain('terse')
+  })
+
+  it('test_no_configured_style_produces_no_row', () => {
+    // Anti-vacuity, and the same noise argument as the settings row: a permanently absent setting
+    // does not deserve a line in the diagnostic.
+    expect(collectChecks(base).find((c) => c.name === 'output-style')).toBeUndefined()
+  })
+})
