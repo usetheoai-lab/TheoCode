@@ -18,6 +18,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- The pin guard now checks the tree, not only the files. An install can report success and leave the
+  previous version in place; every declaration then agrees while the build runs against something
+  else (#120).
+
+### Fixed
+
 - `sessions gc` and `theocode sessions delete` keep protecting a live session after the upstream
   rename of `protectedTranscripts`. The map is keyed by transcript path now, not by session id, and
   this product was still mapping each key forward as though it were an id — which produced an empty

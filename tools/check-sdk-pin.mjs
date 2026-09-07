@@ -22,7 +22,7 @@
  * A CHECK THAT FAILS, not a corrected number — the acceptance criterion the issue names, because a
  * number someone fixes by hand drifts back the next time either file is edited.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 
 const PKG = 'package.json'
@@ -82,6 +82,67 @@ export function disagreement(pkgJson, workspaceYaml, workspaceManifests = []) {
   return undefined
 }
 
+/**
+ * #120 — an EXACT pin must equal the copy the tree actually resolved.
+ *
+ * The three checks above reconcile DECLARATIONS with each other. All three can agree and all three
+ * can be wrong about the tree, which is what happened:
+ *
+ *   package.json          @theokit/agents  13.0.0-next.3
+ *   pnpm-workspace.yaml   @theokit/agents  13.0.0-next.3
+ *   node_modules          @theokit/agents  13.0.0-next.2      ← what ran
+ *
+ * `pnpm install --force` printed a normal successful run and left the older copy in place: the
+ * `minimumReleaseAge` supply-chain policy rejected the newer lockfile entry and the default path
+ * swallowed the rejection. Only `--no-frozen-lockfile` surfaced it.
+ *
+ * It matters here because every upstream verification in this repository begins with *raise the
+ * pin, then measure*. A pin that silently does not move makes the next measurement answer about
+ * the wrong artifact, while the files and the operator both believe otherwise. It was caught by a
+ * habit — `readlink -f` immediately after a bump — and a habit is not a gate.
+ *
+ * ## Only EXACT pins
+ *
+ * Three of the five `@theokit/*` declarations here are ranges (`^0.2.1`, `^0.8.0`, `^0.80.0`). A
+ * range resolving above its floor is the range working, not drift, so equality would make this
+ * guard noise — and a noisy guard is one people switch off. Only a pin that asserts identity is
+ * held to identity.
+ *
+ * ## Absence is not agreement
+ *
+ * A package with no resolved copy is REPORTED, not skipped. Skipping it passes an equality check
+ * over nothing and reads as "the pin is honoured", which is the direction this guard exists to
+ * refuse.
+ *
+ * Filesystem-free, like `disagreement` above and for the same reason: the guard with no test is the
+ * one that reports clean over anything.
+ */
+export function resolvedDisagreement(declarations, resolved) {
+  for (const { path, name, version } of declarations) {
+    // Detected POSITIVELY: an exact version is `1.2.3` with an optional prerelease or build suffix.
+    // Everything else — `^0.80.0`, `~1.2`, `>=2`, `1.x`, `a || b` — describes a set, and a set
+    // resolving above its floor is the range working rather than drift.
+    //
+    // The first cut tested for range CHARACTERS and included `x` as a wildcard. `13.0.0-next.3`
+    // contains an `x`, in "next", so every prerelease pin was silently treated as a range and the
+    // guard reported clean over exactly the case it was written for. Caught by its own arm.
+    if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) continue
+
+    const actual = resolved.get(name)
+    if (actual === undefined) {
+      return `${path} pins ${name}@${version} and the tree has no resolved copy — not installed, so nothing is holding the build to that pin`
+    }
+    if (actual !== version) {
+      return (
+        `${path} pins ${name}@${version} while the tree resolved ${actual}. ` +
+        `An install can report success and leave the old copy in place — run ` +
+        `\`pnpm install --no-frozen-lockfile\` and read the output, which names the reason.`
+      )
+    }
+  }
+  return undefined
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   // Read from disk here rather than inside `disagreement`, which stays filesystem-free so the rule
   // is testable — the guard with no test is the one that reports clean over anything.
@@ -93,6 +154,35 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const problem = disagreement(readFileSync(PKG, 'utf8'), readFileSync(WS, 'utf8'), manifests)
   if (problem !== undefined) {
     process.stderr.write(`${problem}\n`)
+    process.exit(1)
+  }
+
+  // #120 — and now the tree itself, which every check above can agree about and be wrong about.
+  const declarations = [{ path: PKG, json: readFileSync(PKG, 'utf8') }, ...manifests].flatMap(
+    ({ path, json }) => {
+      const j = JSON.parse(json)
+      const deps = { ...j.dependencies, ...j.devDependencies }
+      return Object.entries(deps)
+        .filter(([name]) => name.startsWith('@theokit/'))
+        .map(([name, version]) => ({ path, name, version }))
+    },
+  )
+  // `realpathSync`, not the symlink: two trees under one package name is how a version was once
+  // reported absent from a copy nobody was reading. The path is resolved BEFORE the version is read.
+  const resolved = new Map(
+    [...new Set(declarations.map((d) => d.name))].flatMap((name) => {
+      for (const base of ['node_modules', ...manifests.map((m) => m.path.replace(/package\.json$/, 'node_modules'))]) {
+        const link = join(base, name)
+        if (!existsSync(link)) continue
+        const real = realpathSync(link)
+        return [[name, JSON.parse(readFileSync(join(real, 'package.json'), 'utf8')).version]]
+      }
+      return []
+    }),
+  )
+  const drift = resolvedDisagreement(declarations, resolved)
+  if (drift !== undefined) {
+    process.stderr.write(`${drift}\n`)
     process.exit(1)
   }
   if (!process.argv.includes('--quiet')) {
