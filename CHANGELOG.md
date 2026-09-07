@@ -75,6 +75,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `/hooks` reported a `SessionStart` hook as active while it can never fire. It now lists it marked
+  — `DECLARED BUT NEVER RUNS` — rather than as wired, and marked rather than hidden: a row that
+  disappeared would answer "was my file read?" with silence, a second false answer in place of the
+  first. Root cause is upstream (theokit-sdk#613): the SDK has two hook subsystems, and
+  `on_session_start` exists only in the one that hook handlers never reach. The three events that do
+  fire are exactly the three with a member in the other (#132)
 - Corrected a false claim in the source: a comment stated that hooks translated from a
   `settings.json` "go through the same fingerprint approval gate as every other hook". Measured in
   the TUI with a real TTY — three hooks declared in this product's own file fired three times with

@@ -157,7 +157,10 @@ Base names map on the light/dark axis: `dark`/`light` exactly, and `dark-daltoni
 `light-daltonized`, `light-ansi` keep their axis while saying which variant was lost. Falling back to
 the default instead would repaint a light terminal over an accessibility variant we cannot reproduce.
 
-Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. In this product's own file an
+Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart` — but **`SessionStart` parses
+and never fires** (theokit-sdk#613: the SDK has two hook subsystems and the event exists in only one
+of them). `/hooks` lists it marked rather than as active, and marked rather than hidden: a row that
+disappeared would answer "was my file read?" with silence. In this product's own file an
 unknown event name is a loud parse failure, not a skipped hook. In a `.claude/settings.json` — where
 the vocabulary is Claude Code's and is larger — an event we do not have is dropped and named by
 `doctor` instead, because refusing would stop a valid file of theirs from starting the product.
