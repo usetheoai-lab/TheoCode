@@ -26,7 +26,7 @@ const IDLE: KeyboardState = {
   trusted: true,
   hasPendingApproval: false,
   inDemoInput: false,
-  emLogin: false,
+  inLogin: false,
   rotating: false,
   mode: 'composer',
   showingUsage: false,
@@ -92,7 +92,7 @@ describe('routeKey — the gates that swallow every key', () => {
   const gates: ReadonlyArray<[string, Partial<KeyboardState>]> = [
     ['an untrusted directory', { trusted: false }],
     ['a pending approval', { hasPendingApproval: true }],
-    ['the login flow', { emLogin: true }],
+    ['the login flow', { inLogin: true }],
     ['a key rotation', { rotating: true }],
   ]
 

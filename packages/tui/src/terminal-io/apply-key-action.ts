@@ -3,7 +3,7 @@ import type { KeyAction } from './input-router.js'
 export interface KeyCapabilities {
   readonly abandonQuestion: () => void
   readonly interruptTurn: () => void
-  readonly irParaChat: () => void
+  readonly goToChat: () => void
   readonly cancelDemo: () => void
   readonly closeDiff: () => void
   readonly closeUsage: () => void
@@ -23,7 +23,7 @@ const EXECUTORS: ReadonlyMap<KeyAction['kind'], (cap: KeyCapabilities, action: K
   new Map([
     ['abandon-question', (c) => c.abandonQuestion()],
     ['interrupt-turn', (c) => c.interruptTurn()],
-    ['close-progress', (c) => c.irParaChat()],
+    ['close-progress', (c) => c.goToChat()],
     ['close-demo', (c) => c.cancelDemo()],
     ['close-diff', (c) => c.closeDiff()],
     ['close-usage', (c) => c.closeUsage()],

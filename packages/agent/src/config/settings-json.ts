@@ -39,9 +39,32 @@
  *     `UserPromptSubmit` and `PreCompact`, which we do not have. Those are dropped BY NAME.
  *   - One matcher group holds an array of commands, so a group fans out to N entries.
  *
- * Hooks translated here go through the same fingerprint approval gate as every other hook
- * (`hooks/hook-trust.ts`). That is the point of translating them rather than leaving them to the
- * SDK's own loader, which runs them ungated — measured as B-153.
+ * ## What translating a hook here does NOT do — measured 2026-09-07, correcting this file
+ *
+ * An earlier version of this paragraph claimed that hooks translated here "go through the same
+ * fingerprint approval gate as every other hook (`hooks/hook-trust.ts`)". **They do not.** Measured
+ * in the TUI with a real TTY, trusted directory, a hook that appends one line per fire:
+ *
+ * | hooks declared in | fires | `Review hook` prompts | `hook-approvals` written |
+ * |---|---|---|---|
+ * | neither (negative control) | 0 | 0 | 0 |
+ * | `.claude/settings.json` | 3 | 0 | 0 |
+ * | `.theokit/settings.json` | 3 | 0 | 0 |
+ * | both | 6 | 0 | 0 |
+ *
+ * Three hooks — arbitrary shell — ran from this product's OWN file without a single prompt. The
+ * directory trust gate is what stood between them and the operator, not the fingerprint. Whether
+ * that is the intended design for project scope is a separate question; what is not in question is
+ * that the comment promised a gate that did not run, and a comment is what the next reader believes.
+ *
+ * Filed as #130, which asks for the decision in writing rather than assuming either reading.
+ *
+ * The same run confirms the decision above: the two loaders are simultaneously active and ADDITIVE.
+ * The same command in both files fires twice. Translating `.claude/` hooks here would have added a
+ * second execution on top of the compatibility loader's, which is why it is not done.
+ *
+ * Not measured, and therefore not claimed: user scope. A `~/.claude/settings.json` under an isolated
+ * HOME produced 0 fires and 0 prompts, which three different explanations fit equally well.
  */
 import { HOOK_EVENTS } from '../hooks/hooks-spec.js'
 import { FOREIGN_SETTINGS_KEYS } from './foreign-keys.js'

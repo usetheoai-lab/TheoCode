@@ -22,7 +22,7 @@ export interface KeyboardState {
   readonly trusted: boolean
   readonly hasPendingApproval: boolean
   readonly inDemoInput: boolean
-  readonly emLogin: boolean
+  readonly inLogin: boolean
   readonly rotating: boolean
   readonly mode: string
   readonly showingUsage: boolean
@@ -102,7 +102,7 @@ const LAYERS: readonly KeyLayer<KeyboardState, { input: string; key: KeyPress },
     // than let the composer act on it. An untrusted directory is in the same set — nothing it can
     // reach should respond until the operator has said yes.
     name: 'gated',
-    when: (s) => !s.trusted || s.hasPendingApproval || s.emLogin || s.rotating,
+    when: (s) => !s.trusted || s.hasPendingApproval || s.inLogin || s.rotating,
     route: () => [],
   },
   {

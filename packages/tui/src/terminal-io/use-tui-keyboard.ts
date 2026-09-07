@@ -39,7 +39,7 @@ function keyboardState(deps: KeyboardDeps): KeyboardState {
     trusted: trusted,
     hasPendingApproval: Boolean(pendingApproval),
     inDemoInput: inDemoInput,
-    emLogin: screen.loginProvider !== undefined,
+    inLogin: screen.loginProvider !== undefined,
     rotating: backtrack.rotating,
     mode: screen.mode,
     showingUsage: screen.showUsage,
@@ -76,7 +76,7 @@ export function useTuiKeyboard(deps: KeyboardDeps): void {
         setPendingQuestion(undefined)
       },
       interruptTurn: interruptTurn,
-      irParaChat: () => screen.setMode('chat'),
+      goToChat: () => screen.setMode('chat'),
       cancelDemo: () => {
         screen.setMode('chat')
         screen.setToast({ message: 'Demo cancelled', variant: 'info' })

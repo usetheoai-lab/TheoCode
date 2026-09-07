@@ -114,6 +114,26 @@ Your `~/.claude/output-styles/` is read, while your `~/.claude/skills/` and `~/.
 not. That asymmetry is a stated rule, not an oversight: a foreign root under your home may contribute
 text that **constrains** the agent, never artifacts that **add invokable surface**.
 
+## Custom themes
+
+`~/.claude/themes/*.json` — Claude Code's format (`{ name?, base?, overrides? }`). Select one with
+`/theme custom:<slug>`, where the slug is the filename without `.json`; `/theme` with no argument
+lists what is on disk.
+
+The two vocabularies do not line up, and the product says so rather than pretending. Claude Code has
+roughly forty flat colour tokens; this product's theme is structured, and **six tokens map**:
+`claude` → the accent, `error`/`success`/`warning` → the status colours, `diffAdded`/`diffRemoved` →
+the diff backgrounds. Colour values are read as `#rgb` and `#rrggbb`; `rgb()`, `ansi256()` and
+`ansi:` are not rendered here.
+
+Everything a theme asked for and did not get — an unmapped token, an unsupported colour notation, a
+base variant with no equivalent — is **named in the toast** when the theme is selected. A theme that
+silently applied a sixth of itself would teach you the rest arrived.
+
+Base names map on the light/dark axis: `dark`/`light` exactly, and `dark-daltonized`, `dark-ansi`,
+`light-daltonized`, `light-ansi` keep their axis while saying which variant was lost. Falling back to
+the default instead would repaint a light terminal over an accessibility variant we cannot reproduce.
+
 Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. In this product's own file an
 unknown event name is a loud parse failure, not a skipped hook. In a `.claude/settings.json` — where
 the vocabulary is Claude Code's and is larger — an event we do not have is dropped and named by

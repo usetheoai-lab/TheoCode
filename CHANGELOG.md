@@ -36,6 +36,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- **Custom themes** from `~/.claude/themes/*.json`, in Claude Code's format, selected with
+  `/theme custom:<slug>`; `/theme` with no argument lists what is on disk. Six of their ~40 colour
+  tokens map onto this product's structured theme (`claude`, `error`, `success`, `warning`,
+  `diffAdded`, `diffRemoved`) and everything else — an unmapped token, a colour notation this
+  product does not render, a base variant with no equivalent — is named in the toast rather than
+  dropped. Base names keep their light/dark axis, so an accessibility variant we cannot reproduce
+  does not repaint a light terminal to the default (#127)
 - **Output styles.** `output_style` names a `.md` file under `~/.claude/output-styles/` or
   `<project>/.claude/output-styles/` — Claude Code's feature, in its directories, with its
   frontmatter (`name`, `description`, `keep-coding-instructions`). A style **replaces** the built-in
@@ -61,6 +68,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- Corrected a false claim in the source: a comment stated that hooks translated from a
+  `settings.json` "go through the same fingerprint approval gate as every other hook". Measured in
+  the TUI with a real TTY — three hooks declared in this product's own file fired three times with
+  zero approval prompts and no approvals file written. Directory trust is what stood between them
+  and the operator, not the fingerprint. The comment now carries the measurement; whether project
+  scope is covered by directory trust deliberately is asked in #130 (#127)
 - `resolveEffectiveConfig` resolved the trust posture from the ambient environment while resolving
   the configuration from the one the caller injected — B-033's split, one layer lower. Already
   wrong, and expensive now: the posture decides whether a project's whole `settings.json` is read
