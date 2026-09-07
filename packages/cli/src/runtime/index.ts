@@ -9,7 +9,7 @@ export {
   type ExecProcessor,
 } from './events.js'
 export { createGoalCancellation } from './goal-cancellation.js'
-export { resolveSessionId } from './preflight.js'
+export { resolveSession } from './preflight.js'
 export { createDrainedProcessOutput } from './drained-output.js'
 export { consumeWithForkIfBusy, availableIdOrFork } from './session-busy.js'
 

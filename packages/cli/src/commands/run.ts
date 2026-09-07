@@ -14,7 +14,8 @@ import { homedir } from 'node:os'
 import { readFileSync, writeFileSync } from 'node:fs'
 import type { ExecRun } from '../runtime/index.js'
 import type { Shutdown } from '@theokit/agents/commands'
-import { resolveSessionId } from '../runtime/index.js'
+import { resolveSession } from '../runtime/index.js'
+import { fireSessionStart } from '../runtime/session-start.js'
 import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
 import { turnFailureReporting } from '@theocode/shared/turn-failure-reporting'
 
@@ -109,13 +110,27 @@ export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) 
   return { headlessPolicy, mod, apiKey: cred.apiKey }
 }
 
+/**
+ * Resolve the session and, when resolving it STARTED one, fire `SessionStart`.
+ *
+ * The decision comes from the RESOLUTION, not from the arguments: `resume --last` carries no
+ * explicit id, and a rule that read that as "new session" fired the hook on a resume, with the
+ * previous turn's id — measured on the bench, and the reason `resolveSession` returns both facts.
+ */
+async function openSession(args: ExecRun): Promise<string> {
+  const resolved = await resolveSession(args)
+  const sessionId = availableIdOrFork(resolved.id, process.cwd())
+  if (resolved.started) await fireSessionStart(sessionId, process.cwd())
+  return sessionId
+}
+
 export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<void> {
   const prompt = readPrompt(args)
 
   const { streamAgentTurnInProcess } = await import('@theokit/agents')
   const { headlessPolicy, mod, apiKey } = await resolveRunTarget(args)
 
-  const sessionId = availableIdOrFork(await resolveSessionId(args), process.cwd())
+  const sessionId = await openSession(args)
   const processor = createProcessor(args.json === true, sessionId)
 
   let status: 'finished' | 'error' = 'finished'

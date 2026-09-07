@@ -66,8 +66,15 @@
  * Not measured, and therefore not claimed: user scope. A `~/.claude/settings.json` under an isolated
  * HOME produced 0 fires and 0 prompts, which three different explanations fit equally well.
  */
+import { TheokitAgentError } from '@theokit/agents'
+
 import { HOOK_EVENTS } from '../hooks/hooks-spec.js'
 import { FOREIGN_SETTINGS_KEYS } from './foreign-keys.js'
+
+/** Raised when `settings.json` carries a shape the SDK's own read of the same file would reject. */
+class SettingsShapeError extends TheokitAgentError {
+  override readonly name = 'SettingsShapeError'
+}
 
 interface TranslatedHook {
   readonly event: string
@@ -211,6 +218,59 @@ export function translateForeignHooks(raw: unknown): ForeignHooksRead {
   return { hooks, dropped }
 }
 
+/**
+ * Bring `hooks` to this product's internal shape, or refuse the file.
+ *
+ * Its own function because it carries two decisions, and inlining both pushed `translateSettings`
+ * past the complexity ceiling — which is the ceiling doing its job: "what shape may hooks take" is
+ * one question and deserves to be readable on its own.
+ */
+function normaliseHooks(values: Record<string, unknown>, foreignRoot: boolean): readonly string[] {
+  // #144 — a flat array here refuses EVERY turn, and the refusal used to be the SDK's.
+  //
+  // `.theokit/` is `@theokit/agents`' filebase, so its own settings loader reads this same file and
+  // validates `hooks` against ITS shape — Claude Code's nested-by-event object. Our flat array fails
+  // that validation and the failure is fatal: `hooks: expected an object at "hooks" … in
+  // .theokit/settings.json [hooks_json_invalid]`, on every turn, released in v0.11.0.
+  //
+  // It did not exist while the file was `config.toml`: the SDK does not read TOML. Renaming our
+  // configuration to `settings.json` put it inside a filename another loader already owns, and the
+  // collision is with a SHAPE rather than a path — which is why nothing caught it here, where the
+  // flat array parses perfectly well.
+  //
+  // Refused here so the operator meets a message that names the fix, before the one that names a
+  // validator. Only under our own root: beneath `.claude/` the hooks belong to the compatibility
+  // loader entirely (#130), and there is no shape of ours to defend.
+  if (!foreignRoot && Array.isArray(values['hooks'])) {
+    throw new SettingsShapeError(
+      "hooks: a `settings.json` carries hooks in Claude Code's nested form, because the SDK " +
+        'reads this same file and rejects any other shape. Write:\n' +
+        '  "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "…" } ] } ] }\n' +
+        'The event names are unchanged (PreToolUse, PostToolUse, Stop, SessionStart); `timeout` is ' +
+        'in seconds there, and `matcher: "*"` means every tool.',
+    )
+  }
+  if (!isRecord(values['hooks'])) return []
+
+  if (foreignRoot) {
+    // NOT translated, and this is the one place tolerance stops short on purpose. The compatibility
+    // loader ALREADY reads `.claude/settings.json` and executes its hooks — measured as B-153.
+    // Translating them here as well would run every one of them TWICE, and a hook is arbitrary shell.
+    // So the gap B-153 names stays open and is REPORTED, rather than closed by a worse change.
+    const { dropped } = translateForeignHooks(values['hooks'])
+    delete values['hooks']
+    return [
+      ...dropped,
+      'hooks under .claude/ are run by the compatibility loader, not by this file — ' +
+        'translating them here would execute each one twice',
+    ]
+  }
+
+  const read = translateForeignHooks(values['hooks'])
+  values['hooks'] = read.hooks
+  return read.dropped
+}
+
 export function translateSettings(raw: unknown, opts: TranslateOptions): SettingsRead {
   if (!isRecord(raw)) return { values: {}, ignored: [], unrecognised: [], droppedHooks: [] }
 
@@ -236,31 +296,7 @@ export function translateSettings(raw: unknown, opts: TranslateOptions): Setting
   // `hooks` is a name both dialects use for different shapes. Ours is an array; theirs is an object
   // keyed by event. Distinguishing by shape rather than by provenance means a file may legitimately
   // be written either way, which is what "the same filename" has to mean to be worth anything.
-  let droppedHooks: readonly string[] = []
-  if (isRecord(values['hooks'])) {
-    if (opts.foreignRoot) {
-      // NOT translated, and this is the one place tolerance stops short on purpose. The framework's
-      // compatibility loader ALREADY reads `.claude/settings.json` and executes its hooks — measured
-      // as B-153: settings.json present → hook fired; removed → 0; restored → fired. Translating
-      // them here as well would run every one of them TWICE, and a hook is arbitrary shell.
-      //
-      // So the gap B-153 names — those hooks bypassing this product's per-hook fingerprint approval
-      // — stays open, and is reported rather than closed by a change that would be worse than it.
-      // Closing it means taking the hooks away from that loader first, which is a security change
-      // with its own measurement pass, not a side effect of renaming a config file.
-      const { dropped } = translateForeignHooks(values['hooks'])
-      droppedHooks = [
-        ...dropped,
-        'hooks under .claude/ are run by the compatibility loader, not by this file — ' +
-          'translating them here would execute each one twice',
-      ]
-      delete values['hooks']
-    } else {
-      const read = translateForeignHooks(values['hooks'])
-      values['hooks'] = read.hooks
-      droppedHooks = read.dropped
-    }
-  }
+  const droppedHooks = normaliseHooks(values, opts.foreignRoot)
 
   return { values, ignored, unrecognised, droppedHooks }
 }

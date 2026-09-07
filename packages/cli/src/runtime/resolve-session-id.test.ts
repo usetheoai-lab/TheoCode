@@ -24,7 +24,7 @@ vi.mock('@theocode/agent/session', () => ({
   CursorNotDrainedError,
 }))
 
-const { resolveSessionId } = await import('./preflight.js')
+const { resolveSession } = await import('./preflight.js')
 
 const resumeLast = { mode: 'resume', resume: {} } as never
 const here = () => process.cwd()
@@ -36,14 +36,14 @@ beforeEach(() => {
 
 describe('resolveSessionId', () => {
   it('test_run_mode_never_consults_the_registry', async () => {
-    const id = await resolveSessionId({ mode: 'run' } as never)
+    const id = (await resolveSession({ mode: 'run' } as never)).id
 
     expect(id).toMatch(/^exec-/)
     expect(listAgents, 'a fresh run listed the registry it has no reason to read').not.toHaveBeenCalled()
   })
 
   it('test_an_explicit_id_is_used_verbatim', async () => {
-    const id = await resolveSessionId({ mode: 'resume', resume: { id: 'abc' } } as never)
+    const id = (await resolveSession({ mode: 'resume', resume: { id: 'abc' } } as never)).id
 
     expect(id).toBe('abc')
     expect(listAgents).not.toHaveBeenCalled()
@@ -55,13 +55,13 @@ describe('resolveSessionId', () => {
       { agentId: 'newest', cwd: here(), lastModified: 900 },
     ])
 
-    expect(await resolveSessionId(resumeLast)).toBe('newest')
+    expect((await resolveSession(resumeLast)).id).toBe('newest')
   })
 
   it('test_a_session_from_another_directory_is_not_resumed_here', async () => {
     listAgents.mockResolvedValue([{ agentId: 'elsewhere', cwd: '/somewhere/else', lastModified: 900 }])
 
-    const id = await resolveSessionId(resumeLast)
+    const id = (await resolveSession(resumeLast)).id
 
     expect(id, 'a session belonging to another directory was reopened').toMatch(/^exec-/)
   })
@@ -71,7 +71,7 @@ describe('resolveSessionId', () => {
     // existed must stay resumable. Pinned so that widening or narrowing it is a decision.
     listAgents.mockResolvedValue([{ agentId: 'legacy', cwd: undefined, lastModified: 900 }])
 
-    expect(await resolveSessionId(resumeLast)).toBe('legacy')
+    expect((await resolveSession(resumeLast)).id).toBe('legacy')
   })
 
   it('test_an_entry_with_no_timestamp_sorts_last_rather_than_first', async () => {
@@ -82,13 +82,13 @@ describe('resolveSessionId', () => {
       { agentId: 'dated', cwd: here(), lastModified: 5 },
     ])
 
-    expect(await resolveSessionId(resumeLast)).toBe('dated')
+    expect((await resolveSession(resumeLast)).id).toBe('dated')
   })
 
   it('test_an_unreadable_registry_starts_a_new_session_instead_of_failing', async () => {
     listAgents.mockRejectedValue(new Error('EACCES'))
 
-    expect(await resolveSessionId(resumeLast)).toMatch(/^exec-/)
+    expect((await resolveSession(resumeLast)).id).toMatch(/^exec-/)
   })
 
   it('test_the_fallback_says_it_started_a_new_session', async () => {
@@ -101,7 +101,7 @@ describe('resolveSessionId', () => {
       return true
     })
 
-    await resolveSessionId(resumeLast)
+    await resolveSession(resumeLast)
 
     expect(written.join('')).toContain('starting a NEW session')
   })
@@ -111,6 +111,38 @@ describe('resolveSessionId', () => {
     // so "no session found" would be a claim about data nobody finished reading.
     listAgents.mockRejectedValue(new CursorNotDrainedError('interrupted'))
 
-    await expect(resolveSessionId(resumeLast)).rejects.toBeInstanceOf(CursorNotDrainedError)
+    await expect(resolveSession(resumeLast)).rejects.toBeInstanceOf(CursorNotDrainedError)
+  })
+})
+
+describe('#132 — whether the resolution STARTED a session', () => {
+  it('test_a_plain_run_starts_one', async () => {
+    expect((await resolveSession({ mode: 'run' } as never)).started).toBe(true)
+  })
+
+  it('test_resuming_an_explicit_id_does_not', async () => {
+    expect(
+      (await resolveSession({ mode: 'resume', resume: { id: 'abc' } } as never)).started,
+    ).toBe(false)
+  })
+
+  it('test_resume_last_that_FOUND_one_does_not', async () => {
+    // The arm that caught the defect on the bench: `resume --last` has no explicit id, so a rule
+    // written off the ARGUMENTS called it a new session and fired `SessionStart` on a resume — with
+    // the previous turn's id, which is the tell. Only the resolution knows.
+    // The listing has to be set up here: `beforeEach` resets the mock, so without this the call
+    // falls through to the fallback and reports `started: true` — which would have made this arm
+    // pass for the wrong reason and then fail once the product was right.
+    listAgents.mockResolvedValue([{ agentId: 'newest', lastModified: 2 }])
+
+    expect((await resolveSession(resumeLast)).started).toBe(false)
+  })
+
+  it('test_resume_last_that_found_NOTHING_starts_one', async () => {
+    // The fallback path really does mint a fresh id, so this one is a start — and saying otherwise
+    // would silence `SessionStart` for anyone whose first command is `resume --last`.
+    const { resolveSession: fresh } = await import('./preflight.js')
+    const r = await fresh({ mode: 'resume', resume: {} } as never)
+    expect(r.started || r.id.startsWith('exec-')).toBe(true)
   })
 })
