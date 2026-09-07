@@ -19,7 +19,7 @@ export const AGENT = {
    * disagree, which is the same guarantee an import would give and the same shape B-002 used for
    * the name.
    */
-  version: '0.10.2',
+  version: '0.11.0',
   model: 'gpt-5.6-terra',
   greeting:
     "Hi — I'm TheoCode, a Codex-style coding agent on @theokit/agents. Ask me anything and I'll stream a reply.",

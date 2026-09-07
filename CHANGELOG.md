@@ -16,23 +16,19 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Added
+
 ### Changed
 
-- **BREAKING: `config.toml` is replaced by `settings.json`.** The configuration file is now JSON and
-  carries Claude Code's filename, so a real `settings.json` can be pasted in and the product starts.
-  A leftover `config.toml` with no `settings.json` in the same scope refuses the start and names
-  `theocode migrate-config`; ignoring it would drop the whole configuration with no error (#127)
-- Configuration is read from this product's own root before the foreign one, per layer:
-  `~/<home_dir>/settings.json` then `~/.claude/settings.json`; `<project>/.theokit/settings.json`
-  then `<project>/.claude/settings.json` (#127)
-- Keys a `settings.json` carries that this product does not implement are ignored and **named** by
-  `theocode doctor`, split into "not implemented here" and "unrecognised" — a key that is dropped
-  without being nameable teaches an operator that a setting is read when it is not (#127)
-- Tolerance for unknown keys depends on whose file it is, not on a list of key names. Under
-  `.claude/` an unknown key is theirs and is tolerated; under this product's own root it is a typo
-  and the loader refuses by name, so `sandboxMode` is never silently discarded in place of
-  `sandbox_mode`. An earlier inventory of 141 Claude Code keys was measured against a real
-  `~/.claude/settings.json` and missed five of them (#127)
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.11.0] - 2026-09-07
 
 ### Added
 
@@ -73,6 +69,40 @@ for `release.yml` in this repository will not find it, and should not have been 
   match-all rather than an invalid regex that would fail at boot, and an event this product does not
   have is dropped and named instead of throwing (#127)
 
+
+### Changed
+
+- **BREAKING: `config.toml` is replaced by `settings.json`.** The configuration file is now JSON and
+  carries Claude Code's filename, so a real `settings.json` can be pasted in and the product starts.
+  A leftover `config.toml` with no `settings.json` in the same scope refuses the start and names
+  `theocode migrate-config`; ignoring it would drop the whole configuration with no error (#127)
+- Configuration is read from this product's own root before the foreign one, per layer:
+  `~/<home_dir>/settings.json` then `~/.claude/settings.json`; `<project>/.theokit/settings.json`
+  then `<project>/.claude/settings.json` (#127)
+- Keys a `settings.json` carries that this product does not implement are ignored and **named** by
+  `theocode doctor`, split into "not implemented here" and "unrecognised" — a key that is dropped
+  without being nameable teaches an operator that a setting is read when it is not (#127)
+- Tolerance for unknown keys depends on whose file it is, not on a list of key names. Under
+  `.claude/` an unknown key is theirs and is tolerated; under this product's own root it is a typo
+  and the loader refuses by name, so `sandboxMode` is never silently discarded in place of
+  `sandbox_mode`. An earlier inventory of 141 Claude Code keys was measured against a real
+  `~/.claude/settings.json` and missed five of them (#127)
+
+
+- `@theokit/agents` 13.0.0-next.2 → 13.0.0-next.3.
+
+
+- **Correction to the 0.10.1 entry below.** It said `sessions gc` "no longer deletes a transcript it
+  could not read". The guard is real and tested, and it is **inert in this product**: it fires on an
+  `idSource: "unavailable"` field that only `@theokit/sdk`'s `listSessions` supplies, and this
+  product's own transcript reader does not. Measured on the production path — a registered session
+  whose transcript is corrupt is kept regardless, because protection is derived from the registry
+  and never from reading the file. So the case the entry described was never at risk here.
+
+  The guard stays, for a caller that does supply the field. The published entry is left as written,
+  per the rule against editing released history.
+
+
 ### Fixed
 
 - `/hooks` reported a `SessionStart` hook as active while it can never fire. It now lists it marked
@@ -104,28 +134,11 @@ for `release.yml` in this repository will not find it, and should not have been 
   previous version in place; every declaration then agrees while the build runs against something
   else (#120).
 
-### Fixed
 
 - `sessions gc` and `theocode sessions delete` keep protecting a live session after the upstream
   rename of `protectedTranscripts`. The map is keyed by transcript path now, not by session id, and
   this product was still mapping each key forward as though it were an id — which produced an empty
   guard. Caught before the upstream release, over a link into their candidate build (#107).
-
-### Changed
-
-- `@theokit/agents` 13.0.0-next.2 → 13.0.0-next.3.
-
-### Changed
-
-- **Correction to the 0.10.1 entry below.** It said `sessions gc` "no longer deletes a transcript it
-  could not read". The guard is real and tested, and it is **inert in this product**: it fires on an
-  `idSource: "unavailable"` field that only `@theokit/sdk`'s `listSessions` supplies, and this
-  product's own transcript reader does not. Measured on the production path — a registered session
-  whose transcript is corrupt is kept regardless, because protection is derived from the registry
-  and never from reading the file. So the case the entry described was never at risk here.
-
-  The guard stays, for a caller that does supply the field. The published entry is left as written,
-  per the rule against editing released history.
 
 ## [0.10.2] - 2026-09-07
 
