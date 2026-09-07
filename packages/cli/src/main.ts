@@ -6,7 +6,8 @@ import { installConfiguredHome, resolveEffectiveConfig } from '@theocode/agent/c
 import { installClaudeProjectDir } from '@theocode/agent/hooks'
 import { createShutdown } from '@theokit/agents/commands'
 import { loadProjectEnv, gitGate, parseExecArgs, USAGE } from './runtime/index.js'
-import type { ExecArgs, ExecHelp, ExecUsageError } from './runtime/index.js'
+import type { ExecArgs, ExecHelp, ExecUsageError, ExecVersion } from './runtime/index.js'
+import { AGENT } from '@theocode/shared/agent'
 import { goalCommand } from './commands/goal.js'
 import { reviewCommand } from './commands/review.js'
 import { runCommand } from './commands/run.js'
@@ -57,7 +58,13 @@ function bootstrap(): void {
  * B-023 — help is a SUCCESS. It used to be reachable only by triggering the error path, so asking
  * for help exited 1 and printed a complaint about a mistake the user had not made.
  */
-function handledBeforeBootstrap(args: ExecArgs): args is ExecUsageError | ExecHelp {
+function handledBeforeBootstrap(args: ExecArgs): args is ExecUsageError | ExecHelp | ExecVersion {
+  // #128 — before anything is set up, and on stdout with exit 0. A version that needs a working
+  // configuration to print is useless in exactly the bug report that needs it most.
+  if (args.mode === 'version') {
+    process.stdout.write(`${AGENT.name} ${AGENT.version}\n`)
+    return true
+  }
   if (args.mode === 'error') {
     process.stderr.write(`${args.message}\n\n${USAGE}\n`)
     process.exit(1)
