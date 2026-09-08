@@ -28,6 +28,24 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.13.2] - 2026-09-08
+
+### Changed
+
+- `@theokit/sdk` pinned to `5.3.2`. No runtime change reaches this product: it carries the
+  session-hook cadence on the published `.d.ts` (`fire once per RUN, not once per agent lifetime` —
+  the fact #132 turned on) and a better refusal for a malformed `hooks` block, which an operator
+  here never sees because our own refusal fires first. Tracked because this repository pins theokit
+  exactly and by policy exercises it: a pin that only moves when someone remembers accumulates
+  divergence, which is what #148 records
+- **Documentation:** `README.md` gave `.theokit/` two owners in two rows of one table — one said
+  `settings.json` was this product's, the other called the directory the SDK's filebase and listed
+  `agents/`, `skills/` and `rules/` but not `settings.json`. So a reader checking who else reads the
+  file before adding a key concluded the SDK does not — which is the reading that produced #144, a
+  released BLOCKER where a documented `hooks` array refused every turn. Both rows now say two
+  readers, one file. The information was not absent; it was distributed such that reading carefully
+  returned the wrong answer (#144)
+
 ## [0.13.1] - 2026-09-07
 
 ### Fixed
