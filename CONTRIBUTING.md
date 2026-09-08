@@ -52,8 +52,16 @@ it was pinning a dependency whose new capability the intermediate layer does not
 closing it reported a live, unfixed security gap as solved. The one word the author added for
 precision is the one the parser cannot see.
 
-Refer to an issue you are not closing with `Refs #N`, or by writing the number without a keyword in
-front of it: `#130 stays open`. Reserve the keywords for the commit that actually closes it.
+**A code span does not protect it.** Measured here, and the first attempt to measure it was worse
+than useless: the check ran against a branch the commit had not reached yet, the issue was still
+open, and that read as "backticks are safe". It only became evidence once `git merge-base
+--is-ancestor` proved the commit was on the trunk — and then the issue closed a second time. The
+parser sees the raw text; Markdown is applied for rendering, afterwards.
+
+So the rule has no escape hatch. Refer to an issue you are not closing with `Refs #N`, or write the
+number with no keyword anywhere near it. Reserve the keywords for the commit that actually does the
+work, and never spell one out in prose next to a number — not in a warning about this trap, and not
+inside backticks.
 
 ### A negative result without a positive control is not evidence
 
