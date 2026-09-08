@@ -28,6 +28,17 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.21.2] - 2026-09-08
+
+### Fixed
+
+- The foreign-root divergence table names four call sites, not three. `delegation/roles.ts` builds a
+  delegated role's own `local` with the same wide literal and no hook approval gate of its own, so a
+  subagent could in principle have spawned what the parent refuses — the #130 fix went to the parent.
+  Measured with delegation confirmed rather than assumed: the child ran its tool and reported the
+  file's contents, and the foreign hook fired zero times. Not a hole, and now written down rather
+  than re-derived from the same alarming line. (#188)
+
 ## [0.21.1] - 2026-09-08
 
 ### Fixed
