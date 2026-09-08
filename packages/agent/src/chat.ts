@@ -45,6 +45,7 @@ import { MAX_PTY_SESSIONS } from './pty/index.js'
 import type { SessionPtyOwner } from './pty/index.js'
 import { ToolRegistry, resolveToolScope } from './tools/index.js'
 import { declareAgent, toolsNamed } from './composition/agent-spec.js'
+import { refuseForeignHook } from './hooks/foreign-hook-gate.js'
 import { settingSourcesFor } from './setting-sources.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
@@ -446,6 +447,18 @@ function withShellAndProjectEntities(
       // kept working; passing the grant unconditionally would turn that into a hard failure on every
       // untrusted repo. Omitting a root is not enabling it.
       .settingSources(settingSourcesFor(posture))
+      // #130 — the framework's compatibility loader reads `.claude/settings.json` and
+      // `.theokit/hooks.json` itself and spawns what it finds, never passing through
+      // `buildHookHandlers` and therefore never through this product's fingerprint gate. Measured
+      // before this existed: such a hook fired once, ungated, against a control arm at zero where
+      // the same tool still ran. This is the decision point the framework consults before every one
+      // of those spawns; `refuseForeignHook` explains why the answer is always no.
+      //
+      // This product's OWN hooks do not arrive here — they are translated by `buildHookHandlers`,
+      // which carries its own `fingerprint` callback into the framework. That separation is what
+      // the bench measures on both sides, because a gate that also refused ours would silently
+      // disable a working feature and look exactly like a fix.
+      .hookApproval({ approve: refuseForeignHook })
       .hooks(lifecycleHooks)
   )
 

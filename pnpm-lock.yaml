@@ -66,8 +66,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: 13.0.0-next.7
-        version: 13.0.0-next.7(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.8
+        version: 13.0.0-next.8(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/agents-pty':
         specifier: ^0.2.1
         version: 0.2.1(@theokit/sdk@5.4.0(ws@8.21.3))
@@ -90,8 +90,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: 13.0.0-next.7
-        version: 13.0.0-next.7(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.8
+        version: 13.0.0-next.8(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/presenter':
         specifier: ^0.8.0
         version: 0.8.0(@theokit/sdk@5.4.0(ws@8.21.3))(zod@4.4.3)
@@ -99,8 +99,8 @@ importers:
   packages/shared:
     dependencies:
       '@theokit/agents':
-        specifier: 13.0.0-next.7
-        version: 13.0.0-next.7(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.8
+        version: 13.0.0-next.8(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
 
   packages/tui:
     dependencies:
@@ -111,8 +111,8 @@ importers:
         specifier: '*'
         version: link:../shared
       '@theokit/agents':
-        specifier: 13.0.0-next.7
-        version: 13.0.0-next.7(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
+        specifier: 13.0.0-next.8
+        version: 13.0.0-next.8(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/tui':
         specifier: ^0.80.0
         version: 0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)
@@ -837,8 +837,8 @@ packages:
     resolution: {integrity: sha512-JTNdU4T/XKHs3XRbKHTwqm9K4GqIv28udDUKB5rq9GJJfz3EAad7mp9qflABPqv2sDsJXsCRI1qrha40QsWCqw==}
     engines: {node: '>=22.12.0'}
 
-  '@theokit/agents@13.0.0-next.7':
-    resolution: {integrity: sha512-bJ4lt6GqFQdcfi7ZQ8bUG0iYx9xHBQsxYMzjh/KLR4g4wAOAvA/UTgESh6lM6io1AnE+2mNttBAd+JQdduh2Gw==}
+  '@theokit/agents@13.0.0-next.8':
+    resolution: {integrity: sha512-GQEopsEzlDEWlgQ+8HQwS0fDir+VFcvDxqWB+Ym4J9esIj0oC6pIip8TAW+eenZOOfuoXVXBA+O8N10bTrP37w==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@theokit/http': '>=2.1.0-next.0'
@@ -2547,7 +2547,7 @@ snapshots:
     transitivePeerDependencies:
       - '@theokit/sdk'
 
-  '@theokit/agents@13.0.0-next.7(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)':
+  '@theokit/agents@13.0.0-next.8(@theokit/http@2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@theokit/http': 2.1.0-next.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)
       '@theokit/presenter': 0.9.0-next.0(@theokit/sdk@5.4.0(ws@8.21.3))(zod@4.4.3)
