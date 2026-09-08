@@ -1,6 +1,6 @@
 {
   "name": "theocode",
-  "version": "0.15.2",
+  "version": "0.16.0",
   "packageManager": "pnpm@11.22.0",
   "private": true,
   "type": "module",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@theokit/sdk": "5.3.2",
+    "@theokit/sdk": "5.4.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@vitest/coverage-v8": "^4.1.11",
