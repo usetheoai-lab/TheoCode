@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `CONTRIBUTING.md` corrected: a code span does **not** hide a closing keyword from GitHub's parser.
+  The first measurement of that said it did, and it was vacuous — the check ran against a branch the
+  commit had not reached, so the issue being open meant nothing. Once `git merge-base --is-ancestor`
+  proved the commit was on the trunk, the issue closed a second time. The rule has no escape hatch.
+  (#130)
+
 ### Security
 
 ## [0.17.1] - 2026-09-08
