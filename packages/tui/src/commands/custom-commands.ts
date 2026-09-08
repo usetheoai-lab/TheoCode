@@ -1,3 +1,4 @@
+import { FOREIGN_SURFACES } from '@theocode/agent'
 import { loadCustomCommands as loadInFramework, frontmatterValue } from '@theokit/agents/config'
 
 import { hints } from './command-template.js'
@@ -56,7 +57,11 @@ export function loadCustomCommands(options: LoadOptions): Map<string, CustomComm
     // than for most surfaces — a command's body becomes a prompt, and `.claude/` is repository-
     // controlled. The negative-control arm in `custom-commands.compat.test.ts` is what would notice
     // if that ever stopped being true.
-    compatSources: ['claude-code'],
+    // #188 — one declaration for the four sites that reach `.claude/`. The narrowed form carries
+    // `'commands'` explicitly: measured upstream, a narrowed list WITHOUT it reads as "not declared"
+    // and this directory goes dark. So the surface this call depends on is now named rather than
+    // inherited from the wide form, and the day it stops being named the loss is declared.
+    compatSources: [{ kind: 'claude-code' as const, import: FOREIGN_SURFACES }],
     builtinNames: [...BUILTIN_COMMAND_NAMES],
     onWarn: (message) => {
       options.warn(`[custom-command] ${message}`)

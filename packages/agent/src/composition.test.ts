@@ -385,7 +385,7 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     expect(agent.settingSources).toEqual({
       user: true,
       project: grant,
-      claudeCode: { ...grant, import: ['skills', 'subagents', 'plugins'] },
+      claudeCode: { ...grant, import: ['skills', 'subagents', 'plugins', 'commands'] },
     })
     // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
     // a trusted directory alone leaves it off. The two halves are asserted apart, below, because

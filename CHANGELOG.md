@@ -28,6 +28,29 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.22.0] - 2026-09-08
+
+### Changed
+
+- `@theokit/agents` pinned at `13.0.0-next.10`, and the foreign-root declaration now **governs** the
+  four call sites that reach `.claude/` instead of one. Each passes the same exported
+  `FOREIGN_SURFACES` rather than its own wide `['claude-code']` literal, so tightening the list
+  finally tightens the product. Proved by the arm that separates governance from coincidence —
+  removing a surface and watching only the foreign half disappear:
+
+  | site | with the surface | without it |
+  |---|---|---|
+  | commands | `ccprobe` + `tkprobe` | **`tkprobe` only** |
+  | subagents | `nativerole` + `foreignrole` | **`nativerole` only** |
+
+  `commands` had to be added to the list: measured upstream, a narrowed list without it reads as
+  "not declared" and the directory goes dark — which is why the entry is named rather than inherited
+  from the wide form. The delegated-role site takes `SDK_FOREIGN_SURFACES`, the same list minus
+  `commands`, because `@theokit/sdk@5.4.0`'s vocabulary has four names where the layer's has five;
+  it is derived from the one constant, never written out twice. No surface regressed: both skills
+  still reach the model, both commands and both roles still load, and the three hook arms are
+  unchanged. (#188)
+
 ## [0.21.2] - 2026-09-08
 
 ### Fixed

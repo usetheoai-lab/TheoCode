@@ -90,7 +90,25 @@ type ForeignGrant = Grant & { import: typeof FOREIGN_SURFACES }
  * comment is the only thing that says so, and `setting-sources.test.ts` pins the divergence so it is
  * discovered rather than believed.
  */
-const FOREIGN_SURFACES = ['skills', 'subagents', 'plugins'] as const
+export const FOREIGN_SURFACES = ['skills', 'subagents', 'plugins', 'commands'] as const
+
+/**
+ * The same list, minus what the SDK's vocabulary does not have.
+ *
+ * `@theokit/agents@13.0.0-next.10` added `'commands'` to its `CompatSurface`; `@theokit/sdk@5.4.0`
+ * still has four names, because custom commands are loaded by the layer and never by the SDK. So a
+ * call that builds SDK `local` options directly — `delegation/roles.ts`, for a delegated child —
+ * cannot carry the fifth name, and the compiler says so rather than the value being dropped at
+ * runtime.
+ *
+ * DERIVED, never written out a second time. A hand-copied four-name list beside the five-name one is
+ * the divergence this whole constant exists to remove, and it would go stale the moment a surface is
+ * added. What this expresses is one decision projected onto a narrower vocabulary, not two decisions.
+ */
+export const SDK_FOREIGN_SURFACES = FOREIGN_SURFACES.filter(
+  (surface): surface is Exclude<(typeof FOREIGN_SURFACES)[number], 'commands'> =>
+    surface !== 'commands',
+)
 
 export function settingSourcesFor(posture: TrustPosture): {
   user: true
