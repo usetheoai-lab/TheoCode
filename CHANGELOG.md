@@ -18,6 +18,15 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- A weekly job turns the `@theokit/*` staleness check into a mechanism: it opens ONE issue when a pin
+  falls behind the tag it tracks, edits it as that set changes, and closes it when the pins catch up.
+  The check itself has been accurate since it was written and nothing ran it, so it held only while
+  somebody remembered to type `pnpm deps:theokit`. Not a CI gate on purpose — upstream publishing
+  something is not a failure of this build, and a gate that fails for a reason its author cannot fix
+  gets bypassed. A failed check is its own third state: it never opens an issue and never closes one,
+  because "nobody could measure" is not "nothing is wrong". Preview it with `pnpm deps:theokit:report`.
+  (#148)
+
 ### Changed
 
 ### Deprecated
