@@ -28,6 +28,19 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+- `.claude/` is now imported surface by surface — skills, subagents, plugins — and its `hooks` are
+  never read. Until `@theokit/agents@13.0.0-next.9` the grant was per SOURCE, so wanting the foreign
+  root's skills meant taking its `hooks` too, and a `.claude/` directory usually arrives with the
+  clone, written for another product. This is the second of two answers and they are not redundant:
+  the `hookApproval` gate refuses at the spawn point and covers every root, including
+  `.theokit/hooks.json`, which is not a compat source at all; this keeps the framework from reading
+  those hooks in the first place. `plugins` deliberately stays — a
+  `.claude/plugins/<bundle>/skills/<name>/SKILL.md` answers on the built binary and nothing
+  establishes whether those arrive through `skills` or through `plugins`, so removing it is worth a
+  measurement first. Measured with a live positive control: a native and a foreign skill both reach
+  the model before and after, a foreign `.claude/agents/` role is still discovered, and the three
+  hook arms are unchanged. (#183)
+
 ## [0.20.0] - 2026-09-08
 
 ### Changed
