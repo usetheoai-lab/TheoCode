@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.23.0] - 2026-09-08
+
+### Changed
+
 - `@theokit/sdk` pinned at 5.5.0 (was 5.4.0). It answers this product's request (theokit-sdk#637):
   `HookApprovalRequest` now carries `timeoutMs` — the timeout the runtime **will** apply, default
   already resolved — and `sourceEvent`, the event key as the config file spelled it (`PreToolUse`,
@@ -32,14 +44,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   running would be the same defect this product has spent the week filing. The gate stays — it covers
   `.theokit/hooks.json`, which no import list reaches — and the approval path is tracked separately
   with what it would take to exercise it. (#198)
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.22.1] - 2026-09-08
 
