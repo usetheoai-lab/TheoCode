@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.15.1] - 2026-09-08
+
+### Fixed
+
 - A staleness issue closed by a human is no longer re-opened by the next scheduled run. `findExisting`
   searched OPEN issues only, so declining a version — a legitimate answer, and the right one when the
   delta is nothing — left no trace the mechanism could read, and the issue came back every Monday.
@@ -34,8 +40,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   "already decided", and only that fingerprint stays quiet — declining 5.3.3 never hides 5.4.0. The
   issue body says so, so the reader knows closing it is honoured. Found by using the mechanism on the
   first real fact it produced. (#159)
-
-### Security
 
 ## [0.15.0] - 2026-09-08
 
