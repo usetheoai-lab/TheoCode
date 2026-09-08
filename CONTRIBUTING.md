@@ -63,6 +63,17 @@ number with no keyword anywhere near it. Reserve the keywords for the commit tha
 work, and never spell one out in prose next to a number — not in a warning about this trap, and not
 inside backticks.
 
+**One narrowing observation, kept as a hypothesis.** A PR body upstream said *"Closes the `hooks`
+half of #686"* and the issue did not close — the timeline shows no `closed` event at all. That is
+consistent with the parser requiring the keyword **adjacent** to the number, which is also what
+GitHub's own syntax documents. It is one observation of one case, and this repository has no
+matching case of its own to check it against.
+
+The rule stays strict anyway, and the reason is the asymmetry rather than the doubt. Being too
+strict costs a slightly awkward sentence. Being too loose costs a live security issue reported as
+solved — which happened twice in one day here, and each time was caught only because someone
+re-checked the state instead of assuming it. Write `Refs #N` and move on.
+
 ### A negative result without a positive control is not evidence
 
 A probe that "did not fire" has two explanations: the thing under test is broken, or the probe never
