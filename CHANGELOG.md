@@ -28,6 +28,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.19.0] - 2026-09-08
+
+### Security
+
 - A hook declared in a file the framework loads itself — a project `.claude/settings.json`, a
   `.theokit/hooks.json` — no longer runs. It ran shell on every tool call without passing this
   product's per-hook approval, because the framework's compatibility loader spawns those directly and
