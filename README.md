@@ -179,7 +179,7 @@ files this product alone reads:
 |---|---|
 | `.theocode/settings.json` (project), `~/.theocode/settings.json` | **runs here**, approval-gated |
 | `.theokit/settings.json` | **refused**, naming the file above |
-| `.claude/settings.json` (project) | not run here — the SDK's compatibility loader already runs them |
+| `.claude/settings.json` (project) | **not run** — the framework's loader spawns them, and this product now refuses each one at that point (#130) |
 | `~/.claude/settings.json` | not run by anyone; reported by `doctor` |
 
 `.theokit/` is the SDK's own filebase and its loader reads this same file. A hook there would run
