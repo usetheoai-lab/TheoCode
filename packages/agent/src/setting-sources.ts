@@ -71,6 +71,12 @@ type ForeignGrant = Grant & { import: typeof FOREIGN_SURFACES }
  * | skills | the builder | yes |
  * | subagents | `delegation/role-discovery.ts` | **no** |
  * | commands | `tui/commands/custom-commands.ts` | **no** |
+ * | a delegated role's own root | `delegation/roles.ts` | **no** |
+ *
+ * The fourth was nearly a hole and is not: that call builds a CHILD agent's `local` with no hook
+ * approval gate of its own, so a subagent could in principle have spawned what the parent refuses.
+ * Measured with delegation confirmed rather than assumed — the child ran its tool and reported the
+ * file's contents — and the foreign hook fired zero times.
  *
  * Measured: removing `'subagents'` from this list leaves `discoverRoles` returning the foreign role
  * exactly as before. The entry is kept anyway — it states what the framework may load from that
