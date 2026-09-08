@@ -31,7 +31,8 @@ const LOCAL_SETTINGS_FILE = 'settings.local.json'
  * `doctor` is where they surface; dropping them without a record would teach an operator that a
  * setting is read when it is not.
  */
-function readSettingsIfPresent(path: string, foreignRoot: boolean): unknown | null {
+function readSettingsIfPresent(candidate: SettingsCandidate): unknown | null {
+  const path = candidate.path
   let text: string
   try {
     text = readFileSync(path, 'utf8')
@@ -45,7 +46,11 @@ function readSettingsIfPresent(path: string, foreignRoot: boolean): unknown | nu
   } catch (err) {
     throw new ConfigError(`malformed JSON at ${path}: ${(err as Error).message}`)
   }
-  return translateSettings(parsed, { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot }).values
+  return translateSettings(parsed, {
+    ownKeys: CONFIG_SCHEMA_KEYS,
+    foreignRoot: candidate.foreignRoot,
+    hooksDelivery: candidate.hooksDelivery,
+  }).values
 }
 
 /**
@@ -79,26 +84,56 @@ export function refuseStrandedToml(scope: string, tomls: readonly string[], foun
  * describe files the loader does not read, which is the failure mode of every diagnostic that
  * recomputes what it reports on.
  */
+/**
+ * One candidate file, and WHO runs the hooks in it (#151).
+ *
+ * The delivery is a property of the PATH, not of the product, and it was measured per path rather
+ * than assumed: `hookConfigCandidates` in the SDK reads three filenames from every config root, and
+ * `theokitConfigRoot(cwd)` is unconditionally one of them — but `loadHookConfig(this.cwd, …)` is
+ * CWD-ONLY, so the user level is in nobody's candidates but ours. That asymmetry is why a rule like
+ * "any path containing .theokit" would be wrong: `~/.theokit/settings.json` is safe and
+ * `<project>/.theokit/settings.json` is not.
+ */
+export interface SettingsCandidate {
+  readonly path: string
+  readonly foreignRoot: boolean
+  readonly hooksDelivery: 'ours' | 'refuse' | 'sdk' | 'inert'
+}
+
+const ours = (path: string): SettingsCandidate => ({
+  path,
+  foreignRoot: false,
+  hooksDelivery: 'ours',
+})
+
 export function settingsCandidates(opts: {
   projectDir: string
   userDir: string
   env: Record<string, string | undefined>
-}): { user: string[]; project: string[]; projectLocal: string[] } {
+}): { user: SettingsCandidate[]; project: SettingsCandidate[]; projectLocal: SettingsCandidate[] } {
   const ourHome = homeStateDir(opts.env, opts.userDir)
+  // The SDK reads hooks from the PROJECT's `.theokit/` (its filebase) and `.claude/` (its compat
+  // adapter) — never from the user's home. See `SettingsCandidate`.
+  const sdkReadsProject = (path: string): SettingsCandidate => ({
+    path,
+    foreignRoot: path.includes(`${sep}${FOREIGN_ROOT}${sep}`),
+    hooksDelivery: path.includes(`${sep}${FOREIGN_ROOT}${sep}`) ? 'sdk' : 'refuse',
+  })
   return {
     user: [
-      join(ourHome, SETTINGS_FILE),
-      join(opts.userDir, LEGACY_HOME_DIR, SETTINGS_FILE),
-      join(opts.userDir, FOREIGN_ROOT, SETTINGS_FILE),
+      ours(join(ourHome, SETTINGS_FILE)),
+      ours(join(opts.userDir, LEGACY_HOME_DIR, SETTINGS_FILE)),
+      // Foreign vocabulary, but nothing runs its hooks: `loadHookConfig` never sees the user level.
+      { path: join(opts.userDir, FOREIGN_ROOT, SETTINGS_FILE), foreignRoot: true, hooksDelivery: 'inert' },
     ],
     project: [
-      join(opts.projectDir, DEFAULT_HOME_DIR, SETTINGS_FILE),
-      join(opts.projectDir, LEGACY_HOME_DIR, SETTINGS_FILE),
-      join(opts.projectDir, FOREIGN_ROOT, SETTINGS_FILE),
+      sdkReadsProject(join(opts.projectDir, DEFAULT_HOME_DIR, SETTINGS_FILE)),
+      ours(join(opts.projectDir, LEGACY_HOME_DIR, SETTINGS_FILE)),
+      sdkReadsProject(join(opts.projectDir, FOREIGN_ROOT, SETTINGS_FILE)),
     ],
     projectLocal: [
-      join(opts.projectDir, DEFAULT_HOME_DIR, LOCAL_SETTINGS_FILE),
-      join(opts.projectDir, FOREIGN_ROOT, LOCAL_SETTINGS_FILE),
+      sdkReadsProject(join(opts.projectDir, DEFAULT_HOME_DIR, LOCAL_SETTINGS_FILE)),
+      sdkReadsProject(join(opts.projectDir, FOREIGN_ROOT, LOCAL_SETTINGS_FILE)),
     ],
   }
 }
@@ -133,7 +168,8 @@ export function settingsReport(opts: {
   })
   const out: SettingsFileReport[] = []
   for (const list of [candidates.user, candidates.project, candidates.projectLocal]) {
-    for (const path of list) {
+    for (const candidate of list) {
+      const path = candidate.path
       if (!existsSync(path)) continue
       let parsed: unknown
       try {
@@ -143,10 +179,24 @@ export function settingsReport(opts: {
         // here would fail on exactly the input it exists to explain.
         break
       }
-      const read = translateSettings(parsed, {
-        ownKeys: CONFIG_SCHEMA_KEYS,
-        foreignRoot: path.includes(`${sep}${FOREIGN_ROOT}${sep}`),
-      })
+      let read
+      try {
+        read = translateSettings(parsed, {
+          ownKeys: CONFIG_SCHEMA_KEYS,
+          foreignRoot: candidate.foreignRoot,
+          hooksDelivery: candidate.hooksDelivery,
+        })
+      } catch (err) {
+        // #151 — a refused `hooks` key throws. A DIAGNOSTIC must survive the state it exists to
+        // describe: reporting the refusal is more use than inheriting it.
+        out.push({
+          path,
+          ignored: [],
+          unrecognised: [],
+          droppedHooks: [(err as Error).message],
+        })
+        break
+      }
       out.push({
         path,
         ignored: read.ignored,
@@ -160,9 +210,9 @@ export function settingsReport(opts: {
 }
 
 /** The first of `candidates` that exists, ours before theirs. */
-export function firstSettings(candidates: readonly string[]): unknown | null {
-  for (const path of candidates) {
-    const read = readSettingsIfPresent(path, path.includes(`${sep}${FOREIGN_ROOT}${sep}`))
+export function firstSettings(candidates: readonly SettingsCandidate[]): unknown | null {
+  for (const candidate of candidates) {
+    const read = readSettingsIfPresent(candidate)
     if (read !== null) return read
   }
   return null

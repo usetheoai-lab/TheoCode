@@ -28,6 +28,25 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.14.0] - 2026-09-08
+
+### Fixed
+
+- `hooks` in a `.claude/settings.json` are no longer translated and re-run here — the SDK's loader
+  already runs them, and running them again fired each one twice. In `~/.claude/settings.json` they
+  are inert (the SDK reads hooks from the project directory only) and `doctor` says so, rather than
+  the file looking active. (#151)
+
+### Security
+
+- `hooks` declared in `.theokit/settings.json` are refused instead of run. That file is the SDK's own
+  filebase: its compatibility loader reads it and executes the hooks in it **without this product's
+  per-hook approval**, so a command there ran ungated. Since v0.13.1 taught our loader the same
+  nested-by-event shape, an approved hook then ran a **second** time. Measured against a real session
+  before the fix: unapproved fired once, approved fired twice; after, the file is refused with a
+  message naming `.theocode/settings.json` as where hooks go. Everything else in
+  `.theokit/settings.json` still loads. (#151)
+
 ## [0.13.2] - 2026-09-08
 
 ### Changed

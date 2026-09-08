@@ -10,9 +10,9 @@ import { describe, expect, it } from 'vitest'
 import { CONFIG_SCHEMA_KEYS } from './config.js'
 
 /** Reading a file under `.claude/` — their vocabulary, so an unknown key is tolerated and named. */
-const THEIRS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: true } as const
+const THEIRS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: true, hooksDelivery: 'sdk' } as const
 /** Reading a file under this product's own root — an unknown key here is a typo. */
-const OURS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: false } as const
+const OURS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: false, hooksDelivery: 'ours' } as const
 
 /** Held in a variable, not a literal: the point is that it throws at RUNTIME, and a literal here is
  * flagged statically as an invalid regex — which is the very fact being asserted. */

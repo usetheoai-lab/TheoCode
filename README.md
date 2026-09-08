@@ -157,24 +157,36 @@ Base names map on the light/dark axis: `dark`/`light` exactly, and `dark-daltoni
 `light-daltonized`, `light-ansi` keep their axis while saying which variant was lost. Falling back to
 the default instead would repaint a light terminal over an accessibility variant we cannot reproduce.
 
-Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart` — but **`SessionStart` parses
-and never fires** (theokit-sdk#613: the SDK has two hook subsystems and the event exists in only one
-of them). `/hooks` lists it marked rather than as active, and marked rather than hidden: a row that
-disappeared would answer "was my file read?" with silence. In this product's own file an
+Hook events are `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`. In this product's own file an
 unknown event name is a loud parse failure, not a skipped hook. In a `.claude/settings.json` — where
 the vocabulary is Claude Code's and is larger — an event we do not have is dropped and named by
 `doctor` instead, because refusing would stop a valid file of theirs from starting the product.
 
-**`hooks` is written in Claude Code's nested-by-event shape, in every root** — `timeout` in
-**seconds**, `matcher: "*"` meaning every tool:
+**`hooks` is written in Claude Code's nested-by-event shape** — `timeout` in **seconds**,
+`matcher: "*"` meaning every tool:
 
 ```json
 { "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "./check.sh" } ] } ] } }
 ```
 
-Not a flat array. `.theokit/` is the SDK's own filebase, so its settings loader reads this same file
-and rejects any other shape — a flat array there refuses **every turn**. The loader refuses it first,
-naming the form above.
+Not a flat array; the loader refuses one, naming the form above.
+
+**Which file may declare them is not the same question as which file is read.** Every hook this
+product runs is fingerprinted by sha256 and requires per-hook approval. That gate can only cover the
+files this product alone reads:
+
+| file | `hooks` |
+|---|---|
+| `.theocode/settings.json` (project), `~/.theocode/settings.json` | **runs here**, approval-gated |
+| `.theokit/settings.json` | **refused**, naming the file above |
+| `.claude/settings.json` (project) | not run here — the SDK's compatibility loader already runs them |
+| `~/.claude/settings.json` | not run by anyone; reported by `doctor` |
+
+`.theokit/` is the SDK's own filebase and its loader reads this same file. A hook there would run
+through a loader that has no approval gate, and — since v0.13.1 made the nested shape parse here —
+would then run a **second** time through ours. Refusing is the only answer that neither executes an
+unapproved command nor fires an approved one twice (#151). Everything else in `.theokit/settings.json`
+still loads; only `hooks` is refused, and the message names where to move it.
 
 `SessionStart` fires once, when a session begins — at launch, at `/new`, and on a headless run that
 is not a resume. It is fired by the surface that mints the session id rather than mapped onto the
