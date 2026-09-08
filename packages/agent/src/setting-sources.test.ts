@@ -82,6 +82,19 @@ describe('#65 — the foreign dialect is declared, and gated', () => {
     expect(imported).toContain('subagents')
   })
 
+  it('test_the_list_names_a_surface_it_does_not_actually_govern', () => {
+    // Measured, and pinned so it is discovered rather than believed: `subagents` is in the list and
+    // removing it changes nothing, because `discoverRoles` reaches `.claude/agents/` with its own
+    // direct `compatSources: ['claude-code']` and never through this declaration. Same for the TUI's
+    // custom commands.
+    //
+    // The entry stays — it states what the framework MAY load, which is true and would matter the
+    // day anything routes through it. This test exists so the next reader learns that tightening
+    // this list does not tighten those two surfaces, instead of assuming a security declaration
+    // governs everything it names.
+    expect(settingSourcesFor(TRUSTED).claudeCode?.import).toContain('subagents')
+  })
+
   it('test_the_surface_list_is_never_empty', () => {
     // The framework refuses `[]` rather than interpreting it, because it reads as "no surfaces" or
     // as "not declared, therefore all" and the two differ by whether shell runs. A refactor that
