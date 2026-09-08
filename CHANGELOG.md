@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.20.0] - 2026-09-08
+
+### Changed
+
 - `@theokit/agents` pinned at `13.0.0-next.9` (was `next.8`). It adds
   `settingSources.claudeCode.import`, which lets this product take the foreign root's skills and
   subagents while declining its hooks — additive to the #130 fix, since the gate refuses at the spawn
@@ -30,14 +42,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   demonstrate that an import list preserves it — and shipping on an arm that was already dark is the
   vacuous negative this repository files issues about. The pin is taken because it measures clean and
   changes nothing observable here.
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.19.1] - 2026-09-08
 
