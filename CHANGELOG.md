@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.17.0] - 2026-09-08
+
+### Changed
+
 - `@theokit/agents` pinned at `13.0.0-next.5` (was `next.3`). It carries a breaking rename in the
   session API — `deleteSession`'s `registryRemoved: boolean` became `registryOutcome?: RegistryOutcome`
   — and nothing here reads it: this product measures the registry half itself by re-reading the
@@ -29,14 +41,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   a `not-attempted` value that describes this product's call exactly — it removes the registry entry
   itself and passes no remover — so the local measurement becomes redundant once that reaches a
   release; tracked for then rather than swapped now.
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.16.0] - 2026-09-08
 
