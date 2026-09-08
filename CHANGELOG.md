@@ -28,6 +28,17 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.19.1] - 2026-09-08
+
+### Fixed
+
+- `CONTRIBUTING.md` records one narrowing observation about the closing-keyword trap: a PR body
+  upstream reading *"Closes the `hooks` half of #686"* left that issue open, which is consistent with
+  the parser requiring the keyword adjacent to the number. Kept as a hypothesis — one case, and this
+  repository has no matching case of its own. The rule stays strict on asymmetry rather than doubt:
+  too strict costs an awkward sentence, too loose costs a live security issue reported as solved.
+  (#130)
+
 ## [0.19.0] - 2026-09-08
 
 ### Security
