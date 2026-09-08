@@ -18,6 +18,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.15.0] - 2026-09-08
+
+### Added
+
 - A weekly job turns the `@theokit/*` staleness check into a mechanism: it opens ONE issue when a pin
   falls behind the tag it tracks, edits it as that set changes, and closes it when the pins catch up.
   The check itself has been accurate since it was written and nothing ran it, so it held only while
@@ -26,12 +40,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   gets bypassed. A failed check is its own third state: it never opens an issue and never closes one,
   because "nobody could measure" is not "nothing is wrong". Preview it with `pnpm deps:theokit:report`.
   (#148)
-
-### Changed
-
-### Deprecated
-
-### Removed
 
 ### Fixed
 
@@ -49,8 +57,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   loads, `model` + `hooks` refuses both. The behaviour is correct and unchanged; dropping only
   `hooks` would leave the SDK's loader running them ungated, which is the hole the release closed.
   Only the entry was wrong, and released entries are not edited. (#151)
-
-### Security
 
 ## [0.14.0] - 2026-09-08
 
