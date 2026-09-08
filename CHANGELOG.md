@@ -28,6 +28,23 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.23.0] - 2026-09-08
+
+### Changed
+
+- `@theokit/sdk` pinned at 5.5.0 (was 5.4.0). It answers this product's request (theokit-sdk#637):
+  `HookApprovalRequest` now carries `timeoutMs` — the timeout the runtime **will** apply, default
+  already resolved — and `sourceEvent`, the event key as the config file spelled it (`PreToolUse`,
+  not `preToolUse`). Together they are exactly the identity this product's approval store hashes, so
+  approving a particular foreign hook instead of refusing every one becomes possible.
+
+  **Not built on yet, and the measurement says why.** A probe in the gate shows it is currently never
+  consulted at all: since v0.21.0 the import list keeps the framework from reading `.claude/` hooks,
+  so there is nothing left to ask about. Building an approval path on a seam that cannot be observed
+  running would be the same defect this product has spent the week filing. The gate stays — it covers
+  `.theokit/hooks.json`, which no import list reaches — and the approval path is tracked separately
+  with what it would take to exercise it. (#198)
+
 ## [0.22.1] - 2026-09-08
 
 ### Changed
