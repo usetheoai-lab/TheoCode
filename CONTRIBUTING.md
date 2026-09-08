@@ -37,6 +37,24 @@ npm run build
 grep -c MY_PROBE_MARKER dist/theocode.mjs      # 1, or the probe is measuring the old binary
 ```
 
+### A commit message cannot say an issue is NOT closed
+
+GitHub matches `close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved #N` anywhere in a
+commit message or PR body. It does not parse the English around the keyword, so a sentence written
+to deny the link performs it:
+
+```
+This does NOT close #130.       # DON'T — GitHub reads `close #130` and closes the issue
+```
+
+Measured here, on that exact line. The commit deliberately said the change did not fix the issue —
+it was pinning a dependency whose new capability the intermediate layer does not forward — and
+closing it reported a live, unfixed security gap as solved. The one word the author added for
+precision is the one the parser cannot see.
+
+Refer to an issue you are not closing with `Refs #N`, or by writing the number without a keyword in
+front of it: `#130 stays open`. Reserve the keywords for the commit that actually closes it.
+
 ### A negative result without a positive control is not evidence
 
 A probe that "did not fire" has two explanations: the thing under test is broken, or the probe never
