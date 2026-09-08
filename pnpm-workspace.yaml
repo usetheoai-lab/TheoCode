@@ -34,7 +34,7 @@ allowBuilds:
   node-pty: true
 
 minimumReleaseAgeExclude:
-  - '@theokit/agents@11.0.0 || 13.0.0-next.3 || 13.0.0-next.5 || 13.0.0-next.7 || 13.0.0-next.8 || 13.0.0-next.9 || 13.0.0-next.10'
+  - '@theokit/agents@11.0.0 || 13.0.0-next.3 || 13.0.0-next.5 || 13.0.0-next.7 || 13.0.0-next.8 || 13.0.0-next.9 || 13.0.0-next.10 || 13.0.0-next.11'
   - '@theokit/presenter@0.8.0 || 0.9.0-next.0'
   - '@typescript-eslint/eslint-plugin@8.68.0'
   - '@typescript-eslint/parser@8.68.0'

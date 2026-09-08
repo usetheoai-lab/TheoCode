@@ -28,6 +28,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.22.1] - 2026-09-08
+
+### Changed
+
+- `@theokit/agents` pinned at `13.0.0-next.11`. Types only: it moves the explanation of why the SDK's
+  `CompatSurface` has four names and the layer's has five out of `//` comments — which do not survive
+  into the emitted `.d.ts` — and into the JSDoc a consumer actually reads. Verified rather than taken
+  on the release note: the four `.js` files that differ are identical once chunk hashes are
+  normalised, with a positive control that fired. Taken, where the docs-only `@theokit/sdk@5.3.3` was
+  declined, because the delta is not zero for a reader: it is the answer to the `TS2345` this product
+  hit while converging the four call sites, and it now appears at the point of the error. (#188)
+
 ## [0.22.0] - 2026-09-08
 
 ### Changed
