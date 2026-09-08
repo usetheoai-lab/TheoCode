@@ -64,10 +64,29 @@ describe('#65 — the foreign dialect is declared, and gated', () => {
 
   it('test_the_foreign_root_takes_the_same_evidence_as_the_native_one', () => {
     // Not a boolean, and not a weaker grant. `.claude/hooks.json` executes shell from a directory
-    // that usually arrived with a clone.
+    // that usually arrived with a clone. The EVIDENCE is identical; what differs is the surface
+    // list below, which is a separate question from how much trust the root required.
     const sources = settingSourcesFor(TRUSTED)
 
-    expect(sources.claudeCode).toEqual(sources.project)
+    expect(sources.claudeCode?.trustedBy).toEqual(sources.project?.trustedBy)
+  })
+
+  it('test_the_foreign_root_is_imported_without_its_hooks', () => {
+    // #130. The whole point of the declaration: `.claude/` contributes skills and subagents, and its
+    // `hooks` are never read. Asserted as an absence rather than by comparing the whole list, so
+    // adding a surface later does not silently pass a test about the one that must stay out.
+    const imported = settingSourcesFor(TRUSTED).claudeCode?.import ?? []
+
+    expect(imported).not.toContain('hooks')
+    expect(imported).toContain('skills')
+    expect(imported).toContain('subagents')
+  })
+
+  it('test_the_surface_list_is_never_empty', () => {
+    // The framework refuses `[]` rather than interpreting it, because it reads as "no surfaces" or
+    // as "not declared, therefore all" and the two differ by whether shell runs. A refactor that
+    // emptied this list would turn a security declaration into a startup failure.
+    expect(settingSourcesFor(TRUSTED).claudeCode?.import.length).toBeGreaterThan(0)
   })
 
   it('test_an_untrusted_directory_gets_neither_door', () => {
