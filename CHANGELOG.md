@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.15.2] - 2026-09-08
+
+### Fixed
+
 - A staleness issue now closes when the pins return to a state already declined, instead of being
   rewritten to describe versions somebody already ruled on. The check for a declined fingerprint ran
   inside the no-open-issue branch, so the rule was "do not RE-OPEN a declined state" where it should
@@ -34,8 +40,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   dist-tag backwards to 4.63.5 (correctly opening an issue for a different fact), and the restore
   would have left that issue open forever. Found by writing the claim in a comment and then running
   `decide` against it rather than trusting the sentence. (#163)
-
-### Security
 
 ## [0.15.1] - 2026-09-08
 
