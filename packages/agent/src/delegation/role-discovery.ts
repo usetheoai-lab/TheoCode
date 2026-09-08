@@ -1,6 +1,8 @@
 import { homedir } from 'node:os'
 
 import { discoverSubagents } from '@theokit/agents'
+
+import { FOREIGN_SURFACES } from '../setting-sources.js'
 import type { SubagentDefinition } from '@theokit/agents'
 
 /**
@@ -62,7 +64,10 @@ export async function discoverRoles(opts: {
         // is shared with every other tool that speaks the dialect.
         discoverSubagents(opts.cwd, {
           settingSources: ['project'],
-          compatSources: ['claude-code'],
+          // #188 — the same declaration the builder carries, so this call stops being a fourth
+          // independent answer to "which surfaces of `.claude/` do we admit". Before this it passed
+          // the wide form and the list could name `subagents` while governing nothing here.
+          compatSources: [{ kind: 'claude-code' as const, import: FOREIGN_SURFACES }],
         })
       : Promise.resolve({}),
   ])

@@ -10,3 +10,4 @@ export type { WiredCapabilities, WiredEntity } from './wired-capabilities.js'
 export { skillsOnDisk } from './skills-on-disk.js'
 
 export { loadOutputStyle } from './context/output-styles.js'
+export { FOREIGN_SURFACES } from './setting-sources.js'
