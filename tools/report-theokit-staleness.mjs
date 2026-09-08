@@ -19,8 +19,16 @@
  *   - folded into "behind", every npm outage opens an issue naming versions nobody read.
  *
  * So `2` is `unmeasured`: it never opens, never closes, never edits the body. It comments on an open
- * issue (once — see `staleComment`) and exits non-zero so the scheduled run goes red where a human
- * can see it. Absence of a measurement does not become an assertion about the pins.
+ * issue and exits non-zero so the scheduled run goes red where a human can see it. Absence of a
+ * measurement does not become an assertion about the pins.
+ *
+ * ## Closing the issue is a decision, and it sticks (#159)
+ *
+ * Being behind is a fact, not a verdict: sometimes the right answer is to decline the version. The
+ * first version of this file searched OPEN issues only, so a human who measured the delta and closed
+ * the issue got it re-opened the following Monday — the stale-issue failure #148 named, inverted.
+ * A closed issue carrying the same fingerprint now means "already decided", and only that
+ * fingerprint stays quiet: declining 5.3.3 must never hide 5.4.0.
  *
  * ## Why an issue and not a failing build
  *
@@ -31,8 +39,8 @@
  *
  * ## Why the decision is a pure function
  *
- * `decide()` takes the checker's exit code, its parsed report and whatever issue is already open,
- * and returns an action. It touches nothing. That is what makes the interesting cases — a check
+ * `decide()` takes the checker's exit code, its parsed report, whatever issue is already open and
+ * whatever fingerprint was last declined, and returns an action. It touches nothing. That is what makes the interesting cases — a check
  * that failed while an issue is open, a set that shrank but did not empty — testable without a
  * tracker, which is the same split `classifyRegistryOutcome` uses in `session-ops.ts`.
  */
@@ -92,7 +100,7 @@ export function fingerprint(rows) {
  * performing one is what lets the tests cover the case that actually bites — a failed check while
  * an issue is open — without a tracker or a network.
  */
-export function decide({ exitCode, report, existing }) {
+export function decide({ exitCode, report, existing, declined = null }) {
   const state = classify(exitCode, report)
 
   if (state === UNMEASURED) {
@@ -109,7 +117,17 @@ export function decide({ exitCode, report, existing }) {
 
   const rows = behindRows(report)
   const print = fingerprint(rows)
-  if (!existing) return { action: 'open', rows, fingerprint: print, state }
+  if (!existing) {
+    // #159 — a human who measured this exact delta and closed the issue has DECIDED. Re-opening it
+    // every Monday overrides that decision on a schedule, which is the stale-issue failure #148
+    // named, inverted: an issue that will not stay closed gets muted exactly like one that never
+    // changes. The fingerprint is what keeps the silence narrow — declining 5.3.3 must not hide
+    // 5.4.0, so only the SAME versions stay quiet.
+    if (declined !== null && declined === print) {
+      return { action: 'declined', fingerprint: print, state }
+    }
+    return { action: 'open', rows, fingerprint: print, state }
+  }
   // Only touch the issue when the ANSWER changed. Rewriting an identical body on every scheduled
   // run makes "last updated" mean "the cron fired", and an issue whose timestamp moves for no
   // reason is one people stop reading — the stale-issue failure #148 named before this was built.
@@ -164,6 +182,10 @@ export function renderBody(rows, { now }) {
     'Being behind is not a defect and not urgent by itself — it is a fact that had no home before ' +
       'this issue. It closes itself once the pins catch up.',
     '',
+    '**Declining is a valid answer.** If you measure the delta and decide this version is not worth ' +
+      'taking, close this issue: the scheduled run reads closed issues too, and will not re-open ' +
+      'these exact versions. A newer one still opens a fresh issue.',
+    '',
     `<sub>Opened by \`tools/report-theokit-staleness.mjs\` (#148). Last measured ${now}.</sub>`,
   )
   return lines.join('\n')
@@ -212,13 +234,30 @@ function parse(out) {
   }
 }
 
+function marked(raw) {
+  return JSON.parse(raw).filter((i) => typeof i.body === 'string' && i.body.includes(MARKER))
+}
+
 export function findExisting({ repo }) {
-  const raw = gh(['issue', 'list', '--state', 'open', '--limit', '100', '--json', 'number,body'], {
-    repo,
-  })
-  const issues = JSON.parse(raw)
-  const hit = issues.find((i) => typeof i.body === 'string' && i.body.includes(MARKER))
+  const hits = marked(
+    gh(['issue', 'list', '--state', 'open', '--limit', '100', '--json', 'number,body'], { repo }),
+  )
+  const hit = hits[0]
   return hit ? { number: hit.number, fingerprint: readFingerprint(hit.body) } : null
+}
+
+/**
+ * The fingerprint on the most recently closed staleness issue, or `null`.
+ *
+ * `--state closed` is the query the first version of this file did not make, which is exactly how a
+ * human's decision became invisible to it (#159). `gh issue list` returns newest first, so the head
+ * is the last decision anyone took.
+ */
+export function findDeclined({ repo }) {
+  const hits = marked(
+    gh(['issue', 'list', '--state', 'closed', '--limit', '20', '--json', 'number,body'], { repo }),
+  )
+  return hits.length > 0 ? readFingerprint(hits[0].body) : null
 }
 
 function main() {
@@ -231,7 +270,8 @@ function main() {
 
   const { exitCode, report } = runChecker(root)
   const existing = dryRun && !repo ? null : findExisting({ repo })
-  const plan = decide({ exitCode, report, existing })
+  const declined = existing || (dryRun && !repo) ? null : findDeclined({ repo })
+  const plan = decide({ exitCode, report, existing, declined })
 
   console.log(`checker exit ${String(exitCode)} → ${plan.state} → ${plan.action}`)
 
@@ -303,6 +343,11 @@ function main() {
       console.error('checker failed; issue left untouched')
       return 1
     }
+    case 'declined':
+      // Nothing to say. Saying it anyway — a comment, a reopen, a log line somebody has to dismiss
+      // — is what turns a mechanism into noise.
+      console.log(`already declined: ${String(plan.fingerprint)}`)
+      return 0
     case 'none':
       return plan.state === UNMEASURED ? 1 : 0
     default:
