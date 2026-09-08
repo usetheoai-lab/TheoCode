@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `CONTRIBUTING.md` records that a commit message cannot say an issue is NOT closed. GitHub matches
+  the closing keywords anywhere in the text and does not parse the English around them, so the line
+  *"This does NOT close #130"* — written in v0.17.0's dependency bump precisely to deny the link —
+  closed a live, unfixed security issue. The word added for precision is the one the parser cannot
+  see. Filed with the other traps whose fault is upstream of the care taken. (#130)
+
 ### Security
 
 ## [0.17.0] - 2026-09-08
