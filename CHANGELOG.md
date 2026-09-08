@@ -28,6 +28,28 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.19.0] - 2026-09-08
+
+### Security
+
+- A hook declared in a file the framework loads itself — a project `.claude/settings.json`, a
+  `.theokit/hooks.json` — no longer runs. It ran shell on every tool call without passing this
+  product's per-hook approval, because the framework's compatibility loader spawns those directly and
+  never through `buildHookHandlers`. The gate is the framework's new `hookApproval` seam
+  (`@theokit/agents@13.0.0-next.8`, upstream theokit#686), and the answer is always no: everything
+  reaching it is by construction a hook this product did not translate and was never asked to
+  approve. A refused hook is treated as one that was never configured — the command does not run,
+  the work does not stop. Measured on the built binary, three arms:
+
+  | arm | before | after |
+  |---|---|---|
+  | project `.claude/settings.json`, unapproved | fires 1 | **fires 0** |
+  | own `.theocode/settings.json`, unapproved | fires 0 | fires 0 |
+  | own `.theocode/settings.json`, **approved** | fires 1 | **fires 1** |
+
+  The third arm is what separates a fix from a gate that refuses everything, and every arm ran a tool
+  — so each zero is the gate answering, not a turn with nothing to gate. (#130)
+
 ## [0.18.0] - 2026-09-08
 
 ### Changed
