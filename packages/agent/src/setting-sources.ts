@@ -2,6 +2,8 @@ import { projectSettingsPosture, projectSourceAllowed } from './config/project-s
 import type { TrustPosture } from './config/index.js'
 
 type Grant = { trustedBy: ReturnType<typeof projectSettingsPosture> }
+/** The foreign root carries one field the native one must not: which surfaces to import (#130). */
+type ForeignGrant = Grant & { import: typeof FOREIGN_SURFACES }
 
 /**
  * Which configuration roots the framework may read.
@@ -34,13 +36,39 @@ type Grant = { trustedBy: ReturnType<typeof projectSettingsPosture> }
  * `{"settingSources":["user","project"],"compatSources":["claude-code"]}`.
  *
  */
+
+/**
+ * #130 — which surfaces of `.claude/` this product imports, and the one it does not.
+ *
+ * `hooks` is absent, and that absence is the whole declaration. A `.claude/` directory usually
+ * arrives with the clone, written for another product by someone who never heard of this one, and
+ * its `hooks` key is arbitrary shell on every tool call. Until `@theokit/agents@13.0.0-next.9` the
+ * grant was per SOURCE, so wanting the skills meant taking the hooks: measured, such a hook fired
+ * once with no approval prompt and no approval file written.
+ *
+ * This is the second of two answers to that, and they are not redundant. `hookApproval` refuses at
+ * the SPAWN point and covers every root, including `.theokit/hooks.json`, which is not a compat
+ * source at all. This one keeps the framework from reading those hooks in the first place. The gate
+ * is what closes the hole; this is what narrows what has to reach a gate.
+ *
+ * `plugins` STAYS, and not by oversight. A `.claude/plugins/<bundle>/skills/<name>/SKILL.md` answers
+ * on the built binary — measured 2026-09-06 — and nothing here establishes whether those skills
+ * arrive through the `skills` surface or the `plugins` one. Dropping a surface whose consequence is
+ * unmeasured would trade a defect for a silent regression in somebody's skill inventory. It is a
+ * code-loading surface and worth removing; it is worth removing after a measurement, not before.
+ *
+ * An empty list is refused by the framework rather than interpreted, which is right: it reads as
+ * "no surfaces" or as "not declared, therefore all", and the two differ by whether shell runs.
+ */
+const FOREIGN_SURFACES = ['skills', 'subagents', 'plugins'] as const
+
 export function settingSourcesFor(posture: TrustPosture): {
   user: true
   project?: Grant
-  claudeCode?: Grant
+  claudeCode?: ForeignGrant
 } {
   if (!projectSourceAllowed(posture.allows)) return { user: true }
   // One grant object for both, so they cannot drift apart into a weaker gate for the foreign root.
   const grant: Grant = { trustedBy: projectSettingsPosture(posture) }
-  return { user: true, project: grant, claudeCode: grant }
+  return { user: true, project: grant, claudeCode: { ...grant, import: FOREIGN_SURFACES } }
 }
