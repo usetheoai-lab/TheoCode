@@ -28,6 +28,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.18.0] - 2026-09-08
+
+### Changed
+
+- `@theokit/agents` pinned at `13.0.0-next.7` (was `next.5`). It exports the hook approval gate #130
+  needs — `HookApprovalCapability`, `HookGateUnsupportedError`, `HookApprovalGate`,
+  `HookApprovalRequest`, all four verified in the published tarball against a control name — and
+  **this product cannot reach it**: `hookApproval` is a field on the `defineAgent` draft, not a method
+  on the fluent `AgentBuilder` this product builds with, and `use()` composes presets rather than
+  accepting a capability. The compiler answered both attempts. Re-measured on the built binary: a hook
+  in a project `.claude/settings.json` still fires once, ungated, against a control arm at zero where
+  the same tool runs. Taken because it is the current version and measures clean; it changes nothing
+  observable here. (#130)
+
 ## [0.17.2] - 2026-09-08
 
 ### Fixed
