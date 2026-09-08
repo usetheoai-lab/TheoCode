@@ -119,11 +119,36 @@ describe('deciding what to do', () => {
     expect(plan.action).toBe('open')
   })
 
-  it('test_an_open_issue_outranks_a_declined_fingerprint', () => {
-    // Someone reopened it, or the closed one is older. An open issue is the live state.
-    const existing = { number: 7, fingerprint: fingerprint([row()]) }
-    const declined = fingerprint([row()])
-    expect(decide({ exitCode: 1, report: stale, existing, declined }).action).toBe('unchanged')
+  it('test_an_issue_open_for_a_newer_fact_closes_when_the_fact_returns_to_a_declined_one', () => {
+    // #163, and it was a live sequence, not a hypothetical: 5.3.3 declined; upstream then moved the
+    // `latest` dist-tag backwards to 4.63.5, which is a different fingerprint and correctly opened
+    // an issue; when `latest` is restored the state RETURNS to the declined one.
+    //
+    // With the declined check after `existing`, that last step is `edit` — the issue is rewritten
+    // to describe versions a human already ruled on, and stays open forever describing a decision
+    // that was taken.
+    const existing = { number: 162, fingerprint: '@theokit/sdk@5.3.2->4.63.5' }
+    const plan = decide({
+      exitCode: 1,
+      report: stale,
+      existing,
+      declined: '@theokit/sdk@5.3.2->5.3.3',
+    })
+    expect(plan.action).toBe('close-declined')
+    expect(plan.number).toBe(162)
+  })
+
+  it('test_an_open_issue_for_an_undeclined_fingerprint_is_still_edited', () => {
+    // The control beside it: closing on ANY declined value would close issues about versions
+    // nobody ruled on, which is the same defect pointing the other way.
+    const existing = { number: 7, fingerprint: '@theokit/sdk@5.3.1->5.3.2' }
+    const plan = decide({
+      exitCode: 1,
+      report: stale,
+      existing,
+      declined: '@theokit/sdk@5.0.0->5.0.1',
+    })
+    expect(plan.action).toBe('edit')
   })
 
   it('test_a_declined_fingerprint_never_suppresses_the_unmeasured_state', () => {

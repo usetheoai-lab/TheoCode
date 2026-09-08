@@ -117,17 +117,23 @@ export function decide({ exitCode, report, existing, declined = null }) {
 
   const rows = behindRows(report)
   const print = fingerprint(rows)
-  if (!existing) {
-    // #159 — a human who measured this exact delta and closed the issue has DECIDED. Re-opening it
-    // every Monday overrides that decision on a schedule, which is the stale-issue failure #148
-    // named, inverted: an issue that will not stay closed gets muted exactly like one that never
-    // changes. The fingerprint is what keeps the silence narrow — declining 5.3.3 must not hide
-    // 5.4.0, so only the SAME versions stay quiet.
-    if (declined !== null && declined === print) {
-      return { action: 'declined', fingerprint: print, state }
-    }
-    return { action: 'open', rows, fingerprint: print, state }
+  // #159 — a human who measured this exact delta and closed the issue has DECIDED. Re-opening it
+  // every Monday overrides that decision on a schedule, which is the stale-issue failure #148
+  // named, inverted: an issue that will not stay closed gets muted exactly like one that never
+  // changes. The fingerprint is what keeps the silence narrow — declining 5.3.3 must not hide
+  // 5.4.0, so only the SAME versions stay quiet.
+  //
+  // This is checked BEFORE `existing`, and that ordering is the fix for #163. Checked after, a
+  // state that RETURNS to a declined one while an issue is open is `edit` — the issue is rewritten
+  // to describe versions a human already declined, and then stays open forever describing a
+  // decision that was taken. Measured: with an upstream `latest` tag moved and then restored, the
+  // issue opened for the new fact (correct) and would never have closed again (not).
+  if (declined !== null && declined === print) {
+    return existing
+      ? { action: 'close-declined', number: existing.number, fingerprint: print, state }
+      : { action: 'declined', fingerprint: print, state }
   }
+  if (!existing) return { action: 'open', rows, fingerprint: print, state }
   // Only touch the issue when the ANSWER changed. Rewriting an identical body on every scheduled
   // run makes "last updated" mean "the cron fired", and an issue whose timestamp moves for no
   // reason is one people stop reading — the stale-issue failure #148 named before this was built.
@@ -342,6 +348,23 @@ function main() {
       )
       console.error('checker failed; issue left untouched')
       return 1
+    }
+    case 'close-declined': {
+      gh(
+        [
+          'issue',
+          'comment',
+          String(plan.number),
+          '--body',
+          `The pins are back to a state already declined (\`${String(plan.fingerprint)}\`), so the ` +
+            'decision taken then still applies. Closing; a version nobody has ruled on still opens ' +
+            'a fresh issue.',
+        ],
+        { repo },
+      )
+      gh(['issue', 'close', String(plan.number), '--reason', 'not planned'], { repo })
+      console.log(`closed #${String(plan.number)} — returned to a declined state`)
+      return 0
     }
     case 'declined':
       // Nothing to say. Saying it anyway — a comment, a reopen, a log line somebody has to dismiss
