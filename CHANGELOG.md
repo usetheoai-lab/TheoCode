@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.21.1] - 2026-09-08
+
+### Fixed
+
 - The foreign-root import list now says what it does not govern. Measured: removing `'subagents'`
   from it leaves `discoverRoles` returning the foreign role unchanged, because that path — and the
   TUI's custom commands — reach `.claude/` with their own direct `compatSources: ['claude-code']` and
@@ -39,8 +45,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   that a narrowed list reads as undeclared in their commands loader (usetheokit/theokit#704), which
   would have been silent — our call passes the wide string form, and both a foreign and a native
   command still load. (#188)
-
-### Security
 
 ## [0.21.0] - 2026-09-08
 
