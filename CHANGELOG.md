@@ -26,6 +26,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- CHANGELOG correction to `[0.14.0] § Security`, which said *"Everything else in
+  `.theokit/settings.json` still loads"*. It does not: the refusal takes the whole file, so a `model`
+  beside the `hooks` is refused too. Measured from the v0.14.0 tag in a clean clone — `model` alone
+  loads, `model` + `hooks` refuses both. The behaviour is correct and unchanged; dropping only
+  `hooks` would leave the SDK's loader running them ungated, which is the hole the release closed.
+  Only the entry was wrong, and released entries are not edited. (#151)
+
 ### Security
 
 ## [0.14.0] - 2026-09-08
