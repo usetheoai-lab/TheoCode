@@ -20,6 +20,17 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+- `@theokit/agents` pinned at `13.0.0-next.9` (was `next.8`). It adds
+  `settingSources.claudeCode.import`, which lets this product take the foreign root's skills and
+  subagents while declining its hooks — additive to the #130 fix, since the gate refuses at the spawn
+  point while this keeps the framework from reading them at all. **Not adopted yet** (#183): the
+  declaration compiles and the hook arms are unchanged, but the arms that would catch a regression
+  are dark in both the new build and the control, and chasing that found a skill in the *native* root
+  reporting `skills: none` too. The harness cannot demonstrate the skills surface at all, so it cannot
+  demonstrate that an import list preserves it — and shipping on an arm that was already dark is the
+  vacuous negative this repository files issues about. The pin is taken because it measures clean and
+  changes nothing observable here.
+
 ### Deprecated
 
 ### Removed
