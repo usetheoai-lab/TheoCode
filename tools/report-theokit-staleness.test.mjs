@@ -99,6 +99,39 @@ describe('deciding what to do', () => {
     expect(decide({ exitCode: 2, report: null, existing: null }).action).toBe('none')
   })
 
+  it('test_a_version_a_human_closed_is_not_reopened', () => {
+    // #159. The human measured this exact delta and declined it; re-opening weekly overrides that
+    // decision on a schedule.
+    const declined = fingerprint([row()])
+    const plan = decide({ exitCode: 1, report: stale, existing: null, declined })
+    expect(plan.action).toBe('declined')
+  })
+
+  it('test_declining_one_version_does_not_hide_the_next', () => {
+    // The half that keeps the silence narrow. Without it, closing the issue once mutes the
+    // mechanism forever — a worse failure than the one it fixes.
+    const plan = decide({
+      exitCode: 1,
+      report: stale,
+      existing: null,
+      declined: '@theokit/sdk@5.3.1->5.3.2',
+    })
+    expect(plan.action).toBe('open')
+  })
+
+  it('test_an_open_issue_outranks_a_declined_fingerprint', () => {
+    // Someone reopened it, or the closed one is older. An open issue is the live state.
+    const existing = { number: 7, fingerprint: fingerprint([row()]) }
+    const declined = fingerprint([row()])
+    expect(decide({ exitCode: 1, report: stale, existing, declined }).action).toBe('unchanged')
+  })
+
+  it('test_a_declined_fingerprint_never_suppresses_the_unmeasured_state', () => {
+    // Declining a VERSION says nothing about a check that could not run.
+    const declined = fingerprint([row()])
+    expect(decide({ exitCode: 2, report: null, existing: null, declined }).action).toBe('none')
+  })
+
   it('test_nothing_happens_when_current_and_nothing_is_open', () => {
     expect(decide({ exitCode: 0, report: clean, existing: null }).action).toBe('none')
   })
@@ -144,6 +177,12 @@ describe('the body', () => {
     )
     expect(body).toContain('theocode (root)')
     expect(body).toContain('packages/agent')
+  })
+
+  it('test_it_tells_the_reader_that_closing_it_is_honoured', () => {
+    // A mechanism that respects a decision nobody knows it respects is a mechanism whose users
+    // keep re-litigating the same version.
+    expect(renderBody([row()], { now: '2026-09-08' })).toContain('Declining is a valid answer')
   })
 })
 
