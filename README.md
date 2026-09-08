@@ -73,14 +73,14 @@ alternative is that moving your file has no visible effect.
 
 | Path                              | Read by            | Holds                                                                                           |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
-| `<project>/.theokit/settings.json` | this product **and the SDK** | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `hooks`, `output_style`, profiles. **Two readers, one file** — see the row below: adding a key here means checking what the SDK does with it |
+| `<project>/.theokit/settings.json` | this product **and the SDK** | `model`, `reasoning_effort`, `sandbox_mode`, `approval_policy`, `memory`, `shell_timeout_ms`, `session_gc`, `context_window`, `goal_oracle`, `home_dir`, `skills`, `output_style`, profiles — but **not `hooks`**, which this file refuses (#151). **Two readers, one file** — see the row below: adding a key here means checking what the SDK does with it |
 | `~/<home_dir>/settings.json`      | this product       | the same keys, as your defaults; the project layer wins                                         |
 | `~/<home_dir>/`                   | both               | transcripts, trust, hook approvals — `.theokit` by default; `home_dir` renames it, `.claude` included. A NAME, not a path, and an explicit `THEOKIT_HOME` still wins |
 | `~/<home_dir>/AGENTS.md`          | this product       | instructions that belong to YOU, in every project; the project's own file is read after it. `~/.theocode/AGENTS.md` still works |
 | `~/<home_dir>/rules/*.md`         | this product       | your own rules, scoped or not; the project's rules are read after them. `~/.theocode/rules/` and `~/.claude/rules/` are read too — rules are additive |
 | `~/<home_dir>/agents/*.md`        | this product       | your own squad roles (`explorer`, `worker`), in every project; a role of the same name in the project wins, and yours are read even in an untrusted directory — the trust gate asks about THIS repository's code, and your home is not it |
 | `<project>/THEO.md`               | this product       | project instructions — **first-wins** over `AGENTS.md`, then `CLAUDE.md`; a Claude Code repo needs no migration |
-| `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/` — **and `settings.json` itself**, which it validates against its own schema. That is why `hooks` here is the nested dialect: a shape the SDK rejects refuses every turn, whatever this product makes of it |
+| `<project>/.theokit/`             | the SDK's filebase | `agents/<name>.md` (subagents), `skills/<name>/SKILL.md`, `rules/` — **and `settings.json` itself**, which it validates against its own schema — and whose `hooks` it EXECUTES, with no approval gate. That is why this file refuses the key outright and points at `.theocode/settings.json` (#151), and why any key added here has to be checked against what the SDK does with it |
 | `<project>/.claude/`              | this product       | `rules/*.md` and `agents/<name>.md` are read from here too, so a Claude Code repository needs no migration; `skills/` already worked |
 | `<project>/.mcp.json`             | the SDK            | MCP servers, spawned when the directory is trusted                                              |
 | `~/<home_dir>/.mcp.json`          | this product       | YOUR MCP servers, in every project — not gated on whether a repository is trusted, because that gate is about the repository. A project cannot shadow one by reusing its name |
@@ -184,9 +184,13 @@ files this product alone reads:
 
 `.theokit/` is the SDK's own filebase and its loader reads this same file. A hook there would run
 through a loader that has no approval gate, and — since v0.13.1 made the nested shape parse here —
-would then run a **second** time through ours. Refusing is the only answer that neither executes an
-unapproved command nor fires an approved one twice (#151). Everything else in `.theokit/settings.json`
-still loads; only `hooks` is refused, and the message names where to move it.
+would then run a **second** time through ours (#151).
+
+The refusal takes the **whole file**, not just the key, and that is the point rather than a rough
+edge. Dropping only `hooks` would leave the other reader running them ungated — the hole would stay
+open and go quiet. Refusing the file stops the product from starting, so nothing runs them, and the
+message names `.theocode/settings.json` as where to move them. Every other key in that file is
+refused along with it until they do.
 
 `SessionStart` fires once, when a session begins — at launch, at `/new`, and on a headless run that
 is not a resume. It is fired by the surface that mints the session id rather than mapped onto the

@@ -18,6 +18,15 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- A weekly job turns the `@theokit/*` staleness check into a mechanism: it opens ONE issue when a pin
+  falls behind the tag it tracks, edits it as that set changes, and closes it when the pins catch up.
+  The check itself has been accurate since it was written and nothing ran it, so it held only while
+  somebody remembered to type `pnpm deps:theokit`. Not a CI gate on purpose — upstream publishing
+  something is not a failure of this build, and a gate that fails for a reason its author cannot fix
+  gets bypassed. A failed check is its own third state: it never opens an issue and never closes one,
+  because "nobody could measure" is not "nothing is wrong". Preview it with `pnpm deps:theokit:report`.
+  (#148)
+
 ### Changed
 
 ### Deprecated
@@ -25,6 +34,21 @@ for `release.yml` in this repository will not find it, and should not have been 
 ### Removed
 
 ### Fixed
+
+- `doctor` now says that hooks in a project `.claude/settings.json` run **without** this product's
+  per-hook approval, and names `.theocode/settings.json` as where to move them to have them gated.
+  It already named the loader that runs them, which a reader finishes reassured — the fact that
+  matters is that nothing gates them. Measured on the v0.14.0 binary: such a hook still fires once,
+  ungated. Closing that half needs per-surface control over the foreign root (theokit-sdk#631);
+  `claudeCode` is granted per source today, so opting hooks out would also drop the subagents,
+  skills and rules adopters come here for. (#130)
+
+- CHANGELOG correction to `[0.14.0] § Security`, which said *"Everything else in
+  `.theokit/settings.json` still loads"*. It does not: the refusal takes the whole file, so a `model`
+  beside the `hooks` is refused too. Measured from the v0.14.0 tag in a clean clone — `model` alone
+  loads, `model` + `hooks` refuses both. The behaviour is correct and unchanged; dropping only
+  `hooks` would leave the SDK's loader running them ungated, which is the hole the release closed.
+  Only the entry was wrong, and released entries are not edited. (#151)
 
 ### Security
 

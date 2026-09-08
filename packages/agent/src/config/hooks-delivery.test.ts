@@ -81,6 +81,16 @@ describe('a project file the SDK owns', () => {
     expect(read.values['hooks']).toBeUndefined()
     expect(read.droppedHooks.join(' ')).toContain('compatibility loader')
   })
+
+  it('test_it_says_the_loader_that_runs_them_does_not_gate_them', () => {
+    // Naming the loader is not enough. A reader who learns "they run" concludes the product is
+    // fine with them, when the fact that matters is that they run with NO approval — the half of
+    // #130 this product cannot close on its own (`claudeCode` is granted per source, not per
+    // surface, so opting hooks out of the foreign root needs theokit-sdk#631).
+    const read = translateSettings({ hooks: FLAT_HOOK }, opts('sdk'))
+    expect(read.droppedHooks.join(' ')).toContain('WITHOUT')
+    expect(read.droppedHooks.join(' ')).toContain('.theocode/settings.json')
+  })
 })
 
 describe('a user-level foreign file', () => {

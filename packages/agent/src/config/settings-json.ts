@@ -263,7 +263,8 @@ function normaliseHooks(
     return [
       ...dropped,
       'hooks in this file are run by the compatibility loader, not by this product — translating ' +
-        'them here would execute each one twice',
+        'them here would execute each one twice. They therefore run WITHOUT this product\'s ' +
+        'per-hook approval; move them to .theocode/settings.json to have them gated (#130)',
     ]
   }
 
