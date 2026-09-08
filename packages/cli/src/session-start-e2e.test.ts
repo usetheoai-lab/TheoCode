@@ -41,9 +41,11 @@ afterEach(() => {
  * which is what `parseHooks` and the approval store see.
  */
 function declare(command: string): { event: string; command: string }[] {
-  mkdirSync(join(cwd, '.theokit'), { recursive: true })
+  // `.theocode/`, not `.theokit/`: the SDK reads its own filebase and would run these hooks too,
+  // ungated and twice over (#151), so a `hooks` key there is refused.
+  mkdirSync(join(cwd, '.theocode'), { recursive: true })
   writeFileSync(
-    join(cwd, '.theokit', 'settings.json'),
+    join(cwd, '.theocode', 'settings.json'),
     JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command }] }] } }),
   )
   return [{ event: 'SessionStart', command }]
@@ -73,8 +75,8 @@ describe('the surface seam', () => {
   })
 
   it('test_no_declared_hook_writes_nothing', async () => {
-    mkdirSync(join(cwd, '.theokit'), { recursive: true })
-    writeFileSync(join(cwd, '.theokit', 'settings.json'), JSON.stringify({ model: 'openai/x' }))
+    mkdirSync(join(cwd, '.theocode'), { recursive: true })
+    writeFileSync(join(cwd, '.theocode', 'settings.json'), JSON.stringify({ model: 'openai/x' }))
 
     await fireSessionStart('exec-e2e', cwd)
 

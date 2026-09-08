@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { loadConfig } from './config.js'
 import { settingsReport } from './settings-load.js'
-import { DEFAULT_HOME_DIR } from './home-dir.js'
+import { DEFAULT_HOME_DIR, LEGACY_HOME_DIR } from './home-dir.js'
 
 let home: string
 let project: string
@@ -95,9 +95,9 @@ describe('a real Claude Code file', () => {
   })
 
   it('test_their_nested_hooks_arrive_in_our_shape_with_the_unit_converted', () => {
-    // Under THIS product's own root: nothing else reads that file, so translating is safe and is
-    // what makes the two dialects interchangeable where we own the file.
-    write(project, DEFAULT_HOME_DIR, 'settings.json', {
+    // `.theocode/`, not `.theokit/`: the SDK's filebase is `.theokit/`, so a `hooks` key there is
+    // read and run by the SDK too — refused since #151. This is the root only this product reads.
+    write(project, LEGACY_HOME_DIR, 'settings.json', {
       hooks: {
         PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'guard.sh', timeout: 10 }] }],
         PreCompact: [{ matcher: '*', hooks: [{ type: 'command', command: 'never.sh' }] }],
@@ -172,7 +172,7 @@ describe('what the file carried and this product did not act on', () => {
   })
 
   it('test_an_untranslatable_hook_is_reported_with_its_reason', () => {
-    write(project, DEFAULT_HOME_DIR, 'settings.json', {
+    write(project, LEGACY_HOME_DIR, 'settings.json', {
       hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: 'inject.sh' }] }] },
     })
     const [report] = settingsReport({ projectDir: project, userDir: home, env: { HOME: home } })
@@ -222,8 +222,8 @@ describe('hooks under the foreign root are left to the loader that already runs 
 
   it('test_the_same_hooks_under_OUR_root_are_translated', () => {
     // Negative control on the provenance rule: a loader that simply dropped every nested hook block
-    // would pass both arms above.
-    write(project, DEFAULT_HOME_DIR, 'settings.json', {
+    // would pass both arms above. `.theocode/` because `.theokit/` is refused since #151.
+    write(project, LEGACY_HOME_DIR, 'settings.json', {
       hooks: { Stop: [{ hooks: [{ type: 'command', command: 'check.sh' }] }] },
     })
     expect(load().hooks).toEqual([{ event: 'Stop', command: 'check.sh' }])

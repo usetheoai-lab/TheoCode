@@ -102,6 +102,17 @@ export interface TranslateOptions {
    * schema must reject it by name.
    */
   readonly foreignRoot: boolean
+  /**
+   * WHO runs the `hooks` in this particular file — measured per path, not assumed per product.
+   *
+   * `ours`    this product alone. Translated and gated by fingerprint.
+   * `refuse`  the SDK reads this file and runs them with no gate of ours. Running them too would
+   *           double-fire; not running them leaves shell ungated. Refused (#151).
+   * `sdk`     the compatibility loader already runs them. Dropped and reported.
+   * `inert`   nothing runs them. Dropped and reported AS SUCH — `loadHookConfig` is cwd-only, so a
+   *           user-level `~/.claude/settings.json` hook has no executor at all.
+   */
+  readonly hooksDelivery: 'ours' | 'refuse' | 'sdk' | 'inert'
 }
 
 export interface SettingsRead {
@@ -225,48 +236,59 @@ export function translateForeignHooks(raw: unknown): ForeignHooksRead {
  * past the complexity ceiling — which is the ceiling doing its job: "what shape may hooks take" is
  * one question and deserves to be readable on its own.
  */
-function normaliseHooks(values: Record<string, unknown>, foreignRoot: boolean): readonly string[] {
-  // #144 — a flat array here refuses EVERY turn, and the refusal used to be the SDK's.
-  //
-  // `.theokit/` is `@theokit/agents`' filebase, so its own settings loader reads this same file and
-  // validates `hooks` against ITS shape — Claude Code's nested-by-event object. Our flat array fails
-  // that validation and the failure is fatal: `hooks: expected an object at "hooks" … in
-  // .theokit/settings.json [hooks_json_invalid]`, on every turn, released in v0.11.0.
-  //
-  // It did not exist while the file was `config.toml`: the SDK does not read TOML. Renaming our
-  // configuration to `settings.json` put it inside a filename another loader already owns, and the
-  // collision is with a SHAPE rather than a path — which is why nothing caught it here, where the
-  // flat array parses perfectly well.
-  //
-  // Refused here so the operator meets a message that names the fix, before the one that names a
-  // validator. Only under our own root: beneath `.claude/` the hooks belong to the compatibility
-  // loader entirely (#130), and there is no shape of ours to defend.
-  if (!foreignRoot && Array.isArray(values['hooks'])) {
+function normaliseHooks(
+  values: Record<string, unknown>,
+  delivery: TranslateOptions['hooksDelivery'],
+): readonly string[] {
+  const declared = values['hooks']
+  if (declared === undefined) return []
+
+  // #151 — the SDK reads this file and runs its `hooks` with no knowledge of our approval store.
+  // Measured with a real turn: unapproved shell ran and our refusal never appeared; approved, the
+  // hook fired TWICE. Neither outcome is shippable, and there is no third one available from here —
+  // so the key is refused until `theokit-sdk#631` lets a consumer declare which surfaces the SDK may
+  // import from its root.
+  if (delivery === 'refuse') {
     throw new SettingsShapeError(
-      "hooks: a `settings.json` carries hooks in Claude Code's nested form, because the SDK " +
-        'reads this same file and rejects any other shape. Write:\n' +
+      'hooks: this file is also read by the SDK, which runs the hooks in it without this ' +
+        "product's per-hook approval — and running them here as well would fire each one twice " +
+        '(#151). Move them to `.theocode/settings.json`, which only this product reads, where they ' +
+        'stay behind the fingerprint gate. A user-level settings.json is unaffected.',
+    )
+  }
+
+  if (delivery === 'sdk') {
+    const { dropped } = translateForeignHooks(declared)
+    delete values['hooks']
+    return [
+      ...dropped,
+      'hooks in this file are run by the compatibility loader, not by this product — translating ' +
+        'them here would execute each one twice',
+    ]
+  }
+
+  if (delivery === 'inert') {
+    // `loadHookConfig(cwd, …)` is CWD-ONLY, so a user-level foreign file is in nobody's candidates.
+    // Saying "the compatibility loader runs them" here — which this did — is a false statement about
+    // arbitrary shell, in the direction that reassures.
+    const { dropped } = translateForeignHooks(declared)
+    delete values['hooks']
+    return [
+      ...dropped,
+      'hooks in a user-level .claude/settings.json: nothing runs them. The SDK reads hooks from ' +
+        'the project directory only, and this product does not read them from a foreign root',
+    ]
+  }
+
+  if (!isRecord(declared)) {
+    throw new SettingsShapeError(
+      "hooks: a `settings.json` carries hooks in Claude Code's nested form. Write:\n" +
         '  "hooks": { "Stop": [ { "hooks": [ { "type": "command", "command": "…" } ] } ] }\n' +
         'The event names are unchanged (PreToolUse, PostToolUse, Stop, SessionStart); `timeout` is ' +
         'in seconds there, and `matcher: "*"` means every tool.',
     )
   }
-  if (!isRecord(values['hooks'])) return []
-
-  if (foreignRoot) {
-    // NOT translated, and this is the one place tolerance stops short on purpose. The compatibility
-    // loader ALREADY reads `.claude/settings.json` and executes its hooks — measured as B-153.
-    // Translating them here as well would run every one of them TWICE, and a hook is arbitrary shell.
-    // So the gap B-153 names stays open and is REPORTED, rather than closed by a worse change.
-    const { dropped } = translateForeignHooks(values['hooks'])
-    delete values['hooks']
-    return [
-      ...dropped,
-      'hooks under .claude/ are run by the compatibility loader, not by this file — ' +
-        'translating them here would execute each one twice',
-    ]
-  }
-
-  const read = translateForeignHooks(values['hooks'])
+  const read = translateForeignHooks(declared)
   values['hooks'] = read.hooks
   return read.dropped
 }
@@ -296,7 +318,7 @@ export function translateSettings(raw: unknown, opts: TranslateOptions): Setting
   // `hooks` is a name both dialects use for different shapes. Ours is an array; theirs is an object
   // keyed by event. Distinguishing by shape rather than by provenance means a file may legitimately
   // be written either way, which is what "the same filename" has to mean to be worth anything.
-  const droppedHooks = normaliseHooks(values, opts.foreignRoot)
+  const droppedHooks = normaliseHooks(values, opts.hooksDelivery)
 
   return { values, ignored, unrecognised, droppedHooks }
 }

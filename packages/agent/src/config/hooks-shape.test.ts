@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest'
 import { CONFIG_SCHEMA_KEYS } from './config-contract.js'
 import { translateSettings } from './settings-json.js'
 
-const OURS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: false } as const
+const OURS = { ownKeys: CONFIG_SCHEMA_KEYS, foreignRoot: false, hooksDelivery: 'ours' } as const
 
 describe('the hooks shape a settings.json may carry', () => {
   it('test_a_flat_array_is_refused_by_name', () => {
@@ -58,13 +58,17 @@ describe('the hooks shape a settings.json may carry', () => {
     expect(translateSettings({ model: 'openai/x' }, OURS).values).toEqual({ model: 'openai/x' })
   })
 
-  it('test_the_foreign_root_is_not_where_this_bites', () => {
-    // Under `.claude/` the hooks are left to the compatibility loader entirely (#130), so there is
-    // no flat array to refuse and no shape of ours to defend.
+  it('test_a_foreign_root_never_refuses_and_never_keeps', () => {
+    // Under `.claude/` the hooks belong to the loader that already runs them (#130), so shape is not
+    // ours to police: any shape is dropped and REPORTED, never refused. Refusing there would fail a
+    // file this product does not own, over a key it does not run.
     const read = translateSettings({ hooks: [{ event: 'Stop', command: 'x' }] }, {
       ownKeys: CONFIG_SCHEMA_KEYS,
       foreignRoot: true,
+      hooksDelivery: 'sdk',
     })
-    expect(read.values['hooks']).toEqual([{ event: 'Stop', command: 'x' }])
+
+    expect(read.values['hooks']).toBeUndefined()
+    expect(read.droppedHooks.join(' ')).toContain('compatibility loader')
   })
 })
