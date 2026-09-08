@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.18.0] - 2026-09-08
+
+### Changed
+
 - `@theokit/agents` pinned at `13.0.0-next.7` (was `next.5`). It exports the hook approval gate #130
   needs — `HookApprovalCapability`, `HookGateUnsupportedError`, `HookApprovalGate`,
   `HookApprovalRequest`, all four verified in the published tarball against a control name — and
@@ -29,14 +41,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   in a project `.claude/settings.json` still fires once, ungated, against a control arm at zero where
   the same tool runs. Taken because it is the current version and measures clean; it changes nothing
   observable here. (#130)
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.17.2] - 2026-09-08
 
