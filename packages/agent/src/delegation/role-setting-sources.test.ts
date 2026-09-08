@@ -69,10 +69,14 @@ describe('#74 — what a delegated role is allowed to read', () => {
     expect(local.settingSources, 'the child cannot read the project it was spawned in').toEqual([
       'project',
     ])
+    // #188 — the child carries the parent's DECLARATION, not a fourth wide literal. `commands` is
+    // absent because the SDK's `CompatSurface` does not have it: custom commands are the layer's
+    // surface, never the SDK's, and `SDK_FOREIGN_SURFACES` is that one list projected onto the
+    // narrower vocabulary rather than a second list written by hand.
     expect(
       local.compatSources,
       'the child reads a narrower view of the directory than the agent that spawned it',
-    ).toEqual(['claude-code'])
+    ).toEqual([{ kind: 'claude-code', import: ['skills', 'subagents', 'plugins'] }])
   })
 
   it('test_an_untrusted_role_declares_neither', async () => {
@@ -97,7 +101,7 @@ describe('#74 — what a delegated role is allowed to read', () => {
     const local = await localOf({ subagents: true, hooks: true })
 
     expect(local.compatSources, 'precondition: the roots are the thing being inherited').toEqual([
-      'claude-code',
+      { kind: 'claude-code', import: ['skills', 'subagents', 'plugins'] },
     ])
     expect(
       local.sandboxOptions,

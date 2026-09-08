@@ -4,6 +4,7 @@ import type { CustomTool, HookHandlers, SDKAgent, SubagentDefinition } from '@th
 import { discoverRoles } from './role-discovery.js'
 import { ConfigurationError } from '@theokit/agents'
 import type { SandboxBackend } from '@theokit/agents/sandbox'
+import { SDK_FOREIGN_SURFACES } from '../setting-sources.js'
 import { ToolRegistry, type ToolScope } from '../tools/index.js'
 import { hooksForMember } from './hooks-for-member.js'
 import { declareAgent, toolsNamed, type SpecContext } from '../composition/agent-spec.js'
@@ -186,7 +187,11 @@ async function roleAgentOptions(
       // repository-controlled and holds a `hooks.json` that executes shell, so the second root takes
       // the evidence the first one takes — the rule `setting-sources.ts` states for the parent,
       // applied to the child that inherits its workspace.
-      ...(sources.length > 0 ? { compatSources: ['claude-code' as const] } : {}),
+      // #188 — the child carries the parent's declaration, not a fourth wide literal. Before this
+      // the list could name a surface while a delegated role admitted all of them.
+      ...(sources.length > 0
+        ? { compatSources: [{ kind: 'claude-code' as const, import: SDK_FOREIGN_SURFACES }] }
+        : {}),
       ...(role.sandbox !== undefined ? { sandboxOptions: { enabled: role.sandbox } } : {}),
     },
     tools: resolveRoleTools(
