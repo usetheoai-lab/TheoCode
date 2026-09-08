@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.22.0] - 2026-09-08
+
+### Changed
+
 - `@theokit/agents` pinned at `13.0.0-next.10`, and the foreign-root declaration now **governs** the
   four call sites that reach `.claude/` instead of one. Each passes the same exported
   `FOREIGN_SURFACES` rather than its own wide `['claude-code']` literal, so tightening the list
@@ -38,14 +50,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   it is derived from the one constant, never written out twice. No surface regressed: both skills
   still reach the model, both commands and both roles still load, and the three hook arms are
   unchanged. (#188)
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.21.2] - 2026-09-08
 
