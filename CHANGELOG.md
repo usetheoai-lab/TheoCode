@@ -28,6 +28,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.21.0] - 2026-09-08
+
+### Security
+
 - `.claude/` is now imported surface by surface — skills, subagents, plugins — and its `hooks` are
   never read. Until `@theokit/agents@13.0.0-next.9` the grant was per SOURCE, so wanting the foreign
   root's skills meant taking its `hooks` too, and a `.claude/` directory usually arrives with the
