@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.14.0] - 2026-09-08
+
+### Fixed
+
 - `hooks` in a `.claude/settings.json` are no longer translated and re-run here — the SDK's loader
   already runs them, and running them again fired each one twice. In `~/.claude/settings.json` they
   are inert (the SDK reads hooks from the project directory only) and `doctor` says so, rather than
