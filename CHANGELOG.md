@@ -31,7 +31,7 @@ for `release.yml` in this repository will not find it, and should not have been 
   so there is nothing left to ask about. Building an approval path on a seam that cannot be observed
   running would be the same defect this product has spent the week filing. The gate stays — it covers
   `.theokit/hooks.json`, which no import list reaches — and the approval path is tracked separately
-  with what it would take to exercise it. (#199)
+  with what it would take to exercise it. (#198)
 
 ### Deprecated
 
