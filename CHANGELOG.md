@@ -28,6 +28,19 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.16.0] - 2026-09-08
+
+### Changed
+
+- `@theokit/sdk` pinned at 5.4.0 (was 5.3.2). It carries the two capabilities #130 needs — a per-hook
+  `approve` gate and per-surface narrowing of a compat source — and **neither reaches this product
+  yet**: `@theokit/agents@13.0.0-next.3` emits a hardcoded `["claude-code"]` for `compatSources` and
+  never forwards `local.hooks`, so there is no way to pass either through. Measured on the product
+  built against 5.4.0: a hook in a project `.claude/settings.json` still fires once, ungated, against
+  a control arm at zero where the same tool still runs. Taken anyway because it is the correct current
+  version — 5.3.3 was declined as a docs-only republish, and the `latest` tag has since been restored
+  after a `4.x` publish moved it backwards. (#130)
+
 ## [0.15.2] - 2026-09-08
 
 ### Fixed
