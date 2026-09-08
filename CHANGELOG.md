@@ -26,6 +26,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- The foreign-root import list now says what it does not govern. Measured: removing `'subagents'`
+  from it leaves `discoverRoles` returning the foreign role unchanged, because that path — and the
+  TUI's custom commands — reach `.claude/` with their own direct `compatSources: ['claude-code']` and
+  never through the declaration. Three call sites, one declaration, and someone tightening the list
+  to stop foreign roles would get no error, no warning and no effect: the "declared and inert"
+  failure, in this product's own code. The entry stays (it states what the framework may load, and
+  dropping it would silently lose foreign roles the day anything routes through it); a comment and a
+  test pin the divergence so it is discovered rather than believed. Converging the three is #188.
+
+  Also measured while checking it: v0.21.0 did **not** regress `.claude/commands/`. Upstream reports
+  that a narrowed list reads as undeclared in their commands loader (usetheokit/theokit#704), which
+  would have been silent — our call passes the wide string form, and both a foreign and a native
+  command still load. (#188)
+
 ### Security
 
 ## [0.21.0] - 2026-09-08

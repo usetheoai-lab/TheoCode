@@ -59,6 +59,30 @@ type ForeignGrant = Grant & { import: typeof FOREIGN_SURFACES }
  *
  * An empty list is refused by the framework rather than interpreted, which is right: it reads as
  * "no surfaces" or as "not declared, therefore all", and the two differ by whether shell runs.
+ *
+ * ## What this list does NOT govern, measured
+ *
+ * It governs what the FRAMEWORK loads through the builder. Two of this product's foreign surfaces
+ * never pass through it, because each reaches `.claude/` with a direct call carrying its own
+ * `compatSources: ['claude-code']`:
+ *
+ * | surface | reached by | governed here |
+ * |---|---|---|
+ * | skills | the builder | yes |
+ * | subagents | `delegation/role-discovery.ts` | **no** |
+ * | commands | `tui/commands/custom-commands.ts` | **no** |
+ *
+ * Measured: removing `'subagents'` from this list leaves `discoverRoles` returning the foreign role
+ * exactly as before. The entry is kept anyway — it states what the framework may load from that
+ * root, which is true and would matter the moment anything routes through it, and the asymmetry
+ * favours it: keeping it costs a comment, dropping it silently loses foreign roles the day the
+ * framework starts honouring it.
+ *
+ * What must NOT be assumed is the converse. **Tightening this list does not tighten those two
+ * surfaces**, and a reader who removed `'subagents'` believing it stopped foreign roles would be
+ * wrong. Converging the three call sites on one declaration is tracked separately; until then this
+ * comment is the only thing that says so, and `setting-sources.test.ts` pins the divergence so it is
+ * discovered rather than believed.
  */
 const FOREIGN_SURFACES = ['skills', 'subagents', 'plugins'] as const
 
