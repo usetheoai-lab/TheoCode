@@ -12,19 +12,35 @@
  * passes against a parser that rejects everything.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { DECLARED_FLOOR, compareToDeclared, evaluateFloor, readMeasured, resolveViaGate } from './check-coverage-floor.mjs'
 
-describe('asking the gate what floor it resolves', () => {
+/**
+ * Whether the kit's gate is installed here.
+ *
+ * Since the checker ASKS `resolve_threshold` rather than reimplementing it, every test of that
+ * behaviour needs the module — and it lives under `.claude/`, which this repository does not
+ * version. CI has no `.claude/`, so 17 of these failed there on `ModuleNotFoundError` while passing
+ * locally: "1520 tests pass" was true and about the wrong machine.
+ *
+ * `skipIf` rather than an early return, because vitest reports a return as a PASS — the exact trap
+ * this file already documents for `test_the_two_declarations_agree`. Where the gate is absent these
+ * report SKIPPED, which is the honest state: **CI verifies nothing about this checker**, and that is
+ * the second face of B-160 rather than a gap to paper over.
+ */
+const GATE_DIR = resolve('.claude/skills/implement/scripts')
+const GATE_INSTALLED = existsSync(join(GATE_DIR, 'coverage_gate.py'))
+
+describe.skipIf(!GATE_INSTALLED)('asking the gate what floor it resolves', () => {
   // These replace a suite that tested a JavaScript reimplementation of `resolve_threshold`. The
   // reimplementation is gone: two adversarial passes found character-class divergences between the
   // two parsers, each a way to lower the effective floor while the checker reported agreement.
   // Every case below is one of those, and each now runs BOTH implementations on the same bytes.
-  const gateDir = resolve('.claude/skills/implement/scripts')
+  const gateDir = GATE_DIR
 
   function withThresholds(body) {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-gate-'))
@@ -220,14 +236,12 @@ describe('the tracked declaration', () => {
   })
 })
 
-describe('the CLI contract', () => {
+describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   // F-guard-2 — the exit code IS the deliverable, and nothing exercised it. Every mutant below
   // survived the first version: flipping `return 1` to `return 0`, pointing the paths anywhere,
   // and changing the TOLERANCE default (which no unit test reached, because all six callers passed
   // `tolerance: 1` explicitly).
   const CLI = new URL('./check-coverage-floor.mjs', import.meta.url).pathname
-
-  const GATE_DIR = resolve('.claude/skills/implement/scripts')
 
   /**
    * A scaffold the checker can actually interrogate.
