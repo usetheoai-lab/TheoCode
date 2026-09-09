@@ -76,7 +76,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
-| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
+| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
 ### In flight (3)
@@ -7373,6 +7373,14 @@ dod:
 > So a build can read the operator root from six places while its persona reads one. B-167's CHANGELOG entry was narrowed to claim only what that function resolves, rather than something about the build it does not satisfy.
 >
 > None of these files was touched by B-167, which is why they are here and not folded into it: a commit that fixed the persona seam AND four other subsystems would explain none of them.
+
+> ATTEMPTED AND REVERSED 2026-09-09 (`f51f69c` reversed by `97a8358`). Two reviewers, two BLOCKERs, both measured. What the attempt established is worth more than the attempt:
+>
+> **The skills half of this item is NOT a defect and must be removed from its scope.** `packages/agent/src/context/user-skills.ts:43-50` forbids reading `~/.claude/skills/` in as many words — *"importing it would hand this product a skill set nobody declared for it"* — with 39 foreign skills measured there, and `role-discovery.ts:59-63` and `skills-on-disk.ts:98` hold the same boundary. Routing skills through `homeStateDir` means that under the SUPPORTED `home_dir = .claude` the operator's own skills disappear and a foreign kit's arrive: measured `own_skills_lost: true`, and five previously-passing tests failed, two of them B-167's own seam tests. The original B-167 review observed the behaviour correctly; registering it here as a defect was an inference nobody checked against the file.
+>
+> **The rules half is real and its fix is bigger than it looked.** `mergeLoads` joined two already-assembled corpora, so the 64,000-char PROMPT ceiling never re-ran: 126,012 chars measured with `truncated: false`, plus `truncated` dropped and `kept > chars`. The correct shape is to collect blocks from BOTH bases and call `assemble` ONCE — which restructures `loadRulesFrom`. `composition-record.ts:141` already merges these correctly, so any fix must reuse it rather than write a second one.
+>
+> **Also measured, still open:** `$THEOKIT_HOME` inside the home but outside `.theokit` (`~/custom-state`) works and is undefended by any test; a symlinked `$THEOKIT_HOME` loads the same tree twice, because the inside/outside test is textual `relative()` and never `realpath`; and `loadUserRules` reads `process.env` directly while `userRuleRoots` takes an `env` seam no caller can reach.
 
 
 ## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
