@@ -70,7 +70,30 @@ export default defineConfig({
      * report is the kit's, and one number in one place is the whole point.
      *
      * MEASURED 2026-09-09, 1479 tests: lines 59.29% (2663/4491), 34 files at zero coverage
-     * (594 lines), 240 source files.
+     * (594 lines), 240 source files — IN THIS WORKING TREE, and that qualifier is the point.
+     *
+     * THE SAME COMMIT MEASURES 2658/4491 (59.18%) WITH NOTHING ELSE PRESENT. The five-line gap is
+     * three independent channels, isolated one variable at a time:
+     *
+     *   +1  `context/rules.ts` — the default `warn` callback runs only once the rules corpus passes
+     *       64 000 chars, and an installed `.claude/rules/` is 248 669. The total depends on the
+     *       SIZE of the kit sitting beside the checkout.
+     *   +1  `context/agents-md.ts` — mechanism identified, TRIGGER NOT. The chain walk stops at the
+     *       first `.git`, so it cannot leave the repository, and `/home/paulo/CLAUDE.md` — named as
+     *       the cause in an earlier draft — does not exist. A context file placed above a checkout
+     *       does reproduce exactly this +1 in a controlled test, so the mechanism is real; which
+     *       file triggers it in the maintainer's tree is unknown. `specs/CLAUDE.md` was the second
+     *       candidate and was falsified too (45 lines with and without it). Naming a third guess
+     *       would repeat the mistake; identifying it is part of B-161.
+     *   +3  `session/gc/per-session.ts` — `readTranscriptDir` reads
+     *       `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds transcripts for this
+     *       path and none for a fresh one.
+     *
+     * The declared floor is 59.18 — the minimum over that space, not "the clean number", and two
+     * earlier attempts got it wrong: 59.29 came from this tree and the v0.24.0 tag failed against
+     * it; 59.2 came from a worktree that had `.claude` linked in and was contaminated the same way.
+     * Measure a replacement with all three channels absent, and CHECK all three rather than
+     * assuming a /tmp path is enough — it was not, twice. See B-161.
      *
      * DO NOT DIFFERENCE THESE AGAINST THE 2026-08-20 BLOCK ABOVE. A first draft of this comment
      * said "1154 lines of the original debt were covered in three weeks", from 1748 − 594. Three
@@ -92,7 +115,7 @@ export default defineConfig({
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
-     * the next item, and 59.29% is a ratchet, never a target.
+     * the next item, and 59.18% is a ratchet against the clean reading, never a target.
      */
     coverage: {
       provider: 'v8',

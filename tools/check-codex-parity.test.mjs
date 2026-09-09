@@ -10,11 +10,15 @@
  * input failed to parse emits an empty list, and an empty list reads as "no drift" on one side and
  * as "everything is missing" on the other. Both are wrong, and neither looks wrong.
  */
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
+
+/** The repository these tests read their real sources from. */
+const REPO_ROOT = new URL('..', import.meta.url).pathname
 
 import {
   DEBUG_ONLY,
@@ -257,5 +261,129 @@ describe('the CLI entry', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+})
+
+describe('the defects the review found, which the suite did not', () => {
+  // Every arm below corresponds to a mutant that SURVIVED the original 17 tests. They are grouped
+  // because they share one cause: the suite asserted COUNTS, and a parse that finds most of a
+  // surface has the right count and the wrong contents. The floors catch a parse that found
+  // nothing; only an assertion on the contents catches one that found most.
+
+  it('test_it_reads_a_strum_attribute_that_carries_both_forms', () => {
+    // The `AutoReview -> approve` defect, alive inside the fix for it. The anchored pattern needed
+    // `)]` right after the first quoted value, so `to_string = "x", serialize = "y"` never matched
+    // and the variant fell through to its kebab-cased name. Codex uses this form three times today
+    // (`pwd`, `pets`, `stop`) and it passed unnoticed only because each kebab-cases to the same
+    // string.
+    const src = [
+      'pub enum SlashCommand {',
+      '    #[strum(to_string = "renamed-thing", serialize = "old-name")]',
+      '    SomeVariant,',
+      '}',
+    ].join('\n')
+    expect(parseCodexCommands(src)).toEqual(['renamed-thing'])
+  })
+
+  it('test_to_string_wins_over_serialize_when_both_are_present', () => {
+    // Positive control for the arm above: a parser that simply took the LAST match would also pass
+    // it. `to_string` is what the menu renders and the user types.
+    const src = [
+      'pub enum SlashCommand {',
+      '    #[strum(serialize = "typed-from", to_string = "rendered-as")]',
+      '    V,',
+      '}',
+    ].join('\n')
+    expect(parseCodexCommands(src)).toEqual(['rendered-as'])
+  })
+
+  it('test_the_real_codex_surface_contains_the_names_this_item_was_raised_for', () => {
+    // Counts cannot express this. Against the real enum, dropping `to_string` from the parser
+    // returns `auto-review` where the answer is `approve` — same command count, no floor fires.
+    // This is the assertion that kills that mutant, and it needs the real source to do it.
+    const enumFile = join(REPO_ROOT, 'codex/codex-rs/tui/src/slash_command.rs')
+    if (!existsSync(enumFile)) return
+    expect(parseCodexCommands(readFileSync(enumFile, 'utf8'))).toEqual(
+      expect.arrayContaining(['approve', 'recap', 'subagents', 'setup-default-sandbox']),
+    )
+  })
+
+  it('test_the_real_pointer_map_is_read_through_both_entry_shapes', () => {
+    // Deleting either pointer regex survived, because the unit fixture is matched by both (JS `\s`
+    // spans newlines) and the real-source test asserted a COUNT. Measured on the real file: the
+    // multi-line regex alone finds 19, the single-line alone 20, the union 24 — and both partial
+    // parses clear the floor of 15. Naming one entry from each shape separates them.
+    const namesFile = join(REPO_ROOT, 'packages/tui/src/commands/codex-names.ts')
+    const registryFile = join(REPO_ROOT, 'packages/tui/src/commands/registry.ts')
+    if (!existsSync(namesFile) || !existsSync(registryFile)) return
+    const { pointers } = parseLocalSurface(
+      readFileSync(registryFile, 'utf8'),
+      readFileSync(namesFile, 'utf8'),
+    )
+    expect([...pointers]).toEqual(expect.arrayContaining(['app', 'keymap', 'approve', 'recap']))
+  })
+})
+
+describe('the CLI contract, where the review found it unasserted', () => {
+  const CLI = new URL('./check-codex-parity.mjs', import.meta.url).pathname
+
+  function run(root) {
+    try {
+      return { code: 0, stdout: execFileSync('node', [CLI], { env: { ...process.env, CODEX_PARITY_ROOT: root }, encoding: 'utf8' }) }
+    } catch (error) {
+      return { code: error.status, stdout: `${error.stdout ?? ''}` }
+    }
+  }
+
+  /** A root whose `codex/` is NOT a git checkout, nested inside one that is. */
+  function scaffold({ commands, pointers = true }) {
+    const root = mkdtempSync(join(tmpdir(), 'parity-cli-'))
+    mkdirSync(join(root, 'codex/codex-rs/tui/src'), { recursive: true })
+    mkdirSync(join(root, 'packages/tui/src/commands'), { recursive: true })
+    const body = ['pub enum SlashCommand {', ...commands.map((c) => `    ${c},`), '}'].join('\n')
+    writeFileSync(join(root, 'codex/codex-rs/tui/src/slash_command.rs'), body)
+    writeFileSync(join(root, 'packages/tui/src/commands/registry.ts'),
+      pointers ? readFileSync(join(REPO_ROOT, 'packages/tui/src/commands/registry.ts'), 'utf8') : '')
+    writeFileSync(join(root, 'packages/tui/src/commands/codex-names.ts'),
+      pointers ? readFileSync(join(REPO_ROOT, 'packages/tui/src/commands/codex-names.ts'), 'utf8') : '')
+    execFileSync('git', ['init', '-q', root])
+    execFileSync('git', ['-C', root, 'commit', '-q', '--allow-empty', '-m', 'host'], {
+      env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' },
+    })
+    return root
+  }
+
+  it('test_it_does_not_report_the_host_repository_as_the_codex_revision', () => {
+    // `git -C codex log` walks UP when codex/ is not itself a repository, and answers with the
+    // ENCLOSING repo's commit. Reproduced before the fix: the checker printed
+    // `compared against 3056039`, which was the host's own commit — a precise, confident fact about
+    // the wrong object, which is the failure this whole checker exists to detect one level up.
+    const root = scaffold({ commands: Array.from({ length: 45 }, (_, i) => `Cmd${i}`) })
+    const hostSha = execFileSync('git', ['-C', root, 'log', '-1', '--format=%h'], { encoding: 'utf8' }).trim()
+    const { stdout } = run(root)
+    expect(stdout).not.toContain(hostSha)
+    expect(stdout).toContain('not a git checkout')
+  })
+
+  it('test_a_floor_violation_exits_nonzero', () => {
+    // The floors are unit-tested; their BLOCKING effect was not. Deleting `return 1` after the
+    // violations survived the whole suite, so the guard could be neutralised at the wiring level
+    // while `pnpm lint`'s && chain stayed green over a known-broken parse.
+    const root = scaffold({ commands: ['OnlyOne'], pointers: false })
+    const result = run(root)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('floor is')
+  })
+
+  it('test_a_missing_local_source_is_reported_rather_than_thrown', () => {
+    // EC-2 hardened the Codex read against a stack trace inside `pnpm lint`; the two local reads
+    // right after it were left bare.
+    const root = mkdtempSync(join(tmpdir(), 'parity-cli-'))
+    mkdirSync(join(root, 'codex/codex-rs/tui/src'), { recursive: true })
+    writeFileSync(join(root, 'codex/codex-rs/tui/src/slash_command.rs'), 'pub enum SlashCommand {\n    A,\n}')
+    const result = run(root)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('not found')
+    expect(result.stdout).not.toContain('ENOENT')
   })
 })

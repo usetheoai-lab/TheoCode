@@ -98,8 +98,42 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *
  * Lowering it is a reviewable edit to a versioned file, by construction. Raising it is the only
  * change the ratchet welcomes; both must be mirrored into the thresholds file the kit's gate reads.
+ *
+ * THIS NUMBER IS THE MINIMUM OVER THE ENVIRONMENT SPACE, and it is NOT a zero-slack ratchet in
+ * every environment. Saying otherwise took two corrections to get right, so the history is worth
+ * keeping:
+ *
+ *   59.29  declared first, from the maintainer's working tree. Acceptance on the v0.24.0 tag
+ *          FAILED — the tag measured lower.
+ *   59.2   declared second, from what was called a "clean checkout". It was not: that worktree had
+ *          `.claude` symlinked in before the run, so the correction was measured in the same kind
+ *          of contaminated environment as the defect it corrected.
+ *   59.18  measured with every known contamination channel absent, one variable at a time.
+ *
+ * THREE independent channels make the total depend on the machine, not one:
+ *
+ *   +1 line   `rules.ts:82` — the default `warn` callback runs only when the rules corpus exceeds
+ *             64 000 chars, and an installed `.claude/rules/` is 248 669. So the total depends on
+ *             the SIZE of the kit installed beside the checkout.
+ *   +1 line   `context/agents-md.ts` — walks ancestors for THEO.md/AGENTS.md/CLAUDE.md until it
+ *             finds `.git`, reaching a context file in the home directory from one checkout and
+ *             nothing from another.
+ *   +3 lines  `session/gc/per-session.ts` — `readTranscriptDir` reads
+ *             `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds transcripts for the
+ *             working tree's path and nothing for a /tmp one.
+ *
+ *   2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree)
+ *
+ * So: zero slack against the cleanest environment, and in richer ones the excess is exactly the
+ * contamination — 1 line with a kit installed, 5 in this working tree. That is tolerated by
+ * `TOLERANCE`, and calling it a ratchet everywhere would be false. **It is a ratchet against the
+ * clean reading and a floor with named slack anywhere else**, and it stays that way until B-161
+ * closes all three channels. Only then is a single number a property of the code.
+ *
+ * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
+ * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 59.29
+export const DECLARED_FLOOR = 59.18
 
 /** Percentage points the total may sit above the floor before a re-declaration is asked for. */
 const TOLERANCE = 1

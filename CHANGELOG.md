@@ -28,6 +28,42 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.24.1] - 2026-09-09
+
+### Fixed
+
+- The Codex parity checker released in 0.24.0 carried the bug it was written to catch. Its post-
+  release review — the item shipped without one, because its validation had halted on a coverage
+  gate that a different item had to fix first — found four defects, each reproduced before being
+  fixed. The parser could not read a strum attribute carrying **both** forms
+  (`#[strum(to_string = "pwd", serialize = "cwd")]`): the pattern needed `)]` right after the first
+  quoted value, so the variant fell through to its kebab-cased name. That is the
+  `auto-review → approve` rename the item was raised for, alive inside its own fix, and unnoticed
+  only because the three commands Codex declares that way happen to render the same either way. The
+  revision label named the **wrong repository** — `git -C codex log` walks up when `codex/` is not
+  itself a checkout, so a vendored or tarball copy made the checker report the host repo's commit as
+  the Codex one. A rename landed on a map key that already existed. And the two local source reads
+  were unguarded, throwing the stack trace inside `npm run lint` that an edge case had hardened the
+  Codex read against. Seven tests added: the suite had asserted **counts**, and a parse that finds
+  most of a surface has the right count and the wrong contents — four mutants survived it, including
+  reverting the fix the item exists for. All six now die.
+
+- The coverage floor released in 0.24.0 was measured on a contaminated tree and is corrected from
+  59.29% to **59.18%** — a number that itself took two attempts, because the first correction was
+  measured in a worktree with the kit symlinked in and was contaminated the same way. Acceptance on the `v0.24.0` tag reported `coverage FAIL — 59.2% is below the
+  59.29% floor`: `packages/agent/src/context/agents-md.ts` walks ancestor directories for
+  `THEO.md`/`AGENTS.md`/`CLAUDE.md` until it finds `.git`, so from a maintainer's working tree it
+  reaches a context file above it — the mechanism is demonstrated, the specific trigger in the
+  maintainer's tree is not: two named causes were falsified by execution, so the honest statement is
+  that this channel is real and not yet understood. It is one of **three**. The other two are a transcript store read from the home
+  directory and keyed by the checkout's path, and a rules-corpus size threshold that makes the total
+  depend on how large an installed kit is. Measured, one variable at a time: 2658 lines with none of
+  them, 2663 in the maintainer's tree.
+  The floor is therefore declared at the **minimum over that space**: a ratchet against the clean
+  reading, and a floor with named slack anywhere else. Calling it a zero-slack ratchet everywhere
+  would be false while the total still depends on the machine. The 0.24.0 entry below stands as
+  published. The defect is B-161, and it is what would make a single number honest.
+
 ## [0.24.0] - 2026-09-09
 
 ### Added
