@@ -490,6 +490,13 @@ describe('the tracked floor is checkable without the kit', () => {
     expect(DECLARED_FLOOR).toBe(59.15)
   })
 
+  it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
+    // F-cf-5: the only slack fixture was +19, so widening TOLERANCE from 1 to 10 survived. These
+    // two bracket the real value: 0.5 above passes, 2 above fails.
+    expect(run(reportOnly(59.65)).code).toBe(0)
+    expect(run(reportOnly(61.15)).code).toBe(1)
+  })
+
   it('test_a_regression_below_the_tracked_floor_fails', () => {
     // The arm the first version never exercised: `floor > measured`. Without it, a mutant that lets
     // a real coverage regression pass silently survives.
