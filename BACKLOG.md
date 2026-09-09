@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-171 items — **Open** 4 · **In flight** 4 · **Closed** 163
+172 items — **Open** 5 · **In flight** 4 · **Closed** 163
 
-### Open (4)
+### Open (5)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-172`](#b-172--agentsmd-is-the-last-operator-surface-that-ignores-the-configured-state-dir----) | `AGENTS.md` is the last operator surface that ignores the configured state dir | `raw` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
@@ -7353,6 +7354,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-172 — `AGENTS.md` is the last operator surface that ignores the configured state dir   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 with a control run
+why_now: With `THEOKIT_HOME` exported, three tests fail and all three are about `AGENTS.md`: `context/unified-home-context.test.ts` twice (`test_the_unified_location_is_read`, `test_the_unified_location_wins_when_both_exist`) and `context/operator-home-seam.test.ts::test_the_operators_agents_md_follows_the_parameter_too`. Measured against a control — the same suite in the same environment with the working tree stashed gives **8** failures, so these three are pre-existing and B-171's second attempt reduced the count rather than raising it. `loadUserAgentsMd` joins a fixed directory name to the home exactly as the rules loader did before B-171, which is why the same class of failure survives on the one surface that item did not touch. Config, trust store, MCP scopes and now rules all resolve through `homeStateDir`; `AGENTS.md` is the outlier left.
+status: raw
+dod:
+  - `loadUserAgentsMd` reads the instruction file from the configured state dir when one is set
+  - the default location still loads when it is not, asserted rather than assumed
+  - with `THEOKIT_HOME` exported the suite has zero failures, or each remaining one is explained by something other than a hardcoded root
 
 ## B-171 — Config and instructions can resolve from two different operator roots   [ ]
 
