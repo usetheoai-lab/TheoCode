@@ -23,11 +23,11 @@
 import { readFileSync } from 'node:fs'
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { CommandCapabilities } from '../../src/commands/command-capabilities.js'
 import { interpretCommand } from '../../src/commands/interpret-command.js'
-import { recordWiring } from '../../src/agent-session/wiring-record.js'
+import { clearWiring, currentWiring, recordWiring } from '../../src/agent-session/wiring-record.js'
 import type { CommandAction } from '../../src/commands/registry.js'
 
 /** The collaborators a command may reach through, as opposed to the effects it may cause. */
@@ -106,6 +106,12 @@ function harness() {
 
   return { cap, agent, SESSION, ptyOwner, ...spies }
 }
+
+// B-168 — the record is process-wide within this file: vitest isolates per FILE, not per test. Before
+// this, publishing one at line 155 left 13 tests observing it.
+afterEach(() => {
+  clearWiring()
+})
 
 const run = (action: CommandAction, text = '', h = harness()) => {
   interpretCommand(action, text, h.cap)
@@ -350,4 +356,12 @@ describe('interpretCommand — the partition the chain rests on', () => {
     const claimed = new Set([...claimsByGroup().values()].flat())
     expect([...claimed].sort()).toEqual([...GROUPS].sort())
   })
+
+describe('B-168 — a published record does not decide what the next test sees', () => {
+  it('test_the_record_is_cleared_between_tests_in_this_file', () => {
+    // Positioned after `test_showStatus_reaches_the_inspection_group`, which publishes one. Without
+    // the afterEach this reads that record instead of undefined.
+    expect(currentWiring(), 'the wiring record leaked from an earlier test in this file').toBeUndefined()
+  })
+})
 })

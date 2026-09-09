@@ -18,6 +18,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- `clearWiring()` beside `recordWiring`, so a test that publishes a wiring record does not decide what
+  the next test in its file observes. Vitest isolates per file, not per test, and one file had 13
+  tests running after a publisher with the record still set (B-168).
+- A suite guard that fails when any test hands `buildChatAgent` the real working directory. The
+  invariant held by nobody having broken it; B-161 spent four channels establishing it and its plan
+  declared this guard, which was never written (B-168).
+
 ### Changed
 
 ### Deprecated

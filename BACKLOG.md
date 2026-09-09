@@ -7409,9 +7409,9 @@ domain: theocode
 repo: TheoCode
 suggested_mode: review
 source: discover-review
-evidence: `.claude/records/reviews/coverage-measures-the-machine-review-2026-09-09.md` — six agents, findings F-tests-1, F-tests-3/F-arch-8, F-xval-3
+evidence: `.claude/records/discoveries/opportunities/unowned-review-findings-opportunity.md` (SHIPPABLE) — 0 sites pass the real cwd today and nothing guards it; the record publishes at line 155 with 13 tests running after it
 why_now: B-161's review surfaced three HIGH/MEDIUM findings that belong to no single item and would otherwise be carried only in a review report nobody re-reads. (1) The plan declared a regression test `test_no_test_hands_build_chat_agent_the_real_cwd` and it was never written — verified absent by two agents independently — so the invariant T1.1 established is enforced by nothing and a future edit reintroduces it silently. (2) `recordWiring` mutates module-level state in `packages/tui/src/agent-session/wiring-record.ts` with no reset, so a test that publishes a record leaves `currentWiring()` set for every later test in the file; proven by probe, and one later test reads it through production and survives only because the fake omits `skills`. (3) A plan under `.claude/` cannot be diffed against the commits it describes, because the directory is gitignored — so "the plan was edited after implementation" is unfalsifiable here, which is itself the finding.
-status: raw
+status: triaged
 dod:
   - the T1.1 invariant has a test that fails when a test hands the build the real cwd
   - publishing a wiring record in a test does not change what a later test in the same file observes
