@@ -67,13 +67,12 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 3 · **In flight** 0 · **Closed** 161
+164 items — **Open** 2 · **In flight** 0 · **Closed** 162
 
-### Open (3)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
@@ -81,7 +80,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (161)
+### Closed (162)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -239,6 +238,7 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
@@ -7354,13 +7354,22 @@ suggested_mode: evolve
 source: discover-review
 evidence: MEASURED 2026-09-09, and **the fix this item was filed to build does not work**. B-163's review proposed checking that a cited `§ N` exists in the named rule file, and stated it "would have caught both" wrong citations. It catches neither: `.claude/rules/testing.md` HAS a `## § 6` and `.claude/rules/error-handling.md` HAS a `## § 3`. Both cited sections EXIST — the defect was never a dangling section number, it was a section that exists and does not say what the citing sentence claims. An existence check passes on both. Measured surface: 19 section-bearing citations across tracked files, every one of which names a section that exists today, so the proposed gate would be green over a corpus containing two known-wrong citations. **I recorded the reviewer's claim in this item's first filing without executing it**, which is the same error this session has been correcting in three other forms.
 why_now: B-163 documented that a `rules/*.md` citation is an attribution whose sentence stands alone — verified across all 38-45 sites, no counterexample. What it did NOT establish is that the § number is right, and that half is both checkable and wrong twice. The asymmetry is what makes it worth a gate: a wrong § costs a reader nothing, because the sentence carries the meaning, and misleads exactly the person who goes to verify. B-163's ADR-2 argued nothing could be mechanized here and was itself the counterexample.
-status: triaged
+status: killed
 dod:
   - every cited `rules/X.md` belongs to a declared closed set, so a typo or a kit-side rename fails
   - whatever is built is DEMONSTRATED against the two known-wrong citations in their pre-fix state — the existence check is already known not to catch them, so a design that cannot be shown catching them is not this item's fix
   - or, if no mechanical check can distinguish "§ 6 exists" from "§ 6 says that", the item is KILLED with that as its kill_reason — which is a legitimate outcome and cheaper than a gate that is green over known defects
 
 > Registered 2026-09-09 from B-163's REVIEW, which found the defect inside the argument for not building this.
+
+kill_reason: MEASURED, and no mechanical check distinguishes "§ 6 exists" from "§ 6 says that". Two designs were tested against the two known-wrong citations in their pre-fix state. **Existence check:** falsified outright — `.claude/rules/testing.md` has a `## § 6` and `error-handling.md` has a `## § 3`, so both cited sections EXIST and the check passes on both; all 19 section-bearing citations in the repository name sections that exist, so the gate would be green over a corpus that contained two known defects. **Keyword overlap** between the citing sentence and the cited section: the groups do not separate. Measured overlap — wrong: `ADR-2` 0.00, `turn-error` 0.14; right: `thread-history` 0.12, `home-dir` 0.44, `shell-timeout` 0.57. A correct citation scores BELOW a wrong one, so no threshold passes every correct citation and fails every wrong one. One inversion is sufficient; a larger sample could only add more. What remains is a semantic judgement about whether a paragraph supports a claim, which is not what this ecosystem's deterministic gates do. Killing is cheaper than a gate that is green over the very defects it was built for — `rules/testing.md` § 6 lists exactly that shape among test anti-patterns, and this is the first citation in this item written after checking that the section says it.
+
+> KILLED 2026-09-09 by measurement, which is a successful outcome of `cycle-discover`: the item was
+> filed on a reviewer's claim that a check "would have caught both", that claim was recorded without
+> being executed, and executing it refuted the item. The two wrong citations it was raised about are
+> already fixed — `turn-error.ts` in v0.25.0, and the plan's ADR-2 corrected in place. What is lost
+> by killing this is detection of FUTURE ones, and that loss is stated in `CONTRIBUTING.md` rather
+> than papered over with a gate that cannot see them.
 
 ## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
 
