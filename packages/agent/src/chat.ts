@@ -114,9 +114,14 @@ export async function buildChatAgent(overrides: {
   sessionPty?: SessionPtyOwner
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
-  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: three
-  // sites read the operator's root, and three independent `homedir()` calls in one build is three
+  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: FOUR
+  // sites read the operator's root, and four independent `homedir()` calls in one build is four
   // chances for them to disagree.
+  //
+  // It said THREE for one commit, and the fourth (`projectDocument`) went on reading the machine —
+  // so the operator's rules followed this value while their `AGENTS.md` did not. The count came from
+  // B-161's review, which named three, and that list was used as a census instead of a starting
+  // point. `grep -c 'homedir()'` in this file is the check that would have caught it.
   const operatorHome = overrides.home ?? homedir()
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
@@ -130,7 +135,7 @@ export async function buildChatAgent(overrides: {
   // given — so two reads that disagreed would crash the user's terminal at construction.
   const searchConfigured = webSearchConfigured()
   const rules = bothRuleRoots(cwd, operatorHome)
-  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules }
+  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules, operatorHome }
   const base = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
@@ -246,8 +251,16 @@ function projectDocument(
   cwd: string,
   /** #91 — read by the caller, so the prompt and the `/status` row come from ONE load. */
   rules: { project: RulesLoad; user: RulesLoad },
+  /**
+   * B-167, second pass — this site survived the first. The review measured it end to end with markers
+   * in two roots: rules followed the parameter, the operator's `AGENTS.md` followed the machine.
+   *
+   * It survived because the list of sites came from B-161's review, which named three, and that list
+   * was treated as a census instead of a starting point. A `grep homedir()` after the migration would
+   * have shown four.
+   */
+  home: string,
 ): string {
-  const home = homedir()
   const user = [loadUserAgentsMd(home), rules.user.text].filter(Boolean).join('\n\n')
   if (!posture.allows.agentsMd) return user
   return [user, loadAgentsMd(cwd), rules.project.text].filter(Boolean).join('\n\n')
@@ -537,6 +550,8 @@ function baseAgent(ctx: {
   searchConfigured: boolean
   /** #91 — the single rules load, so the prompt and `/status` cannot disagree. */
   rules: { project: RulesLoad; user: RulesLoad }
+  /** B-167 — the operator root this build resolved, so no site below reaches for `homedir()` again. */
+  operatorHome: string
   overrides?: {
     baseInstructions?: string
     appendInstructions?: string
@@ -583,7 +598,7 @@ function baseAgent(ctx: {
           // `keep-coding-instructions: true`. `overrides.baseInstructions` still wins over both: it
           // is a caller passing an explicit persona, which is a stronger statement than a file.
           overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
-          projectDocument(ctx.posture, ctx.cwd, ctx.rules),
+          projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
           overrides?.appendInstructions ?? '',
           { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),

@@ -24,6 +24,17 @@ afterEach(() => {
   else process.env.HOME = realHome
 })
 
+function operatorRootWithAgentsMd(marker: string): string {
+  const home = mkdtempSync(join(tmpdir(), 'b167-agentsmd-'))
+  // `.theokit/`, not the home root: #72 put the operator's instructions in the same directory as the
+  // rest of their state. Writing it at the root made this test fail for a reason that had nothing to
+  // do with the seam — worth the comment, because the wrong-fixture failure reads exactly like a
+  // broken fix.
+  mkdirSync(join(home, '.theokit'), { recursive: true })
+  writeFileSync(join(home, '.theokit', 'AGENTS.md'), `# Operator\n\n${marker}\n`)
+  return home
+}
+
 function operatorRoot(skill: string): string {
   const home = mkdtempSync(join(tmpdir(), 'b167-home-'))
   const dir = join(home, '.theokit', 'skills', skill)
@@ -52,6 +63,32 @@ describe('the operator root is a parameter of the build', () => {
     expect(wired?.skills.active, 'the build read the environment instead of its argument').toContain(
       'from-the-parameter',
     )
+  })
+
+  it('test_the_operators_agents_md_follows_the_parameter_too', async () => {
+    // The fourth site, and the one the first pass missed. `projectDocument` read `homedir()` itself,
+    // so rules followed the parameter while the operator's AGENTS.md followed the machine — measured
+    // by a reviewer with a marker in each root, not inferred.
+    //
+    // The site survived because the list of three came from B-161's review and was treated as a
+    // census. This test is what makes a fifth site fail loudly instead of being counted again.
+    const injected = operatorRootWithAgentsMd('MARKER-FROM-THE-PARAMETER')
+    process.env.HOME = operatorRootWithAgentsMd('MARKER-FROM-THE-ENVIRONMENT')
+
+    const { buildChatAgent } = await import('../../src/chat.js')
+    const agent = await buildChatAgent({
+      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      home: injected,
+    } as never)
+    // Serialised rather than reaching for a field: the composed persona lands in `system`, whose
+    // SHAPE is the SDK's business and has changed before. What this test is about is which root the
+    // text came from, and that survives any shape.
+    const text = JSON.stringify(agent)
+
+    expect(text, 'the operator AGENTS.md came from the machine, not the argument').toContain(
+      'MARKER-FROM-THE-PARAMETER',
+    )
+    expect(text, 'the ambient root still reached the prompt').not.toContain('MARKER-FROM-THE-ENVIRONMENT')
   })
 
   it('test_without_the_parameter_the_environment_still_decides', async () => {

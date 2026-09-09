@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-170 items — **Open** 4 · **In flight** 3 · **Closed** 163
+171 items — **Open** 5 · **In flight** 3 · **Closed** 163
 
-### Open (4)
+### Open (5)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
@@ -7352,6 +7353,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-171 — Config and instructions can resolve from two different operator roots   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `.claude/agents/review-operator-home-seam-2026-09-09/findings/architecture.yaml` (F-arch-2), measured end to end
+why_now: A review of B-167 measured a build where config came from one operator root and instructions from another, reachable through the public seams. One `composeRun` call with `userDir` and `THEOKIT_HOME` pointing at different roots, each holding its own `settings.json` and `rules/`, produced `cfg.model` from the `THEOKIT_HOME` root while the prompt carried the rules from `userDir`. Two causes meeting: `homeStateDir` puts the env var FIRST (`config/home-dir.ts:48-53`), while `userRuleRoots` DROPS a configured root that is not under `home` (`context/rules.ts:122-126`). Neither file was touched by B-167, so this is pre-existing in kind — but B-167 made it expressible per build, and `composeRun` forwards `seams.env` to config resolution (`run-composition.ts:88-94`) and not to the build (`:113-125`), so even a caller passing consistent seams gets one layer on the seam and one on `process.env`. The comment at `run-composition.ts:82-83` describes exactly this split for B-033, one call lower. A third finding sits beside it: `userSkills` hardcodes `.theokit` (`context/user-skills.ts:53`) and never calls `homeStateDir`, so under the supported `home_dir = .claude` setting rules read both roots, AGENTS.md follows `.claude`, and skills silently read only `.theokit/skills`.
+status: raw
+dod:
+  - one build resolves config, rules, skills and AGENTS.md from ONE operator root, or refuses and says which disagreed
+  - `composeRun` passes the same env to config resolution and to the build, or the divergence is a declared decision with a test
+  - a test fails if a future change lets two roots serve one build
 
 ## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
 
