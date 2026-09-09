@@ -1,10 +1,10 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
+import { homeStateDir } from '../config/home-dir.js'
 import { discoverSkills, loadSkillInstructions } from '@theokit/sdk/skills'
 import type { InlineSkill } from '@theokit/sdk'
 
-import { DEFAULT_HOME_DIR } from '../config/home-dir.js'
 
 /**
  * #65 — the operator's own skills, from `~/.theokit/skills/`.
@@ -50,7 +50,11 @@ import { DEFAULT_HOME_DIR } from '../config/home-dir.js'
  * dialect.
  */
 export async function userSkills(home = homedir()): Promise<InlineSkill[]> {
-  const dir = join(home, DEFAULT_HOME_DIR, 'skills')
+  // B-171 — through `homeStateDir`, not `join(home, '.theokit')`. This was the one operator surface
+  // that never asked where the state directory is, so under the supported `home_dir = .claude` a
+  // build read rules from both roots, `AGENTS.md` from `.claude`, and skills only from `.theokit` —
+  // silently, which is what made it worth a test rather than a comment.
+  const dir = join(homeStateDir(process.env, home), 'skills')
   // `discoverSkills` never throws — a missing or unreadable directory yields `[]`, which is the
   // ordinary case for an operator who has not created one.
   const found = await discoverSkills(dir)

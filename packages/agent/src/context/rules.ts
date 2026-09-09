@@ -132,7 +132,41 @@ export function loadUserRules(
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): RulesLoad {
-  return loadRulesFrom(home, userRuleRoots(home), warn, budget)
+  const underHome = loadRulesFrom(home, userRuleRoots(home), warn, budget)
+
+  // B-171 — the state directory may sit outside the home, and every other consumer follows it there:
+  // config, the trust store, MCP scopes all resolve through `homeStateDir`. Rules were the outlier,
+  // so one build could serve config from `$THEOKIT_HOME` and instructions from `~/.theokit` with
+  // nothing reported.
+  //
+  // Loaded as its own BASE rather than added to the list above, because `loadInstructionTree` joins
+  // root NAMES against a base: `join('/home/op', '/srv/state/rules')` is `/home/op/srv/state/rules`.
+  // The `relative()` guard in `userRuleRoots` exists to stop exactly that, so it is a symptom of the
+  // contract rather than a bug to delete.
+  const stateDir = homeStateDir(process.env, home)
+  const outside = relative(home, stateDir)
+  if (outside.length === 0 || outside.startsWith('..') || isAbsolute(outside)) {
+    const configured = loadRulesFrom(stateDir, ['rules'], warn, budget)
+    if (configured.read > 0) return mergeLoads(underHome, configured)
+  }
+
+  return underHome
+}
+
+/**
+ * Two loads read as one. Counts add; the texts join in the order they were read, home first, because
+ * the configured root is the more specific of the two and a later block wins where they disagree.
+ */
+function mergeLoads(first: RulesLoad, second: RulesLoad): RulesLoad {
+  const text = [first.text, second.text].filter(Boolean).join('\n\n')
+  return {
+    ...first,
+    text,
+    count: first.count + second.count,
+    read: first.read + second.read,
+    chars: first.chars + second.chars,
+    kept: text.length,
+  }
 }
 
 /**
