@@ -47,8 +47,9 @@ for `release.yml` in this repository will not find it, and should not have been 
   measured in a worktree with the kit symlinked in and was contaminated the same way. Acceptance on the `v0.24.0` tag reported `coverage FAIL — 59.2% is below the
   59.29% floor`: `packages/agent/src/context/agents-md.ts` walks ancestor directories for
   `THEO.md`/`AGENTS.md`/`CLAUDE.md` until it finds `.git`, so from a maintainer's working tree it
-  reaches a context file in the home directory and from a clean checkout it reaches nothing — and
-  that is only one of **three** channels. The other two are a transcript store read from the home
+  reaches a context file above it — the mechanism is demonstrated, the specific trigger in the
+  maintainer's tree is not: two named causes were falsified by execution, so the honest statement is
+  that this channel is real and not yet understood. It is one of **three**. The other two are a transcript store read from the home
   directory and keyed by the checkout's path, and a rules-corpus size threshold that makes the total
   depend on how large an installed kit is. Measured, one variable at a time: 2658 lines with none of
   them, 2663 in the maintainer's tree.
