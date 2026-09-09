@@ -62,8 +62,21 @@ export default defineConfig({
      * report is the kit's, and one number in one place is the whole point.
      *
      * MEASURED 2026-09-09, 1479 tests: lines 59.29% (2663/4491), 34 files at zero coverage
-     * (594 lines) — so 1154 lines of the original debt were covered in three weeks with no floor
-     * in force. The floor is not what produces the improvement; it is what stops the loss.
+     * (594 lines), 240 source files.
+     *
+     * DO NOT DIFFERENCE THESE AGAINST THE 2026-08-20 BLOCK ABOVE. A first draft of this comment
+     * said "1154 lines of the original debt were covered in three weeks", from 1748 − 594. Three
+     * reviewers falsified it independently: the two runs used different major versions of the
+     * coverage tool (`@vitest/coverage-v8` ^3.2.7 -> ^4.1.11), and the re-accounting is visible —
+     * with this `coverage:` block byte-identical and the source set GROWING 179 -> 240 files,
+     * reported statements halved (10144 -> 5054) while branches and functions roughly doubled. A
+     * single glob over a growing tree cannot do that; the counting basis changed. Each run is
+     * correct about its own tree. The subtraction is not a measurement of anything.
+     *
+     * What IS comparable is the file COUNT, which does not depend on how statements are
+     * attributed: 40 files at zero coverage out of 179, down to 34 out of 240. Fewer untouched
+     * files across a larger codebase — real progress, made with no floor in force. So the floor is
+     * not what produces the improvement; it is what stops the loss.
      *
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points

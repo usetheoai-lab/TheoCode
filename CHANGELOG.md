@@ -18,7 +18,7 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
-- backlog B-159 — total line coverage is 59.29% against a floor of 80, so every plan halts at validation (#159)
+- backlog B-159 — total line coverage is 59.29% against a floor of 80, so every plan halts at validation
 
 - `tools/check-codex-parity.mjs`, wired into `npm run lint`: a Codex command that is in neither this
   product's builtin list nor its pointer map now fails the lint chain. The map asserts which Codex
@@ -30,7 +30,7 @@ for `release.yml` in this repository will not find it, and should not have been 
   reading a month-old checkout reports a clean surface while four commands are missing; where the
   study clone is absent it SKIPS loudly rather than passing. (#158)
 
-- backlog B-158 — nothing verifies the Codex parity map, and it has already drifted (#158)
+- backlog B-158 — nothing verifies the Codex parity map, and it has already drifted
 
 ### Changed
 
@@ -39,10 +39,24 @@ for `release.yml` in this repository will not find it, and should not have been 
   floor was declared and `/implement`'s validation gate fell back to a library default of 80, so
   every plan failed validation on a repo-wide number nobody here had chosen — including a plan whose
   own new file was at 100%. The declared value is a **ratchet, not a target**: it has no slack, so
-  any change that lowers total coverage fails, and the only permitted edit is upward. `vitest.config.ts`
+  any change taken through `/implement` that lowers total coverage fails, and the only permitted
+  edit is upward. Two limits, stated because the sentence above reads stronger than it is: the
+  floor lives in `.claude/`, which this repository does not version, so it binds a checkout that
+  installed the kit rather than every clone; and CI runs `pnpm test` without coverage, so nothing
+  enforces it at merge. `vitest.config.ts`
   still sets no vitest threshold and now says where the floor actually lives; the triage it has asked
   for since 2026-08-20 — deciding which zero-coverage files are meant to stay that way — is still
   open and is what raises the number.
+
+- `tools/check-coverage-floor.mjs`, chained into `npm run lint`: the declared coverage floor must
+  still describe the tree it was declared against. The two ways it can stop doing so are
+  asymmetric, which is why this is code rather than a note — a trailing comment on the value fails
+  loudly (the kit parses it with `float()`, falls back to 80, and the next validation FAILs), but
+  **editing the number downward fails silently**, and because the file is gitignored the edit shows
+  up in no diff, no review and no CI. The checker also fails when the floor has drifted far enough
+  below the measured total that the ratchet has acquired slack, which is how a floor decays by time
+  rather than by decision. It skips loudly where the file is absent, so it does not turn coverage
+  into a merge gate — it makes a silent edit loud where the floor is actually in force.
 
 ### Deprecated
 

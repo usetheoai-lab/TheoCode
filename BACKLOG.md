@@ -67,18 +67,18 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-159 items — **Open** 2 · **In flight** 0 · **Closed** 157
+159 items — **Open** 0 · **In flight** 2 · **Closed** 157
 
-### Open (2)
+### Open (0)
+
+_None._
+
+### In flight (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `raw` | — |
-| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `triaged` | — |
-
-### In flight (0)
-
-_None._
+| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `planned` | — |
+| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `planned` | — |
 
 ### Closed (157)
 
@@ -7349,7 +7349,7 @@ suggested_mode: evolve
 source: discover-review
 evidence: `vitest.config.ts:45` records that NO floor was set and why — a decision by this repository on 2026-08-20 (B-063). `.claude/rules/code-quality-thresholds.txt:54` carries `# coverage.min_percent = 80` COMMENTED OUT, so `coverage_gate.py:29` falls through to a library default of 80 that nobody here chose. Distribution measured: tui 47.3%, cli 46.1%, agent 76.9%, shared 96.1%. Opportunity: `.claude/records/discoveries/opportunities/coverage-floor-halts-every-plan-opportunity.md`. Original: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
 why_now: B-158 was the first item taken through the full cycle since the floor started being enforced, and it halted at this gate — with the file it changed at 100% line coverage. Every subsequent item halts in the same place for the same reason. Lowering the threshold is named as forbidden by `cycle-implement.md § Validation halt-loop`, so the gap has to be closed or the floor has to be decided deliberately; neither can happen inside an item about something else.
-status: triaged
+status: planned
 dod:
   - a decided floor in `rules/code-quality-thresholds.txt`, with the reason written where the number is, OR total line coverage at or above 80%
   - `run_validation.py` reports `coverage` PASS on a clean tree
@@ -7365,7 +7365,7 @@ suggested_mode: evolve
 source: human
 evidence: `packages/tui/src/commands/codex-names.ts:67` holds `auto-review`, renamed to `approve` in `@openai/codex@0.153.4`; `recap` is new there and in neither `registry.ts` nor `codex-names.ts`. Measured from the installed binary's own command table, not from the checkout at `codex/`, which is 2026-08-25 and would have reported a clean result. Opportunity: `.claude/records/discoveries/opportunities/codex-command-surface-drift-opportunity.md`
 why_now: `packages/tui/src/commands/codex-names.ts` declares which Codex commands this product does not implement, each with a pointer or an honest absence, and nothing checks it. Measured 2026-09-09 against the installed `codex-cli 0.153.4` in a tmux TUI: `/fast`, `/recap` and `/approve` answered `unknown command` — present in Codex's menu and in neither half of the map. The source comparison then showed why that was invisible: the checkout at `codex/` is from 2026-08-25 and its `slash_command.rs` has no `fast` and no `recap`, so reading the clone alone reports full coverage. The map is a claim about another product's surface with no mechanism keeping it true.
-status: triaged
+status: planned
 dod:
   - a check reads Codex's `slash_command.rs` and this product's `registry.ts` + `codex-names.ts` and prints the delta in both directions
   - it FAILS when a user-facing Codex command is neither implemented here nor answered by a pointer, and does NOT fail for Codex's own debug commands (`debug-m-drop`, `debug-m-update`, `test-approval`)
