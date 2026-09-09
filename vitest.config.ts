@@ -70,7 +70,10 @@ export default defineConfig({
      * report is the kit's, and one number in one place is the whole point.
      *
      * MEASURED 2026-09-09, 1479 tests: lines 59.29% (2663/4491), 34 files at zero coverage
-     * (594 lines), 240 source files.
+     * (594 lines), 240 source files — IN THIS WORKING TREE. A clean checkout of the same commit
+     * measures 59.2% (2659/4491), because `agents-md.ts` walks ancestors for a context file and
+     * reaches one from here and none from /tmp. The declared floor is the clean number; this one is
+     * about a machine. See B-161.
      *
      * DO NOT DIFFERENCE THESE AGAINST THE 2026-08-20 BLOCK ABOVE. A first draft of this comment
      * said "1154 lines of the original debt were covered in three weeks", from 1748 − 594. Three
@@ -92,7 +95,7 @@ export default defineConfig({
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
-     * the next item, and 59.29% is a ratchet, never a target.
+     * the next item, and 59.2% is a ratchet, never a target.
      */
     coverage: {
       provider: 'v8',

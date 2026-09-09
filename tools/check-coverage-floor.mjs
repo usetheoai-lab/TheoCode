@@ -98,8 +98,20 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *
  * Lowering it is a reviewable edit to a versioned file, by construction. Raising it is the only
  * change the ratchet welcomes; both must be mirrored into the thresholds file the kit's gate reads.
+ *
+ * MEASURED IN A CLEAN CHECKOUT, and the distinction is not pedantic. This was first declared at
+ * 59.29 — the number a full run produces in the maintainer's working tree — and acceptance on the
+ * v0.24.0 tag reported FAIL at 59.2. `agents-md.ts` walks ancestor directories for
+ * THEO.md/AGENTS.md/CLAUDE.md until it finds `.git`, so from that working tree it reaches a context
+ * file in the home directory and from a worktree in /tmp it reaches nothing. Two files cover four
+ * fewer lines there. 0.09 of the original floor was never coverage of this code.
+ *
+ * So the number here is the ARTIFACT's, taken from a worktree at the tag. Anyone re-declaring it
+ * must measure the same way; a number from a working tree is a number about a machine. The
+ * underlying defect — tests that read outside the repository, which makes the total contingent on
+ * where the checkout sits — is B-161.
  */
-export const DECLARED_FLOOR = 59.29
+export const DECLARED_FLOOR = 59.2
 
 /** Percentage points the total may sit above the floor before a re-declaration is asked for. */
 const TOLERANCE = 1

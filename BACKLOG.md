@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-160 items — **Open** 1 · **In flight** 2 · **Closed** 157
+161 items — **Open** 2 · **In flight** 2 · **Closed** 157
 
-### Open (1)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-161`](#b-161--tests-read-outside-the-repository-so-coverage-measures-the-machine----) | Tests read outside the repository, so coverage measures the machine | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
 ### In flight (2)
@@ -7342,6 +7343,22 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-161 — Tests read outside the repository, so coverage measures the machine   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `packages/agent/src/context/agents-md.ts:62-66` walks ancestor directories for `THEO.md`/`AGENTS.md`/`CLAUDE.md` and stops at the first `.git`. Under the full suite that reach escapes the repository: from the maintainer's working tree the ancestors include a home-directory context file, from a `git worktree` in `/tmp` they include nothing. Measured 2026-09-09 on the same commit (`9bfa7d8`, tag `v0.24.0`), two full runs per environment, deterministic in each: `agents-md.ts` covered 46/75 here and 45/75 there; `packages/agent/src/session/gc/per-session.ts` covered 58/68 here and 55/68 there; total line coverage 2663/4491 (59.29%) here and 2659/4491 (59.2%) there. Found by B-159's ACCEPTANCE run, which the difference made REJECTED: `.claude/records/acceptance/B-159-2026-09-09.md`, evidence at `.claude/records/acceptance/evidence/B-159-contamination.txt`.
+why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
+status: raw
+dod:
+  - the two named files cover the same lines in a working tree and in a `/tmp` worktree of the same commit
+  - a test that reaches outside the repository fails, or is shown not to exist
+  - total line coverage is the same number in both environments, so the floor can be re-declared from either
+
+> Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
 
 ## B-160 — CI cannot check the tracked coverage floor against anything   [ ]
 
