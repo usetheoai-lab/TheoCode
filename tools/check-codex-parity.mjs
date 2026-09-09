@@ -69,10 +69,26 @@ export function parseCodexCommands(rustSource) {
     // sees in the menu and types. `AutoReview` is annotated `to_string = "approve"`, so a parser
     // reading only `serialize` calls it `auto-review`, matches this product's stale pointer, and
     // reports no drift about the exact rename this item was raised for.
-    const named = /^#\[strum\((?:serialize|to_string)\s*=\s*"([^"]+)"\)\]/.exec(line)
-    if (named) {
-      override = named[1]
-      continue
+    //
+    // THE ATTRIBUTE CAN CARRY BOTH, and the first version of this parser could not read that form.
+    // `#[strum(to_string = "pwd", serialize = "cwd")]` requires no `)]` after the first value, so
+    // the anchored pattern missed it entirely and the variant fell through to its kebab-cased name.
+    // Codex uses the combined form three times today — `pwd`, `pets`, `stop` — and it went unnoticed
+    // only because each happens to kebab-case to the same string. Fed `to_string = "renamed-thing"`
+    // beside a `serialize`, the old parser returned the variant name: the `AutoReview -> approve`
+    // defect this file was written to catch, alive inside the fix for it. Found by review, not by
+    // the suite, because the test named for the behaviour used the `serialize` branch that already
+    // worked.
+    //
+    // `to_string` wins when both are present: it is what the user sees and types.
+    if (line.startsWith('#[strum(')) {
+      const attr = line.slice('#[strum('.length)
+      const rendered = /\bto_string\s*=\s*"([^"]+)"/.exec(attr)
+      const parsedFrom = /\bserialize\s*=\s*"([^"]+)"/.exec(attr)
+      if (rendered || parsedFrom) {
+        override = (rendered ?? parsedFrom)[1]
+        continue
+      }
     }
     const variant = /^([A-Z][A-Za-z0-9]*),$/.exec(line)
     if (variant) {
@@ -147,8 +163,18 @@ export function floorViolations(codexNames, local) {
   return out
 }
 
-/** The checkout's date, or `unknown`. A failing `git` costs the label, never the comparison. */
+/**
+ * The Codex checkout's revision, or `unknown`. A failing `git` costs the label, never the comparison.
+ *
+ * The `.git` check is not defensive noise. `git -C codex log` walks UP when `codex/` is not itself a
+ * repository — a tarball, a vendored copy, a submodule not initialised — and answers with the
+ * ENCLOSING repository's commit. Reproduced: a scaffold whose `codex/` had no `.git` printed
+ * `compared against 3056039`, which was the host repo's own commit. The output would then be a
+ * precise, confident fact about the wrong object, which is the exact failure this whole checker
+ * exists to detect, one level up. `unknown revision` is the honest answer.
+ */
 function revisionOf(root) {
+  if (!existsSync(join(root, 'codex', '.git'))) return 'unknown revision (codex/ is not a git checkout)'
   try {
     return execFileSync('git', ['-C', join(root, 'codex'), 'log', '-1', '--format=%h %ad', '--date=short'], {
       encoding: 'utf8',
@@ -172,6 +198,15 @@ function main(argv) {
     return 0
   }
 
+  // Guarded like the Codex read above. EC-2 hardened that one against a stack trace inside
+  // `pnpm lint`; these two were left bare, so a checkout missing either local source threw exactly
+  // the shape that edge case says it prevents.
+  for (const relative of [REGISTRY_PATH, NAMES_PATH]) {
+    if (!existsSync(join(root, relative))) {
+      say(`[codex-parity] ${relative} not found — cannot compare a surface that is not there.`)
+      return 1
+    }
+  }
   const codex = parseCodexCommands(readFileSync(enumFile, 'utf8'))
   const local = parseLocalSurface(
     readFileSync(join(root, REGISTRY_PATH), 'utf8'),
