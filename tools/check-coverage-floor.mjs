@@ -251,9 +251,15 @@ export function readFilesCovered(reportJson) {
     const files = Object.entries(report).filter(([name]) => name !== 'total')
     // No per-file entries at all is not "zero files covered" — it is a report that does not carry
     // the information, and the two must not collapse. A minimal `{total: …}` document says nothing
-    // about scope, so the caller gets `null` and falls through to the value check as before.
+    // about scope, so the caller gets `null` and falls through to the value check as before. This
+    // is also what closes the serious case: a broken `coverage.include` yields a report with no
+    // entries and `pct: "Unknown"` (measured), so it reaches the value check rather than the skip.
     if (files.length === 0) return null
-    return files.filter(([, entry]) => (entry?.lines?.covered ?? 0) > 0).length
+    // An entry without a `lines` block is unknown, not zero. Reading it as zero let a report the
+    // checker could not understand be reported as "coverage for NO source file" — naming a cause it
+    // never observed, which is the defect this file exists to refuse.
+    if (files.some(([, entry]) => typeof entry?.lines?.covered !== 'number')) return null
+    return files.filter(([, entry]) => entry.lines.covered > 0).length
   } catch {
     return null
   }
@@ -361,7 +367,7 @@ function main() {
     if (readFilesCovered(earlyText) === 0) {
       say(
         '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
-          'measure the source tree. Re-run the full suite to check the value.',
+          'measure the source tree. Run `pnpm test:coverage` — `pnpm test` writes no report.',
       )
       return 0
     }
@@ -409,16 +415,16 @@ function main() {
   const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
   const measured = reportText === null ? null : readMeasured(reportText)
 
-  // A report measuring a fraction of the tree is not comparable to a whole-tree floor. The fraction
-  // is deliberately generous — a legitimate change moves the denominator by tens of lines, while the
-  // case this guards against is off by two orders of magnitude (4488 vs 68 when it was observed), so
-  // a loose bound separates them without ever catching real drift.
+  // A report that covered no source file did not measure the tree, so its total is not comparable to
+  // a whole-tree floor. This is an exact test, not a fraction: ADR-1 rejected a coverage-fraction
+  // threshold by name, because any ratio is a number that silently accepts real regressions.
   const covered = reportText === null ? null : readFilesCovered(reportText)
   if (covered === 0) {
+    const fileCount = Object.keys(JSON.parse(reportText)).length - 1
     say(
-      '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
-        'measure the source tree: a partial coverage run writes to the same path. Re-run the full ' +
-        'suite to check the value.',
+      `[coverage-floor] SKIPPED — the report shows coverage for NO source file (0 of ${String(fileCount)} ` +
+        'entries), so it did not measure the source tree: a partial coverage run writes to the same ' +
+        'path. Run `pnpm test:coverage` to check the value — `pnpm test` writes no report.',
     )
     return 0
   }

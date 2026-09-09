@@ -20,6 +20,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
 ### Fixed
 
 - The coverage-floor guard no longer reports a partial coverage run as a floor regression. Any
@@ -29,12 +33,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   partial run did touch files it is indistinguishable from a real regression, so the guard still
   fails and the message names that third possibility instead of offering two that do not apply
   (B-165).
-
-### Deprecated
-
-### Removed
-
-### Fixed
 
 ### Security
 

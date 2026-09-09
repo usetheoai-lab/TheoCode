@@ -7403,7 +7403,12 @@ evidence: `.claude/records/discoveries/opportunities/coverage-floor-partial-repo
 why_now: observed 2026-09-09 while closing B-161. Running `vitest run --coverage <one-file>` overwrites `coverage/coverage-summary.json` with that file's total (10.29%). The next `pnpm lint` read it and failed with "the floor 59.15% is above the measured total 10.29% — either the tree regressed, or the floor was declared against a different one", proposing a re-declaration. Nothing regressed and the floor was right; the report simply covered one file. The guard does print the report age, so it is not silent, but age does not distinguish a stale full run from a fresh partial one, and the message names neither possibility.
 status: triaged
 dod:
-  - a report produced by a single-file run is not reported as a floor regression
+  - a report showing coverage for NO source file is not reported as a floor regression
+  - **corrected 2026-09-09, measured:** the original bullet said "a report produced by a single-file
+    run", which is broader than anything the JSON supports. A partial run that DOES cover files is
+    byte-identical to a real regression — `vitest run --coverage packages/agent/tests/context/rules.test.ts`
+    gives 0.8% over 2 of 239 files, and no rule can tell that from a tree that regressed to 0.8%.
+    The guard fails there, which is the safe side, and says so
   - whatever the guard does instead, it names the scope it read, not only the age
   - a real regression is still caught: a test asserts the true-positive path did not become a skip
 

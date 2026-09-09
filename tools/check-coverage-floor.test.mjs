@@ -17,7 +17,14 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { DECLARED_FLOOR, compareToDeclared, evaluateFloor, readMeasured, resolveViaGate } from './check-coverage-floor.mjs'
+import {
+  DECLARED_FLOOR,
+  compareToDeclared,
+  evaluateFloor,
+  readFilesCovered,
+  readMeasured,
+  resolveViaGate,
+} from './check-coverage-floor.mjs'
 
 /**
  * Whether the kit's gate is installed here.
@@ -157,6 +164,30 @@ describe('reading the measured total', () => {
 
   it('test_an_unparseable_report_yields_null_rather_than_a_number', () => {
     expect(readMeasured('not json')).toBeNull()
+  })
+
+  it('test_readFilesCovered_answers_null_when_it_cannot_tell', () => {
+    // M5/M6 survived because this reader was exported and imported by nothing — its sibling
+    // `readMeasured` has exactly these tests one block up. Under those mutants an unreadable report
+    // is announced as "coverage for NO source file", which is a claim about a document the checker
+    // failed to parse.
+    expect(readFilesCovered('not json'), 'garbage read as a scope claim').toBeNull()
+    expect(readFilesCovered('null'), 'a null document read as a scope claim').toBeNull()
+    expect(readFilesCovered('{"total":{"lines":{"pct":50}}}'), 'no per-file entries is not zero').toBeNull()
+    expect(
+      readFilesCovered('{"total":{"lines":{"pct":50}},"/a.ts":{"statements":{"covered":3}}}'),
+      'an entry with no lines block is unknown, not zero covered',
+    ).toBeNull()
+  })
+
+  it('test_readFilesCovered_counts_only_files_with_covered_lines', () => {
+    const report = JSON.stringify({
+      total: { lines: { pct: 50 } },
+      '/a.ts': { lines: { covered: 4 } },
+      '/b.ts': { lines: { covered: 0 } },
+    })
+
+    expect(readFilesCovered(report)).toBe(1)
     expect(readMeasured('{}')).toBeNull()
   })
 })
@@ -268,7 +299,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     symlinkSync(GATE_DIR, join(root, ...prefix, 'skills', 'implement', 'scripts'))
   }
 
-  function scaffold({ floor, pct }) {
+  function scaffold({ floor, pct, files }) {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     if (floor !== undefined) {
       mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
@@ -277,7 +308,19 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     linkGate(root, ['.claude'])
     if (pct !== undefined) {
       mkdirSync(join(root, 'coverage'), { recursive: true })
-      writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct } } }))
+      // `files` is optional so every existing caller keeps the `{total: …}` shape it was written
+      // with. Passing it is what reaches the MAIN route's scope check: with no per-file entries the
+      // reader returns null and that branch is unreachable, which is why deleting the branch used to
+      // leave the whole suite green (M7, found independently by two reviewers).
+      const report = { total: { lines: { pct } } }
+      if (files !== undefined) {
+        for (let i = 0; i < files.total; i += 1) {
+          report[`/repo/packages/x/src/file-${String(i)}.ts`] = {
+            lines: { pct: i < files.covered ? 80 : 0, total: 10, covered: i < files.covered ? 8 : 0 },
+          }
+        }
+      }
+      writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify(report))
     }
     return root
   }
@@ -313,6 +356,29 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).toContain("'default'")
+  })
+
+  it('test_the_main_route_also_refuses_a_report_that_covered_no_source_file', () => {
+    // M7 — deleting the main route's whole scope guard left all 51 tests green, found independently
+    // by two reviewers. The bug was OBSERVED on this route (`pnpm lint` in a kit-installed checkout)
+    // and only the tracked-only route had a test for the fix. The one fixture with per-file entries
+    // lived in the other describe, so this branch was unreachable from here.
+    const result = run(scaffold({ floor: 58.95, pct: 0, files: { total: 3, covered: 0 } }))
+
+    expect(result.code, 'the main route reported a scope mismatch as a regression').toBe(0)
+    expect(result.stdout).toContain('NO source file')
+    expect(
+      result.stdout,
+      'the main-route message must name the overwrite, which is what makes it actionable',
+    ).toContain('same path')
+  })
+
+  it('test_the_main_route_still_fails_when_the_tree_really_is_below_the_floor', () => {
+    // Anti-vacuity for the test above, on this route: files ARE covered and the total is genuinely
+    // below the floor, so the guard must still refuse.
+    const result = run(scaffold({ floor: 58.95, pct: 40, files: { total: 3, covered: 3 } }))
+
+    expect(result.code).toBe(1)
   })
 
   it('test_slack_beyond_the_default_tolerance_exits_nonzero', () => {
@@ -547,7 +613,13 @@ describe('the tracked floor is checkable without the kit', () => {
 
     expect(result.code, 'a report covering no source file was called a regression').toBe(0)
     expect(result.stdout).toContain('NO source file')
-    expect(result.stdout, 'it still proposed re-declaring a correct floor').not.toContain('Re-measure and re-declare')
+    // F-tests-4: this read `.not.toContain('Re-measure and re-declare')` and was VACUOUS — the same
+    // commit lowercased that phrase, so `toContain` was false on every reachable path and the
+    // assertion could never fail. Matching case-insensitively is what makes it an assertion.
+    expect(
+      result.stdout.toLowerCase(),
+      'it still proposed re-declaring a floor that is correct',
+    ).not.toContain('re-measure and re-declare')
   })
 
   it('test_a_partial_run_that_did_cover_files_still_fails_and_says_why', () => {
@@ -557,10 +629,17 @@ describe('the tracked floor is checkable without the kit', () => {
     const result = run(report({ pct: 10.29, filesCovered: 1 }))
 
     expect(result.code, 'the safe side is to fail when the report cannot be told apart').toBe(1)
+    // F-tests-3: this matched /partial|full suite|whole tree/i, which survives restoring the old
+    // two-cause text and appending "Re-run the full suite" — the misleading remedy comes back and
+    // the test stays green. These pin the CAUSE and the absence of the wrong prescription instead.
     expect(
       result.stdout,
-      'the message offered only two explanations, and the real one was a third',
-    ).toMatch(/partial|full suite|whole tree/i)
+      'the message does not name the partial-run cause',
+    ).toMatch(/came from a PARTIAL run/i)
+    expect(
+      result.stdout.toLowerCase(),
+      'the message prescribes re-declaring before ruling out a partial run',
+    ).toContain('re-run the full suite first')
   })
 
   it('test_a_regression_below_the_tracked_floor_fails', () => {
