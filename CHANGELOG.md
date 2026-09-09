@@ -41,6 +41,18 @@ for `release.yml` in this repository will not find it, and should not have been 
   What this still cannot see is `coverage.min_percent` itself, so the two halves *agreeing* remains
   a property of a machine that installed the kit. The checker's header says so.
 
+  **Corrected before release.** The first version of this entry said the mutant "survived the whole
+  suite in every fresh clone until now". It did not stop surviving: every new fixture was computed
+  *from* `DECLARED_FLOOR`, so lowering the constant lowered the report with it and every assertion
+  still held. A fixture derived from the thing under test cannot detect a change in that thing. The
+  fixtures are literals now, the constant is pinned by a literal of its own, and the three mutants
+  were measured dying in a genuine kit-less clone — where they had survived, including under the
+  first version of this fix.
+
+  Why no coverage step in CI is now recorded in the file that declares the floor, not only in a plan
+  under `.claude/` that no clone receives: **+23 s** measured, so the obstacle is not price but that
+  the step changes what every future pull request must satisfy.
+
 ### Security
 
 ## [0.25.0] - 2026-09-09

@@ -472,10 +472,30 @@ describe('the tracked floor is checkable without the kit', () => {
   }
 
   it('test_a_tracked_floor_far_below_the_tree_fails_without_the_kit', () => {
-    // The exact mutant B-160 was filed about: DECLARED_FLOOR lowered, no `.claude/` anywhere.
-    const result = run(reportOnly(DECLARED_FLOOR + 19))
+    // LITERAL, not `DECLARED_FLOOR + 19`. The first version derived every fixture from the constant
+    // under test, so lowering DECLARED_FLOOR lowered the report with it and every assertion still
+    // held — the mutant survived the whole suite in a kit-less clone, which is the one environment
+    // this branch exists for. A fixture computed from the thing it tests cannot detect a change in
+    // that thing. Verified: with `.claude/` absent, DECLARED_FLOOR at 40 and at 100 both left the
+    // suite green before this line existed.
+    const result = run(reportOnly(78.15))
     expect(result.code).toBe(1)
     expect(result.stdout).toMatch(/slack/i)
+  })
+
+  it('test_the_tracked_floor_is_the_number_this_repository_measured', () => {
+    // The other half of the same trap: pin the constant itself against a literal, so a mutant that
+    // moves it is caught where `test_the_two_declarations_agree` cannot run — that one is
+    // skipIf(!GATE_INSTALLED) and is skipped in exactly this environment.
+    expect(DECLARED_FLOOR).toBe(59.15)
+  })
+
+  it('test_a_regression_below_the_tracked_floor_fails', () => {
+    // The arm the first version never exercised: `floor > measured`. Without it, a mutant that lets
+    // a real coverage regression pass silently survives.
+    const result = run(reportOnly(50))
+    expect(result.code).toBe(1)
+    expect(result.stdout).toMatch(/above the measured/i)
   })
 
   it('test_an_accurate_tracked_floor_passes_without_the_kit', () => {
