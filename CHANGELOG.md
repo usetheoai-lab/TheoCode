@@ -18,6 +18,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.25.0] - 2026-09-09
+
+### Added
+
 - `CONTRIBUTING.md` now says what `rules/*.md` means when a comment cites it. Measured: 29 tracked
   files carry 36 such citations, ten of them in production source, and none of those rule files is
   versioned here — they belong to tooling installed at `.claude/`, which is gitignored. A
@@ -30,11 +44,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   give up"* tells you the whole thing without opening anything. Rewriting 36 sites would say once
   per site what one paragraph says once per repository, and give 36 places to drift.
 
-### Changed
-
-### Deprecated
-
-### Removed
 
 ### Fixed
 
@@ -45,8 +54,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 
   Found alongside a second instance in the same review, in the argument for **not** building a
   checker for exactly this. Registered as B-164.
-
-### Security
 
 ## [0.24.2] - 2026-09-09
 
