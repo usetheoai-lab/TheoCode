@@ -236,7 +236,9 @@ function main() {
 
   const agreement = compareToDeclared(resolved.value)
   if (agreement.status !== 'OK') {
-    say(`[coverage-floor] ${agreement.message}`)
+    // F-guard-3: naming the file matters when both layouts are present — "the thresholds file"
+    // does not say which one, and the remedy is an edit to a specific path.
+    say(`[coverage-floor] ${agreement.message} (read from ${present.join(' or ')})`)
     return 1
   }
 

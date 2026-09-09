@@ -67,11 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-159 items — **Open** 0 · **In flight** 2 · **Closed** 157
+160 items — **Open** 1 · **In flight** 2 · **Closed** 157
 
-### Open (0)
+### Open (1)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
 ### In flight (2)
 
@@ -7340,6 +7342,22 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-160 — CI cannot check the tracked coverage floor against anything   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: `tools/check-coverage-floor.mjs` declares `DECLARED_FLOOR = 59.29` and compares it against `coverage.min_percent`, which `coverage_gate.py` resolves from `.claude/rules/code-quality-thresholds.txt`. That file is gitignored — `git ls-files .claude` returns 0 — so in CI and in every fresh clone there is nothing to compare against and the checker SKIPs. Measured during B-159's round-4 review: mutating `DECLARED_FLOOR` to 40 survives the whole suite wherever `.claude/` is absent, because `test_the_two_declarations_of_the_floor_agree_in_this_repository` is `skipIf`-guarded there. `.github/workflows/ci.yml` contains the string "coverage" zero times and runs `pnpm test` against `"test": "vitest run"`, so no CI step measures coverage either.
+why_now: B-159 declared a coverage floor as a ratchet and made a downward edit visible in a diff, which was the gap it set out to close. What it did not close is enforcement outside a developer machine: the number binds a checkout that installed the kit, and a clone that did not is governed by nothing. The limit is stated in `CHANGELOG.md`, in `vitest.config.ts` and in the plan's R3, so it is disclosed rather than hidden — but disclosure is not enforcement, and every item after B-159 inherits the gap.
+status: raw
+dod:
+  - a coverage measurement runs somewhere CI can see it, or the decision not to is recorded with its reason where the floor is declared
+  - mutating `DECLARED_FLOOR` fails the suite in a checkout with no `.claude/`, or the reason it cannot is written down
+  - the cost of running coverage in CI is measured before it is adopted, not assumed
+
+> Registered 2026-09-09 from B-159's round-4 review (finding `F-guard-13-r3`, deferred half).
 
 ## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
 
