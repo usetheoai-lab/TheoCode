@@ -18,6 +18,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- `CONTRIBUTING.md` now says what `rules/*.md` means when a comment cites it. Measured: 29 tracked
+  files carry 36 such citations, ten of them in production source, and none of those rule files is
+  versioned here — they belong to tooling installed at `.claude/`, which is gitignored. A
+  contributor reading `config/home-dir.ts` to learn why an error is typed was being sent to a path
+  their checkout does not contain.
+
+  The citations themselves are left exactly as they are, and that is the finding rather than
+  laziness: each one is an **attribution**, and the sentence around it carries the reasoning on its
+  own — *"keeps the error TYPED, which `rules/error-handling.md` asks for and a plain `Error` would
+  give up"* tells you the whole thing without opening anything. Rewriting 36 sites would say once
+  per site what one paragraph says once per repository, and give 36 places to drift.
+
 ### Changed
 
 ### Deprecated

@@ -14,6 +14,29 @@ a dependency bump, a new option reaching the framework, anything about what the 
 exercise the built binary in a throwaway project. The suite mocks the boundary this kind of change
 crosses, which is exactly why it stays green through the failure.
 
+## What `rules/*.md` means in a comment
+
+Comments across this repository cite rule files — `rules/error-handling.md`, `rules/testing.md`,
+`rules/public-copy.md`, `rules/architecture.md`, `rules/english-only.md` — to say where a decision
+came from. **Those files are not versioned here**, so a clone will not contain them. They belong to
+the tooling installed at `.claude/`, which is gitignored and has its own repository.
+
+You are not missing an explanation. Every one of those citations is an **attribution**, and the
+sentence around it carries the reasoning on its own:
+
+```ts
+// Extending the SDK base keeps the error TYPED, which `rules/error-handling.md` asks for
+// and a plain `Error` would give up.
+```
+
+The reader learns that the error is typed on purpose, and why, without opening anything. The path
+credits the source; it is not a pointer you must follow.
+
+Measured 2026-09-09: 29 tracked files carry 36 such citations, ten of them in production source.
+Nothing detects it when one rots — `tools/check-doc-references.mjs` validates the paths cited by
+`README.md` and nothing else, and widening it to these would fail all 36 permanently, since the
+files genuinely do not ship. What is guarded is this paragraph, by anyone who reads it.
+
 ## Ways a careful measurement still lies
 
 All of these happened here, and none is caught by being more careful with the measurement itself.
