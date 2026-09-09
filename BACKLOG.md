@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-169 items — **Open** 3 · **In flight** 3 · **Closed** 163
+170 items — **Open** 4 · **In flight** 3 · **Closed** 163
 
-### Open (3)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
@@ -7351,6 +7352,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 while scoring B-167's plan
+why_now: `run_structural.py:690` matches dismissals with `<!--\s*ADR-DISMISS-SOFT-CAP:\s*([a-z0-9_-]+)\s*:\s*[^>]+?-->`. The reason segment excludes `>`, so a reason written with an arrow — `it went 15 -> 0`, a natural way to state a before/after in this repository's own idiom — ends the match early and the dismissal registers as ABSENT. Reproduced: the same marker scored `undismissed_soft_caps: ['soft_cap_mutation_unconfigured_typescript']` with the arrow and `[]` without it, nothing else changed. The failure is silent in the worst way: the plan simply stays capped at 70 and demotes to NON_SHIPPABLE, which is indistinguishable from a cap that was never dismissed. `cycle-code-quality.md` records that an undismissable soft cap is a hard cap under another name; a dismissal that voids itself on punctuation is the same defect reached by accident.
+status: raw
+dod:
+  - a dismissal reason containing `>` registers the dismissal
+  - a malformed marker is REPORTED rather than ignored, so the author learns why the cap stands
+  - a test asserts both, and fails if the reason segment goes back to excluding a common character
 
 ## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [ ]
 
