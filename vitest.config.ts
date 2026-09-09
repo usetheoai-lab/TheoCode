@@ -7,8 +7,9 @@ export default defineConfig({
     // test environment. Capping leaves headroom for the host, and costs no wall-clock
     // because the gain above this point was already noise when measured.
     maxWorkers: Math.max(2, cpus().length - 4),
-    // Tests live next to the code they cover, per rules/testing.md § 5.
-    include: ['packages/*/src/**/*.test.{ts,tsx}', 'tools/**/*.test.mjs'],
+    // Tests live in a per-package `tests/` mirror of `src/`, per rules/testing.md § 5.
+    // `tools/` keeps its tests beside its checkers: it is not a package and has no `src/`.
+    include: ['packages/*/tests/**/*.test.{ts,tsx}', 'tools/**/*.test.mjs'],
     environment: 'node',
     /**
      * The default is 5000, and the first test in any file that builds an agent was landing at
