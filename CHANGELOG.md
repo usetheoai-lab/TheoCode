@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.25.1] - 2026-09-09
+
+### Fixed
+
 - The coverage-floor checker skipped the one comparison it could make in a checkout without the
   kit, and said there was nothing to compare. `coverage.min_percent` is gitignored and never reaches
   a clone, but `DECLARED_FLOOR` is tracked and does — so the tracked number can always be checked
@@ -52,8 +58,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   Why no coverage step in CI is now recorded in the file that declares the floor, not only in a plan
   under `.claude/` that no clone receives: **+23 s** measured, so the obstacle is not price but that
   the step changes what every future pull request must satisfy.
-
-### Security
 
 ## [0.25.0] - 2026-09-09
 
