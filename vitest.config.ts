@@ -56,7 +56,15 @@ export default defineConfig({
      * So a floor now exists, in `.claude/rules/code-quality-thresholds.txt` as
      * `coverage.min_percent`, set to EXACTLY the measured total with no slack. The slack is what
      * B-063's sentence was about: it is what permits regression while reading as a standard. With
-     * none, any change that lowers total coverage fails. That is a ratchet, not a decoration.
+     * none, a change taken through `/implement` that lowers total coverage fails. That is a
+     * ratchet, not a decoration.
+     *
+     * TWO LIMITS, because that path does not exist in a fresh clone. `.claude/` is gitignored, so
+     * the number above binds a checkout that installed the kit, and CI runs `pnpm test` without
+     * coverage. What DOES travel is `DECLARED_FLOOR` in `tools/check-coverage-floor.mjs`: the same
+     * number, tracked, checked against the gitignored one on every `pnpm lint`. Lowering the floor
+     * therefore means editing a versioned file, which is the point — before that constant existed,
+     * a downward edit appeared in no diff at all.
      *
      * It is deliberately NOT here. This file configures the reporter; the gate that reads the
      * report is the kit's, and one number in one place is the whole point.
@@ -73,10 +81,13 @@ export default defineConfig({
      * single glob over a growing tree cannot do that; the counting basis changed. Each run is
      * correct about its own tree. The subtraction is not a measurement of anything.
      *
-     * What IS comparable is the file COUNT, which does not depend on how statements are
-     * attributed: 40 files at zero coverage out of 179, down to 34 out of 240. Fewer untouched
-     * files across a larger codebase — real progress, made with no floor in force. So the floor is
-     * not what produces the improvement; it is what stops the loss.
+     * What survives the version change better is the file COUNT: 40 files at zero coverage out of
+     * 179 by B-063's own reckoning (the glob at `0be3066` holds 181), down to 34 out of 240 today.
+     * Better, not perfectly — v4's AST remapping produces 24 entries with no executable lines at
+     * all, which are excluded from the 34, and the v3 report is gone so the same exclusion cannot
+     * be re-applied to the old figure. Read it as a direction, not a delta: fewer untouched files
+     * across a larger codebase, with no floor in force. So the floor is not what produces the
+     * improvement; it is what stops the loss.
      *
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points

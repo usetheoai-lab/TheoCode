@@ -48,15 +48,19 @@ for `release.yml` in this repository will not find it, and should not have been 
   for since 2026-08-20 — deciding which zero-coverage files are meant to stay that way — is still
   open and is what raises the number.
 
-- `tools/check-coverage-floor.mjs`, chained into `npm run lint`: the declared coverage floor must
-  still describe the tree it was declared against. The two ways it can stop doing so are
-  asymmetric, which is why this is code rather than a note — a trailing comment on the value fails
-  loudly (the kit parses it with `float()`, falls back to 80, and the next validation FAILs), but
-  **editing the number downward fails silently**, and because the file is gitignored the edit shows
-  up in no diff, no review and no CI. The checker also fails when the floor has drifted far enough
-  below the measured total that the ratchet has acquired slack, which is how a floor decays by time
-  rather than by decision. It skips loudly where the file is absent, so it does not turn coverage
-  into a merge gate — it makes a silent edit loud where the floor is actually in force.
+- `tools/check-coverage-floor.mjs`, chained into `npm run lint`: **the floor is now declared twice
+  and the two must agree.** `DECLARED_FLOOR` in that file is tracked by git; `coverage.min_percent`
+  in the thresholds file is gitignored and is what the kit's gate reads. The reason for the second
+  copy is the reason the first version of this checker did not work: a downward edit of the
+  gitignored value appeared in no diff, no review and no CI, because nothing versioned knew what
+  the number used to be. Lowering the floor now means editing a tracked constant, which a reviewer
+  sees. The check needs no coverage report, so it runs on every lint.
+
+  It also fails on a value the kit would silently reject (a trailing comment makes `float()` raise
+  and the floor reverts to 80), and on a floor that has drifted far enough below the measured total
+  to have acquired slack — how a ratchet decays by time rather than by decision. Where the
+  thresholds file is absent it skips and says so, naming the tracked number: this does **not** turn
+  coverage into a merge gate.
 
 ### Deprecated
 

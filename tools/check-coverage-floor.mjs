@@ -26,29 +26,70 @@
  * coverage-raising work, or a `@vitest/coverage-v8` major bump that re-accounts the same tree, the
  * floor and the total diverge and nothing says so until a later plan halts.
  *
+ * ## `DECLARED_FLOOR` — the tracked half, and why the first version did not work
+ *
+ * The first version compared the declared floor only against a coverage report, and a review
+ * measured it not delivering the guarantee above: with the report absent — which is every
+ * `pnpm lint`, since the report is gitignored and no lint step produces one — a floor edited from
+ * 59.29 to 40 exited 0. With the report present, a one-point downward edit still exited 0, because
+ * a snapshot cannot tell "coverage rose a point" from "someone lowered the floor a point".
+ *
+ * So the floor is declared TWICE, and the two must agree:
+ *
+ *   - `DECLARED_FLOOR` here, tracked by git, changed only by editing this file;
+ *   - `coverage.min_percent` in the thresholds file, gitignored, read by the kit's gate.
+ *
+ * A downward edit of the gitignored value now fails at any magnitude with no coverage report
+ * needed, and lowering the floor legitimately means editing a TRACKED constant — which appears in a
+ * diff and in review. That is the whole point: the reason the edit was invisible was that nothing
+ * versioned knew what the number used to be.
+ *
+ * Two declarations of one fact is the shape `check-sdk-pin.mjs` already carries in this repository,
+ * for the same reason: they pin the same thing, nothing makes them move together, so a check does.
+ *
  * ## What it deliberately cannot do
  *
- * CI does not run it usefully. The floor lives under `.claude/`, which this repository does not
- * version, so in a CI checkout the file is absent and this SKIPs — loudly, naming the path, the way
- * `check-codex-parity.mjs` does for its own absent input. This closes the gap on a developer
- * machine and at `/implement` time. **It does not make coverage a merge gate**, and saying so here
- * is cheaper than letting someone infer otherwise from the fact that it runs in `pnpm lint`.
+ * CI cannot compare them. The thresholds file lives under `.claude/`, which this repository does
+ * not version, so in a CI checkout it is absent and this SKIPs — loudly, naming the path, the way
+ * `check-codex-parity.mjs` does for its own absent input. **It does not make coverage a merge
+ * gate.** What CI does get is `DECLARED_FLOOR` in a reviewable diff.
  *
- * ## On the tolerance, which looks like slack and is not
+ * Nor does it verify coverage at `pnpm lint` time. `run_validation.py` runs `npm run lint` BEFORE
+ * the step that regenerates the report, so at lint time the report is from a previous run or
+ * absent. Its age is printed rather than assumed, and the floor-vs-declaration check does not
+ * depend on it.
  *
- * The FLOOR keeps zero slack: `coverage_gate.py` compares `percent >= threshold` exactly, and this
- * file does not touch that. `TOLERANCE` is the width of the window before this checker asks you to
- * RAISE the floor. Zero there would redden lint on every coverage-improving commit until someone
- * edited a gitignored file — and a gate people bypass is the failure this ecosystem exists to
- * prevent.
+ * ## On the tolerance, which is narrower than it looks
+ *
+ * `TOLERANCE` governs ONE question: how far the measured total may rise above the floor before this
+ * asks you to raise it. It has nothing to do with downward edits any more — `DECLARED_FLOOR`
+ * catches those exactly. Zero here would redden lint on every coverage-improving commit until
+ * someone edited a gitignored file, and a gate people bypass is the failure this ecosystem exists
+ * to prevent.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const FLOOR_PATH = '.claude/rules/code-quality-thresholds.txt'
+/**
+ * Both layouts, in the order `coverage_gate.py::_THRESHOLD_FILES` tries them.
+ *
+ * The order is not cosmetic. Reading only the second means that in the kit's own standalone layout
+ * — where `rules/` sits at the root with no `.claude/` wrapper — this reports `SKIPPED … gitignored,
+ * so this is expected in CI` while a completely different floor is in force. That message asserts a
+ * reason it did not observe, which is the defect it exists to catch, one level up.
+ */
+const FLOOR_PATHS = ['rules/code-quality-thresholds.txt', '.claude/rules/code-quality-thresholds.txt']
 const REPORT_PATH = 'coverage/coverage-summary.json'
 const KEY = 'coverage.min_percent'
+
+/**
+ * The floor this repository has agreed to, tracked by git.
+ *
+ * Lowering it is a reviewable edit to a versioned file, by construction. Raising it is the only
+ * change the ratchet welcomes; both must be mirrored into the thresholds file the kit's gate reads.
+ */
+export const DECLARED_FLOOR = 59.29
 
 /** Percentage points the total may sit above the floor before a re-declaration is asked for. */
 const TOLERANCE = 1
@@ -60,23 +101,51 @@ const TOLERANCE = 1
  * "the line you wrote does not work", and `coverage_gate.py` turns both into the same silent 80.
  */
 export function parseFloor(text) {
+  const malformed = []
   for (const raw of text.split('\n')) {
     const line = raw.trim()
     if (!line || line.startsWith('#') || !line.includes('=')) continue
     const [key, ...rest] = line.split('=')
     if (key.trim() !== KEY) continue
     const value = rest.join('=').trim()
-    if (!/^[0-9]+(\.[0-9]+)?$/.test(value)) {
-      return {
-        error:
-          `\`${KEY}\` is declared as \`${value}\` — trailing text after the number. ` +
-          'The kit parses it with float() and falls back to 80 on failure, silently. ' +
-          'Keep the line bare and put the reasoning on # lines above it.',
-      }
+    const number = value === '' ? Number.NaN : Number(value)
+    if (!Number.isFinite(number)) {
+      // Keep scanning, exactly as `resolve_threshold` does: it catches ValueError and `continue`s,
+      // so a bad line followed by a good one resolves to the good one. Failing here instead would
+      // redden the lint chain over a file the gate reads correctly.
+      malformed.push(value)
+      continue
     }
-    return { value: Number(value) }
+    return { value: number }
   }
-  return { error: `no \`${KEY}\` declaration in ${FLOOR_PATH} — the gate will use its default of 80` }
+  if (malformed.length > 0) {
+    return {
+      error:
+        `\`${KEY}\` is declared as \`${malformed[0]}\`, which is not a number, and no later line ` +
+        'declares it either. The kit parses the value with float() and falls back to 80 when that ' +
+        'raises — silently. Keep the line bare and put the reasoning on # lines above it.',
+    }
+  }
+  return { error: `no \`${KEY}\` declaration in the thresholds file — the gate will use its default of 80` }
+}
+
+/**
+ * Whether the gitignored declaration still agrees with the tracked one.
+ *
+ * This is the check that does not need a coverage report, and therefore the only one that runs on
+ * every `pnpm lint`. Accepting what `Number()` accepts keeps it from rejecting a line the gate
+ * reads fine — `59.`, `.59`, `1e2` and `+59` are all valid to Python's float().
+ */
+export function compareToDeclared(floor, declared = DECLARED_FLOOR) {
+  if (floor === declared) return { status: 'OK' }
+  const direction = floor < declared ? 'LOWERED' : 'raised'
+  return {
+    status: 'FAIL',
+    message:
+      `the thresholds file says ${floor}% and DECLARED_FLOOR in this file says ${declared}% — ` +
+      `the floor was ${direction} in the thresholds file only. Both must move together: the ` +
+      'tracked constant is what makes the change visible in a diff.',
+  }
 }
 
 /** Total line coverage as the Python gate reads it, or `null` when the report is unreadable. */
@@ -118,35 +187,78 @@ export function evaluateFloor({ floor, measured, tolerance = TOLERANCE }) {
   return { status: 'OK', message: `floor ${floor}%, measured ${measured}%` }
 }
 
+/** The report's age in whole minutes, or `null` when it is unreadable. */
+function ageMinutes(path) {
+  try {
+    return Math.round((Date.now() - statSync(path).mtimeMs) / 60000)
+  } catch {
+    return null
+  }
+}
+
+/** Read a file, or `null`. `existsSync` says a path exists; it does not say it can be read. */
+function readOrNull(path) {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    // A directory where a file was expected (EISDIR), a permission error, a broken symlink. The
+    // sibling checker documents this guard; the first version of this file omitted it and a stray
+    // directory took down the whole lint chain with a raw stack trace.
+    return null
+  }
+}
+
 function main() {
   const root = process.env['COVERAGE_FLOOR_ROOT'] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const say = (line) => process.stdout.write(`${line}\n`)
 
-  const floorFile = join(root, FLOOR_PATH)
-  if (!existsSync(floorFile)) {
-    say(`[coverage-floor] SKIPPED — ${FLOOR_PATH} not found. It is gitignored, so this is expected in CI.`)
+  const floorFile = FLOOR_PATHS.map((relative) => join(root, relative)).find((path) => existsSync(path))
+  if (floorFile === undefined) {
+    say(
+      `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')}. ` +
+        `The tracked floor is ${DECLARED_FLOOR}%; nothing here to compare it against.`,
+    )
     return 0
   }
 
-  const parsed = parseFloor(readFileSync(floorFile, 'utf8'))
+  const text = readOrNull(floorFile)
+  if (text === null) {
+    say(`[coverage-floor] ${floorFile} exists but could not be read`)
+    return 1
+  }
+
+  const parsed = parseFloor(text)
   if (parsed.error) {
     say(`[coverage-floor] ${parsed.error}`)
     return 1
   }
 
+  // First, and without needing a coverage report: do the two declarations of the floor agree?
+  const agreement = compareToDeclared(parsed.value)
+  if (agreement.status !== 'OK') {
+    say(`[coverage-floor] ${agreement.message}`)
+    return 1
+  }
+
   const reportFile = join(root, REPORT_PATH)
-  const measured = existsSync(reportFile) ? readMeasured(readFileSync(reportFile, 'utf8')) : null
+  const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
+  const measured = reportText === null ? null : readMeasured(reportText)
   const result = evaluateFloor({ floor: parsed.value, measured })
 
   if (result.status === 'UNMEASURED') {
-    // Not a failure — `pnpm lint` does not run coverage, so this is the ordinary case there.
-    say(`[coverage-floor] ${result.message}`)
+    // Not a failure. `pnpm lint` runs before the step that regenerates the report, so this is the
+    // ordinary case there — and the declaration check above already ran.
+    say(`[coverage-floor] floor ${parsed.value}% agrees with DECLARED_FLOOR; ${result.message}`)
     return 0
   }
-  say(`[coverage-floor] ${result.message}`)
+
+  const age = ageMinutes(reportFile)
+  // A number without its age is a claim about now. The report is not regenerated by this checker.
+  const stamp = age === null ? '' : ` (report ${age}m old)`
+  say(`[coverage-floor] ${result.message}${stamp}`)
   return result.status === 'OK' ? 0 : 1
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  process.exit(main(process.argv.slice(2)))
+  process.exit(main())
 }
