@@ -74,7 +74,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
-| [`B-161`](#b-161--tests-read-outside-the-repository-so-coverage-measures-the-machine----) | Tests read outside the repository, so coverage measures the machine | `raw` | — |
+| [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
 ### In flight (2)
@@ -7363,13 +7363,13 @@ dod:
 
 > Registered 2026-09-09 by request, with the scope measured before filing.
 
-## B-161 — Tests read outside the repository, so coverage measures the machine   [ ]
+## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
 
 domain: TheoCode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: `packages/agent/src/context/agents-md.ts:62-66` walks ancestor directories for `THEO.md`/`AGENTS.md`/`CLAUDE.md` and stops at the first `.git`. Under the full suite that reach escapes the repository: from the maintainer's working tree the ancestors include a home-directory context file, from a `git worktree` in `/tmp` they include nothing. Measured 2026-09-09 on the same commit (`9bfa7d8`, tag `v0.24.0`), two full runs per environment, deterministic in each: `agents-md.ts` covered 46/75 here and 45/75 there; `packages/agent/src/session/gc/per-session.ts` covered 58/68 here and 55/68 there; total line coverage 2663/4491 (59.29%) here and 2659/4491 (59.2%) there. Found by B-159's ACCEPTANCE run, which the difference made REJECTED: `.claude/records/acceptance/B-159-2026-09-09.md`, evidence at `.claude/records/acceptance/evidence/B-159-contamination.txt`.
+evidence: THREE independent channels, each isolated by changing one variable at a time and measured on the same commit. `packages/agent/src/context/agents-md.ts:62-66` walks ancestor directories for `THEO.md`/`AGENTS.md`/`CLAUDE.md` until the first `.git`, reaching a home-directory context file from the maintainer's tree and nothing from `/tmp` (+1 line). `packages/agent/src/session/gc/per-session.ts` — `readTranscriptDir` reads `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds 16 transcripts for the working tree's path and none for a `/tmp` one; proved by creating that directory for a `/tmp` checkout, which turned lines 60-62 covered with nothing else changed (+3 lines). `packages/agent/src/rules.ts:82` — the default `warn` callback of `loadRules` runs only when the rules corpus exceeds 64 000 chars, and an installed `.claude/rules/` is 248 669, so the total depends on the SIZE of the kit sitting beside the checkout (+1 line). Measured chain: 2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree), all out of 4491. **Correction to this item's first filing:** it credited all four lines to the ancestor walk alone. `per-session.ts` has no ancestor walk and never calls `agents-md`; that attribution was wrong, and the rules-corpus channel was not named at all. Found by the review of B-159's hotfix.
 why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
 status: raw
 dod:

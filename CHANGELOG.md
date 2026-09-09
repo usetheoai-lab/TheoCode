@@ -43,14 +43,19 @@ for `release.yml` in this repository will not find it, and should not have been 
   reverting the fix the item exists for. All six now die.
 
 - The coverage floor released in 0.24.0 was measured on a contaminated tree and is corrected from
-  59.29% to **59.2%**. Acceptance on the `v0.24.0` tag reported `coverage FAIL — 59.2% is below the
+  59.29% to **59.18%** — a number that itself took two attempts, because the first correction was
+  measured in a worktree with the kit symlinked in and was contaminated the same way. Acceptance on the `v0.24.0` tag reported `coverage FAIL — 59.2% is below the
   59.29% floor`: `packages/agent/src/context/agents-md.ts` walks ancestor directories for
   `THEO.md`/`AGENTS.md`/`CLAUDE.md` until it finds `.git`, so from a maintainer's working tree it
-  reaches a context file in the home directory and from a clean checkout it reaches nothing. Two
-  files cover four fewer lines there. **0.09 of the released floor was never coverage of this
-  code.** The number is now the released artifact's own, taken from a worktree at the tag; the
-  0.24.0 entry below stands as published. The defect that made this possible — tests reading
-  outside the repository, so the coverage total depends on where the checkout sits — is B-161.
+  reaches a context file in the home directory and from a clean checkout it reaches nothing — and
+  that is only one of **three** channels. The other two are a transcript store read from the home
+  directory and keyed by the checkout's path, and a rules-corpus size threshold that makes the total
+  depend on how large an installed kit is. Measured, one variable at a time: 2658 lines with none of
+  them, 2663 in the maintainer's tree.
+  The floor is therefore declared at the **minimum over that space**: a ratchet against the clean
+  reading, and a floor with named slack anywhere else. Calling it a zero-slack ratchet everywhere
+  would be false while the total still depends on the machine. The 0.24.0 entry below stands as
+  published. The defect is B-161, and it is what would make a single number honest.
 
 ### Security
 
