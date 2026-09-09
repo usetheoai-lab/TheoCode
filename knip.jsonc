@@ -96,20 +96,20 @@
       "ignoreDependencies": ["@theokit/sdk"],
     },
     "packages/agent": {
-      "entry": ["src/**/*.test.ts"],
-      "project": ["src/**/*.ts"],
+      "entry": ["tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
     },
     "packages/cli": {
-      "entry": ["src/**/*.test.ts"],
-      "project": ["src/**/*.ts"],
+      "entry": ["tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
     },
     "packages/tui": {
-      "entry": ["src/**/*.test.ts", "src/**/*.test.tsx"],
-      "project": ["src/**/*.ts", "src/**/*.tsx"],
+      "entry": ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+      "project": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx"],
     },
     "packages/shared": {
-      "entry": ["src/**/*.test.ts"],
-      "project": ["src/**/*.ts"],
+      "entry": ["tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
     },
   },
 }

@@ -43,6 +43,24 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `test_every_routed_subcommand_is_covered_by_this_file` asserted nothing, and had done so since
+  routing moved out of a `switch` into the `SUBCOMMANDS` table. It scraped `case '…':` labels out of
+  `args.ts`, which has held none since; the regex matched an empty set, so the assertion compared
+  `[]` to `[]` and passed for any input. Adding a real routed subcommand left all 46 tests in the
+  file green. It now reads the table it is about, by importing it instead of scraping text, and the
+  same mutant kills it.
+
+  The trap is worth naming: mutating `args.ts` with a synthetic `case` label **does** turn the old
+  test red, so a mutation aimed at the detector's regex reports a kill while the invariant behind it
+  is unguarded. A mutant has to touch the invariant, not the instrument.
+
+- Two gates had quietly narrowed when the tests moved out of `src/`, both staying green while
+  covering less: `knip.jsonc` scoped every workspace to `src/`, so 191 test files dropped out of
+  dead-code analysis (it reports the empty globs as hints and exits 0), and `eslint.config.mjs`
+  scoped the swallowed-rejection rule to `packages/*/src/**`, losing `no-restricted-syntax` over the
+  test tree. Both re-pointed. The eslint one immediately caught two orphan imports left by the fix
+  above, which is the gate demonstrating it works.
+
 ### Security
 
 ## [0.24.1] - 2026-09-09

@@ -11,12 +11,11 @@
  * parser is pure, has no I/O, and decides whether a command runs or a model turn starts, which
  * makes it the cheapest possible thing to cover and the most expensive thing to leave uncovered.
  */
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
 import { parseExecArgs } from '../../src/runtime/args.js'
+import { SUBCOMMANDS } from '../../src/runtime/subcommands.js'
 import { USAGE } from '../../src/runtime/usage.js'
 
 /** Every invocation the usage text teaches, as a user would type it after `theocode`. */
@@ -160,10 +159,21 @@ describe('B-025 — every declared flag is exercised, and every subcommand route
   })
 
   it('test_every_routed_subcommand_is_covered_by_this_file', () => {
-    // The guard against the next subcommand being added with no test: it reads the parser's own
-    // switch and fails when a case is not exercised above.
-    const source = readFileSync(fileURLToPath(new URL('../../src/runtime/args.ts', import.meta.url)), 'utf8')
-    const routed = [...source.matchAll(/^\s{4}case '(\w+)':/gm)].map((m) => m[1] ?? '')
+    // The guard against the next subcommand being added with no test.
+    //
+    // IT ASSERTED NOTHING FOR AS LONG AS THE TABLE HAS EXISTED. It scraped
+    // `/^\s{4}case '(\w+)':/gm` out of `args.ts`, and routing moved to the `SUBCOMMANDS` record in
+    // `subcommands.ts` when that switch was deleted. The regex matched an empty set, so the
+    // assertion was `[].filter(...)` and passed for any input — verified by adding a real routed
+    // subcommand and watching all 46 tests in this file stay green.
+    //
+    // Found by B-162's review, which also names the trap: mutating `args.ts` with a synthetic
+    // 4-space `case` DOES turn this red, so a mutation aimed at the detector's regex reports a
+    // kill while the invariant behind it is unguarded. The mutant has to touch the invariant, not
+    // the instrument.
+    //
+    // It now reads the table it is about, by importing it rather than scraping text.
+    const routed = Object.keys(SUBCOMMANDS)
     const exercised = new Set([...DOCUMENTED, ...FLAGS.map(([, a]) => a)].map((a) => a[0] ?? ''))
 
     expect(
