@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-158 items — **Open** 1 · **In flight** 0 · **Closed** 157
+159 items — **Open** 2 · **In flight** 0 · **Closed** 157
 
-### Open (1)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `raw` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `triaged` | — |
 
 ### In flight (0)
@@ -7339,6 +7340,22 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
+why_now: B-158 was the first item taken through the full cycle since the floor started being enforced, and it halted at this gate — with the file it changed at 100% line coverage. Every subsequent item halts in the same place for the same reason. Lowering the threshold is named as forbidden by `cycle-implement.md § Validation halt-loop`, so the gap has to be closed or the floor has to be decided deliberately; neither can happen inside an item about something else.
+status: raw
+dod:
+  - a decided floor in `rules/code-quality-thresholds.txt`, with the reason written where the number is, OR total line coverage at or above 80%
+  - `run_validation.py` reports `coverage` PASS on a clean tree
+  - the decision names which of the two happened, so a later reader can tell a raised bar from a lowered one
+
+> Registered 2026-09-09 by `/backlog-item` (slug: `coverage-floor-halts-every-plan`).
 
 ## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [ ]
 

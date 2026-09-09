@@ -18,6 +18,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- backlog B-159 — total line coverage is 59.29% against a floor of 80, so every plan halts at validation (#159)
+
 - `tools/check-codex-parity.mjs`, wired into `npm run lint`: a Codex command that is in neither this
   product's builtin list nor its pointer map now fails the lint chain. The map asserts which Codex
   commands have no local equivalent and nothing verified that assertion. First run against a current
