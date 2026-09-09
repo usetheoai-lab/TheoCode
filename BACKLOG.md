@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-165 items — **Open** 1 · **In flight** 1 · **Closed** 163
+166 items — **Open** 2 · **In flight** 1 · **Closed** 163
 
-### Open (1)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `raw` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `raw` | — |
 
 ### In flight (1)
@@ -7347,6 +7348,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-166 — The architecture detector picks the composite script over the dedicated one   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: none-yet
+why_now: measured 2026-09-09 during the CODE-QUALITY phase of B-161. `_depcruise_script` (in the installed kit's `detectors/typescript.py`) returns the FIRST package.json script whose command contains "depcruise". In this repo that is `lint`, because the lint chain ends with `npm run depcruise` — the dedicated `depcruise` script exists and is never selected. Reproduced by running the same selection logic against the manifest: matches are `['lint', 'depcruise']`, first wins. The audit then runs the whole lint chain (eslint, knip, seven checkers, the coverage-floor guard) instead of the cruise, and reports `auditor_unavailable_dependency-cruiser` when any unrelated link fails — while `depcruise` is on PATH and in node_modules/.bin, and `pnpm lint` cruises 278 modules with 0 violations.
+status: raw
+dod:
+  - the detector selects a script that runs only the cruise when one exists
+  - a repo whose only match is a composite script still gets a cruise, or an honest reason
+  - the fix lands in the kit repository, not only in this checkout's gitignored .claude/
 
 ## B-165 — The coverage-floor guard reads a partial report as a regression   [ ]
 
