@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `raw` | — |
+| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
 | [`B-161`](#b-161--tests-read-outside-the-repository-so-coverage-measures-the-machine----) | Tests read outside the repository, so coverage measures the machine | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
@@ -7351,13 +7351,13 @@ domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: human
-evidence: Measured 2026-09-09 at `2cfad43`. 199 test files live inside `packages/*/src/**` and `tools/`, distributed agent 98, tui 68, cli 18, tools 8, shared 7. They total **22 427 lines against 19 566 of production**, so test code is the majority of the tree by line count and is interleaved with production in every `src/` directory. The move has a measured blast radius: 274 relative imports inside tests would need rewriting (`git ls-files '*.test.ts' | xargs grep -oE "from '\.[^']*'" | wc -l`), and one non-`.test.` support file sits in production, `packages/agent/src/hooks/hooks-test-helpers.ts`. Zero production files import a test file, so the dependency direction is already clean and nothing in production breaks. Five configs key on the current layout: `vitest.config.ts:11`, `tsconfig.json:19`, `.dependency-cruiser.cjs:60`, `knip.jsonc`, eslint.
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/tests-out-of-src-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). The move was performed for real in a throwaway `/tmp` worktree and the suite reached 199/199 files, 1520 tests, identical to before. Coverage moved and the cause is exact: `packages/agent/src/hooks/hooks-test-helpers.ts` (3/3 lines) left the measured set because it is test scaffolding living in `src/` that `vitest.config.ts`'s `**/*.test.*` exclude never matched — 59.2% (2659/4491) to 59.18% (2656/4488), with no other file changing. The TDD pairing gate needs NO change: `stop-validation.sh:222-243` indexes test basenames per unit and its own comment names `packages/<p>/tests/unit/` as the case it serves; verified by execution. Residue that is not mechanical: 6 tests read a source file by path (`new URL('./chat.ts')`) to assert on its text. Original intake, at `2cfad43`: 199 test files live inside `packages/*/src/**` and `tools/`, distributed agent 98, tui 68, cli 18, tools 8, shared 7. They total **22 427 lines against 19 566 of production**, so test code is the majority of the tree by line count and is interleaved with production in every `src/` directory. The move has a measured blast radius: 274 relative imports inside tests would need rewriting (`git ls-files '*.test.ts' | xargs grep -oE "from '\.[^']*'" | wc -l`), and one non-`.test.` support file sits in production, `packages/agent/src/hooks/hooks-test-helpers.ts`. Zero production files import a test file, so the dependency direction is already clean and nothing in production breaks. Five configs key on the current layout: `vitest.config.ts:11`, `tsconfig.json:19`, `.dependency-cruiser.cjs:60`, `knip.jsonc`, eslint.
 why_now: The maintainer asked for the separation on 2026-09-09 and chose the per-package `tests/` layout. The local fact that makes it non-trivial rather than cosmetic is `hooks/stop-validation.sh:135-148`: it pairs a source file with its test **by directory**, so a mirror tree makes that TDD gate blind — it would report "no test" for files that have one. `rules/testing.md § 5` already anticipates this and requires the new convention to be documented so the hook knows where to look, which means this item changes a contract and not only a file layout. Coverage is the second reason to measure rather than assume: the `include` is `packages/*/src/**` and the `exclude` is `**/*.test.*`, so in theory the measured set does not move — but B-159 turned that number into a zero-slack gate and B-161 is open showing it varies with the machine, so before/after has to be compared in one environment.
-status: raw
+status: triaged
 dod:
-  - no `*.test.*` file remains under any `packages/*/src/` or `tools/` directory
+  - no `*.test.*` file remains under any `packages/*/src/` directory — `tools/` is out of scope, it is not a package and has no `src`
   - `pnpm test` runs the same number of tests before and after, and the suite is green
-  - total line coverage measured in ONE environment is unchanged, or the difference is explained and the floor re-declared from a clean checkout
+  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared from 59.2 to 59.18 in the same change
   - the TDD pairing gate finds tests at the new location, or `rules/testing.md § 5` records the new convention and the hook is taught it
   - `pnpm lint`, `pnpm typecheck` and `depcruise` stay green
 
