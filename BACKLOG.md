@@ -74,7 +74,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
-| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
+| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
@@ -7412,7 +7412,7 @@ suggested_mode: bug
 source: discover-review
 evidence: measured 2026-09-09 during B-166
 why_now: Two facts, one cause. (1) B-166's fix is verified in this checkout and cannot ship from here: `.claude/` is gitignored, so it reaches one machine. The same three lines stand at `skills/code-quality/scripts/detectors/typescript.py:559-561` in `/home/paulo/Projetos/squad` (`git@github.com:paulohenriquevn/squad.git`), where a release reaches every consumer — but that working tree carries uncommitted work from another session (`M CHANGELOG.md`, `M mechanisms/README.md`, `A mechanisms/conventions/installed_plugins.py`), and committing on top of it would fold someone else's work into a commit that does not describe it. (2) The two copies have already drifted: `scripts/detectors/python.py` differs by 29 lines and `tests/test_python_detector.py` by 112, and `test_python_detector_flags_unused_function` FAILS in the installed copy while PASSING in the kit. So the gates running in this repository are not the gates the kit ships, and anyone running the kit's suite here meets a red test that is not theirs.
-status: raw
+status: triaged
 dod:
   - B-166's fix exists in the kit repository, on a commit that describes only that fix
   - the installed copy and the kit agree, or the divergence is recorded with the reason it is kept
@@ -7421,6 +7421,14 @@ dod:
 > EXTENDED 2026-09-09 — a SECOND red test in the installed kit: `skills/plan-confidence/tests/test_real_plans_snapshot.py::test_snapshots_cover_active_plans_with_matrix` fails with ten active plans missing a snapshot entry, five of them predating this session's work. A missing snapshot is unrelated to any code change made here, so it is almost certainly pre-existing — **stated as inference, not measurement**: the attempt to prove it by reverting a parser and re-running left the file syntactically invalid and the run died in collection.
 >
 > With `test_python_detector_flags_unused_function`, that is two red tests in the kit's own suite in this checkout. Anyone running it meets failures that are not theirs, which is the cost of the drift this item is about.
+
+> MEASURED AND NOT ACTED ON, 2026-09-09. The blocker is not gone; it grew. The kit repository at `/home/paulo/Projetos/squad` now carries **65 modified files** on `workspace` (24 under `skills/`, 18 under `mechanisms/`, 14 under `tests/`), against the three recorded when this item was filed. Another session is working there now.
+>
+> `detectors/typescript.py` — the file B-166's fix touches — is NOT among them, so the port could technically be committed in isolation. It was not, and the reason is the branch rather than the file: `workspace` is shared and single, so a commit there joins the promotion PR of work that is half-finished, carried by a commit describing something else. If that session rebases or abandons the state, the fix travels with it silently.
+>
+> **What would unblock this:** the other session landing or parking its work, after which B-166's fix (`_depcruise_script` preferring a dedicated script) and B-170's fix (the dismissal-reason regex, plus refusing an empty reason) both port as one commit each.
+>
+> Both fixes are verified here and reach one machine until then. That is the whole cost this item exists to name.
 
 
 ## B-168 — Three review findings with no home: a missing test, a leaking global, an undiffable plan   [ ]
