@@ -67,21 +67,22 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-168 items — **Open** 4 · **In flight** 1 · **Closed** 163
+169 items — **Open** 3 · **In flight** 3 · **Closed** 163
 
-### Open (4)
+### Open (3)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
-| [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `raw` | — |
-| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `raw` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
-### In flight (1)
+### In flight (3)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `planned` | — |
+| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
 
 ### Closed (163)
@@ -7351,6 +7352,20 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 during B-166
+why_now: Two facts, one cause. (1) B-166's fix is verified in this checkout and cannot ship from here: `.claude/` is gitignored, so it reaches one machine. The same three lines stand at `skills/code-quality/scripts/detectors/typescript.py:559-561` in `/home/paulo/Projetos/squad` (`git@github.com:paulohenriquevn/squad.git`), where a release reaches every consumer — but that working tree carries uncommitted work from another session (`M CHANGELOG.md`, `M mechanisms/README.md`, `A mechanisms/conventions/installed_plugins.py`), and committing on top of it would fold someone else's work into a commit that does not describe it. (2) The two copies have already drifted: `scripts/detectors/python.py` differs by 29 lines and `tests/test_python_detector.py` by 112, and `test_python_detector_flags_unused_function` FAILS in the installed copy while PASSING in the kit. So the gates running in this repository are not the gates the kit ships, and anyone running the kit's suite here meets a red test that is not theirs.
+status: raw
+dod:
+  - B-166's fix exists in the kit repository, on a commit that describes only that fix
+  - the installed copy and the kit agree, or the divergence is recorded with the reason it is kept
+  - `test_python_detector_flags_unused_function` passes in this checkout, or its failure is explained by something other than drift
+
 ## B-168 — Three review findings with no home: a missing test, a leaking global, an undiffable plan   [ ]
 
 domain: theocode
@@ -7371,13 +7386,29 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: measured 2026-09-09 on the working tree at HEAD, varying only $HOME
+evidence: `.claude/records/implementations/operator-home-seam-implementation.md` — 15 truncation warnings to 0; coverage 2647/4489 with an empty home and with a 163,836-char one, measured twice in each
 why_now: B-161 closed the CHECKOUT axis — a clean clone and an installed checkout now agree on 2646/4488 across 239 files, 0 divergences. The HOME axis was never in that plan's Goal and is still open. Measured, same tree, same commit, only $HOME varying: an empty home gives 2646/4488 (58.95%) and 0 truncation warnings; a home holding `~/.theokit/rules` of 163,836 chars and one `~/.theokit/skills/` entry gives 2648/4488 (59.00%) and 15 warnings. The +2 lines land in `context/agents-md.ts` and `context/rules.ts`. Root cause is the missing half of the seam B-015 built: `ChatOverrides` carries `cwd` and no `home`, so `homedir()` is called at three independent sites in one build (`chat.ts:148`, `chat.ts:237`, `composition-record.ts:92`) and no caller can redirect it. A review subagent instrumented `node:fs` with a `--require` preload and counted 880 reads outside the checkout where the truncation probe counted 0 — the probe measures the consequence (passing the 64,000-char budget), not the read.
-status: raw
+status: planned
 dod:
   - a full coverage run reports the same total with an empty home and with a populated one
   - the seam is reachable: some caller can direct the operator root without setting a process-wide env var
   - a test asserts it, and fails if a later change reintroduces an ambient home read
+
+> IMPLEMENTED 2026-09-09, not yet released. All three DoD bullets hold, each measured rather than asserted:
+> a full coverage run reports 2647/4489 with an empty home and with a populated one, twice in each; the
+> seam is reachable without a process-wide env var (`buildChatAgent({ home })`, and the CLI forwards the
+> `userDir` seam it already carried since B-015); and two tests pin it in both directions, including the
+> anti-vacuity one proving the default still reads the operator's real root.
+>
+> Every site had the shape B-161 documented four times — **the seam existed and the call site did not use
+> it.** In the CLI the seam had a name, `CompositionSeams.userDir`, and a comment at the call site
+> describing this exact defect on the previous axis. It stood there for two releases.
+>
+> The floor moved with it: 58.95 -> 58.96, in all three carriers.
+>
+> What this does NOT establish: that no third axis exists. No run varied `$THEOKIT_HOME`, `PATH`, the
+> timezone, or anything under `/etc`. The instrument that would answer it — a `--require` preload wrapping
+> `node:fs` — is recorded in B-168 as a method available, not as work done.
 
 ## B-166 — The architecture detector picks the composite script over the dedicated one   [ ]
 
@@ -7385,13 +7416,19 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: human
-evidence: none-yet
+evidence: `.claude/records/implementations/depcruise-script-selection-implementation.md` — matches on this manifest are `[lint, depcruise]`, first wins; `/code-quality` soft caps went from two to one after the fix
 why_now: measured 2026-09-09 during the CODE-QUALITY phase of B-161. `_depcruise_script` (in the installed kit's `detectors/typescript.py`) returns the FIRST package.json script whose command contains "depcruise". In this repo that is `lint`, because the lint chain ends with `npm run depcruise` — the dedicated `depcruise` script exists and is never selected. Reproduced by running the same selection logic against the manifest: matches are `['lint', 'depcruise']`, first wins. The audit then runs the whole lint chain (eslint, knip, seven checkers, the coverage-floor guard) instead of the cruise, and reports `auditor_unavailable_dependency-cruiser` when any unrelated link fails — while `depcruise` is on PATH and in node_modules/.bin, and `pnpm lint` cruises 278 modules with 0 violations.
-status: raw
+status: planned
 dod:
   - the detector selects a script that runs only the cruise when one exists
   - a repo whose only match is a composite script still gets a cruise, or an honest reason
   - the fix lands in the kit repository, not only in this checkout's gitignored .claude/
+
+> VERIFIED LOCALLY 2026-09-09, and NOT closed — its own DoD bullet 3 requires the kit repository, which is unmet. `killed` was written here first and was wrong twice over: it means a hypothesis the measurement refuted, and this one held. Fixed and verified in this checkout: RED test, anti-vacuity sibling, 46 unit tests green, and the end-to-end proof — `/code-quality` stopped emitting `auditor_unavailable_dependency-cruiser`.
+>
+> `killed` is the registry's word for "this chain ends here", and the reason is not that the hypothesis failed — it held and the fix works. No release from THIS repository can carry it: `.claude/` is gitignored, so the change reaches one checkout.
+>
+> **The port is outstanding, and it is what would make this shippable.** The same three lines stand in the kit repository (`/home/paulo/Projetos/squad`, `skills/code-quality/scripts/detectors/typescript.py:559-561`). It was not ported because that working tree carries uncommitted work from another session, and committing on top of it would fold someone else's work into a commit that does not describe it. Registered as B-169.
 
 ## B-165 — The coverage-floor guard reads a partial report as a regression   [ ]
 

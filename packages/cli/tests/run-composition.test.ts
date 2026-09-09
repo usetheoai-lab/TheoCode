@@ -19,6 +19,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { composeRun } from '../src/run-composition.js'
 
+/**
+ * B-167 — the operator root, a seam this file's own header did not name. It says the seams object
+ * exists so composition runs "without touching the real trust store or the real working directory",
+ * which is two of the three roots a build reads; the third arrived through `homedir()` and made the
+ * suite's coverage a property of the machine.
+ */
+const OPERATOR_HOME = mkdtempSync(join(tmpdir(), 'b167-cli-home-'))
+
 let dir: string
 let store: string
 
@@ -37,7 +45,7 @@ describe('B-024 — the composition seam is real', () => {
     // Reading the real ~/.theokit store instead would make this assertion depend on the machine.
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
 
-    const composed = await composeRun({ overrides: [] }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: [] }, { cwd: dir, store, userDir: OPERATOR_HOME })
 
     expect(composed.mod.default, 'composition produced no agent module').not.toBe(undefined)
     expect(
@@ -59,10 +67,10 @@ describe('B-024 — the composition seam is real', () => {
     )
 
     writeFileSync(store, JSON.stringify({ trusted: [] }), { mode: 0o600 })
-    const untrusted = await composeRun({ overrides: [] }, { cwd: dir, store })
+    const untrusted = await composeRun({ overrides: [] }, { cwd: dir, store, userDir: OPERATOR_HOME })
 
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
-    const trusted = await composeRun({ overrides: [] }, { cwd: dir, store })
+    const trusted = await composeRun({ overrides: [] }, { cwd: dir, store, userDir: OPERATOR_HOME })
 
     expect(
       trusted.cfg.reasoning_effort,
@@ -77,7 +85,7 @@ describe('B-024 — the composition seam is real', () => {
   it('test_a_cli_override_reaches_the_effective_config', async () => {
     writeFileSync(store, JSON.stringify({ trusted: [dir] }), { mode: 0o600 })
 
-    const composed = await composeRun({ overrides: ['reasoning_effort=high'] }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: ['reasoning_effort=high'] }, { cwd: dir, store, userDir: OPERATOR_HOME })
 
     expect(composed.cfg.reasoning_effort, 'a -c override did not reach the effective config').toBe(
       'high',
@@ -105,7 +113,7 @@ describe('composeRun routes the model for the credential that will serve it', ()
     // differently, which is the divergence this seam exists to close.
     const composed = await composeRun(
       { overrides: [], model: 'openai/gpt-5.4', routeModel: () => 'openai-chatgpt/gpt-5.4' },
-      { cwd: dir, store },
+      { cwd: dir, store, userDir: OPERATOR_HOME },
     )
 
     expect(composed.model).toBe('openai-chatgpt/gpt-5.4')
@@ -123,7 +131,7 @@ describe('composeRun routes the model for the credential that will serve it', ()
           return id
         },
       },
-      { cwd: dir, store },
+      { cwd: dir, store, userDir: OPERATOR_HOME },
     )
 
     expect(seen, 'the router was never called').toHaveLength(1)
@@ -133,7 +141,7 @@ describe('composeRun routes the model for the credential that will serve it', ()
 
   it('test_without_a_router_the_configured_id_is_used_unchanged', async () => {
     // Anti-vacuity: the seam is additive. A caller that supplies no router gets what it always got.
-    const composed = await composeRun({ overrides: [], model: 'anthropic/x' }, { cwd: dir, store })
+    const composed = await composeRun({ overrides: [], model: 'anthropic/x' }, { cwd: dir, store, userDir: OPERATOR_HOME })
 
     expect(composed.model).toBe('anthropic/x')
   })

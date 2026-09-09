@@ -152,7 +152,7 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 58.95
+export const DECLARED_FLOOR = 58.96
 
 /**
  * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.

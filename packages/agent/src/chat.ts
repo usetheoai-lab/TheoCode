@@ -97,6 +97,15 @@ export async function buildChatAgent(overrides: {
    * that IS the choice rather than a default buried six frames deep.
    */
   cwd: string
+  /**
+   * B-167 — the operator's root. Defaults to `homedir()`, which is what every existing caller gets.
+   *
+   * It exists because `cwd` alone was not enough to make a build hermetic: the operator's skills,
+   * rules and `AGENTS.md` all arrive through this root, and reaching them meant setting `HOME` for
+   * the whole process. Measured before it existed — the same commit reported 2646/4488 with an empty
+   * home and 2648/4488 with a populated one.
+   */
+  home?: string
   reasoning_effort?: ReasoningEffort
   posture?: TrustPosture
   config?: EffectiveConfig
@@ -105,6 +114,10 @@ export async function buildChatAgent(overrides: {
   sessionPty?: SessionPtyOwner
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
+  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: three
+  // sites read the operator's root, and three independent `homedir()` calls in one build is three
+  // chances for them to disagree.
+  const operatorHome = overrides.home ?? homedir()
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
   // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
@@ -116,7 +129,7 @@ export async function buildChatAgent(overrides: {
   // written by two different functions, and the framework refuses a map naming a tool it was not
   // given — so two reads that disagreed would crash the user's terminal at construction.
   const searchConfigured = webSearchConfigured()
-  const rules = bothRuleRoots(cwd)
+  const rules = bothRuleRoots(cwd, operatorHome)
   const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules }
   const base = baseAgent({ ...baseCtx, searchConfigured })
 
@@ -145,7 +158,7 @@ export async function buildChatAgent(overrides: {
   // the SKILL.md convention, which fails SILENTLY when the format moves — frontmatter lands inside
   // the instructions and nothing reports it. Four of the five call sites were already in async
   // functions, so the ripple is an `await`, not a restructure.
-  const operatorSkills = await userSkills(homedir())
+  const operatorSkills = await userSkills(operatorHome)
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,

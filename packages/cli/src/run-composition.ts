@@ -115,6 +115,12 @@ export async function composeRun(
         // B-015 — this root already resolved a directory (and accepts one as a seam). Passing only
         // config+posture left the remaining reads inside buildChatAgent on process.cwd().
         cwd,
+        // B-167 — the same omission, one axis over, and the comment above described it for two
+        // releases without anyone reading it that way. `seams.userDir` is already the operator root
+        // this composition resolved — `homeStateDir(env, home)` joins `.theokit` to it — so the seam
+        // existed and simply was not forwarded. Reusing it beats declaring a second one that would
+        // then have to be kept in agreement with the first.
+        ...(seams.userDir !== undefined ? { home: seams.userDir } : {}),
         config: cfg,
         posture,
         model,

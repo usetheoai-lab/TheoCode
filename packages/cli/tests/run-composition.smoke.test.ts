@@ -34,6 +34,12 @@ import { describe, expect, it } from 'vitest'
 
 import { composeRun } from '../src/run-composition.js'
 
+/**
+ * B-167 — the operator root. `CompositionSeams` already carried it as `userDir`; it simply was not
+ * forwarded to the build, so this test read whatever `~/.theokit/` the machine held.
+ */
+const OPERATOR_HOME = mkdtempSync(join(tmpdir(), 'b167-cli-home-'))
+
 describe('#96 — the composed module loads', () => {
   it('test_the_agent_module_compiles_the_way_the_runtime_compiles_it', async () => {
     // The injected trust store, same seam the sibling test uses: reading the real `~/.theokit`
@@ -42,7 +48,7 @@ describe('#96 — the composed module loads', () => {
     const store = join(cwd, 'trusted-dirs.json')
     writeFileSync(store, JSON.stringify({ trusted: [cwd] }), { mode: 0o600 })
 
-    const composed = await composeRun({ overrides: [] }, { cwd, store })
+    const composed = await composeRun({ overrides: [] }, { cwd, store, userDir: OPERATOR_HOME })
 
     // The framework's own entry point, not a shape check. This throws AgentDefinitionError on a
     // Promise, on a thunk, and on anything else the loader will not take.
