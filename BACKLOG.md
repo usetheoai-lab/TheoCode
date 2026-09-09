@@ -7368,6 +7368,13 @@ dod:
   - `composeRun` passes the same env to config resolution and to the build, or the divergence is a declared decision with a test
   - a test fails if a future change lets two roots serve one build
 
+> EXTENDED 2026-09-09 by B-167's review, which instrumented `homedir()` with a mock and ran ONE `buildChatAgent({ cwd, home })`: **7 calls at 5 distinct sites** beyond the three the persona now shares — `config/trust-store.ts:23` and `:193`, `config/config.ts:510`, `hooks/hook-trust.ts:72`, `mcp-scopes.ts:102`. All inside the build, none redirectable by the `home` parameter.
+>
+> So a build can read the operator root from six places while its persona reads one. B-167's CHANGELOG entry was narrowed to claim only what that function resolves, rather than something about the build it does not satisfy.
+>
+> None of these files was touched by B-167, which is why they are here and not folded into it: a commit that fixed the persona seam AND four other subsystems would explain none of them.
+
+
 ## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
 
 domain: theocode

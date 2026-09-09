@@ -2,7 +2,8 @@
  * B-167 — the operator's root is reachable as a parameter, not only as a process-wide env var.
  *
  * `buildChatAgent` takes `cwd` and had no `home`, so `homedir()` was called at three independent
- * sites in one build (`chat.ts`, twice, and `composition-record.ts`). Every test that wanted a
+ * sites in one build (`chat.ts`, twice, and `composition-record.ts`). The first pass migrated two of
+ * the three. Every test that wanted a
  * controlled operator root had to reach for `process.env.HOME`, which is process-wide: it leaks
  * across whatever else shares the worker, and it cannot express "this build reads that root" while a
  * sibling build reads another.
@@ -66,7 +67,9 @@ describe('the operator root is a parameter of the build', () => {
   })
 
   it('test_the_operators_agents_md_follows_the_parameter_too', async () => {
-    // The fourth site, and the one the first pass missed. `projectDocument` read `homedir()` itself,
+    // The THIRD site — the one the first pass skipped. An earlier version of this comment called it
+    // the fourth, which was wrong: the item named three before any code was written, and two were
+    // migrated. Nothing was missing from the list; an item on it was not ticked off. `projectDocument` read `homedir()` itself,
     // so rules followed the parameter while the operator's AGENTS.md followed the machine — measured
     // by a reviewer with a marker in each root, not inferred.
     //
@@ -89,6 +92,33 @@ describe('the operator root is a parameter of the build', () => {
       'MARKER-FROM-THE-PARAMETER',
     )
     expect(text, 'the ambient root still reached the prompt').not.toContain('MARKER-FROM-THE-ENVIRONMENT')
+  })
+
+  it('test_the_operators_rules_follow_the_parameter_too', async () => {
+    // The surface the item was OPENED about, and the one with no regression test until a reviewer
+    // measured it: two mutants stayed green — dropping `operatorHome` from `bothRuleRoots`, and
+    // pointing `loadUserRules` back at `homedir()`. The 163,836-char corpus in B-167's own evidence
+    // is this surface, so the gap was exactly where the attention had been.
+    const injected = mkdtempSync(join(tmpdir(), 'b167-rules-param-'))
+    mkdirSync(join(injected, '.theokit', 'rules'), { recursive: true })
+    writeFileSync(join(injected, '.theokit', 'rules', 'r.md'), '# R\n\nMARKER-RULES-FROM-PARAMETER\n')
+
+    const ambient = mkdtempSync(join(tmpdir(), 'b167-rules-env-'))
+    mkdirSync(join(ambient, '.theokit', 'rules'), { recursive: true })
+    writeFileSync(join(ambient, '.theokit', 'rules', 'r.md'), '# R\n\nMARKER-RULES-FROM-ENVIRONMENT\n')
+    process.env.HOME = ambient
+
+    const { buildChatAgent } = await import('../../src/chat.js')
+    const agent = await buildChatAgent({
+      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      home: injected,
+    } as never)
+    const text = JSON.stringify(agent)
+
+    expect(text, 'the operator rules came from the machine, not the argument').toContain(
+      'MARKER-RULES-FROM-PARAMETER',
+    )
+    expect(text, 'the ambient root still reached the prompt').not.toContain('MARKER-RULES-FROM-ENVIRONMENT')
   })
 
   it('test_without_the_parameter_the_environment_still_decides', async () => {

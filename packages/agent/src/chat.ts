@@ -114,14 +114,26 @@ export async function buildChatAgent(overrides: {
   sessionPty?: SessionPtyOwner
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
-  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: FOUR
-  // sites read the operator's root, and four independent `homedir()` calls in one build is four
-  // chances for them to disagree.
+  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: the
+  // three sites that read the operator's root in this build are three chances to disagree.
   //
-  // It said THREE for one commit, and the fourth (`projectDocument`) went on reading the machine —
-  // so the operator's rules followed this value while their `AGENTS.md` did not. The count came from
-  // B-161's review, which named three, and that list was used as a census instead of a starting
-  // point. `grep -c 'homedir()'` in this file is the check that would have caught it.
+  // Those three were named in the item before any code was written — `chat.ts` twice and
+  // `composition-record.ts` once. The first pass migrated TWO of them and shipped, and the third
+  // went on reading the machine, so the operator's rules followed this value while their `AGENTS.md`
+  // did not.
+  //
+  // The lesson is NOT "the list was too short" — an earlier note here said that, and it was wrong.
+  // The list was correct and complete. An item on it was not ticked off. What a second pass needed
+  // was to re-read the three names it already had, not a wider search.
+  //
+  // (`grep -c 'homedir()'` was also prescribed here as the check. Do not: it counts these comments.
+  // It returns six against one executable call, and every paragraph written about the miss inflates
+  // it further. `packages/agent/tests/context/operator-home-seam.test.ts` is the check that holds,
+  // because it fails on behaviour rather than on a word.)
+  //
+  // Sites BEYOND this build's three still read the ambient home — trust store, config, hook trust,
+  // MCP scopes — and are not redirectable by this parameter. That is B-171, and it is why the
+  // CHANGELOG entry claims only what this function resolves.
   const operatorHome = overrides.home ?? homedir()
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)

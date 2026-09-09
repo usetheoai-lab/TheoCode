@@ -21,8 +21,10 @@ for `release.yml` in this repository will not find it, and should not have been 
 - `buildChatAgent` accepts a `home` option naming the operator's root, defaulting to the real one.
   The operator's skills, rules and `AGENTS.md` all arrive through that root, and reaching it meant
   setting `HOME` for the whole process — which leaks across anything sharing the worker and cannot
-  express one build reading one root while a sibling reads another. Four independent `homedir()`
-  calls in a single build are now resolved once (B-167).
+  express one build reading one root while a sibling reads another. The three sites that composed the
+  persona now share one resolved value. Other subsystems reached during a build — the trust store,
+  config resolution, hook trust, MCP scopes — still read the ambient home and are NOT redirected by
+  this option (B-167, with the remainder tracked as B-171).
 
 ### Changed
 
