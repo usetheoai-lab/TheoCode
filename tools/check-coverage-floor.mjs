@@ -84,6 +84,24 @@ const REPORT_PATH = 'coverage/coverage-summary.json'
 const KEY = 'coverage.min_percent'
 
 /**
+ * Every boundary Python's `str.splitlines()` recognises, which is what the gate splits on.
+ *
+ * F-guard-10-r3. `split('\n')` looks equivalent and is not: `splitlines()` also breaks on CR, VT,
+ * FF, the three file/group/record separators, NEL, and the two Unicode line/paragraph separators.
+ * A declaration hidden behind any of them is AUTHORITATIVE for the gate and INVISIBLE here.
+ * Measured on the same file, byte for byte:
+ *
+ *     "# ratchet note\rcoverage.min_percent = 5\ncoverage.min_percent = 59.29\n"
+ *       checker -> "floor 59.29% agrees with DECLARED_FLOOR"   exit 0
+ *       gate    -> (5, 'project')
+ *
+ * Effective floor 5, reported as AGREEMENT rather than as doubt, with no versioned file touched —
+ * which is the exact premise the second declaration exists to provide. Unbounded, and needing only
+ * a stray CR from mixed line endings. Two parsers of one file must split it the same way.
+ */
+const LINE_BREAKS = /\r\n|[\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029]/
+
+/**
  * The floor this repository has agreed to, tracked by git.
  *
  * Lowering it is a reviewable edit to a versioned file, by construction. Raising it is the only
@@ -102,13 +120,18 @@ const TOLERANCE = 1
  */
 export function parseFloor(text) {
   const malformed = []
-  for (const raw of text.split('\n')) {
+  for (const raw of text.split(LINE_BREAKS)) {
     const line = raw.trim()
     if (!line || line.startsWith('#') || !line.includes('=')) continue
     const [key, ...rest] = line.split('=')
     if (key.trim() !== KEY) continue
     const value = rest.join('=').trim()
-    const number = value === '' ? Number.NaN : Number(value)
+    // Not `Number(value)`: it takes `0x3B` and `0b11`, which float() rejects, so the checker would
+    // announce "LOWERED" while the gate had actually fallen back to 80. This is the decimal grammar
+    // both accept. `nan`/`inf` are rejected on purpose — float() takes them, and a threshold of nan
+    // makes `percent >= threshold` False for every coverage, so the gate would fail everything;
+    // refusing it here is the one place this checker protects the gate rather than mirroring it.
+    const number = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(value) ? Number(value) : Number.NaN
     if (!Number.isFinite(number)) {
       // Keep scanning, exactly as `resolve_threshold` does: it catches ValueError and `continue`s,
       // so a bad line followed by a good one resolves to the good one. Failing here instead would
@@ -148,7 +171,12 @@ export function compareToDeclared(floor, declared = DECLARED_FLOOR) {
   }
 }
 
-/** Total line coverage as the Python gate reads it, or `null` when the report is unreadable. */
+/**
+ * Total line coverage from istanbul's `json-summary`, or `null` when it is unreadable.
+ *
+ * The gate tries four artifact shapes; this reads the one this repository's reporter emits. Saying
+ * "as the gate reads it" overstated that.
+ */
 export function readMeasured(reportJson) {
   try {
     // EC-2: `_from_json_summary` reads this exact field, already rounded. Recomputing from
@@ -212,8 +240,12 @@ function main() {
   const root = process.env['COVERAGE_FLOOR_ROOT'] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const say = (line) => process.stdout.write(`${line}\n`)
 
-  const floorFile = FLOOR_PATHS.map((relative) => join(root, relative)).find((path) => existsSync(path))
-  if (floorFile === undefined) {
+  // F-guard-11-r3: the gate does not stop at the first file that EXISTS — it stops at the first
+  // that yields a usable value, and keeps looking otherwise. Stopping earlier reported a failure
+  // ("the gate will use its default of 80") about a configuration the gate reads correctly, which
+  // is the same over-claim as F-guard-4 reintroduced by the fix for F-guard-3.
+  const present = FLOOR_PATHS.map((relative) => join(root, relative)).filter((path) => existsSync(path))
+  if (present.length === 0) {
     say(
       `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')}. ` +
         `The tracked floor is ${DECLARED_FLOOR}%; nothing here to compare it against.`,
@@ -221,13 +253,18 @@ function main() {
     return 0
   }
 
-  const text = readOrNull(floorFile)
-  if (text === null) {
-    say(`[coverage-floor] ${floorFile} exists but could not be read`)
-    return 1
+  let parsed = { error: `no readable ${KEY} in ${present.join(' or ')}` }
+  for (const path of present) {
+    const text = readOrNull(path)
+    if (text === null) continue
+    const attempt = parseFloor(text)
+    if (attempt.value !== undefined) {
+      parsed = attempt
+      break
+    }
+    if (parsed.error === undefined) continue
+    parsed = attempt
   }
-
-  const parsed = parseFloor(text)
   if (parsed.error) {
     say(`[coverage-floor] ${parsed.error}`)
     return 1
