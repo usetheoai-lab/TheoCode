@@ -313,10 +313,21 @@ shaped what shipped:
   modes and the three sandbox modes carry Codex's semantics.
 
 Beyond what shipped, Codex was the **measuring stick**. The question "do we have parity?" only had
-an honest answer because there was a real implementation to read: 58 slash commands, 30 CLI
+an honest answer because there was a real implementation to read: 61 slash commands, 30 CLI
 subcommands, the approval and sandbox postures, the keymap. The two counts are the variants of
-Codex's own `SlashCommand` and `Subcommand` enums, at the commit the parity run read (`d52478c`,
-2026-08-25). They are stated without a path on purpose — the study clone is gitignored, so any path
+Codex's own `SlashCommand` and `Subcommand` enums, at the commit the parity run read (`20f109e`,
+2026-09-09).
+
+That figure is no longer maintained by hand. `npm run lint` runs `tools/check-codex-parity.mjs`,
+which compares the enum against this product's builtin list and its pointer map and fails when a
+user-facing Codex command is in neither. It was written because the map had drifted and nothing
+looked: the first run against a current Codex found eight — `approve`, `recap`, `voice` and
+`worktree` unanswered, and four pointer entries (`auto-review`, `multi-agents`, `elevate-sandbox`,
+`sandbox-read-root`) naming enum VARIANTS Codex never exposes, each one shadowed by a
+`#[strum(...)]` override the user actually types. The checker states the commit it compared
+against on every run, because reading a month-old checkout reports a clean surface while four
+commands are missing — measured, not supposed. It SKIPS loudly where the clone is absent, which is
+every CI run. They are stated without a path on purpose — the study clone is gitignored, so any path
 into it is one a reader who clones this repository cannot open, and pointing at an unopenable file is
 the defect B-134 was. The figures that stood here before, 55 and 27, matched no source at all; no
 hidden or feature-gated variant explains the gap. Two capability gaps we would not have

@@ -28,6 +28,63 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.24.0] - 2026-09-09
+
+### Added
+
+- backlog B-159 — total line coverage is 59.29% against a floor of 80, so every plan halts at validation
+
+- `tools/check-codex-parity.mjs`, wired into `npm run lint`: a Codex command that is in neither this
+  product's builtin list nor its pointer map now fails the lint chain. The map asserts which Codex
+  commands have no local equivalent and nothing verified that assertion. First run against a current
+  Codex found **eight**: `approve`, `recap`, `voice` and `worktree` answered `unknown command`, and
+  four entries — `auto-review`, `multi-agents`, `elevate-sandbox`, `sandbox-read-root` — named enum
+  VARIANTS Codex never exposes, each shadowed by a `#[strum(...)]` override that is what a user
+  types. All eight closed. The checker prints the commit it compared against on every run, because
+  reading a month-old checkout reports a clean surface while four commands are missing; where the
+  study clone is absent it SKIPS loudly rather than passing. (#158)
+
+- backlog B-158 — nothing verifies the Codex parity map, and it has already drifted
+
+
+### Changed
+
+- backlog B-159 — this repository now declares its own coverage floor, at exactly the total it
+  measures (59.29% of lines, `coverage.min_percent` in the code-quality thresholds). Until now no
+  floor was declared and `/implement`'s validation gate fell back to a library default of 80, so
+  every plan failed validation on a repo-wide number nobody here had chosen — including a plan whose
+  own new file was at 100%. The declared value is a **ratchet, not a target**: it has no slack, so
+  any change taken through `/implement` that lowers total coverage fails, and the only permitted
+  edit is upward. Two limits, stated because the sentence above reads stronger than it is: the
+  floor lives in `.claude/`, which this repository does not version, so it binds a checkout that
+  installed the kit rather than every clone; and CI runs `pnpm test` without coverage, so nothing
+  enforces it at merge. `vitest.config.ts`
+  still sets no vitest threshold and now says where the floor actually lives; the triage it has asked
+  for since 2026-08-20 — deciding which zero-coverage files are meant to stay that way — is still
+  open and is what raises the number.
+
+- `tools/check-coverage-floor.mjs`, chained into `npm run lint`: **the floor is now declared twice
+  and the two must agree.** `DECLARED_FLOOR` in that file is tracked by git; `coverage.min_percent`
+  in the thresholds file is gitignored and is what the kit's gate reads. The reason for the second
+  copy is the reason the first version of this checker did not work: a downward edit of the
+  gitignored value appeared in no diff, no review and no CI, because nothing versioned knew what
+  the number used to be. Lowering the floor now means editing a tracked constant, which a reviewer
+  sees. The check needs no coverage report, so it runs on every lint.
+
+  It also fails on a value the kit would silently reject (a trailing comment makes `float()` raise
+  and the floor reverts to 80), and on a floor that has drifted far enough below the measured total
+  to have acquired slack — how a ratchet decays by time rather than by decision. Where the
+  thresholds file is absent it skips and says so, naming the tracked number: this does **not** turn
+  coverage into a merge gate.
+
+  It parses that file the way the kit's Python gate does, which is not the obvious way. Python's
+  `splitlines()` breaks on carriage return, vertical tab, form feed, the file/group/record
+  separators, NEL and the two Unicode line separators; splitting on `\n` alone left a declaration
+  hidden behind any of them authoritative for the gate and invisible to the checker — measured, an
+  effective floor of 5 reported as agreement at 59.29, needing only a stray CR from mixed line
+  endings and touching no versioned file. It also accepts exactly the numeric grammar `float()`
+  accepts, and tries both the plugin and standalone layouts in the gate's own order.
+
 ## [0.23.0] - 2026-09-08
 
 ### Changed

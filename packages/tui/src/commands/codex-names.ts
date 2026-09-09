@@ -57,15 +57,37 @@ export const CODEX_NAMES: ReadonlyMap<string, CodexName> = new Map([
     { answer: 'it is /memory here — /memory, /memory off|on, /memory forget <n>', listed: true },
   ],
   [
-    'multi-agents',
+    // Codex renders this one `approve` (`#[strum(to_string = "approve")]`); `auto-review` is the
+    // variant name and was never typeable. Kept as the display name, not the variant name — the
+    // pointer exists for what a user types.
+    'approve',
+    { answer: 'it is /review here — /review [base <ref> | commit <sha>]', listed: true },
+  ],
+  [
+    // Codex: "summarize the current conversation now". `/compact` is the nearest thing and NOT the
+    // same operation — it summarises to reclaim context, on the loop's terms; this summarises
+    // because the user asked. Saying "it is /compact here" would promise a behaviour that differs
+    // exactly where a user would notice.
+    'recap',
     {
-      answer: 'it is /agents here — /agents lists them, /subagents shows the ones a run spawned',
+      answer: 'no on-demand recap — /compact summarises to reclaim context, which is a different reason',
       listed: true,
     },
   ],
   [
-    'auto-review',
-    { answer: 'it is /review here — /review [base <ref> | commit <sha>]', listed: true },
+    // Codex: "start or continue a conversation in a new worktree". `/fork` branches the SESSION and
+    // leaves the checkout alone; nothing here creates a git worktree.
+    'worktree',
+    {
+      answer: 'no git-worktree session — /fork branches this session, and leaves the checkout where it is',
+      listed: true,
+    },
+  ],
+  [
+    // Codex: "start or stop a live voice conversation". No equivalent, and nothing near enough to
+    // point at — an honest absence rather than a redirection to something unrelated.
+    'voice',
+    { answer: 'no voice conversation — this product is text only', listed: false },
   ],
   [
     'mention',
@@ -81,11 +103,7 @@ export const CODEX_NAMES: ReadonlyMap<string, CodexName> = new Map([
     },
   ],
   [
-    'elevate-sandbox',
-    { answer: SANDBOX_ANSWER, listed: true },
-  ],
-  [
-    'sandbox-read-root',
+    'setup-default-sandbox',
     { answer: SANDBOX_ANSWER, listed: true },
   ],
   [

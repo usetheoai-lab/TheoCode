@@ -118,7 +118,11 @@ describe("this build's own verbs are not shadowed", () => {
     // `unknown command` while shipping the capability under another verb is the exact
     // discovery failure the map was built to close — worse than a missing feature, because
     // the user concludes we lack something that is one word away.
-    const withEquivalent = ['multi-agents', 'elevate-sandbox', 'sandbox-read-root']
+    // B-158 — these were the enum VARIANT names (`MultiAgents`, `ElevateSandbox`,
+    // `SandboxReadRoot`), which Codex never exposes: each carries a `#[strum(...)]` override and
+    // the user types the override. Answering `multi-agents` helped nobody and left `subagents`,
+    // which a Codex user actually types, unpointed. `tools/check-codex-parity.mjs` found all three.
+    const withEquivalent = ['subagents', 'setup-default-sandbox', 'sandbox-add-read-dir']
 
     const unanswered = withEquivalent.filter((n) => routeCommand(`/${n}`).kind === 'commandError')
 

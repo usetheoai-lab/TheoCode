@@ -67,15 +67,20 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-157 items — **Open** 0 · **In flight** 0 · **Closed** 157
+160 items — **Open** 1 · **In flight** 2 · **Closed** 157
 
-### Open (0)
+### Open (1)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
-### In flight (0)
+### In flight (2)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `planned` | — |
+| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `planned` | — |
 
 ### Closed (157)
 
@@ -7337,6 +7342,54 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-160 — CI cannot check the tracked coverage floor against anything   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: `tools/check-coverage-floor.mjs` declares `DECLARED_FLOOR = 59.29` and compares it against `coverage.min_percent`, which `coverage_gate.py` resolves from `.claude/rules/code-quality-thresholds.txt`. That file is gitignored — `git ls-files .claude` returns 0 — so in CI and in every fresh clone there is nothing to compare against and the checker SKIPs. Measured during B-159's round-4 review: mutating `DECLARED_FLOOR` to 40 survives the whole suite wherever `.claude/` is absent, because `test_the_two_declarations_of_the_floor_agree_in_this_repository` is `skipIf`-guarded there. `.github/workflows/ci.yml` contains the string "coverage" zero times and runs `pnpm test` against `"test": "vitest run"`, so no CI step measures coverage either.
+why_now: B-159 declared a coverage floor as a ratchet and made a downward edit visible in a diff, which was the gap it set out to close. What it did not close is enforcement outside a developer machine: the number binds a checkout that installed the kit, and a clone that did not is governed by nothing. The limit is stated in `CHANGELOG.md`, in `vitest.config.ts` and in the plan's R3, so it is disclosed rather than hidden — but disclosure is not enforcement, and every item after B-159 inherits the gap.
+status: raw
+dod:
+  - a coverage measurement runs somewhere CI can see it, or the decision not to is recorded with its reason where the floor is declared
+  - mutating `DECLARED_FLOOR` fails the suite in a checkout with no `.claude/`, or the reason it cannot is written down
+  - the cost of running coverage in CI is measured before it is adopted, not assumed
+
+> Registered 2026-09-09 from B-159's round-4 review (finding `F-guard-13-r3`, deferred half).
+
+## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: `vitest.config.ts:45` records that NO floor was set and why — a decision by this repository on 2026-08-20 (B-063). `.claude/rules/code-quality-thresholds.txt:54` carries `# coverage.min_percent = 80` COMMENTED OUT, so `coverage_gate.py:29` falls through to a library default of 80 that nobody here chose. Distribution measured: tui 47.3%, cli 46.1%, agent 76.9%, shared 96.1%. Opportunity: `.claude/records/discoveries/opportunities/coverage-floor-halts-every-plan-opportunity.md`. Original: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
+why_now: B-158 was the first item taken through the full cycle since the floor started being enforced, and it halted at this gate — with the file it changed at 100% line coverage. Every subsequent item halts in the same place for the same reason. Lowering the threshold is named as forbidden by `cycle-implement.md § Validation halt-loop`, so the gap has to be closed or the floor has to be decided deliberately; neither can happen inside an item about something else.
+status: planned
+dod:
+  - a decided floor in `rules/code-quality-thresholds.txt`, with the reason written where the number is, OR total line coverage at or above 80%
+  - `run_validation.py` reports `coverage` PASS on a clean tree
+  - the decision names which of the two happened, so a later reader can tell a raised bar from a lowered one
+
+> Registered 2026-09-09 by `/backlog-item` (slug: `coverage-floor-halts-every-plan`).
+
+## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `packages/tui/src/commands/codex-names.ts:67` holds `auto-review`, renamed to `approve` in `@openai/codex@0.153.4`; `recap` is new there and in neither `registry.ts` nor `codex-names.ts`. Measured from the installed binary's own command table, not from the checkout at `codex/`, which is 2026-08-25 and would have reported a clean result. Opportunity: `.claude/records/discoveries/opportunities/codex-command-surface-drift-opportunity.md`
+why_now: `packages/tui/src/commands/codex-names.ts` declares which Codex commands this product does not implement, each with a pointer or an honest absence, and nothing checks it. Measured 2026-09-09 against the installed `codex-cli 0.153.4` in a tmux TUI: `/fast`, `/recap` and `/approve` answered `unknown command` — present in Codex's menu and in neither half of the map. The source comparison then showed why that was invisible: the checkout at `codex/` is from 2026-08-25 and its `slash_command.rs` has no `fast` and no `recap`, so reading the clone alone reports full coverage. The map is a claim about another product's surface with no mechanism keeping it true.
+status: planned
+dod:
+  - a check reads Codex's `slash_command.rs` and this product's `registry.ts` + `codex-names.ts` and prints the delta in both directions
+  - it FAILS when a user-facing Codex command is neither implemented here nor answered by a pointer, and does NOT fail for Codex's own debug commands (`debug-m-drop`, `debug-m-update`, `test-approval`)
+  - run against the version the check was written for, it names `/fast` and `/recap` — a run that reports no delta against a stale checkout is the failure mode, so the check states which Codex revision it compared against
+
+> Registered 2026-09-09 by `/backlog-item` (slug: `codex-command-surface-drift`).
 
 ## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [x]
 
