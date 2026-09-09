@@ -299,6 +299,44 @@ describe('the CLI contract', () => {
     expect(run(scaffold({ floor: DECLARED_FLOOR, pct: DECLARED_FLOOR + 0.5 })).code).toBe(0)
   })
 
+  it('test_every_verdict_names_where_the_number_came_from', () => {
+    // F-guard-3 / F-guard-23-r5: the first fix named the path only when the two disagreed, and the
+    // clause it added was pinned by no test — deleting it survived the suite. An agreeing run that
+    // does not say what it read is the half that was still unauditable.
+    expect(run(scaffold({ floor: DECLARED_FLOOR })).stdout).toContain('read from')
+    expect(run(scaffold({ floor: DECLARED_FLOOR, pct: DECLARED_FLOOR })).stdout).toContain('read from')
+    expect(run(scaffold({ floor: DECLARED_FLOOR - 1 })).stdout).toContain('read from')
+  })
+
+  it('test_it_does_not_pick_between_two_layouts_it_cannot_tell_apart', () => {
+    // `resolve_threshold` returns a value and a source KIND, not a path. With both files present
+    // the gate's precedence decides, and this checker does not know which one won — so it says so
+    // instead of printing one, which would be a guess dressed as a reading.
+    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    mkdirSync(join(root, 'rules'), { recursive: true })
+    mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
+    writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
+    writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${DECLARED_FLOOR}\n`)
+    linkGate(root, [])
+    const out = run(root).stdout
+    expect(out).toContain('whichever of')
+    expect(out).not.toMatch(/read from \S+ or/)
+  })
+
+  it('test_a_fallback_reports_what_it_saw_and_not_why', () => {
+    // F-guard-22-r5: "the declaration is present but unreadable" was byte-identical for a file
+    // that declares nothing at all — which is the shipped state of the thresholds file — so the
+    // cause was asserted without being observed.
+    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
+    writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), '# nothing declared\n')
+    linkGate(root, ['.claude'])
+    const result = run(root)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('read no usable coverage.min_percent')
+    expect(result.stdout).not.toContain('present but unreadable')
+  })
+
   it('test_a_gate_it_cannot_reach_is_an_error_and_never_an_agreement', () => {
     // Mutation-tested: neutering the error branch survived the suite, because the only test of it
     // called resolveViaGate directly and never went through main(). A thresholds file the checker

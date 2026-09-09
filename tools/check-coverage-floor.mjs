@@ -88,6 +88,7 @@ import { fileURLToPath } from 'node:url'
  */
 const FLOOR_PATHS = ['rules/code-quality-thresholds.txt', '.claude/rules/code-quality-thresholds.txt']
 const REPORT_PATH = 'coverage/coverage-summary.json'
+const KEY = 'coverage.min_percent'
 
 /** Where `coverage_gate.py` lives, in both layouts, matching FLOOR_PATHS above. */
 const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts']
@@ -197,6 +198,18 @@ function ageMinutes(path) {
   }
 }
 
+/**
+ * Which file the number came from, without pretending to know when it cannot.
+ *
+ * `resolve_threshold` returns a value and a source kind, not a path. With one candidate present
+ * that is unambiguous; with both, the gate's own precedence decides and this says so rather than
+ * naming one — the previous version printed `A or B`, which reads as a guess between them.
+ */
+function sourceNote(present) {
+  if (present.length === 1) return `(read from ${present[0]})`
+  return `(from whichever of ${present.join(', ')} the gate resolves first)`
+}
+
 /** Read a file, or `null`. `existsSync` says a path exists; it does not say it can be read. */
 function readOrNull(path) {
   try {
@@ -226,10 +239,14 @@ function main() {
     return 1
   }
   if (resolved.source !== 'project') {
+    // Says what was observed and stops there. `source === 'default'` means the gate read no usable
+    // declaration; it does not say whether the key was absent, malformed, or hidden behind a
+    // separator this checker no longer tries to recognise. Naming a cause it did not observe is the
+    // defect this whole file exists to catch, one level up.
     say(
-      `[coverage-floor] the gate resolves ${resolved.value}% from '${resolved.source}', not from ` +
-        `the thresholds file — the declaration is present but unreadable to it, so the tracked ` +
-        `floor of ${DECLARED_FLOOR}% is not in force.`,
+      `[coverage-floor] the gate resolves ${resolved.value}% from '${resolved.source}' — it read no ` +
+        `usable ${KEY} from ${present.join(' or ')}, so the tracked floor of ${DECLARED_FLOOR}% is ` +
+        'not in force.',
     )
     return 1
   }
@@ -238,7 +255,7 @@ function main() {
   if (agreement.status !== 'OK') {
     // F-guard-3: naming the file matters when both layouts are present — "the thresholds file"
     // does not say which one, and the remedy is an edit to a specific path.
-    say(`[coverage-floor] ${agreement.message} (read from ${present.join(' or ')})`)
+    say(`[coverage-floor] ${agreement.message} ${sourceNote(present)}`)
     return 1
   }
 
@@ -250,14 +267,16 @@ function main() {
   if (result.status === 'UNMEASURED') {
     // Not a failure. `pnpm lint` runs before the step that regenerates the report, so this is the
     // ordinary case there — and the agreement check above already ran without needing one.
-    say(`[coverage-floor] floor ${resolved.value}% agrees with DECLARED_FLOOR; ${result.message}`)
+    say(`[coverage-floor] floor ${resolved.value}% agrees with DECLARED_FLOOR ${sourceNote(present)}; ${result.message}`)
     return 0
   }
 
   const age = ageMinutes(reportFile)
+  // The OK path names its source too. A checker that only says where it read when it disagrees
+  // leaves the agreeing case unauditable, which is the half of F-guard-3 the first fix missed.
   // A number without its age is a claim about now. This checker does not regenerate the report.
   const stamp = age === null ? '' : ` (report ${age}m old)`
-  say(`[coverage-floor] ${result.message}${stamp}`)
+  say(`[coverage-floor] ${result.message} ${sourceNote(present)}${stamp}`)
   return result.status === 'OK' ? 0 : 1
 }
 
