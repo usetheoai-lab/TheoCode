@@ -67,17 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 1 · **In flight** 0 · **Closed** 163
+164 items — **Open** 0 · **In flight** 1 · **Closed** 163
 
-### Open (1)
+### Open (0)
+
+_None._
+
+### In flight (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `triaged` | — |
-
-### In flight (0)
-
-_None._
+| [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
 
 ### Closed (163)
 
@@ -7417,13 +7417,15 @@ suggested_mode: bug
 source: discover-review
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/coverage-measures-the-machine-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **The trigger is identified, after two attributions in this item's own history were falsified by execution.** Two full coverage runs at the same commit: clean worktree 2655/4488, working tree 2660/4488, and exactly three files differ. Per-statement instrumentation names the lines: `context/agents-md.ts:219` (`parts.push(`, runs only when a project document exists to compose), `context/rules.ts:82` (the default `warn`, behind a 64 000-char corpus threshold) and `session/gc/per-session.ts:60-62` (`readdirSync` of the transcript store). All three are production branches that execute only when the environment holds real content. The ancestor-walk hypothesis is dead: `agentsMdChain(process.cwd())` returns `[]` in the working tree, measured by writing the chain out from inside a test — `walkInstructionChain` stops at the first `.git`, which the repo root has. The actual trigger is three tests that set `process.env.HOME` to a temp directory and then pass `cwd: process.cwd()`: `context/user-skills.wiring.test.ts:39` and `:61`, and `wired-capabilities.test.ts:98`. They isolated the half they thought about and left open the half the content arrives through.
 why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
-status: triaged
+status: planned
 dod:
   - all three channels are closed: the rules-corpus threshold, the context-chain trigger (which must first be IDENTIFIED — two candidates are already falsified) and the transcript store
   - the three `cwd: process.cwd()` call sites take a controlled directory instead — **the original bullet asked the wrong question**: no test reaches outside the repository, three reach INTO the real tree on purpose, and the tree is what varies
   - total line coverage is the same number in a bare checkout, in one with a kit installed, and in the maintainer's tree — so the floor can be re-declared from any of them and the word `ratchet` becomes true everywhere
 
 > Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
+
+> PARTIAL 2026-09-09, commit `3fdf486` — `.claude/records/implementations/coverage-measures-the-machine-implementation.md`. One channel of three is CLOSED: the three `cwd: process.cwd()` sites are gone and `agents-md.ts` left the differing set, confirming the trigger the opportunity identified. The totals did NOT converge: clean 2655/4488 vs tree 2659/4488, down from a 5-line gap to a 4-line one. Two named channels remain — `context/rules.ts:82` (default `warn`, behind a 64 000-char corpus, so it depends on `.claude/rules/` existing rather than on any cwd) and `session/gc/per-session.ts:60-62` (`readdirSync` of `~/.theokit/projects/<cwd>`, depending on the real HOME). Neither is reached by any single test file; both appear only under the full suite and the caller was not found. The item stays OPEN because the plan's R2 said it should: declaring convergence after fixing three of the sites would be a claim stronger than the measurement.
 
 ## B-160 — The checker returns before the one comparison CI can make   [ ]
 
