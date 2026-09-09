@@ -103,10 +103,6 @@ export const CODEX_NAMES: ReadonlyMap<string, CodexName> = new Map([
     },
   ],
   [
-    'setup-default-sandbox',
-    { answer: SANDBOX_ANSWER, listed: true },
-  ],
-  [
     'sandbox-add-read-dir',
     {
       answer: SANDBOX_ANSWER,

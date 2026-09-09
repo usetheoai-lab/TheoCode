@@ -67,12 +67,14 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-160 items — **Open** 1 · **In flight** 2 · **Closed** 157
+162 items — **Open** 3 · **In flight** 2 · **Closed** 157
 
-### Open (1)
+### Open (3)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
+| [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
 ### In flight (2)
@@ -7342,6 +7344,40 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-162 — Test code and production code share every src/ directory   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/tests-out-of-src-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). The move was performed for real in a throwaway `/tmp` worktree and the suite reached 199/199 files, 1520 tests, identical to before. Coverage moved and the cause is exact: `packages/agent/src/hooks/hooks-test-helpers.ts` (3/3 lines) left the measured set because it is test scaffolding living in `src/` that `vitest.config.ts`'s `**/*.test.*` exclude never matched — 59.2% (2659/4491) to 59.18% (2656/4488), with no other file changing. The TDD pairing gate needs NO change: `stop-validation.sh:222-243` indexes test basenames per unit and its own comment names `packages/<p>/tests/unit/` as the case it serves; verified by execution. Residue that is not mechanical: 6 tests read a source file by path (`new URL('./chat.ts')`) to assert on its text. Original intake, at `2cfad43`: 199 test files live inside `packages/*/src/**` and `tools/`, distributed agent 98, tui 68, cli 18, tools 8, shared 7. They total **22 427 lines against 19 566 of production**, so test code is the majority of the tree by line count and is interleaved with production in every `src/` directory. The move has a measured blast radius: 274 relative imports inside tests would need rewriting (`git ls-files '*.test.ts' | xargs grep -oE "from '\.[^']*'" | wc -l`), and one non-`.test.` support file sits in production, `packages/agent/src/hooks/hooks-test-helpers.ts`. Zero production files import a test file, so the dependency direction is already clean and nothing in production breaks. Five configs key on the current layout: `vitest.config.ts:11`, `tsconfig.json:19`, `.dependency-cruiser.cjs:60`, `knip.jsonc`, eslint.
+why_now: The maintainer asked for the separation on 2026-09-09 and chose the per-package `tests/` layout. The local fact that makes it non-trivial rather than cosmetic is `hooks/stop-validation.sh:135-148`: it pairs a source file with its test **by directory**, so a mirror tree makes that TDD gate blind — it would report "no test" for files that have one. `rules/testing.md § 5` already anticipates this and requires the new convention to be documented so the hook knows where to look, which means this item changes a contract and not only a file layout. Coverage is the second reason to measure rather than assume: the `include` is `packages/*/src/**` and the `exclude` is `**/*.test.*`, so in theory the measured set does not move — but B-159 turned that number into a zero-slack gate and B-161 is open showing it varies with the machine, so before/after has to be compared in one environment.
+status: triaged
+dod:
+  - no `*.test.*` file remains under any `packages/*/src/` directory — `tools/` is out of scope, it is not a package and has no `src`
+  - `pnpm test` runs the same number of tests before and after, and the suite is green
+  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared from 59.2 to 59.18 in the same change
+  - the TDD pairing gate finds tests at the new location, or `rules/testing.md § 5` records the new convention and the hook is taught it
+  - `pnpm lint`, `pnpm typecheck` and `depcruise` stay green
+
+> Registered 2026-09-09 by request, with the scope measured before filing.
+
+## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: THREE independent channels, each isolated by changing one variable at a time and measured on the same commit. `packages/agent/src/context/agents-md.ts:62-66` — MECHANISM demonstrated, TRIGGER unidentified. The walk returns at the first `.git`, so it cannot leave the repository; `/home/paulo/CLAUDE.md`, named as the cause in this item's first two filings, DOES NOT EXIST, and `specs/CLAUDE.md` was falsified as a second candidate (45 lines with and without it). A context file placed above a checkout reproduces exactly this +1 in a controlled test, so the channel is real. Identifying what triggers it here is part of this item. `packages/agent/src/session/gc/per-session.ts` — `readTranscriptDir` reads `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds 16 transcripts for the working tree's path and none for a `/tmp` one; proved by creating that directory for a `/tmp` checkout, which turned lines 60-62 covered with nothing else changed (+3 lines). `packages/agent/src/context/rules.ts:82` — the default `warn` callback of `loadRules` runs only when the rules corpus exceeds 64 000 chars, and an installed `.claude/rules/` is 248 669, so the total depends on the SIZE of the kit sitting beside the checkout (+1 line). Measured chain: 2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree), all out of 4491. **Correction to this item's first filing:** it credited all four lines to the ancestor walk alone. `per-session.ts` has no ancestor walk and never calls `agents-md`; that attribution was wrong, and the rules-corpus channel was not named at all. Found by the review of B-159's hotfix.
+why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
+status: raw
+dod:
+  - all three channels are closed: the rules-corpus threshold, the context-chain trigger (which must first be IDENTIFIED — two candidates are already falsified) and the transcript store
+  - a test that reaches outside the repository fails, or is shown not to exist
+  - total line coverage is the same number in a bare checkout, in one with a kit installed, and in the maintainer's tree — so the floor can be re-declared from any of them and the word `ratchet` becomes true everywhere
+
+> Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
 
 ## B-160 — CI cannot check the tracked coverage floor against anything   [ ]
 
