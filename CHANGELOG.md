@@ -62,6 +62,14 @@ for `release.yml` in this repository will not find it, and should not have been 
   thresholds file is absent it skips and says so, naming the tracked number: this does **not** turn
   coverage into a merge gate.
 
+  It parses that file the way the kit's Python gate does, which is not the obvious way. Python's
+  `splitlines()` breaks on carriage return, vertical tab, form feed, the file/group/record
+  separators, NEL and the two Unicode line separators; splitting on `\n` alone left a declaration
+  hidden behind any of them authoritative for the gate and invisible to the checker — measured, an
+  effective floor of 5 reported as agreement at 59.29, needing only a stray CR from mixed line
+  endings and touching no versioned file. It also accepts exactly the numeric grammar `float()`
+  accepts, and tries both the plugin and standalone layouts in the gate's own order.
+
 ### Deprecated
 
 ### Removed
