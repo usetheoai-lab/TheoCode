@@ -28,6 +28,48 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.24.2] - 2026-09-09
+
+### Changed
+
+- Tests moved out of every `packages/*/src/` into a per-package `tests/` mirror, so production
+  directories hold production code. 191 files relocated and 302 relative specifiers rewritten by
+  codemod; `tools/` keeps its 8 tests beside its checkers, because it is not a package and has no
+  `src/`. The suite reports the same 1527 tests green.
+
+  Two things the move surfaced. `hooks-test-helpers.ts` was test scaffolding living in `src/`, and
+  because it is not a `*.test.*` file the coverage config counted it as **production** — moving it
+  removes 3 lines from the production denominator, so the declared floor moves with it. And six
+  tests read their subject's source file **by path** rather than importing it, to assert on its text
+  — that `process.cwd()` has not reappeared, that every routed subcommand is covered. Those six were
+  re-pointed by hand and each was verified by mutating the source it reads and confirming it goes
+  red; a wrong path still resolves to a file that exists, so a green suite would have hidden it.
+
+  The coverage floor moves with the denominator, to **59.15%** (2655/4488), re-measured in a
+  checkout with all three contamination channels checked absent one at a time rather than derived
+  by subtraction.
+
+
+### Fixed
+
+- `test_every_routed_subcommand_is_covered_by_this_file` asserted nothing, and had done so since
+  routing moved out of a `switch` into the `SUBCOMMANDS` table. It scraped `case '…':` labels out of
+  `args.ts`, which has held none since; the regex matched an empty set, so the assertion compared
+  `[]` to `[]` and passed for any input. Adding a real routed subcommand left all 46 tests in the
+  file green. It now reads the table it is about, by importing it instead of scraping text, and the
+  same mutant kills it.
+
+  The trap is worth naming: mutating `args.ts` with a synthetic `case` label **does** turn the old
+  test red, so a mutation aimed at the detector's regex reports a kill while the invariant behind it
+  is unguarded. A mutant has to touch the invariant, not the instrument.
+
+- Two gates had quietly narrowed when the tests moved out of `src/`, both staying green while
+  covering less: `knip.jsonc` scoped every workspace to `src/`, so 191 test files dropped out of
+  dead-code analysis (it reports the empty globs as hints and exits 0), and `eslint.config.mjs`
+  scoped the swallowed-rejection rule to `packages/*/src/**`, losing `no-restricted-syntax` over the
+  test tree. Both re-pointed. The eslint one immediately caught two orphan imports left by the fix
+  above, which is the gate demonstrating it works.
+
 ## [0.24.1] - 2026-09-09
 
 ### Fixed

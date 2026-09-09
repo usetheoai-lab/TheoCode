@@ -67,7 +67,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-162 items — **Open** 3 · **In flight** 2 · **Closed** 157
+162 items — **Open** 3 · **In flight** 0 · **Closed** 159
 
 ### Open (3)
 
@@ -77,14 +77,11 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
-### In flight (2)
+### In flight (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `planned` | — |
-| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `planned` | — |
+_None._
 
-### Closed (157)
+### Closed (159)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -242,6 +239,8 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
+| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
 | [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
 | [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
@@ -7403,13 +7402,15 @@ suggested_mode: evolve
 source: discover-review
 evidence: `vitest.config.ts:45` records that NO floor was set and why — a decision by this repository on 2026-08-20 (B-063). `.claude/rules/code-quality-thresholds.txt:54` carries `# coverage.min_percent = 80` COMMENTED OUT, so `coverage_gate.py:29` falls through to a library default of 80 that nobody here chose. Distribution measured: tui 47.3%, cli 46.1%, agent 76.9%, shared 96.1%. Opportunity: `.claude/records/discoveries/opportunities/coverage-floor-halts-every-plan-opportunity.md`. Original: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
 why_now: B-158 was the first item taken through the full cycle since the floor started being enforced, and it halted at this gate — with the file it changed at 100% line coverage. Every subsequent item halts in the same place for the same reason. Lowering the threshold is named as forbidden by `cycle-implement.md § Validation halt-loop`, so the gap has to be closed or the floor has to be decided deliberately; neither can happen inside an item about something else.
-status: planned
+status: shipped
 dod:
   - a decided floor in `rules/code-quality-thresholds.txt`, with the reason written where the number is, OR total line coverage at or above 80%
   - `run_validation.py` reports `coverage` PASS on a clean tree
   - the decision names which of the two happened, so a later reader can tell a raised bar from a lowered one
 
 > Registered 2026-09-09 by `/backlog-item` (slug: `coverage-floor-halts-every-plan`).
+
+> ACCEPTED_WITH_CAVEATS against tag v0.24.1 on 2026-09-09 — `.claude/records/acceptance/B-159-v0.24.1.md`. Second acceptance: the first, against v0.24.0, was REJECTED. AC2 passes at 59.2 against a 59.18 floor — one line of NAMED SLACK, not zero. The caveat is that the total is not a property of the code, and its owner is B-161.
 
 ## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [ ]
 
@@ -7419,13 +7420,15 @@ suggested_mode: evolve
 source: human
 evidence: `packages/tui/src/commands/codex-names.ts:67` holds `auto-review`, renamed to `approve` in `@openai/codex@0.153.4`; `recap` is new there and in neither `registry.ts` nor `codex-names.ts`. Measured from the installed binary's own command table, not from the checkout at `codex/`, which is 2026-08-25 and would have reported a clean result. Opportunity: `.claude/records/discoveries/opportunities/codex-command-surface-drift-opportunity.md`
 why_now: `packages/tui/src/commands/codex-names.ts` declares which Codex commands this product does not implement, each with a pointer or an honest absence, and nothing checks it. Measured 2026-09-09 against the installed `codex-cli 0.153.4` in a tmux TUI: `/fast`, `/recap` and `/approve` answered `unknown command` — present in Codex's menu and in neither half of the map. The source comparison then showed why that was invisible: the checkout at `codex/` is from 2026-08-25 and its `slash_command.rs` has no `fast` and no `recap`, so reading the clone alone reports full coverage. The map is a claim about another product's surface with no mechanism keeping it true.
-status: planned
+status: shipped
 dod:
   - a check reads Codex's `slash_command.rs` and this product's `registry.ts` + `codex-names.ts` and prints the delta in both directions
   - it FAILS when a user-facing Codex command is neither implemented here nor answered by a pointer, and does NOT fail for Codex's own debug commands (`debug-m-drop`, `debug-m-update`, `test-approval`)
-  - run against the version the check was written for, it names `/fast` and `/recap` — a run that reports no delta against a stale checkout is the failure mode, so the check states which Codex revision it compared against
+  - run against the version the check was written for, it names `/recap` and `/approve` — a run that reports no delta against a stale checkout is the failure mode, so the check states which Codex revision it compared against. **CORRECTED 2026-09-09, BEFORE the acceptance run and on evidence that predates it:** this bullet originally demanded `/fast`, which the item's own DISCOVER then proved is not a slash command at all — the installed binary's string table shows `"id": "priority", "name": "Fast"`, a config entry misread as a command in a TUI probe. `/approve` replaces it because it is what the measurement actually found: the `auto-review` rename the item exists for. The correction is recorded here rather than applied silently, because a criterion edited after seeing a result grades a moved target
 
 > Registered 2026-09-09 by `/backlog-item` (slug: `codex-command-surface-drift`).
+
+> ACCEPTED against tag v0.24.1 on 2026-09-09 — `.claude/records/acceptance/B-158-v0.24.1.md`. All three criteria exercised from the released artifact; AC3 reproduced the original `auto-review -> approve` failure against the pre-fix map. Shipped in v0.24.0 without a review; the review that finally ran found four defects, all fixed in v0.24.1.
 
 ## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [x]
 

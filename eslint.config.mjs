@@ -60,7 +60,9 @@ export default tseslint.config(
     // silence this product can ship — a PTY, a sandbox or an agent that never dies. `no-empty`
     // ignores function bodies by design, so neither shape below is caught without this rule.
     // Best-effort cleanup opts out per line with a written rationale.
-    files: ['packages/*/src/**/*.{ts,tsx}'],
+    // `tests/**` is in scope since B-162 moved the tests out of `src/`: a swallowed rejection in a
+    // test is the same silence, and scoping this to `src/` alone quietly dropped 191 files.
+    files: ['packages/*/src/**/*.{ts,tsx}', 'packages/*/tests/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
         'error',
