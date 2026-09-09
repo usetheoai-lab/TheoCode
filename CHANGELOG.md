@@ -26,6 +26,21 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- The coverage-floor checker skipped the one comparison it could make in a checkout without the
+  kit, and said there was nothing to compare. `coverage.min_percent` is gitignored and never reaches
+  a clone, but `DECLARED_FLOOR` is tracked and does — so the tracked number can always be checked
+  against the coverage just measured, and the logic for that was already there and exercised. Only
+  the path to it was missing: `main()` returned first, while a coverage report sat in the directory
+  beside it.
+
+  Measured in a checkout with no `.claude/`, before and after: `DECLARED_FLOOR` lowered to 40
+  against a measured 59.15 used to exit 0 and now exits 1, naming the slack; lowered to 58,
+  likewise. The real value still passes, and a checkout with neither the thresholds file nor a
+  report still skips — and now says which of the two it lacks.
+
+  What this still cannot see is `coverage.min_percent` itself, so the two halves *agreeing* remains
+  a property of a machine that installed the kit. The checker's header says so.
+
 ### Security
 
 ## [0.25.0] - 2026-09-09

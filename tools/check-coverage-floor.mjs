@@ -262,13 +262,32 @@ function main() {
   const root = process.env['COVERAGE_FLOOR_ROOT'] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const say = (line) => process.stdout.write(`${line}\n`)
 
+  const reportFileEarly = join(root, REPORT_PATH)
   const present = FLOOR_PATHS.map((relative) => join(root, relative)).filter((path) => existsSync(path))
   if (present.length === 0) {
+    // B-160. This used to skip and say "nothing here to compare it against" — with a coverage report
+    // sitting in the directory beside it. There IS something: `DECLARED_FLOOR` is tracked and
+    // travels, so in a clone it is the ONLY half available, and comparing it to the measured total
+    // is the one check this environment supports. `evaluateFloor` already does it: a floor sitting
+    // further below the tree than TOLERANCE fails, which is exactly the mutant this was filed about
+    // — DECLARED_FLOOR lowered to 40 against a measured 59, surviving the whole suite until now.
+    //
+    // What this still cannot see is `coverage.min_percent`, which no clone has. The two halves
+    // agreeing stays a property of a machine that installed the kit.
+    const earlyText = existsSync(reportFileEarly) ? readOrNull(reportFileEarly) : null
+    const earlyMeasured = earlyText === null ? null : readMeasured(earlyText)
+    if (earlyMeasured === null) {
+      say(
+        `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')} and no parseable ${REPORT_PATH}. ` +
+          `The tracked floor is ${DECLARED_FLOOR}%, and nothing here measures the tree to compare it to.`,
+      )
+      return 0
+    }
+    const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured: earlyMeasured })
     say(
-      `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')}. ` +
-        `The tracked floor is ${DECLARED_FLOOR}%; nothing here to compare it against.`,
+      `[coverage-floor] no thresholds file — checking the TRACKED floor only. ${trackedOnly.message}`,
     )
-    return 0
+    return trackedOnly.status === 'OK' ? 0 : 1
   }
 
   const resolved = resolveViaGate(root)
