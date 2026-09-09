@@ -20,14 +20,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
-- The test suite no longer reads the machine it runs on. Four tests reached ambient state — the
-  process working directory, the real transcript store, and the rules corpus on disk — so the
-  coverage total differed between an installed checkout and a clean clone of the same commit. Both
-  now measure the same number, verified twice in each environment against a real clone with its own
-  install. The total falls from 59.15% to 58.95%: roughly ten lines were only ever covered by tests
-  reading the real rules corpus off disk, which is coverage this repository had by accident of where
-  the suite ran. The declared floor moves with it (B-161).
-
 ### Deprecated
 
 ### Removed
@@ -35,6 +27,32 @@ for `release.yml` in this repository will not find it, and should not have been 
 ### Fixed
 
 ### Security
+
+## [0.25.2] - 2026-09-09
+
+### Changed
+
+- The test suite no longer reads the checkout it runs in. Four tests reached ambient state — the
+  process working directory, the real transcript store, and the rules corpus on disk — so the
+  coverage total differed between an installed checkout and a clean clone of the same commit. Both
+  now measure 2646/4488, verified twice in each environment against a real clone with its own
+  install and compared per file across 239 files with no divergence. The total falls from 59.15% to
+  58.95%: roughly ten lines were only ever covered by tests reading the real rules corpus off disk,
+  which is coverage this repository had by accident of where the suite ran. The declared floor moves
+  with it (B-161).
+- Two trust tests no longer fail for operators who have a skill in `~/.theokit/skills/`. They
+  compared the agent's skill list against an exact array, which cannot tell an operator's own skill
+  from one contributed by an untrusted repository — so an ordinary local setup read as a gate
+  failure (B-161).
+
+### Fixed
+
+- The coverage-floor guard's tolerance is pinned at its exact boundary again. Two fixtures were the
+  old floor plus a delta; when the floor moved they stayed behind, and widening the tolerance stopped
+  being caught by any test (B-161).
+- `vitest.config.ts` stated a coverage floor two re-declarations out of date, in a tracked file every
+  clone reads. The test meant to prevent that checked only that the prose mentioned the right things,
+  never that its number was true; it now compares the two (B-161).
 
 ## [0.25.1] - 2026-09-09
 
