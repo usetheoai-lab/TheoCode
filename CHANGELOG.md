@@ -26,6 +26,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+### Security
+
+## [0.24.1] - 2026-09-09
+
+### Fixed
+
 - The Codex parity checker released in 0.24.0 carried the bug it was written to catch. Its post-
   release review — the item shipped without one, because its validation had halted on a coverage
   gate that a different item had to fix first — found four defects, each reproduced before being
@@ -57,8 +63,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   reading, and a floor with named slack anywhere else. Calling it a zero-slack ratchet everywhere
   would be false while the total still depends on the machine. The 0.24.0 entry below stands as
   published. The defect is B-161, and it is what would make a single number honest.
-
-### Security
 
 ## [0.24.0] - 2026-09-09
 
