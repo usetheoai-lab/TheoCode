@@ -46,6 +46,20 @@ function toastOf(arg: string): ToastPayload {
   return payload as ToastPayload
 }
 
+/**
+ * B-161: the panel reads the rules off disk when it is given no wiring record, so a checkout that
+ * has `.claude/rules/` covers a line a clean one does not — and the suite's coverage total then
+ * depends on the machine. The record is a parameter for the reason `rulesRow`'s own comment gives;
+ * passing it is what keeps both the row and the coverage independent of where the suite runs.
+ */
+const NO_RULES = {
+  // `agentsMd` is required by the type: `agentsMdRow` reads it unguarded, so a record without it
+  // crashes the panel. The cast is the file's existing idiom for a partial record; it must still
+  // carry every field the panel actually reads.
+  agentsMd: { active: [], requested: [], suppressedByTrust: false },
+  rules: { count: 0, read: 0 },
+} as unknown as Parameters<typeof statusPanel>[4]
+
 /** The `theme` row of `/status`, or `undefined` if the panel stopped carrying one. */
 function statusThemeRow(): string | undefined {
   const session = {
@@ -62,7 +76,7 @@ function statusThemeRow(): string | undefined {
     backend: () => ({ activeSessionCount: () => 0, killAll: vi.fn() }),
   } as unknown as PtysTheInterpreterUses
 
-  return statusPanel(session, 'suggest', () => 'tui-1', ptys)
+  return statusPanel(session, 'suggest', () => 'tui-1', ptys, NO_RULES)
     .body.split('\n')
     .find((row) => row.startsWith('theme:'))
 }

@@ -39,6 +39,20 @@ const ptys = {
   backend: () => ({ activeSessionCount: () => 0, killAll: vi.fn() }),
 } as unknown as PtysTheInterpreterUses
 
+/**
+ * B-161: the panel reads the rules off disk when it is given no wiring record, so a checkout that
+ * has `.claude/rules/` covers a line a clean one does not — and the suite's coverage total then
+ * depends on the machine. The record is a parameter for the reason `rulesRow`'s own comment gives;
+ * passing it is what keeps both the row and the coverage independent of where the suite runs.
+ */
+const NO_RULES = {
+  // `agentsMd` is required by the type: `agentsMdRow` reads it unguarded, so a record without it
+  // crashes the panel. The cast is the file's existing idiom for a partial record; it must still
+  // carry every field the panel actually reads.
+  agentsMd: { active: [], requested: [], suppressedByTrust: false },
+  rules: { count: 0, read: 0 },
+} as unknown as Parameters<typeof statusPanel>[4]
+
 const rows = (body: string): readonly string[] => body.split('\n')
 
 /** Where the value starts on a row — the column the panel is supposed to align on. */
@@ -49,7 +63,7 @@ function valueColumn(row: string): number {
 
 describe('the status panel aligns its values on one column', () => {
   it('test_every_row_starts_its_value_at_the_same_column', () => {
-    const columns = rows(statusPanel(session(), 'suggest', () => 'tui-1', ptys).body).map(
+    const columns = rows(statusPanel(session(), 'suggest', () => 'tui-1', ptys, NO_RULES).body).map(
       valueColumn,
     )
 
@@ -63,7 +77,7 @@ describe('the status panel aligns its values on one column', () => {
   it('test_a_longer_label_moves_every_value_together', () => {
     // Anti-vacuity: padding every row to a hard-coded constant would satisfy the test above while
     // still breaking the moment a label outgrows it. This proves the width is COMPUTED.
-    const body = statusPanel(session(), 'suggest', () => 'tui-1', ptys).body
+    const body = statusPanel(session(), 'suggest', () => 'tui-1', ptys, NO_RULES).body
     const widest = Math.max(...rows(body).map((r) => r.indexOf(':')))
 
     expect(
@@ -75,7 +89,7 @@ describe('the status panel aligns its values on one column', () => {
 
 describe('the status panel does not repeat a column label inside its value', () => {
   it('test_the_sandbox_row_names_the_mode_once', () => {
-    const sandboxRow = rows(statusPanel(session(), 'suggest', () => 'tui-1', ptys).body).find((r) =>
+    const sandboxRow = rows(statusPanel(session(), 'suggest', () => 'tui-1', ptys, NO_RULES).body).find((r) =>
       r.startsWith('sandbox:'),
     )
 
@@ -96,6 +110,7 @@ describe('the status panel does not repeat a column label inside its value', () 
         'full-auto',
         () => 'tui-1',
         ptys,
+        NO_RULES,
       ).body,
     ).find((r) => r.startsWith('sandbox:'))
 
