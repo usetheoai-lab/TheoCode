@@ -67,14 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 4 · **In flight** 0 · **Closed** 160
+164 items — **Open** 3 · **In flight** 0 · **Closed** 161
 
-### Open (4)
+### Open (3)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `raw` | — |
-| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
@@ -82,7 +81,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (160)
+### Closed (161)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -240,6 +239,7 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
@@ -7370,13 +7370,15 @@ suggested_mode: evolve
 source: discover-review
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/rules-cited-not-shipped-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **This item's filed premise is partly FALSIFIED and the finding underneath is larger.** `vitest.config.ts:10-11` is tracked and does state the layout and why `tools/` differs, so "nothing tracked explains it" is false; and the third thing the original DoD asked for — where the pairing gate looks — describes machinery (`hooks/stop-validation.sh`) that a clone does not have at all. What IS true: 29 tracked files cite 5 rule files 36 times — `error-handling.md` 15, `testing.md` 11, `public-copy.md` 7, `architecture.md` 2, `english-only.md` 1 — and none exists in a clone. TEN are production source explaining why the code is shaped as it is (`config/home-dir.ts:60`, `goal/goal.ts:34`, `session/thread-history.ts:27`, `skills-on-disk.ts:28`). `tools/check-doc-references.mjs` exists to keep cited paths resolving and reads `README.md` only, so nothing detects it in either direction. A first pass counted 5 further rules as missing even locally; checked before filing, all five are fixture filenames or a placeholder in a docs table — my regex's false positives, not defects.
 why_now: A contributor cloning this repository now finds 191 test files in a layout no tracked file explains, next to 8 under `tools/` in a different one. The reason for the difference is real and recorded, and recorded where they cannot read it. This is the third item in one session to end with a caveat of this shape — B-160 is the same fact about the coverage floor — which suggests the pattern is worth addressing once rather than three times.
-status: triaged
+status: shipped
 dod:
   - the 36 citations either resolve for the reader who has them, or say plainly that they name an environment the clone does not have — the choice between those two is the plan's central decision
   - a clone with no `.claude/` can read any of the 10 production files and not be sent to a path that is simply absent
   - whatever is added is detected when it rots — today `check-doc-references.mjs` reads `README.md` only, so 36 citations are unguarded in both directions
 
 > Registered 2026-09-09 from B-162's ACCEPTANCE run (verdict ACCEPTED_WITH_CAVEATS, minor defect).
+
+> ACCEPTED_WITH_CAVEATS against tag v0.25.0 on 2026-09-09 — `.claude/records/acceptance/B-163-v0.25.0.md`. Exercised from a clone with NO `.claude/`, the condition the item is about. AC3 passed on its weaker branch: nothing detects a rotted citation, and the section says so with the reason. The caveat — a cited § is an unchecked assertion, and two were wrong — is B-164.
 
 ## B-162 — Test code and production code share every src/ directory   [ ]
 
