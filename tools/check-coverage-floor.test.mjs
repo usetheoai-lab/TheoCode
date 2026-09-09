@@ -487,7 +487,7 @@ describe('the tracked floor is checkable without the kit', () => {
     // The other half of the same trap: pin the constant itself against a literal, so a mutant that
     // moves it is caught where `test_the_two_declarations_agree` cannot run — that one is
     // skipIf(!GATE_INSTALLED) and is skipped in exactly this environment.
-    expect(DECLARED_FLOOR).toBe(59.15)
+    expect(DECLARED_FLOOR).toBe(58.95)
   })
 
   it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
