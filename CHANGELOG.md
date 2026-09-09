@@ -33,6 +33,10 @@ for `release.yml` in this repository will not find it, and should not have been 
   re-pointed by hand and each was verified by mutating the source it reads and confirming it goes
   red; a wrong path still resolves to a file that exists, so a green suite would have hidden it.
 
+  The coverage floor moves with the denominator, to **59.15%** (2655/4488), re-measured in a
+  checkout with all three contamination channels checked absent one at a time rather than derived
+  by subtraction.
+
 ### Deprecated
 
 ### Removed

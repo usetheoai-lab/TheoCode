@@ -109,6 +109,11 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *          `.claude` symlinked in before the run, so the correction was measured in the same kind
  *          of contaminated environment as the defect it corrected.
  *   59.18  measured with every known contamination channel absent, one variable at a time.
+ *   59.15  the same, after B-162 moved the tests out of `src/`. `hooks-test-helpers.ts` is test
+ *          scaffolding that lived there; it is not a `*.test.*` file, so the reporter's exclude
+ *          never matched it and the include counted its 3 lines as PRODUCTION. Moving it removes
+ *          them from both sides — 2655/4488, measured in a checkout with all three channels
+ *          verified absent one at a time, not derived by subtracting 3.
  *
  * THREE independent channels make the total depend on the machine, not one:
  *
@@ -133,7 +138,7 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 59.18
+export const DECLARED_FLOOR = 59.15
 
 /** Percentage points the total may sit above the floor before a re-declaration is asked for. */
 const TOLERANCE = 1
