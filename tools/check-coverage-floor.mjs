@@ -220,6 +220,45 @@ export function compareToDeclared(floor, declared = DECLARED_FLOOR) {
  * The gate tries four artifact shapes; this reads the one this repository's reporter emits. Saying
  * "as the gate reads it" overstated that.
  */
+/**
+ * How many source files the report shows ANY coverage for, or `null` when unreadable.
+ *
+ * B-165 — a report is a claim about a set of files, and `vitest run --coverage <one-file>` overwrites
+ * the same path with a report from a different run. The guard compared one to a whole-tree floor and
+ * said "the floor 58.95% is above the measured total 10.29% ... Re-measure and re-declare" — of a
+ * floor that was correct. Observed 2026-09-09 in `pnpm lint`.
+ *
+ * Three candidate signals were measured against real reports from this repository, and two of them
+ * do not work here:
+ *
+ *   key count     239 in BOTH. `coverage.include` is a fixed glob, so every source file appears in
+ *                 every report whether or not the run touched it.
+ *   denominator   4488 in BOTH, for the same reason.
+ *   files covered 181 whole-tree, 0 for a `tools/` run.
+ *
+ * So the only honest reading is the third, and it only settles the extreme: a report where NO source
+ * file has coverage did not measure the source tree, and cannot be a regression — a genuine 0% would
+ * mean the suite executed nothing, which the suite runner would have reported first.
+ *
+ * A partial run that DOES touch some files (a single package's tests, the 10.29% case) is
+ * indistinguishable from a real regression by anything inside the JSON. The guard does not guess
+ * there; it fails, and names the third possibility so the reader can settle it in one command.
+ */
+export function readFilesCovered(reportJson) {
+  try {
+    const report = JSON.parse(reportJson)
+    if (report === null || typeof report !== 'object') return null
+    const files = Object.entries(report).filter(([name]) => name !== 'total')
+    // No per-file entries at all is not "zero files covered" — it is a report that does not carry
+    // the information, and the two must not collapse. A minimal `{total: …}` document says nothing
+    // about scope, so the caller gets `null` and falls through to the value check as before.
+    if (files.length === 0) return null
+    return files.filter(([, entry]) => (entry?.lines?.covered ?? 0) > 0).length
+  } catch {
+    return null
+  }
+}
+
 export function readMeasured(reportJson) {
   try {
     // `_from_json_summary` reads this exact field, already rounded. Recomputing from covered/total
@@ -242,8 +281,11 @@ export function evaluateFloor({ floor, measured, tolerance = TOLERANCE }) {
       status: 'FAIL',
       message:
         `the floor ${floor}% is above the measured total ${measured}% — every plan halts here. ` +
-        'Either the tree regressed, or the floor was declared against a different one ' +
-        '(a coverage-tool major bump re-accounts the same code). Re-measure and re-declare.',
+        'THREE things produce this and the report cannot tell them apart: the tree regressed; ' +
+        'the floor was declared against a different one (a coverage-tool major bump re-accounts ' +
+        'the same code); or this report came from a PARTIAL run — a single-file coverage run ' +
+        'writes to this same path. Re-run the full suite first; re-measure and re-declare only ' +
+        'if the number holds.',
     }
   }
   if (measured - floor > tolerance) {
@@ -313,6 +355,17 @@ function main() {
       )
       return 0
     }
+    // B-165 — the same scope refusal as the main path below. The partial-report false alarm fires on
+    // THIS route too: a checkout without the kit installed reaches here, and a single-file report is
+    // just as incomparable to a whole-tree floor with or without a thresholds file.
+    if (readFilesCovered(earlyText) === 0) {
+      say(
+        '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
+          'measure the source tree. Re-run the full suite to check the value.',
+      )
+      return 0
+    }
+
     const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured: earlyMeasured })
     // The age travels on this route too. Line 250 of this file says a number without its age is a
     // claim about now, and the first version of this branch dropped it — including on the failing
@@ -355,6 +408,21 @@ function main() {
   const reportFile = join(root, REPORT_PATH)
   const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
   const measured = reportText === null ? null : readMeasured(reportText)
+
+  // A report measuring a fraction of the tree is not comparable to a whole-tree floor. The fraction
+  // is deliberately generous — a legitimate change moves the denominator by tens of lines, while the
+  // case this guards against is off by two orders of magnitude (4488 vs 68 when it was observed), so
+  // a loose bound separates them without ever catching real drift.
+  const covered = reportText === null ? null : readFilesCovered(reportText)
+  if (covered === 0) {
+    say(
+      '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
+        'measure the source tree: a partial coverage run writes to the same path. Re-run the full ' +
+        'suite to check the value.',
+    )
+    return 0
+  }
+
   const result = evaluateFloor({ floor: resolved.value, measured })
 
   if (result.status === 'UNMEASURED') {

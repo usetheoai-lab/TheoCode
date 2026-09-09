@@ -76,7 +76,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
 | [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `raw` | — |
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `raw` | — |
-| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `raw` | — |
+| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
 ### In flight (1)
 
@@ -7399,9 +7399,9 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: human
-evidence: none-yet
+evidence: `.claude/records/discoveries/opportunities/coverage-floor-partial-report-opportunity.md` (SHIPPABLE, 100)
 why_now: observed 2026-09-09 while closing B-161. Running `vitest run --coverage <one-file>` overwrites `coverage/coverage-summary.json` with that file's total (10.29%). The next `pnpm lint` read it and failed with "the floor 59.15% is above the measured total 10.29% — either the tree regressed, or the floor was declared against a different one", proposing a re-declaration. Nothing regressed and the floor was right; the report simply covered one file. The guard does print the report age, so it is not silent, but age does not distinguish a stale full run from a fresh partial one, and the message names neither possibility.
-status: raw
+status: triaged
 dod:
   - a report produced by a single-file run is not reported as a floor regression
   - whatever the guard does instead, it names the scope it read, not only the age

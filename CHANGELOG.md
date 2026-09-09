@@ -20,6 +20,16 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Fixed
+
+- The coverage-floor guard no longer reports a partial coverage run as a floor regression. Any
+  `--coverage` invocation overwrites the same report path, so a single-file run left a report the
+  guard compared against a whole-tree floor — it failed `pnpm lint` and proposed re-declaring a floor
+  that was correct. A report showing coverage for no source file is now skipped by name; where a
+  partial run did touch files it is indistinguishable from a real regression, so the guard still
+  fails and the message names that third possibility instead of offering two that do not apply
+  (B-165).
+
 ### Deprecated
 
 ### Removed

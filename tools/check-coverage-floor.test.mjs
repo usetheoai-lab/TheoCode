@@ -518,6 +518,51 @@ describe('the tracked floor is checkable without the kit', () => {
     expect(run(reportOnly(59.96)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
   })
 
+  // B-165 — `vitest run --coverage <one-file>` overwrites the same path with a report from a
+  // different run, and the guard compared it to a whole-tree floor: observed 2026-09-09, `pnpm lint`
+  // failed with "the floor 58.95% is above the measured total 10.29% ... Re-measure and re-declare"
+  // of a floor that was correct.
+  //
+  // Measured against real reports from this repository, only one of three candidate signals works:
+  // key count is 239 in both, the denominator is 4488 in both (the include glob is fixed), and files
+  // WITH coverage is 181 whole-tree against 0 for a run that touches no source file. So the check
+  // settles the extreme and nothing else, which is what these two tests pin.
+  function report({ pct, filesCovered, filesTotal = 3 }) {
+    const root = mkdtempSync(join(tmpdir(), 'floor-scope-'))
+    mkdirSync(join(root, 'coverage'), { recursive: true })
+    const json = { total: { lines: { pct, total: 4488, covered: Math.round((pct / 100) * 4488) } } }
+    for (let i = 0; i < filesTotal; i += 1) {
+      json[`/repo/packages/x/src/file-${String(i)}.ts`] = {
+        lines: { pct: i < filesCovered ? 80 : 0, total: 10, covered: i < filesCovered ? 8 : 0 },
+      }
+    }
+    writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify(json))
+    return root
+  }
+
+  it('test_a_report_that_covered_no_source_file_is_not_a_regression', () => {
+    // A genuine 0% would mean the suite executed nothing, which the runner reports first. So this
+    // shape is provably a partial run, and the one case the guard may settle on its own.
+    const result = run(report({ pct: 0, filesCovered: 0 }))
+
+    expect(result.code, 'a report covering no source file was called a regression').toBe(0)
+    expect(result.stdout).toContain('NO source file')
+    expect(result.stdout, 'it still proposed re-declaring a correct floor').not.toContain('Re-measure and re-declare')
+  })
+
+  it('test_a_partial_run_that_did_cover_files_still_fails_and_says_why', () => {
+    // The honest limit: 10.29% from one package's tests and 10.29% from a real regression are the
+    // same JSON. The guard does NOT guess — it fails, which is the safe side, and the message names
+    // the third possibility so a human settles it in one command instead of re-declaring the floor.
+    const result = run(report({ pct: 10.29, filesCovered: 1 }))
+
+    expect(result.code, 'the safe side is to fail when the report cannot be told apart').toBe(1)
+    expect(
+      result.stdout,
+      'the message offered only two explanations, and the real one was a third',
+    ).toMatch(/partial|full suite|whole tree/i)
+  })
+
   it('test_a_regression_below_the_tracked_floor_fails', () => {
     // The arm the first version never exercised: `floor > measured`. Without it, a mutant that lets
     // a real coverage regression pass silently survives.
