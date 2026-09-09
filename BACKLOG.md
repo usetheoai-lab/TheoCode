@@ -67,11 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-157 items — **Open** 0 · **In flight** 0 · **Closed** 157
+158 items — **Open** 1 · **In flight** 0 · **Closed** 157
 
-### Open (0)
+### Open (1)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `triaged` | — |
 
 ### In flight (0)
 
@@ -7337,6 +7339,22 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: human
+evidence: `packages/tui/src/commands/codex-names.ts:67` holds `auto-review`, renamed to `approve` in `@openai/codex@0.153.4`; `recap` is new there and in neither `registry.ts` nor `codex-names.ts`. Measured from the installed binary's own command table, not from the checkout at `codex/`, which is 2026-08-25 and would have reported a clean result. Opportunity: `.claude/records/discoveries/opportunities/codex-command-surface-drift-opportunity.md`
+why_now: `packages/tui/src/commands/codex-names.ts` declares which Codex commands this product does not implement, each with a pointer or an honest absence, and nothing checks it. Measured 2026-09-09 against the installed `codex-cli 0.153.4` in a tmux TUI: `/fast`, `/recap` and `/approve` answered `unknown command` — present in Codex's menu and in neither half of the map. The source comparison then showed why that was invisible: the checkout at `codex/` is from 2026-08-25 and its `slash_command.rs` has no `fast` and no `recap`, so reading the clone alone reports full coverage. The map is a claim about another product's surface with no mechanism keeping it true.
+status: triaged
+dod:
+  - a check reads Codex's `slash_command.rs` and this product's `registry.ts` + `codex-names.ts` and prints the delta in both directions
+  - it FAILS when a user-facing Codex command is neither implemented here nor answered by a pointer, and does NOT fail for Codex's own debug commands (`debug-m-drop`, `debug-m-update`, `test-approval`)
+  - run against the version the check was written for, it names `/fast` and `/recap` — a run that reports no delta against a stale checkout is the failure mode, so the check states which Codex revision it compared against
+
+> Registered 2026-09-09 by `/backlog-item` (slug: `codex-command-surface-drift`).
 
 ## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [x]
 

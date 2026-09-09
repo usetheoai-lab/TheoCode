@@ -18,6 +18,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+- `tools/check-codex-parity.mjs`, wired into `npm run lint`: a Codex command that is in neither this
+  product's builtin list nor its pointer map now fails the lint chain. The map asserts which Codex
+  commands have no local equivalent and nothing verified that assertion. First run against a current
+  Codex found **eight**: `approve`, `recap`, `voice` and `worktree` answered `unknown command`, and
+  four entries — `auto-review`, `multi-agents`, `elevate-sandbox`, `sandbox-read-root` — named enum
+  VARIANTS Codex never exposes, each shadowed by a `#[strum(...)]` override that is what a user
+  types. All eight closed. The checker prints the commit it compared against on every run, because
+  reading a month-old checkout reports a clean surface while four commands are missing; where the
+  study clone is absent it SKIPS loudly rather than passing. (#158)
+
+- backlog B-158 — nothing verifies the Codex parity map, and it has already drifted (#158)
+
 ### Changed
 
 ### Deprecated
