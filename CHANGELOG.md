@@ -18,6 +18,20 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.24.0] - 2026-09-09
+
+### Added
+
 - backlog B-159 — total line coverage is 59.29% against a floor of 80, so every plan halts at validation
 
 - `tools/check-codex-parity.mjs`, wired into `npm run lint`: a Codex command that is in neither this
@@ -31,6 +45,7 @@ for `release.yml` in this repository will not find it, and should not have been 
   study clone is absent it SKIPS loudly rather than passing. (#158)
 
 - backlog B-158 — nothing verifies the Codex parity map, and it has already drifted
+
 
 ### Changed
 
@@ -69,14 +84,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   effective floor of 5 reported as agreement at 59.29, needing only a stray CR from mixed line
   endings and touching no versioned file. It also accepts exactly the numeric grammar `float()`
   accepts, and tries both the plugin and standalone layouts in the gate's own order.
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.23.0] - 2026-09-08
 
