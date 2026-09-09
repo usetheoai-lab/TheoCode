@@ -26,6 +26,22 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- The Codex parity checker released in 0.24.0 carried the bug it was written to catch. Its post-
+  release review — the item shipped without one, because its validation had halted on a coverage
+  gate that a different item had to fix first — found four defects, each reproduced before being
+  fixed. The parser could not read a strum attribute carrying **both** forms
+  (`#[strum(to_string = "pwd", serialize = "cwd")]`): the pattern needed `)]` right after the first
+  quoted value, so the variant fell through to its kebab-cased name. That is the
+  `auto-review → approve` rename the item was raised for, alive inside its own fix, and unnoticed
+  only because the three commands Codex declares that way happen to render the same either way. The
+  revision label named the **wrong repository** — `git -C codex log` walks up when `codex/` is not
+  itself a checkout, so a vendored or tarball copy made the checker report the host repo's commit as
+  the Codex one. A rename landed on a map key that already existed. And the two local source reads
+  were unguarded, throwing the stack trace inside `npm run lint` that an edge case had hardened the
+  Codex read against. Seven tests added: the suite had asserted **counts**, and a parse that finds
+  most of a surface has the right count and the wrong contents — four mutants survived it, including
+  reverting the fix the item exists for. All six now die.
+
 - The coverage floor released in 0.24.0 was measured on a contaminated tree and is corrected from
   59.29% to **59.2%**. Acceptance on the `v0.24.0` tag reported `coverage FAIL — 59.2% is below the
   59.29% floor`: `packages/agent/src/context/agents-md.ts` walks ancestor directories for
