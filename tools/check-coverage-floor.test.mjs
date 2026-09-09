@@ -12,94 +12,81 @@
  * passes against a parser that rejects everything.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { DECLARED_FLOOR, compareToDeclared, evaluateFloor, parseFloor, readMeasured } from './check-coverage-floor.mjs'
+import { DECLARED_FLOOR, compareToDeclared, evaluateFloor, readMeasured, resolveViaGate } from './check-coverage-floor.mjs'
 
-describe('parsing the declared floor', () => {
-  it('test_a_bare_declaration_parses', () => {
-    expect(parseFloor('coverage.min_percent = 59.29\n')).toEqual({ value: 59.29 })
+describe('asking the gate what floor it resolves', () => {
+  // These replace a suite that tested a JavaScript reimplementation of `resolve_threshold`. The
+  // reimplementation is gone: two adversarial passes found character-class divergences between the
+  // two parsers, each a way to lower the effective floor while the checker reported agreement.
+  // Every case below is one of those, and each now runs BOTH implementations on the same bytes.
+  const gateDir = resolve('.claude/skills/implement/scripts')
+
+  function withThresholds(body) {
+    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-gate-'))
+    mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
+    writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), body)
+    symlinkSync(gateDir, join(root, '.claude', 'skills-link'))
+    mkdirSync(join(root, '.claude', 'skills', 'implement'), { recursive: true })
+    symlinkSync(gateDir, join(root, '.claude/skills/implement/scripts'))
+    return root
+  }
+
+  /** What the gate itself resolves — the fact under test, not a model of it. */
+  function gateSays(root) {
+    const out = execFileSync('python3', ['-c',
+      `import json,sys;sys.path.insert(0,${JSON.stringify(gateDir)});from pathlib import Path;` +
+      `import coverage_gate as g;v,s=g.resolve_threshold(Path(${JSON.stringify(root)})); print(json.dumps([v,s]))`,
+    ], { encoding: 'utf8' })
+    return JSON.parse(out)
+  }
+
+  it('test_it_reports_the_value_the_gate_reports', () => {
+    const root = withThresholds('coverage.min_percent = 59.29\n')
+    expect(resolveViaGate(root)).toEqual({ value: 59.29, source: 'project' })
+    expect(gateSays(root)).toEqual([59.29, 'project'])
   })
 
-  it('test_comment_lines_above_the_key_do_not_hide_it', () => {
-    // The positive control for the arm below: the reasoning genuinely lives on `#` lines, and a
-    // parser that choked on them would report every real declaration as absent.
-    const text = '# B-159. A ratchet, not a target.\n# Keep this line bare.\ncoverage.min_percent = 59.29\n'
-    expect(parseFloor(text)).toEqual({ value: 59.29 })
+  it('test_a_declaration_behind_a_bare_cr_is_seen_because_the_gate_sees_it', () => {
+    // F-guard-10-r3. `split('\n')` missed this; `splitlines()` does not.
+    const root = withThresholds('# note\rcoverage.min_percent = 5\ncoverage.min_percent = 59.29\n')
+    expect(gateSays(root)).toEqual([5, 'project'])
+    expect(resolveViaGate(root).value).toBe(5)
   })
 
-  it('test_a_trailing_comment_on_the_value_is_reported_not_ignored', () => {
-    // `coverage_gate.py` does float() on everything right of the `=`, raises, hits `continue`, and
-    // silently returns (80, 'default'). Measured in a /tmp scaffold on 2026-09-09.
-    const result = parseFloor('coverage.min_percent = 59.29  # ratchet\n')
-    expect(result.value).toBeUndefined()
-    // The message says "not a number" rather than "trailing text": F-guard-4 measured that the
-    // old wording asserted a shape that does not describe `.59` or `1e2`, and a consequence
-    // (falling back to 80) that does not happen when a later line declares the key.
-    expect(result.error).toMatch(/not a number/i)
-    expect(result.error).toContain('59.29  # ratchet')
+  it('test_a_leading_unit_separator_is_seen_because_the_gate_sees_it', () => {
+    // F-guard-16-r4. U+001F is Python whitespace, is NOT a splitlines() boundary, and is NOT JS
+    // whitespace — so `trim()` left it attached to the key and the line was skipped. Effective
+    // floor 0, reported as agreement.
+    const root = withThresholds('\u001fcoverage.min_percent = 0\ncoverage.min_percent = 59.29\n')
+    expect(gateSays(root)).toEqual([0, 'project'])
+    expect(resolveViaGate(root).value).toBe(0)
   })
 
-  it('test_an_absent_declaration_is_distinguished_from_a_malformed_one', () => {
-    // Different remedies: one is "declare it", the other is "the line you wrote does not work".
-    expect(parseFloor('# coverage.min_percent = 80\n').error).toMatch(/no .*declaration/i)
-    expect(parseFloor('coverage.min_percent = oops\n').error).toMatch(/not a number/i)
+  it('test_underscored_digits_are_read_the_way_python_reads_them', () => {
+    // F-guard-18-r4. `float('1_0')` is 10.0 and `Number('1_0')` is NaN, so the mirrored parser
+    // rejected a declaration the gate accepts — and a test asserted that as correct behaviour.
+    const root = withThresholds('coverage.min_percent = 1_0\n')
+    expect(gateSays(root)).toEqual([10, 'project'])
+    expect(resolveViaGate(root).value).toBe(10)
   })
 
-  it('test_it_accepts_every_form_the_python_gate_accepts', () => {
-    // F-guard-4. `resolve_threshold` uses float(), which takes all of these. Rejecting a line the
-    // gate reads fine would redden the lint chain over a working configuration.
-    for (const [text, expected] of [['59.', 59], ['.59', 0.59], ['1e2', 100], ['+59', 59], ['59', 59]]) {
-      expect(parseFloor(`coverage.min_percent = ${text}\n`)).toEqual({ value: expected })
-    }
+  it('test_a_bom_is_reported_as_the_gate_falling_back_rather_than_as_agreement', () => {
+    // F-guard-17-r4, the divergence in the other direction: the gate cannot read the key at all
+    // and uses its own default, which is B-159's original symptom.
+    const root = withThresholds('\ufeffcoverage.min_percent = 59.29\n')
+    expect(gateSays(root)).toEqual([80, 'default'])
+    expect(resolveViaGate(root)).toEqual({ value: 80, source: 'default' })
   })
 
-  it('test_a_malformed_line_followed_by_a_valid_one_resolves_to_the_valid_one', () => {
-    // The gate catches ValueError and keeps scanning, so this file is readable and must not fail.
-    const text = 'coverage.min_percent = oops\ncoverage.min_percent = 59.29\n'
-    expect(parseFloor(text)).toEqual({ value: 59.29 })
-  })
-
-  it('test_it_splits_lines_the_way_the_python_gate_splits_them', () => {
-    // F-guard-10-r3, the hole this checker existed to close and did not. Python's splitlines()
-    // breaks on all of these; split('\n') breaks on none. A declaration hidden behind one is
-    // authoritative for the gate and was invisible here — measured: effective floor 5 reported as
-    // agreement at 59.29, with no versioned file touched.
-    for (const sep of ['\r', '\v', '\f', '\x1c', '\x1d', '\x1e', '\u0085', '\u2028', '\u2029']) {
-      expect(parseFloor(`# note${sep}coverage.min_percent = 5\n`)).toEqual({ value: 5 })
-    }
-  })
-
-  it('test_a_comment_without_a_hidden_break_is_still_just_a_comment', () => {
-    // Positive control for the arm above: a parser that split on every space would also pass it.
-    expect(parseFloor('# note coverage.min_percent = 5\n').value).toBeUndefined()
-  })
-
-  it('test_it_rejects_numeric_forms_the_python_gate_rejects', () => {
-    // F-guard-14-r3. Number() takes these; float() does not, so accepting them would make the
-    // checker announce LOWERED while the gate had fallen back to 80.
-    for (const text of ['0x3B', '0b111011', '1_0']) {
-      expect(parseFloor(`coverage.min_percent = ${text}\n`).value).toBeUndefined()
-    }
-  })
-
-  it('test_it_rejects_nan_even_though_the_gate_accepts_it', () => {
-    // The one deliberate divergence: `percent >= nan` is False for every coverage, so a floor of
-    // nan makes the gate fail everything. Refusing it here protects the gate rather than mirroring
-    // it, and this test exists so the divergence is a decision rather than a bug.
-    expect(parseFloor('coverage.min_percent = nan\n').value).toBeUndefined()
-  })
-
-  it('test_an_empty_value_is_not_read_as_zero', () => {
-    // Number('') is 0 in JavaScript and a ValueError in Python. A floor of 0 passes everything.
-    expect(parseFloor('coverage.min_percent =\n').value).toBeUndefined()
-  })
-
-  it('test_the_commented_out_default_is_not_read_as_a_declaration', () => {
-    expect(parseFloor('# coverage.min_percent = 80\n').value).toBeUndefined()
+  it('test_an_unavailable_python_is_an_error_and_never_an_agreement', () => {
+    // A gate that cannot answer is not a gate that agreed.
+    const root = withThresholds('coverage.min_percent = 59.29\n')
+    expect(resolveViaGate(root, 'python3-that-does-not-exist').error).toBeDefined()
   })
 })
 
@@ -210,7 +197,9 @@ describe('the tracked declaration', () => {
   it.skipIf(onDisk === undefined)('test_the_two_declarations_of_the_floor_agree_in_this_repository', () => {
     // The invariant itself, on the real files. `skipIf` rather than an early return, so where the
     // gitignored file is absent this reports SKIPPED instead of green.
-    expect(compareToDeclared(parseFloor(readFileSync(onDisk, 'utf8')).value)).toEqual({ status: 'OK' })
+    // Through the gate, not through a model of it — the invariant is about the value that will
+    // actually be enforced.
+    expect(compareToDeclared(resolveViaGate(process.cwd()).value)).toEqual({ status: 'OK' })
   })
 
   it('test_a_downward_edit_of_the_gitignored_value_fails_at_any_magnitude', () => {
@@ -238,12 +227,28 @@ describe('the CLI contract', () => {
   // `tolerance: 1` explicitly).
   const CLI = new URL('./check-coverage-floor.mjs', import.meta.url).pathname
 
+  const GATE_DIR = resolve('.claude/skills/implement/scripts')
+
+  /**
+   * A scaffold the checker can actually interrogate.
+   *
+   * The gate module is linked in as well as the thresholds file: since the checker asks
+   * `resolve_threshold` rather than reimplementing it, a root without the kit is a root where the
+   * question cannot be answered — which the checker reports as an error, correctly, and which would
+   * make every case below look like a failure for the wrong reason.
+   */
+  function linkGate(root, prefix) {
+    mkdirSync(join(root, ...prefix, 'skills', 'implement'), { recursive: true })
+    symlinkSync(GATE_DIR, join(root, ...prefix, 'skills', 'implement', 'scripts'))
+  }
+
   function scaffold({ floor, pct }) {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     if (floor !== undefined) {
       mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
       writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${floor}\n`)
     }
+    linkGate(root, ['.claude'])
     if (pct !== undefined) {
       mkdirSync(join(root, 'coverage'), { recursive: true })
       writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct } } }))
@@ -276,7 +281,12 @@ describe('the CLI contract', () => {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), 'coverage.min_percent = 59.29  # ratchet\n')
-    expect(run(root).code).toBe(1)
+    linkGate(root, ['.claude'])
+    // The gate cannot read this line either, so it falls back to its own default — which is not
+    // agreement, and is the state B-159 exists to remove.
+    const result = run(root)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain("'default'")
   })
 
   it('test_slack_beyond_the_default_tolerance_exits_nonzero', () => {
@@ -307,6 +317,7 @@ describe('the CLI contract', () => {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     mkdirSync(join(root, 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
+    linkGate(root, [])
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).toContain('says 5%')
@@ -321,6 +332,7 @@ describe('the CLI contract', () => {
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${DECLARED_FLOOR}\n`)
+    linkGate(root, [])
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).toContain('says 5%')
@@ -335,6 +347,7 @@ describe('the CLI contract', () => {
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), '# nothing declared here\n')
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${DECLARED_FLOOR}\n`)
+    linkGate(root, [])
     expect(run(root).code).toBe(0)
   })
 
@@ -347,6 +360,7 @@ describe('the CLI contract', () => {
       join(root, '.claude/rules/code-quality-thresholds.txt'),
       `# ratchet note\rcoverage.min_percent = 5\ncoverage.min_percent = ${DECLARED_FLOOR}\n`,
     )
+    linkGate(root, ['.claude'])
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).toContain('says 5%')
@@ -365,6 +379,7 @@ describe('the CLI contract', () => {
     // trace out of `pnpm lint`.
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     mkdirSync(join(root, '.claude/rules/code-quality-thresholds.txt'), { recursive: true })
+    linkGate(root, ['.claude'])
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).not.toContain('EISDIR')
