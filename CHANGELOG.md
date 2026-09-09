@@ -28,6 +28,33 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.25.0] - 2026-09-09
+
+### Added
+
+- `CONTRIBUTING.md` now says what `rules/*.md` means when a comment cites it. Measured: 29 tracked
+  files carry 36 such citations, ten of them in production source, and none of those rule files is
+  versioned here — they belong to tooling installed at `.claude/`, which is gitignored. A
+  contributor reading `config/home-dir.ts` to learn why an error is typed was being sent to a path
+  their checkout does not contain.
+
+  The citations themselves are left exactly as they are, and that is the finding rather than
+  laziness: each one is an **attribution**, and the sentence around it carries the reasoning on its
+  own — *"keeps the error TYPED, which `rules/error-handling.md` asks for and a plain `Error` would
+  give up"* tells you the whole thing without opening anything. Rewriting 36 sites would say once
+  per site what one paragraph says once per repository, and give 36 places to drift.
+
+
+### Fixed
+
+- `packages/shared/src/turn-error.ts:23` cited `rules/error-handling.md § 3` for the generic-message
+  anti-pattern. § 3 is the six-step hierarchy of handling; the anti-pattern is § 5. Production
+  source, and the kind of error nothing detects: the sentence around the citation is correct and
+  complete, so the wrong § misleads only the reader who goes to check it.
+
+  Found alongside a second instance in the same review, in the argument for **not** building a
+  checker for exactly this. Registered as B-164.
+
 ## [0.24.2] - 2026-09-09
 
 ### Changed

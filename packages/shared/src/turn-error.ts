@@ -20,7 +20,7 @@
  * The default is right for the transport it was written for. Masking exists so a public HTTP
  * endpoint does not leak server internals to a caller who is not the operator. In THIS product the
  * caller IS the operator: it runs on their machine, against their credential, and there is nobody
- * else to protect the detail from. `rules/error-handling.md` § 3 already names this shape as an
+ * else to protect the detail from. `rules/error-handling.md` § 5 already names this shape as an
  * anti-pattern: a generic message ("an unexpected error occurred") tells nobody what failed or
  * what to do about it.
  *
