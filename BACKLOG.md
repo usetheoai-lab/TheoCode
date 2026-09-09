@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-162 items — **Open** 3 · **In flight** 0 · **Closed** 159
+163 items — **Open** 4 · **In flight** 0 · **Closed** 159
 
-### Open (3)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-163`](#b-163--the-test-layout-convention-is-documented-only-where-it-cannot-travel----) | The test-layout convention is documented only where it cannot travel | `raw` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
@@ -7344,6 +7345,22 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-163 — The test-layout convention is documented only where it cannot travel   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: B-162 moved every test into a per-package `tests/` mirror and documented the convention in `.claude/rules/testing.md` § 5 — which layout is used, that `tools/` differs because it is not a package, and that `hooks/stop-validation.sh:222-243` finds the mirror through a per-unit basename index. `.claude/` is gitignored (`git ls-files .claude` returns 0), so a clone receives none of it. Verified against the v0.24.2 tag worktree: `.claude/rules/testing.md` is absent, `CONTRIBUTING.md` says nothing about test layout, and the only surviving statement is the glob in `vitest.config.ts:11` plus its two-line comment. Found by B-162's ACCEPTANCE run, which recorded it as the caveat behind ACCEPTED_WITH_CAVEATS: `.claude/records/acceptance/B-162-v0.24.2.md`.
+why_now: A contributor cloning this repository now finds 191 test files in a layout no tracked file explains, next to 8 under `tools/` in a different one. The reason for the difference is real and recorded, and recorded where they cannot read it. This is the third item in one session to end with a caveat of this shape — B-160 is the same fact about the coverage floor — which suggests the pattern is worth addressing once rather than three times.
+status: raw
+dod:
+  - a tracked file states the test layout, why `tools/` differs, and where the pairing gate looks
+  - a clone with no `.claude/` can answer "where do tests go and why" from what it received
+  - the statement does not duplicate the rule, so the two cannot drift
+
+> Registered 2026-09-09 from B-162's ACCEPTANCE run (verdict ACCEPTED_WITH_CAVEATS, minor defect).
+
 ## B-162 — Test code and production code share every src/ directory   [ ]
 
 domain: TheoCode
@@ -7356,11 +7373,13 @@ status: triaged
 dod:
   - no `*.test.*` file remains under any `packages/*/src/` directory — `tools/` is out of scope, it is not a package and has no `src`
   - `pnpm test` runs the same number of tests before and after, and the suite is green
-  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared from 59.2 to 59.18 in the same change
+  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared in the same change. **CORRECTED 2026-09-09, BEFORE the acceptance run:** this bullet named the transition as `59.2 -> 59.18`, which went stale between writing and implementing — B-159's hotfix moved the floor from 59.2 to 59.18 in the meantime, so the re-declaration this item actually owes is `59.18 -> 59.15`. The substance is unchanged and the figures are dropped rather than restated, because a criterion that pins a number a sibling item can move is a criterion that ages
   - the TDD pairing gate finds tests at the new location, or `rules/testing.md § 5` records the new convention and the hook is taught it
   - `pnpm lint`, `pnpm typecheck` and `depcruise` stay green
 
 > Registered 2026-09-09 by request, with the scope measured before filing.
+
+> ACCEPTED_WITH_CAVEATS against tag v0.24.2 on 2026-09-09 — `.claude/records/acceptance/B-162-v0.24.2.md`. All five criteria exercised from the released artifact. AC2's 1527 decomposes as 1503 passed and 24 SKIPPED, which is the honest state without the kit. The caveat is that the convention is documented only in gitignored `.claude/`, registered as B-163.
 
 ## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
 
