@@ -258,7 +258,13 @@ const ALLOWED = new Set([
   // exempt every future accented line in this file, and the whole point is that the accents here are
   // the SUBJECT of an assertion rather than prose. The cost of the citation rotting is smaller than
   // the cost of the exemption widening.
-  'packages/agent/src/ask/ask-bridge.test.ts:160',
+  //
+  // It rotted on 2026-09-09 by a cause that paragraph did not anticipate: B-162 moved every test
+  // out of `src/` into a per-package `tests/` mirror, so the PATH changed while the line did not.
+  // A line-anchored exemption survives an edit above it badly and a relocation not at all. Still
+  // the right trade — the alternative exempts every future accented line in this file — but the
+  // failure mode is a repository-wide move, not only an editor.
+  'packages/agent/tests/ask/ask-bridge.test.ts:160',
 ])
 
 /** Strip combining marks so `seleção` also indexes as `selecao`. */

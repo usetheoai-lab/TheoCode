@@ -20,6 +20,19 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+- Tests moved out of every `packages/*/src/` into a per-package `tests/` mirror, so production
+  directories hold production code. 191 files relocated and 302 relative specifiers rewritten by
+  codemod; `tools/` keeps its 8 tests beside its checkers, because it is not a package and has no
+  `src/`. The suite reports the same 1527 tests green.
+
+  Two things the move surfaced. `hooks-test-helpers.ts` was test scaffolding living in `src/`, and
+  because it is not a `*.test.*` file the coverage config counted it as **production** — moving it
+  removes 3 lines from the production denominator, so the declared floor moves with it. And six
+  tests read their subject's source file **by path** rather than importing it, to assert on its text
+  — that `process.cwd()` has not reappeared, that every routed subcommand is covered. Those six were
+  re-pointed by hand and each was verified by mutating the source it reads and confirming it goes
+  red; a wrong path still resolves to a file that exists, so a green suite would have hidden it.
+
 ### Deprecated
 
 ### Removed

@@ -16,6 +16,6 @@
       "@theocode/shared/*": ["./packages/shared/src/*"]
     }
   },
-  "include": ["packages/*/src/**/*", "packages/*/tools/**/*", "tools/**/*", "*.config.ts"],
+  "include": ["packages/*/src/**/*", "packages/*/tests/**/*", "packages/*/tools/**/*", "tools/**/*", "*.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
