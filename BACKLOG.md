@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
+| [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `triaged` | — |
 | [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `triaged` | — |
 
 ### In flight (0)
@@ -7409,18 +7409,18 @@ dod:
 
 > ACCEPTED_WITH_CAVEATS against tag v0.24.2 on 2026-09-09 — `.claude/records/acceptance/B-162-v0.24.2.md`. All five criteria exercised from the released artifact. AC2's 1527 decomposes as 1503 passed and 24 SKIPPED, which is the honest state without the kit. The caveat is that the convention is documented only in gitignored `.claude/`, registered as B-163.
 
-## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
+## B-161 — Three tests isolate HOME and pass the real cwd   [ ]
 
 domain: TheoCode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: THREE independent channels, each isolated by changing one variable at a time and measured on the same commit. `packages/agent/src/context/agents-md.ts:62-66` — MECHANISM demonstrated, TRIGGER unidentified. The walk returns at the first `.git`, so it cannot leave the repository; `/home/paulo/CLAUDE.md`, named as the cause in this item's first two filings, DOES NOT EXIST, and `specs/CLAUDE.md` was falsified as a second candidate (45 lines with and without it). A context file placed above a checkout reproduces exactly this +1 in a controlled test, so the channel is real. Identifying what triggers it here is part of this item. `packages/agent/src/session/gc/per-session.ts` — `readTranscriptDir` reads `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds 16 transcripts for the working tree's path and none for a `/tmp` one; proved by creating that directory for a `/tmp` checkout, which turned lines 60-62 covered with nothing else changed (+3 lines). `packages/agent/src/context/rules.ts:82` — the default `warn` callback of `loadRules` runs only when the rules corpus exceeds 64 000 chars, and an installed `.claude/rules/` is 248 669, so the total depends on the SIZE of the kit sitting beside the checkout (+1 line). Measured chain: 2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree), all out of 4491. **Correction to this item's first filing:** it credited all four lines to the ancestor walk alone. `per-session.ts` has no ancestor walk and never calls `agents-md`; that attribution was wrong, and the rules-corpus channel was not named at all. Found by the review of B-159's hotfix.
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/coverage-measures-the-machine-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **The trigger is identified, after two attributions in this item's own history were falsified by execution.** Two full coverage runs at the same commit: clean worktree 2655/4488, working tree 2660/4488, and exactly three files differ. Per-statement instrumentation names the lines: `context/agents-md.ts:219` (`parts.push(`, runs only when a project document exists to compose), `context/rules.ts:82` (the default `warn`, behind a 64 000-char corpus threshold) and `session/gc/per-session.ts:60-62` (`readdirSync` of the transcript store). All three are production branches that execute only when the environment holds real content. The ancestor-walk hypothesis is dead: `agentsMdChain(process.cwd())` returns `[]` in the working tree, measured by writing the chain out from inside a test — `walkInstructionChain` stops at the first `.git`, which the repo root has. The actual trigger is three tests that set `process.env.HOME` to a temp directory and then pass `cwd: process.cwd()`: `context/user-skills.wiring.test.ts:39` and `:61`, and `wired-capabilities.test.ts:98`. They isolated the half they thought about and left open the half the content arrives through.
 why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
-status: raw
+status: triaged
 dod:
   - all three channels are closed: the rules-corpus threshold, the context-chain trigger (which must first be IDENTIFIED — two candidates are already falsified) and the transcript store
-  - a test that reaches outside the repository fails, or is shown not to exist
+  - the three `cwd: process.cwd()` call sites take a controlled directory instead — **the original bullet asked the wrong question**: no test reaches outside the repository, three reach INTO the real tree on purpose, and the tree is what varies
   - total line coverage is the same number in a bare checkout, in one with a kit installed, and in the maintainer's tree — so the floor can be re-declared from any of them and the word `ratchet` becomes true everywhere
 
 > Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
