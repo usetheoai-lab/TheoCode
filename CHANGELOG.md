@@ -16,16 +16,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
-### Fixed
-
-- The operator's rules and skills now follow `$THEOKIT_HOME` when it points outside the home
-  directory, as config, the trust store and MCP scopes already did. One build could resolve config
-  from one operator root and its instructions from another, with nothing reported: `homeStateDir`
-  returns the configured path verbatim while the rules loader dropped any root it could not express
-  relative to the home. Skills never asked at all — under the supported `home_dir = .claude` setting,
-  rules read both roots, `AGENTS.md` followed `.claude`, and skills read only `.theokit/skills`
-  (B-171).
-
 ### Added
 
 ### Changed
