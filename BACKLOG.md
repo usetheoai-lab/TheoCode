@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-167 items — **Open** 3 · **In flight** 1 · **Closed** 163
+168 items — **Open** 4 · **In flight** 1 · **Closed** 163
 
-### Open (3)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `raw` | — |
 | [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `raw` | — |
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `raw` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `raw` | — |
@@ -7349,6 +7350,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-168 — Three review findings with no home: a missing test, a leaking global, an undiffable plan   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `.claude/records/reviews/coverage-measures-the-machine-review-2026-09-09.md` — six agents, findings F-tests-1, F-tests-3/F-arch-8, F-xval-3
+why_now: B-161's review surfaced three HIGH/MEDIUM findings that belong to no single item and would otherwise be carried only in a review report nobody re-reads. (1) The plan declared a regression test `test_no_test_hands_build_chat_agent_the_real_cwd` and it was never written — verified absent by two agents independently — so the invariant T1.1 established is enforced by nothing and a future edit reintroduces it silently. (2) `recordWiring` mutates module-level state in `packages/tui/src/agent-session/wiring-record.ts` with no reset, so a test that publishes a record leaves `currentWiring()` set for every later test in the file; proven by probe, and one later test reads it through production and survives only because the fake omits `skills`. (3) A plan under `.claude/` cannot be diffed against the commits it describes, because the directory is gitignored — so "the plan was edited after implementation" is unfalsifiable here, which is itself the finding.
+status: raw
+dod:
+  - the T1.1 invariant has a test that fails when a test hands the build the real cwd
+  - publishing a wiring record in a test does not change what a later test in the same file observes
+  - either a plan's post-implementation edits are detectable, or the records state plainly that they are not
 
 ## B-167 — The suite reads the operator's home, so coverage still varies by machine   [ ]
 
