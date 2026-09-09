@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-163`](#b-163--the-test-layout-convention-is-documented-only-where-it-cannot-travel----) | The test-layout convention is documented only where it cannot travel | `raw` | — |
+| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `triaged` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
@@ -7345,19 +7345,19 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
-## B-163 — The test-layout convention is documented only where it cannot travel   [ ]
+## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
 
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: discover-review
-evidence: B-162 moved every test into a per-package `tests/` mirror and documented the convention in `.claude/rules/testing.md` § 5 — which layout is used, that `tools/` differs because it is not a package, and that `hooks/stop-validation.sh:222-243` finds the mirror through a per-unit basename index. `.claude/` is gitignored (`git ls-files .claude` returns 0), so a clone receives none of it. Verified against the v0.24.2 tag worktree: `.claude/rules/testing.md` is absent, `CONTRIBUTING.md` says nothing about test layout, and the only surviving statement is the glob in `vitest.config.ts:11` plus its two-line comment. Found by B-162's ACCEPTANCE run, which recorded it as the caveat behind ACCEPTED_WITH_CAVEATS: `.claude/records/acceptance/B-162-v0.24.2.md`.
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/rules-cited-not-shipped-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **This item's filed premise is partly FALSIFIED and the finding underneath is larger.** `vitest.config.ts:10-11` is tracked and does state the layout and why `tools/` differs, so "nothing tracked explains it" is false; and the third thing the original DoD asked for — where the pairing gate looks — describes machinery (`hooks/stop-validation.sh`) that a clone does not have at all. What IS true: 29 tracked files cite 5 rule files 36 times — `error-handling.md` 15, `testing.md` 11, `public-copy.md` 7, `architecture.md` 2, `english-only.md` 1 — and none exists in a clone. TEN are production source explaining why the code is shaped as it is (`config/home-dir.ts:60`, `goal/goal.ts:34`, `session/thread-history.ts:27`, `skills-on-disk.ts:28`). `tools/check-doc-references.mjs` exists to keep cited paths resolving and reads `README.md` only, so nothing detects it in either direction. A first pass counted 5 further rules as missing even locally; checked before filing, all five are fixture filenames or a placeholder in a docs table — my regex's false positives, not defects.
 why_now: A contributor cloning this repository now finds 191 test files in a layout no tracked file explains, next to 8 under `tools/` in a different one. The reason for the difference is real and recorded, and recorded where they cannot read it. This is the third item in one session to end with a caveat of this shape — B-160 is the same fact about the coverage floor — which suggests the pattern is worth addressing once rather than three times.
-status: raw
+status: triaged
 dod:
-  - a tracked file states the test layout, why `tools/` differs, and where the pairing gate looks
-  - a clone with no `.claude/` can answer "where do tests go and why" from what it received
-  - the statement does not duplicate the rule, so the two cannot drift
+  - the 36 citations either resolve for the reader who has them, or say plainly that they name an environment the clone does not have — the choice between those two is the plan's central decision
+  - a clone with no `.claude/` can read any of the 10 production files and not be sent to a path that is simply absent
+  - whatever is added is detected when it rots — today `check-doc-references.mjs` reads `README.md` only, so 36 citations are unguarded in both directions
 
 > Registered 2026-09-09 from B-162's ACCEPTANCE run (verdict ACCEPTED_WITH_CAVEATS, minor defect).
 
