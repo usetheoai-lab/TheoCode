@@ -42,16 +42,57 @@ export default defineConfig({
      *   Branches    76.04%  (1000/1315)       at ZERO coverage     40  (1748 lines)
      *   Functions   57.00%  (358/628)
      *
-     * NO THRESHOLD IS SET HERE, and that is a recorded decision rather than an omission (the
-     * item's third acceptance bullet allows exactly this). A floor picked to sit just under
-     * today's number is decorative — it ratchets nothing and turns green into noise. A floor
-     * picked ABOVE it fails the build on work nobody has scheduled. Either way the number would
-     * be chosen to be passed rather than to be met.
+     * NO THRESHOLD IS SET BY VITEST, and that is still deliberate. B-063's reasoning was: a floor
+     * picked to sit just under today's number is decorative — it ratchets nothing and turns green
+     * into noise; a floor picked ABOVE it fails the build on work nobody has scheduled. Either way
+     * the number would be chosen to be passed rather than to be met.
      *
-     * What makes a floor meaningful is a decision about WHICH of the 40 zero-coverage files are
-     * meant to stay that way — `main.ts` and command entry points are arguably composition, and
-     * `use-tui-composition.ts` at 248 uncovered lines is arguably not. That triage is the next
-     * item, and it is the one this configuration is here to make possible.
+     * B-159 (2026-09-09) overturned half of that, and only half. "No floor" stopped being
+     * available: `/implement`'s validation gate enforces one regardless, and with none declared it
+     * used DEFAULT_MIN_PERCENT = 80 from the kit's `coverage_gate.py` — a number chosen by nobody
+     * here, failing every plan. The choice was never floor-vs-no-floor; it was our number vs a
+     * library's.
+     *
+     * So a floor now exists, in `.claude/rules/code-quality-thresholds.txt` as
+     * `coverage.min_percent`, set to EXACTLY the measured total with no slack. The slack is what
+     * B-063's sentence was about: it is what permits regression while reading as a standard. With
+     * none, a change taken through `/implement` that lowers total coverage fails. That is a
+     * ratchet, not a decoration.
+     *
+     * TWO LIMITS, because that path does not exist in a fresh clone. `.claude/` is gitignored, so
+     * the number above binds a checkout that installed the kit, and CI runs `pnpm test` without
+     * coverage. What DOES travel is `DECLARED_FLOOR` in `tools/check-coverage-floor.mjs`: the same
+     * number, tracked, checked against the gitignored one on every `pnpm lint`. Lowering the floor
+     * therefore means editing a versioned file, which is the point — before that constant existed,
+     * a downward edit appeared in no diff at all.
+     *
+     * It is deliberately NOT here. This file configures the reporter; the gate that reads the
+     * report is the kit's, and one number in one place is the whole point.
+     *
+     * MEASURED 2026-09-09, 1479 tests: lines 59.29% (2663/4491), 34 files at zero coverage
+     * (594 lines), 240 source files.
+     *
+     * DO NOT DIFFERENCE THESE AGAINST THE 2026-08-20 BLOCK ABOVE. A first draft of this comment
+     * said "1154 lines of the original debt were covered in three weeks", from 1748 − 594. Three
+     * reviewers falsified it independently: the two runs used different major versions of the
+     * coverage tool (`@vitest/coverage-v8` ^3.2.7 -> ^4.1.11), and the re-accounting is visible —
+     * with this `coverage:` block byte-identical and the source set GROWING 179 -> 240 files,
+     * reported statements halved (10144 -> 5054) while branches and functions roughly doubled. A
+     * single glob over a growing tree cannot do that; the counting basis changed. Each run is
+     * correct about its own tree. The subtraction is not a measurement of anything.
+     *
+     * What survives the version change better is the file COUNT: 40 files at zero coverage out of
+     * 179 by B-063's own reckoning (the glob at `0be3066` holds 181), down to 34 out of 240 today.
+     * Better, not perfectly — v4's AST remapping produces 24 entries with no executable lines at
+     * all, which are excluded from the 34, and the v3 report is gone so the same exclusion cannot
+     * be re-applied to the old figure. Read it as a direction, not a delta: fewer untouched files
+     * across a larger codebase, with no floor in force. So the floor is not what produces the
+     * improvement; it is what stops the loss.
+     *
+     * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
+     * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
+     * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
+     * the next item, and 59.29% is a ratchet, never a target.
      */
     coverage: {
       provider: 'v8',
