@@ -14,6 +14,43 @@ a dependency bump, a new option reaching the framework, anything about what the 
 exercise the built binary in a throwaway project. The suite mocks the boundary this kind of change
 crosses, which is exactly why it stays green through the failure.
 
+## What `rules/*.md` means in a comment
+
+Comments across this repository cite rule files — `rules/error-handling.md`, `rules/testing.md`,
+`rules/public-copy.md`, `rules/architecture.md`, `rules/english-only.md` — to say where a decision
+came from. **Those files are not versioned here**, so a clone will not contain them. They belong to
+the tooling installed at `.claude/`, which is gitignored and has its own repository.
+
+You are not missing an explanation. Every one of those citations is an **attribution**, and the
+sentence around it carries the reasoning on its own:
+
+```ts
+// Extending the SDK base keeps the error TYPED, which `rules/error-handling.md` asks for
+// and a plain `Error` would give up.
+```
+
+The reader learns that the error is typed on purpose, and why, without opening anything. The path
+credits the source; it is not a pointer you must follow.
+
+Six rule files are cited this way; the sixth, `rules/git-safety.md`, is cited by
+`.github/workflows/ci.yml`. Count them yourself rather than trusting a number here — the first
+version of this paragraph published two figures that came from two different greps and neither was
+reproducible:
+
+```bash
+git ls-files | grep -vE '^(BACKLOG|CHANGELOG)\.md$' | xargs grep -oE '(rules/[a-z-]+\.md)' | sort | uniq -c
+```
+
+Nothing detects it when one rots. `tools/check-doc-references.mjs` validates the paths cited by
+`README.md` and nothing else, and widening it on its current rule — *the path resolves* — would fail
+every one of these permanently, since the files genuinely do not ship.
+
+**A citation asserts more than it credits, and that part IS checkable.** `rules/error-handling.md
+§ 5` claims that section says something particular. Two such section numbers were wrong when this
+paragraph was written — one of them in the argument for leaving them unguarded, and one in
+production source. The sentence still stood on its own in both cases, which is why they survived:
+a wrong § number costs nothing to a reader and misleads anyone who goes to check.
+
 ## Ways a careful measurement still lies
 
 All of these happened here, and none is caught by being more careful with the measurement itself.

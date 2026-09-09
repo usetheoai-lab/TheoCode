@@ -67,13 +67,14 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-162 items — **Open** 3 · **In flight** 0 · **Closed** 159
+164 items — **Open** 4 · **In flight** 0 · **Closed** 160
 
-### Open (3)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `triaged` | — |
+| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `raw` | — |
+| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
@@ -81,7 +82,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 _None._
 
-### Closed (159)
+### Closed (160)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -239,6 +240,7 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
@@ -7344,6 +7346,38 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-164 — A cited section number is unverifiable, and two were wrong   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: Comments across tracked files cite rule sections — `rules/error-handling.md § 5`, `rules/testing.md § 4.1` — and the § number is an ASSERTION that the named section says a particular thing. Nothing checks it, and B-163's review found two wrong out of 24 section-bearing citations: `packages/shared/src/turn-error.ts:23` cited `error-handling.md § 3` (the six-step hierarchy) for the generic-message anti-pattern, which is § 5; and B-163's own ADR-2 cited `testing.md § 6` (six bullets on test anti-patterns) for "a gate that cannot pass is worse than none", a phrase that is this repository's own from `tools/check-english-only.mjs`. Both were found by a reviewer opening the files. The review also showed the guard is buildable: `tools/check-doc-references.mjs` already ships `DESCRIBED_NOT_CITED` with per-entry reasons and `test_the_exemption_list_does_not_swallow_everything` as its anti-vacuity floor, so the shape exists.
+why_now: B-163 documented that a `rules/*.md` citation is an attribution whose sentence stands alone — verified across all 38-45 sites, no counterexample. What it did NOT establish is that the § number is right, and that half is both checkable and wrong twice. The asymmetry is what makes it worth a gate: a wrong § costs a reader nothing, because the sentence carries the meaning, and misleads exactly the person who goes to verify. B-163's ADR-2 argued nothing could be mechanized here and was itself the counterexample.
+status: raw
+dod:
+  - every cited `rules/X.md` belongs to a declared closed set, so a typo or a kit-side rename fails
+  - where `.claude/rules/` is present, a cited `§ N` is checked to exist, and the check SKIPs loudly where it is not
+  - the check is shown to catch both known-wrong citations before they were fixed, not asserted to
+
+> Registered 2026-09-09 from B-163's REVIEW, which found the defect inside the argument for not building this.
+
+## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/rules-cited-not-shipped-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **This item's filed premise is partly FALSIFIED and the finding underneath is larger.** `vitest.config.ts:10-11` is tracked and does state the layout and why `tools/` differs, so "nothing tracked explains it" is false; and the third thing the original DoD asked for — where the pairing gate looks — describes machinery (`hooks/stop-validation.sh`) that a clone does not have at all. What IS true: 29 tracked files cite 5 rule files 36 times — `error-handling.md` 15, `testing.md` 11, `public-copy.md` 7, `architecture.md` 2, `english-only.md` 1 — and none exists in a clone. TEN are production source explaining why the code is shaped as it is (`config/home-dir.ts:60`, `goal/goal.ts:34`, `session/thread-history.ts:27`, `skills-on-disk.ts:28`). `tools/check-doc-references.mjs` exists to keep cited paths resolving and reads `README.md` only, so nothing detects it in either direction. A first pass counted 5 further rules as missing even locally; checked before filing, all five are fixture filenames or a placeholder in a docs table — my regex's false positives, not defects.
+why_now: A contributor cloning this repository now finds 191 test files in a layout no tracked file explains, next to 8 under `tools/` in a different one. The reason for the difference is real and recorded, and recorded where they cannot read it. This is the third item in one session to end with a caveat of this shape — B-160 is the same fact about the coverage floor — which suggests the pattern is worth addressing once rather than three times.
+status: triaged
+dod:
+  - the 36 citations either resolve for the reader who has them, or say plainly that they name an environment the clone does not have — the choice between those two is the plan's central decision
+  - a clone with no `.claude/` can read any of the 10 production files and not be sent to a path that is simply absent
+  - whatever is added is detected when it rots — today `check-doc-references.mjs` reads `README.md` only, so 36 citations are unguarded in both directions
+
+> Registered 2026-09-09 from B-162's ACCEPTANCE run (verdict ACCEPTED_WITH_CAVEATS, minor defect).
+
 ## B-162 — Test code and production code share every src/ directory   [ ]
 
 domain: TheoCode
@@ -7352,15 +7386,17 @@ suggested_mode: evolve
 source: human
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/tests-out-of-src-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). The move was performed for real in a throwaway `/tmp` worktree and the suite reached 199/199 files, 1520 tests, identical to before. Coverage moved and the cause is exact: `packages/agent/src/hooks/hooks-test-helpers.ts` (3/3 lines) left the measured set because it is test scaffolding living in `src/` that `vitest.config.ts`'s `**/*.test.*` exclude never matched — 59.2% (2659/4491) to 59.18% (2656/4488), with no other file changing. The TDD pairing gate needs NO change: `stop-validation.sh:222-243` indexes test basenames per unit and its own comment names `packages/<p>/tests/unit/` as the case it serves; verified by execution. Residue that is not mechanical: 6 tests read a source file by path (`new URL('./chat.ts')`) to assert on its text. Original intake, at `2cfad43`: 199 test files live inside `packages/*/src/**` and `tools/`, distributed agent 98, tui 68, cli 18, tools 8, shared 7. They total **22 427 lines against 19 566 of production**, so test code is the majority of the tree by line count and is interleaved with production in every `src/` directory. The move has a measured blast radius: 274 relative imports inside tests would need rewriting (`git ls-files '*.test.ts' | xargs grep -oE "from '\.[^']*'" | wc -l`), and one non-`.test.` support file sits in production, `packages/agent/src/hooks/hooks-test-helpers.ts`. Zero production files import a test file, so the dependency direction is already clean and nothing in production breaks. Five configs key on the current layout: `vitest.config.ts:11`, `tsconfig.json:19`, `.dependency-cruiser.cjs:60`, `knip.jsonc`, eslint.
 why_now: The maintainer asked for the separation on 2026-09-09 and chose the per-package `tests/` layout. The local fact that makes it non-trivial rather than cosmetic is `hooks/stop-validation.sh:135-148`: it pairs a source file with its test **by directory**, so a mirror tree makes that TDD gate blind — it would report "no test" for files that have one. `rules/testing.md § 5` already anticipates this and requires the new convention to be documented so the hook knows where to look, which means this item changes a contract and not only a file layout. Coverage is the second reason to measure rather than assume: the `include` is `packages/*/src/**` and the `exclude` is `**/*.test.*`, so in theory the measured set does not move — but B-159 turned that number into a zero-slack gate and B-161 is open showing it varies with the machine, so before/after has to be compared in one environment.
-status: triaged
+status: shipped
 dod:
   - no `*.test.*` file remains under any `packages/*/src/` directory — `tools/` is out of scope, it is not a package and has no `src`
   - `pnpm test` runs the same number of tests before and after, and the suite is green
-  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared from 59.2 to 59.18 in the same change
+  - total line coverage measured in ONE environment differs only by the 3 lines of `hooks-test-helpers.ts`, and the floor is re-declared in the same change. **CORRECTED 2026-09-09, BEFORE the acceptance run:** this bullet named the transition as `59.2 -> 59.18`, which went stale between writing and implementing — B-159's hotfix moved the floor from 59.2 to 59.18 in the meantime, so the re-declaration this item actually owes is `59.18 -> 59.15`. The substance is unchanged and the figures are dropped rather than restated, because a criterion that pins a number a sibling item can move is a criterion that ages
   - the TDD pairing gate finds tests at the new location, or `rules/testing.md § 5` records the new convention and the hook is taught it
   - `pnpm lint`, `pnpm typecheck` and `depcruise` stay green
 
 > Registered 2026-09-09 by request, with the scope measured before filing.
+
+> ACCEPTED_WITH_CAVEATS against tag v0.24.2 on 2026-09-09 — `.claude/records/acceptance/B-162-v0.24.2.md`. All five criteria exercised from the released artifact. AC2's 1527 decomposes as 1503 passed and 24 SKIPPED, which is the honest state without the kit. The caveat is that the convention is documented only in gitignored `.claude/`, registered as B-163.
 
 ## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
 
