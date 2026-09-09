@@ -67,22 +67,20 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 4 · **In flight** 0 · **Closed** 160
+164 items — **Open** 2 · **In flight** 0 · **Closed** 162
 
-### Open (4)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `raw` | — |
-| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
-| [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
+| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `triaged` | — |
 
 ### In flight (0)
 
 _None._
 
-### Closed (160)
+### Closed (162)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -240,6 +238,8 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
+| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
@@ -7352,15 +7352,24 @@ domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: discover-review
-evidence: Comments across tracked files cite rule sections — `rules/error-handling.md § 5`, `rules/testing.md § 4.1` — and the § number is an ASSERTION that the named section says a particular thing. Nothing checks it, and B-163's review found two wrong out of 24 section-bearing citations: `packages/shared/src/turn-error.ts:23` cited `error-handling.md § 3` (the six-step hierarchy) for the generic-message anti-pattern, which is § 5; and B-163's own ADR-2 cited `testing.md § 6` (six bullets on test anti-patterns) for "a gate that cannot pass is worse than none", a phrase that is this repository's own from `tools/check-english-only.mjs`. Both were found by a reviewer opening the files. The review also showed the guard is buildable: `tools/check-doc-references.mjs` already ships `DESCRIBED_NOT_CITED` with per-entry reasons and `test_the_exemption_list_does_not_swallow_everything` as its anti-vacuity floor, so the shape exists.
+evidence: MEASURED 2026-09-09, and **the fix this item was filed to build does not work**. B-163's review proposed checking that a cited `§ N` exists in the named rule file, and stated it "would have caught both" wrong citations. It catches neither: `.claude/rules/testing.md` HAS a `## § 6` and `.claude/rules/error-handling.md` HAS a `## § 3`. Both cited sections EXIST — the defect was never a dangling section number, it was a section that exists and does not say what the citing sentence claims. An existence check passes on both. Measured surface: 19 section-bearing citations across tracked files, every one of which names a section that exists today, so the proposed gate would be green over a corpus containing two known-wrong citations. **I recorded the reviewer's claim in this item's first filing without executing it**, which is the same error this session has been correcting in three other forms.
 why_now: B-163 documented that a `rules/*.md` citation is an attribution whose sentence stands alone — verified across all 38-45 sites, no counterexample. What it did NOT establish is that the § number is right, and that half is both checkable and wrong twice. The asymmetry is what makes it worth a gate: a wrong § costs a reader nothing, because the sentence carries the meaning, and misleads exactly the person who goes to verify. B-163's ADR-2 argued nothing could be mechanized here and was itself the counterexample.
-status: raw
+status: killed
 dod:
   - every cited `rules/X.md` belongs to a declared closed set, so a typo or a kit-side rename fails
-  - where `.claude/rules/` is present, a cited `§ N` is checked to exist, and the check SKIPs loudly where it is not
-  - the check is shown to catch both known-wrong citations before they were fixed, not asserted to
+  - whatever is built is DEMONSTRATED against the two known-wrong citations in their pre-fix state — the existence check is already known not to catch them, so a design that cannot be shown catching them is not this item's fix
+  - or, if no mechanical check can distinguish "§ 6 exists" from "§ 6 says that", the item is KILLED with that as its kill_reason — which is a legitimate outcome and cheaper than a gate that is green over known defects
 
 > Registered 2026-09-09 from B-163's REVIEW, which found the defect inside the argument for not building this.
+
+kill_reason: MEASURED, and no mechanical check distinguishes "§ 6 exists" from "§ 6 says that". Two designs were tested against the two known-wrong citations in their pre-fix state. **Existence check:** falsified outright — `.claude/rules/testing.md` has a `## § 6` and `error-handling.md` has a `## § 3`, so both cited sections EXIST and the check passes on both; all 19 section-bearing citations in the repository name sections that exist, so the gate would be green over a corpus that contained two known defects. **Keyword overlap** between the citing sentence and the cited section: the groups do not separate. Measured overlap — wrong: `ADR-2` 0.00, `turn-error` 0.14; right: `thread-history` 0.12, `home-dir` 0.44, `shell-timeout` 0.57. A correct citation scores BELOW a wrong one, so no threshold passes every correct citation and fails every wrong one. One inversion is sufficient; a larger sample could only add more. What remains is a semantic judgement about whether a paragraph supports a claim, which is not what this ecosystem's deterministic gates do. Killing is cheaper than a gate that is green over the very defects it was built for — `rules/testing.md` § 6 lists exactly that shape among test anti-patterns, and this is the first citation in this item written after checking that the section says it.
+
+> KILLED 2026-09-09 by measurement, which is a successful outcome of `cycle-discover`: the item was
+> filed on a reviewer's claim that a check "would have caught both", that claim was recorded without
+> being executed, and executing it refuted the item. The two wrong citations it was raised about are
+> already fixed — `turn-error.ts` in v0.25.0, and the plan's ADR-2 corrected in place. What is lost
+> by killing this is detection of FUTURE ones, and that loss is stated in `CONTRIBUTING.md` rather
+> than papered over with a gate that cannot see them.
 
 ## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
 
@@ -7370,13 +7379,15 @@ suggested_mode: evolve
 source: discover-review
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/rules-cited-not-shipped-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **This item's filed premise is partly FALSIFIED and the finding underneath is larger.** `vitest.config.ts:10-11` is tracked and does state the layout and why `tools/` differs, so "nothing tracked explains it" is false; and the third thing the original DoD asked for — where the pairing gate looks — describes machinery (`hooks/stop-validation.sh`) that a clone does not have at all. What IS true: 29 tracked files cite 5 rule files 36 times — `error-handling.md` 15, `testing.md` 11, `public-copy.md` 7, `architecture.md` 2, `english-only.md` 1 — and none exists in a clone. TEN are production source explaining why the code is shaped as it is (`config/home-dir.ts:60`, `goal/goal.ts:34`, `session/thread-history.ts:27`, `skills-on-disk.ts:28`). `tools/check-doc-references.mjs` exists to keep cited paths resolving and reads `README.md` only, so nothing detects it in either direction. A first pass counted 5 further rules as missing even locally; checked before filing, all five are fixture filenames or a placeholder in a docs table — my regex's false positives, not defects.
 why_now: A contributor cloning this repository now finds 191 test files in a layout no tracked file explains, next to 8 under `tools/` in a different one. The reason for the difference is real and recorded, and recorded where they cannot read it. This is the third item in one session to end with a caveat of this shape — B-160 is the same fact about the coverage floor — which suggests the pattern is worth addressing once rather than three times.
-status: triaged
+status: shipped
 dod:
   - the 36 citations either resolve for the reader who has them, or say plainly that they name an environment the clone does not have — the choice between those two is the plan's central decision
   - a clone with no `.claude/` can read any of the 10 production files and not be sent to a path that is simply absent
   - whatever is added is detected when it rots — today `check-doc-references.mjs` reads `README.md` only, so 36 citations are unguarded in both directions
 
 > Registered 2026-09-09 from B-162's ACCEPTANCE run (verdict ACCEPTED_WITH_CAVEATS, minor defect).
+
+> ACCEPTED_WITH_CAVEATS against tag v0.25.0 on 2026-09-09 — `.claude/records/acceptance/B-163-v0.25.0.md`. Exercised from a clone with NO `.claude/`, the condition the item is about. AC3 passed on its weaker branch: nothing detects a rotted citation, and the section says so with the reason. The caveat — a cited § is an unchecked assertion, and two were wrong — is B-164.
 
 ## B-162 — Test code and production code share every src/ directory   [ ]
 
@@ -7414,15 +7425,15 @@ dod:
 
 > Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
 
-## B-160 — CI cannot check the tracked coverage floor against anything   [ ]
+## B-160 — The checker returns before the one comparison CI can make   [ ]
 
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: discover-review
-evidence: `tools/check-coverage-floor.mjs` declares `DECLARED_FLOOR = 59.29` and compares it against `coverage.min_percent`, which `coverage_gate.py` resolves from `.claude/rules/code-quality-thresholds.txt`. That file is gitignored — `git ls-files .claude` returns 0 — so in CI and in every fresh clone there is nothing to compare against and the checker SKIPs. Measured during B-159's round-4 review: mutating `DECLARED_FLOOR` to 40 survives the whole suite wherever `.claude/` is absent, because `test_the_two_declarations_of_the_floor_agree_in_this_repository` is `skipIf`-guarded there. `.github/workflows/ci.yml` contains the string "coverage" zero times and runs `pnpm test` against `"test": "vitest run"`, so no CI step measures coverage either.
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/ci-cannot-check-the-floor-opportunity.md` (SHIPPABLE, 99.1). The filed premise is true and its framing is wrong. `DECLARED_FLOOR = 59.15` IS tracked and does travel; what does not is `coverage.min_percent`, and CI does not need it — it can compare the tracked constant against the coverage it just measured. The logic already exists and is exercised: `evaluateFloor` fails on slack, so `DECLARED_FLOOR = 40` against a measured 59.15 gives FAIL at 19.15 points, which is exactly the mutant this item was filed about, dying with no `.claude/` present. The defect is one early return: `main()` exits before reaching that comparison when the thresholds file is absent, and prints *"The tracked floor is 59.15%; nothing here to compare it against"* while a coverage report sits in the directory beside it. Cost measured rather than assumed, per the third DoD bullet: `pnpm test` 42.5s, `pnpm test:coverage` 65.3s, the CI `test` job 70s — **+23s**, not the 1347s that made mutation testing disproportionate.
 why_now: B-159 declared a coverage floor as a ratchet and made a downward edit visible in a diff, which was the gap it set out to close. What it did not close is enforcement outside a developer machine: the number binds a checkout that installed the kit, and a clone that did not is governed by nothing. The limit is stated in `CHANGELOG.md`, in `vitest.config.ts` and in the plan's R3, so it is disclosed rather than hidden — but disclosure is not enforcement, and every item after B-159 inherits the gap.
-status: raw
+status: triaged
 dod:
   - a coverage measurement runs somewhere CI can see it, or the decision not to is recorded with its reason where the floor is declared
   - mutating `DECLARED_FLOOR` fails the suite in a checkout with no `.claude/`, or the reason it cannot is written down
