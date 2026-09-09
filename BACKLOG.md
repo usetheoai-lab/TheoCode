@@ -67,22 +67,22 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-171 items — **Open** 5 · **In flight** 3 · **Closed** 163
+171 items — **Open** 4 · **In flight** 4 · **Closed** 163
 
-### Open (5)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
-| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `raw` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
-### In flight (3)
+### In flight (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `planned` | — |
 | [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `planned` | — |
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
@@ -7389,13 +7389,20 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: measured 2026-09-09 while scoring B-167's plan
+evidence: `.claude/records/implementations/soft-cap-dismissal-punctuation-implementation.md` — 3 of 6 tests RED against the old expression, 6 green after; the five plans of this session re-score with zero undismissed caps
 why_now: `run_structural.py:690` matches dismissals with `<!--\s*ADR-DISMISS-SOFT-CAP:\s*([a-z0-9_-]+)\s*:\s*[^>]+?-->`. The reason segment excludes `>`, so a reason written with an arrow — `it went 15 -> 0`, a natural way to state a before/after in this repository's own idiom — ends the match early and the dismissal registers as ABSENT. Reproduced: the same marker scored `undismissed_soft_caps: ['soft_cap_mutation_unconfigured_typescript']` with the arrow and `[]` without it, nothing else changed. The failure is silent in the worst way: the plan simply stays capped at 70 and demotes to NON_SHIPPABLE, which is indistinguishable from a cap that was never dismissed. `cycle-code-quality.md` records that an undismissable soft cap is a hard cap under another name; a dismissal that voids itself on punctuation is the same defect reached by accident.
-status: raw
+status: planned
 dod:
   - a dismissal reason containing `>` registers the dismissal
   - a malformed marker is REPORTED rather than ignored, so the author learns why the cap stands
   - a test asserts both, and fails if the reason segment goes back to excluding a common character
+
+> VERIFIED LOCALLY 2026-09-09, NOT closed — the fix lives in `.claude/`, gitignored, so it reaches this checkout and no other. The port is B-169's subject.
+>
+> A second defect surfaced while testing the first: an EMPTY reason dismissed the cap, because `\s*` absorbed the nothing between the colon and the closer. A dismissal with no justification is what the audit trail exists to refuse, and it had been accepted all along.
+>
+> The finding behind both: **the function that decides whether a plan may enter `/implement` had no test at all.** That is why a punctuation defect and an empty-reason defect both lived in one expression unnoticed.
+
 
 ## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [ ]
 
@@ -7410,6 +7417,11 @@ dod:
   - B-166's fix exists in the kit repository, on a commit that describes only that fix
   - the installed copy and the kit agree, or the divergence is recorded with the reason it is kept
   - `test_python_detector_flags_unused_function` passes in this checkout, or its failure is explained by something other than drift
+
+> EXTENDED 2026-09-09 — a SECOND red test in the installed kit: `skills/plan-confidence/tests/test_real_plans_snapshot.py::test_snapshots_cover_active_plans_with_matrix` fails with ten active plans missing a snapshot entry, five of them predating this session's work. A missing snapshot is unrelated to any code change made here, so it is almost certainly pre-existing — **stated as inference, not measurement**: the attempt to prove it by reverting a parser and re-running left the file syntactically invalid and the run died in collection.
+>
+> With `test_python_detector_flags_unused_function`, that is two red tests in the kit's own suite in this checkout. Anyone running it meets failures that are not theirs, which is the cost of the drift this item is about.
+
 
 ## B-168 — Three review findings with no home: a missing test, a leaking global, an undiffable plan   [ ]
 
