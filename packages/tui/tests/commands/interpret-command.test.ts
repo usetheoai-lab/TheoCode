@@ -27,6 +27,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { CommandCapabilities } from '../../src/commands/command-capabilities.js'
 import { interpretCommand } from '../../src/commands/interpret-command.js'
+import { recordWiring } from '../../src/agent-session/wiring-record.js'
 import type { CommandAction } from '../../src/commands/registry.js'
 
 /** The collaborators a command may reach through, as opposed to the effects it may cause. */
@@ -146,6 +147,15 @@ describe('interpretCommand — later groups claim their own', () => {
   })
 
   it('test_showStatus_reaches_the_inspection_group', () => {
+    // B-161: with no record published, `statusPanel` falls back to reading the rules off disk, so
+    // this test's coverage depended on whether the checkout it ran in had `.claude/rules/` — a
+    // 248,682-char corpus here, absent in a clean clone, which took the truncation path with it.
+    // `recordWiring` is how a real build publishes the record; using it keeps the assertion about
+    // routing, which is what this test is for.
+    recordWiring({
+      agentsMd: { active: [], requested: [], suppressedByTrust: false },
+      rules: { count: 0, read: 0 },
+    } as never)
     const h = run({ kind: 'showStatus' } as CommandAction)
     expect(h.setPanel).toHaveBeenCalled()
   })
