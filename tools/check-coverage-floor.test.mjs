@@ -363,7 +363,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // by two reviewers. The bug was OBSERVED on this route (`pnpm lint` in a kit-installed checkout)
     // and only the tracked-only route had a test for the fix. The one fixture with per-file entries
     // lived in the other describe, so this branch was unreachable from here.
-    const result = run(scaffold({ floor: 58.98, pct: 0, files: { total: 3, covered: 0 } }))
+    const result = run(scaffold({ floor: 59.03, pct: 0, files: { total: 3, covered: 0 } }))
 
     expect(result.code, 'the main route reported a scope mismatch as a regression').toBe(0)
     expect(result.stdout).toContain('NO source file')
@@ -376,7 +376,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   it('test_the_main_route_still_fails_when_the_tree_really_is_below_the_floor', () => {
     // Anti-vacuity for the test above, on this route: files ARE covered and the total is genuinely
     // below the floor, so the guard must still refuse.
-    const result = run(scaffold({ floor: 58.98, pct: 40, files: { total: 3, covered: 3 } }))
+    const result = run(scaffold({ floor: 59.03, pct: 40, files: { total: 3, covered: 3 } }))
 
     expect(result.code).toBe(1)
   })
@@ -565,7 +565,7 @@ describe('the tracked floor is checkable without the kit', () => {
     // The other half of the same trap: pin the constant itself against a literal, so a mutant that
     // moves it is caught where `test_the_two_declarations_agree` cannot run — that one is
     // skipIf(!GATE_INSTALLED) and is skipped in exactly this environment.
-    expect(DECLARED_FLOOR).toBe(58.98)
+    expect(DECLARED_FLOOR).toBe(59.03)
   })
 
   it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
@@ -580,8 +580,8 @@ describe('the tracked floor is checkable without the kit', () => {
     // `59.96 - 58.96` is exactly 1 in IEEE 754 (checked, not assumed), so the passing side is not
     // float-fragile. Moving the floor again without moving these two turns this test red, which is
     // the property the old pair lacked.
-    expect(run(reportOnly(59.98)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
-    expect(run(reportOnly(59.99)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
+    expect(run(reportOnly(60.03)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
+    expect(run(reportOnly(60.04)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
   })
 
   // B-165 — `vitest run --coverage <one-file>` overwrites the same path with a report from a
