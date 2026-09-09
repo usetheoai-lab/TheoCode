@@ -128,7 +128,10 @@ describe('the status panel does not repeat a column label inside its value', () 
  */
 describe('the status panel says what is steering the agent', () => {
   const wired = (agentsMd: { active: string[]; requested: string[]; suppressedByTrust: boolean }) =>
-    ({ agentsMd }) as unknown as Parameters<typeof statusPanel>[4]
+    // `rules` belongs here even though these cases are about the agents.md row: without it the
+    // panel falls back to reading the rules off disk, and this file's coverage would depend on
+    // whether the checkout has `.claude/rules/` (B-161).
+    ({ agentsMd, rules: { count: 0, read: 0 } }) as unknown as Parameters<typeof statusPanel>[4]
 
   const agentsRow = (w?: Parameters<typeof statusPanel>[4]): string =>
     rows(statusPanel(session(), 'suggest', () => 'tui-1', ptys, w).body).find((r) =>

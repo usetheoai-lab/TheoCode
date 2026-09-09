@@ -20,6 +20,12 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+- The test suite no longer reads the machine it runs on. Four tests reached ambient state — the
+  process working directory, the real transcript store, and the rules corpus on disk — so the
+  coverage total differed between an installed checkout and a clean clone of the same commit. Both
+  now measure the same number, verified twice in each environment against a real clone with its own
+  install (B-161).
+
 ### Deprecated
 
 ### Removed

@@ -67,11 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 0 · **In flight** 1 · **Closed** 163
+165 items — **Open** 1 · **In flight** 1 · **Closed** 163
 
-### Open (0)
+### Open (1)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `raw` | — |
 
 ### In flight (1)
 
@@ -7345,6 +7347,20 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-165 — The coverage-floor guard reads a partial report as a regression   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: none-yet
+why_now: observed 2026-09-09 while closing B-161. Running `vitest run --coverage <one-file>` overwrites `coverage/coverage-summary.json` with that file's total (10.29%). The next `pnpm lint` read it and failed with "the floor 59.15% is above the measured total 10.29% — either the tree regressed, or the floor was declared against a different one", proposing a re-declaration. Nothing regressed and the floor was right; the report simply covered one file. The guard does print the report age, so it is not silent, but age does not distinguish a stale full run from a fresh partial one, and the message names neither possibility.
+status: raw
+dod:
+  - a report produced by a single-file run is not reported as a floor regression
+  - whatever the guard does instead, it names the scope it read, not only the age
+  - a real regression is still caught: a test asserts the true-positive path did not become a skip
 
 ## B-164 — A cited section number is unverifiable, and two were wrong   [ ]
 
