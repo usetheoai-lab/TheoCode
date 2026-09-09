@@ -34,6 +34,16 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+- backlog B-159 — this repository now declares its own coverage floor, at exactly the total it
+  measures (59.29% of lines, `coverage.min_percent` in the code-quality thresholds). Until now no
+  floor was declared and `/implement`'s validation gate fell back to a library default of 80, so
+  every plan failed validation on a repo-wide number nobody here had chosen — including a plan whose
+  own new file was at 100%. The declared value is a **ratchet, not a target**: it has no slack, so
+  any change that lowers total coverage fails, and the only permitted edit is upward. `vitest.config.ts`
+  still sets no vitest threshold and now says where the floor actually lives; the triage it has asked
+  for since 2026-08-20 — deciding which zero-coverage files are meant to stay that way — is still
+  open and is what raises the number.
+
 ### Deprecated
 
 ### Removed

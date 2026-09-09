@@ -7347,9 +7347,9 @@ domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: discover-review
-evidence: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
+evidence: `vitest.config.ts:45` records that NO floor was set and why — a decision by this repository on 2026-08-20 (B-063). `.claude/rules/code-quality-thresholds.txt:54` carries `# coverage.min_percent = 80` COMMENTED OUT, so `coverage_gate.py:29` falls through to a library default of 80 that nobody here chose. Distribution measured: tui 47.3%, cli 46.1%, agent 76.9%, shared 96.1%. Opportunity: `.claude/records/discoveries/opportunities/coverage-floor-halts-every-plan-opportunity.md`. Original: `run_validation.py` FAILs `coverage` with *"total line coverage 59.29% is below the 80% floor"*, measured 2026-09-09 at v0.23.0 with 1479 tests passing. The floor is `DEFAULT_MIN_PERCENT = 80` in `skills/implement/scripts/coverage_gate.py`; `rules/code-quality-thresholds.txt` declares no `coverage.min_percent`, so 80 is a default nobody chose and the file's own comment says a project may *raise* it.
 why_now: B-158 was the first item taken through the full cycle since the floor started being enforced, and it halted at this gate — with the file it changed at 100% line coverage. Every subsequent item halts in the same place for the same reason. Lowering the threshold is named as forbidden by `cycle-implement.md § Validation halt-loop`, so the gap has to be closed or the floor has to be decided deliberately; neither can happen inside an item about something else.
-status: raw
+status: triaged
 dod:
   - a decided floor in `rules/code-quality-thresholds.txt`, with the reason written where the number is, OR total line coverage at or above 80%
   - `run_validation.py` reports `coverage` PASS on a clean tree
