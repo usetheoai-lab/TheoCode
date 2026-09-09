@@ -99,11 +99,18 @@ describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
     // Without the await, `onWired` had not fired yet and `seen` was `undefined` — a real failure, not
     // a fixture detail: the record is published DURING the build, so the assertion has to wait for it.
     await buildChatAgent({
-      // B-161: a directory of its own, not `process.cwd()`. This test isolates HOME into a tmpdir
-      // and used to hand the build the REPOSITORY as the project directory — so the context it
+      // B-161: a directory of its own, not `process.cwd()`. This test used to hand the build the
+      // REPOSITORY as the project directory — so the context it
       // assembled depended on what that tree held: the rule corpus, a project document, the session
       // store keyed by the path. Measured: three production lines were covered on a maintainer's
       // machine and not in a clean checkout, which made total coverage a property of the machine.
+      //
+      // HOME is NOT isolated here, and saying so is the point: an earlier draft of this comment
+      // claimed it was, copied from `context/user-skills.wiring.test.ts` where the claim is true.
+      // This file's only mention of HOME was that sentence. `buildChatAgent` reads the operator root
+      // at `chat.ts:148` and `:237`; the assertion below is shape-only (`expect.any(Array)`), so an
+      // operator's skills change nothing it checks — which is why this one is safe to leave, and why
+      // `composition.test.ts`, whose assertions compare exact lists, is not.
       // The half that was isolated was not the half the content arrives through.
       cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
       surface: 'headless',

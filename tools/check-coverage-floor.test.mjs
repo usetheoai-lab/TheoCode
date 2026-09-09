@@ -171,6 +171,18 @@ describe('the record in vitest.config.ts', () => {
     expect(config).not.toContain('NO THRESHOLD IS SET HERE')
   })
 
+  it('test_the_number_it_states_is_the_number_that_is_declared', () => {
+    // The assertion this describe existed for and did not make. Every other test here checks that
+    // the prose MENTIONS the right things; none checked that what it SAYS is true. So the block sat
+    // at "the declared floor is 59.18" through two re-declarations (59.18 -> 59.15 -> 58.95) with
+    // the suite green, and the file is tracked — every clone read the wrong number from it.
+    //
+    // Substrings cannot catch this. A number can.
+    const stated = /declared floor is (\d+(?:\.\d+)?)/.exec(config)
+    expect(stated, 'vitest.config.ts no longer states a declared floor at all').not.toBeNull()
+    expect(Number(stated[1]), 'the record and the declaration disagree').toBe(DECLARED_FLOOR)
+  })
+
   it('test_it_names_where_the_floor_actually_lives', () => {
     expect(config).toContain('code-quality-thresholds.txt')
     expect(config).toContain('DECLARED_FLOOR')
@@ -491,10 +503,19 @@ describe('the tracked floor is checkable without the kit', () => {
   })
 
   it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
-    // F-cf-5: the only slack fixture was +19, so widening TOLERANCE from 1 to 10 survived. These
-    // two bracket the real value: 0.5 above passes, 2 above fails.
-    expect(run(reportOnly(59.65)).code).toBe(0)
-    expect(run(reportOnly(61.15)).code).toBe(1)
+    // These pin the EXACT boundary, one hundredth apart, so no widening of TOLERANCE survives.
+    //
+    // The previous pair (59.65 / 61.15) was written as the floor plus 0.5 and plus 2. Literal in the
+    // source, relative in intent — and when the floor moved 59.15 -> 58.95 they stayed put and became
+    // +0.70 / +2.20, which still brackets 1 but no longer brackets it tightly: mutating TOLERANCE
+    // from 1 to 2 passed all 48 tests. Measured on this file, before and after that move.
+    //
+    // So the numbers below are literal AND adjacent: floor+1.00 must pass, floor+1.01 must fail.
+    // `59.95 - 58.95` is exactly 1 in IEEE 754 (checked, not assumed), so the passing side is not
+    // float-fragile. Moving the floor again without moving these two turns this test red, which is
+    // the property the old pair lacked.
+    expect(run(reportOnly(59.95)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
+    expect(run(reportOnly(59.96)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
   })
 
   it('test_a_regression_below_the_tracked_floor_fails', () => {

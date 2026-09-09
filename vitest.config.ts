@@ -70,31 +70,37 @@ export default defineConfig({
      * It is deliberately NOT here. This file configures the reporter; the gate that reads the
      * report is the kit's, and one number in one place is the whole point.
      *
-     * MEASURED 2026-09-09, 1479 tests: lines 59.29% (2663/4491), 34 files at zero coverage
-     * (594 lines), 240 source files — IN THIS WORKING TREE, and that qualifier is the point.
+     * MEASURED 2026-09-09 at B-161's close, 1534 tests: lines 58.95% (2646/4488), IN A CLEAN CLONE
+     * AND IN THIS WORKING TREE ALIKE. That equality is the result, and the qualifier below is the
+     * limit of it.
      *
-     * THE SAME COMMIT MEASURES 2658/4491 (59.18%) WITH NOTHING ELSE PRESENT. The five-line gap is
-     * three independent channels, isolated one variable at a time:
+     * THE CHECKOUT AXIS IS CLOSED. A `git clone` with its own install and an installed checkout
+     * were each measured twice and compared per file: 239 files, four metrics, ZERO divergences.
+     * Four channels were closed to get there, and all four had the same shape — the injection seam
+     * already existed and the call sites did not use it:
      *
-     *   +1  `context/rules.ts` — the default `warn` callback runs only once the rules corpus passes
-     *       64 000 chars, and an installed `.claude/rules/` is 248 669. The total depends on the
-     *       SIZE of the kit sitting beside the checkout.
-     *   +1  `context/agents-md.ts` — mechanism identified, TRIGGER NOT. The chain walk stops at the
-     *       first `.git`, so it cannot leave the repository, and `/home/paulo/CLAUDE.md` — named as
-     *       the cause in an earlier draft — does not exist. A context file placed above a checkout
-     *       does reproduce exactly this +1 in a controlled test, so the mechanism is real; which
-     *       file triggers it in the maintainer's tree is unknown. `specs/CLAUDE.md` was the second
-     *       candidate and was falsified too (45 lines with and without it). Naming a third guess
-     *       would repeat the mistake; identifying it is part of B-161.
-     *   +3  `session/gc/per-session.ts` — `readTranscriptDir` reads
-     *       `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds transcripts for this
-     *       path and none for a fresh one.
+     *   `context/agents-md.ts`      three tests passed `process.cwd()` where a tmpdir belonged.
+     *   `session/gc/per-session.ts` a test injected `readdir`/`cwd` into `planSessionGC` and gave
+     *                               `runSessionGC` neither, so it fell through to the real store.
+     *   `context/rules.ts` (panel)  four `statusPanel` calls omitted the wiring record; the panel
+     *                               reads the corpus off disk when it has none.
+     *   `context/rules.ts` (route)  `showStatus` reaches the same fallback through `currentWiring()`,
+     *                               which is undefined until a build publishes a record.
      *
-     * The declared floor is 59.18 — the minimum over that space, not "the clean number", and two
-     * earlier attempts got it wrong: 59.29 came from this tree and the v0.24.0 tag failed against
-     * it; 59.2 came from a worktree that had `.claude` linked in and was contaminated the same way.
-     * Measure a replacement with all three channels absent, and CHECK all three rather than
-     * assuming a /tmp path is enough — it was not, twice. See B-161.
+     * THE HOME AXIS IS NOT CLOSED, and this is B-167. Same tree, same commit, varying only $HOME:
+     * an empty home measures 2646/4488, a home with a 163,836-char `~/.theokit/rules` measures
+     * 2648/4488. `ChatOverrides` has `cwd` and no `home`, so `homedir()` is called at three sites in
+     * one build and no caller can redirect it. The convergence experiment above cannot see this —
+     * it varies the checkout and holds $HOME fixed, so every home-keyed read is equal by
+     * construction. An experiment is blind to the variable it does not vary, and saying which
+     * variable that was is the difference between a measurement and a slogan.
+     *
+     * The declared floor is 58.95 — the MINIMUM over the space, not "the clean number". Three
+     * earlier attempts got it wrong and each failure is worth keeping: 59.29 came from this tree
+     * and the v0.24.0 tag failed against it; 59.2 came from a worktree with `.claude` linked in;
+     * 59.18 and 59.15 were each correct when written and were left standing here after the floor
+     * moved beneath them — which is why this block now states its own axis instead of only its
+     * number.
      *
      * DO NOT DIFFERENCE THESE AGAINST THE 2026-08-20 BLOCK ABOVE. A first draft of this comment
      * said "1154 lines of the original debt were covered in three weeks", from 1748 − 594. Three
@@ -116,7 +122,7 @@ export default defineConfig({
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
-     * the next item, and 59.18% is a ratchet against the clean reading, never a target.
+     * the next item, and 58.95% is a ratchet against the clean reading, never a target.
      */
     coverage: {
       provider: 'v8',

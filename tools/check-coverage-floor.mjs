@@ -118,29 +118,37 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *   59.15  the same, after B-162 moved the tests out of `src/`. `hooks-test-helpers.ts` is test
  *          scaffolding that lived there; it is not a `*.test.*` file, so the reporter's exclude
  *          never matched it and the include counted its 3 lines as PRODUCTION. Moving it removes
- *          them from both sides — 2655/4488, measured in a checkout with all three channels
- *          verified absent one at a time, not derived by subtracting 3.
+ *          them from both sides — 2655/4488.
+ *   58.95  declared at B-161's close, and the first one measured with the CHECKOUT axis actually
+ *          closed rather than assumed: 2646/4488, twice in a real `git clone` with its own install
+ *          and twice here, compared per file — 239 files, four metrics, zero divergences.
  *
- * THREE independent channels make the total depend on the machine, not one:
+ * The drop from 59.15 is the point, not a regression. Those ~9 lines were covered only because
+ * tests read the ambient environment; the repository had them by accident of where the suite ran,
+ * and no clone ever did.
  *
- *   +1 line   `rules.ts:82` — the default `warn` callback runs only when the rules corpus exceeds
- *             64 000 chars, and an installed `.claude/rules/` is 248 669. So the total depends on
- *             the SIZE of the kit installed beside the checkout.
- *   +1 line   `context/agents-md.ts` — walks ancestors for THEO.md/AGENTS.md/CLAUDE.md until it
- *             finds `.git`, reaching a context file in the home directory from one checkout and
- *             nothing from another.
- *   +3 lines  `session/gc/per-session.ts` — `readTranscriptDir` reads
- *             `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds transcripts for the
- *             working tree's path and nothing for a /tmp one.
+ * FOUR channels were closed, and every one had the same shape — the seam existed and the call site
+ * did not use it:
  *
- *   2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree)
+ *   `context/agents-md.ts`      three tests passed `process.cwd()` where a tmpdir belonged.
+ *   `session/gc/per-session.ts` a test injected `readdir`/`cwd` into `planSessionGC` and gave
+ *                               `runSessionGC` neither.
+ *   `context/rules.ts` (panel)  four `statusPanel` calls omitted the wiring record, and one passed
+ *                               a PARTIAL record — which reaches the same disk fallback, because
+ *                               `rules` is optional on the type.
+ *   `context/rules.ts` (route)  `showStatus` reaches that fallback via `currentWiring()`.
  *
- * So: zero slack against the cleanest environment, and in richer ones the excess is exactly the
- * contamination — 1 line with a kit installed, 5 in this working tree. That is tolerated by
- * `TOLERANCE`, and calling it a ratchet everywhere would be false. **It is a ratchet against the
- * clean reading and a floor with named slack anywhere else**, and it stays that way until B-161
- * closes all three channels. Only then is a single number a property of the code.
+ * WHAT IS STILL OPEN, so the number above is not read as more than it is: the HOME axis, tracked as
+ * B-167. Same tree, same commit, varying only $HOME — empty measures 2646/4488, a home holding a
+ * 163,836-char `~/.theokit/rules` measures 2648/4488. `ChatOverrides` carries `cwd` and no `home`,
+ * so `homedir()` is reached at three sites in one build and no caller can redirect it.
  *
+ * A populated home therefore measures ABOVE this floor, inside `TOLERANCE`, and passes — which is
+ * what a floor is for. The declaration is sound; it is the equality that is axis-scoped.
+ *
+ * Re-declare from a real clone with its own install — not a worktree with linked `node_modules`,
+ * which resolves `@theocode/*` back into the original tree and silently measures a blend of both.
+ * That mistake was made once here and its numbers were discarded.
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */

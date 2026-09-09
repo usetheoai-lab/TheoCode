@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-166 items — **Open** 2 · **In flight** 1 · **Closed** 163
+167 items — **Open** 3 · **In flight** 1 · **Closed** 163
 
-### Open (2)
+### Open (3)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `raw` | — |
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `raw` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `raw` | — |
 
@@ -7349,6 +7350,20 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-167 — The suite reads the operator's home, so coverage still varies by machine   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 on the working tree at HEAD, varying only $HOME
+why_now: B-161 closed the CHECKOUT axis — a clean clone and an installed checkout now agree on 2646/4488 across 239 files, 0 divergences. The HOME axis was never in that plan's Goal and is still open. Measured, same tree, same commit, only $HOME varying: an empty home gives 2646/4488 (58.95%) and 0 truncation warnings; a home holding `~/.theokit/rules` of 163,836 chars and one `~/.theokit/skills/` entry gives 2648/4488 (59.00%) and 15 warnings. The +2 lines land in `context/agents-md.ts` and `context/rules.ts`. Root cause is the missing half of the seam B-015 built: `ChatOverrides` carries `cwd` and no `home`, so `homedir()` is called at three independent sites in one build (`chat.ts:148`, `chat.ts:237`, `composition-record.ts:92`) and no caller can redirect it. A review subagent instrumented `node:fs` with a `--require` preload and counted 880 reads outside the checkout where the truncation probe counted 0 — the probe measures the consequence (passing the 64,000-char budget), not the read.
+status: raw
+dod:
+  - a full coverage run reports the same total with an empty home and with a populated one
+  - the seam is reachable: some caller can direct the operator root without setting a process-wide env var
+  - a test asserts it, and fails if a later change reintroduces an ambient home read
+
 ## B-166 — The architecture detector picks the composite script over the dedicated one   [ ]
 
 domain: theocode
@@ -7456,7 +7471,13 @@ dod:
 
 > Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
 
-> PARTIAL 2026-09-09, commit `3fdf486` — `.claude/records/implementations/coverage-measures-the-machine-implementation.md`. One channel of three is CLOSED: the three `cwd: process.cwd()` sites are gone and `agents-md.ts` left the differing set, confirming the trigger the opportunity identified. The totals did NOT converge: clean 2655/4488 vs tree 2659/4488, down from a 5-line gap to a 4-line one. Two named channels remain — `context/rules.ts:82` (default `warn`, behind a 64 000-char corpus, so it depends on `.claude/rules/` existing rather than on any cwd) and `session/gc/per-session.ts:60-62` (`readdirSync` of `~/.theokit/projects/<cwd>`, depending on the real HOME). Neither is reached by any single test file; both appear only under the full suite and the caller was not found. The item stays OPEN because the plan's R2 said it should: declaring convergence after fixing three of the sites would be a claim stronger than the measurement.
+> CLOSED on its own axis, 2026-09-09 — `.claude/records/implementations/coverage-measures-the-machine-implementation.md`. Four channels, not three: `agents-md.ts` (three `cwd: process.cwd()` sites), `per-session.ts` (a test injecting `readdir`/`cwd` into `planSessionGC` and not into `runSessionGC`), and `rules.ts` twice — four `statusPanel` calls with no wiring record, plus `showStatus` reaching the same fallback through `currentWiring()`. One of those calls passed a PARTIAL record, which reaches the disk exactly like no record because `rules` is optional on the type; that is why three earlier claims of closure were wrong.
+>
+> The plan's Goal names the CHECKOUT axis, and on that axis it is met: a real `git clone` with its own install and this checkout each measured twice at 2646/4488, compared per file — 239 files, four metrics, zero divergences. Floor re-declared 59.15 -> 58.95 in both carriers.
+>
+> The earlier PARTIAL note recorded totals from a `git worktree` whose linked `node_modules` resolved `@theocode/*` back into the original tree; it measured a blend of both and its numbers are discarded, not restated.
+>
+> The HOME axis was never in this plan's Goal and is NOT closed: same tree, same commit, an empty home measures 2646/4488 and a home with a 163,836-char `~/.theokit/rules` measures 2648/4488. Registered as B-167. A populated home measures ABOVE the floor and inside `TOLERANCE`, so the declaration holds; it is the equality that is axis-scoped. Found by the review's testing specialist, which also broke two trust tests in `composition.test.ts` with a single operator skill — fixed here, since a suite that reddens on someone else's machine is a defect regardless of which axis it sits on.
 
 ## B-160 — The checker returns before the one comparison CI can make   [ ]
 
