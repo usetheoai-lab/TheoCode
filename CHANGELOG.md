@@ -20,6 +20,18 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Changed
 
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.24.2] - 2026-09-09
+
+### Changed
+
 - Tests moved out of every `packages/*/src/` into a per-package `tests/` mirror, so production
   directories hold production code. 191 files relocated and 302 relative specifiers rewritten by
   codemod; `tools/` keeps its 8 tests beside its checkers, because it is not a package and has no
@@ -37,9 +49,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   checkout with all three contamination channels checked absent one at a time rather than derived
   by subtraction.
 
-### Deprecated
-
-### Removed
 
 ### Fixed
 
@@ -60,8 +69,6 @@ for `release.yml` in this repository will not find it, and should not have been 
   scoped the swallowed-rejection rule to `packages/*/src/**`, losing `no-restricted-syntax` over the
   test tree. Both re-pointed. The eslint one immediately caught two orphan imports left by the fix
   above, which is the gate demonstrating it works.
-
-### Security
 
 ## [0.24.1] - 2026-09-09
 
