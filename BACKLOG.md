@@ -67,20 +67,19 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 2 · **In flight** 0 · **Closed** 162
+164 items — **Open** 1 · **In flight** 0 · **Closed** 163
 
-### Open (2)
+### Open (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `triaged` | — |
-| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `triaged` | — |
 
 ### In flight (0)
 
 _None._
 
-### Closed (162)
+### Closed (163)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -241,6 +240,7 @@ _None._
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
+| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
@@ -7433,13 +7433,15 @@ suggested_mode: evolve
 source: discover-review
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/ci-cannot-check-the-floor-opportunity.md` (SHIPPABLE, 99.1). The filed premise is true and its framing is wrong. `DECLARED_FLOOR = 59.15` IS tracked and does travel; what does not is `coverage.min_percent`, and CI does not need it — it can compare the tracked constant against the coverage it just measured. The logic already exists and is exercised: `evaluateFloor` fails on slack, so `DECLARED_FLOOR = 40` against a measured 59.15 gives FAIL at 19.15 points, which is exactly the mutant this item was filed about, dying with no `.claude/` present. The defect is one early return: `main()` exits before reaching that comparison when the thresholds file is absent, and prints *"The tracked floor is 59.15%; nothing here to compare it against"* while a coverage report sits in the directory beside it. Cost measured rather than assumed, per the third DoD bullet: `pnpm test` 42.5s, `pnpm test:coverage` 65.3s, the CI `test` job 70s — **+23s**, not the 1347s that made mutation testing disproportionate.
 why_now: B-159 declared a coverage floor as a ratchet and made a downward edit visible in a diff, which was the gap it set out to close. What it did not close is enforcement outside a developer machine: the number binds a checkout that installed the kit, and a clone that did not is governed by nothing. The limit is stated in `CHANGELOG.md`, in `vitest.config.ts` and in the plan's R3, so it is disclosed rather than hidden — but disclosure is not enforcement, and every item after B-159 inherits the gap.
-status: triaged
+status: shipped
 dod:
   - a coverage measurement runs somewhere CI can see it, or the decision not to is recorded with its reason where the floor is declared
   - mutating `DECLARED_FLOOR` fails the suite in a checkout with no `.claude/`, or the reason it cannot is written down
   - the cost of running coverage in CI is measured before it is adopted, not assumed
 
 > Registered 2026-09-09 from B-159's round-4 review (finding `F-guard-13-r3`, deferred half).
+
+> ACCEPTED_WITH_CAVEATS against tag v0.25.1 on 2026-09-09 — `.claude/records/acceptance/B-160-v0.25.1.md`. Criteria taken verbatim, the first this session needing no correction. AC2 failed twice before passing: the mutant survived the item's own first fix, because the fixtures were computed from the constant under test. The caveat is that no coverage step runs in CI, so the branch is armed for that environment rather than exercised in it.
 
 ## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
 
