@@ -32,10 +32,24 @@ sentence around it carries the reasoning on its own:
 The reader learns that the error is typed on purpose, and why, without opening anything. The path
 credits the source; it is not a pointer you must follow.
 
-Measured 2026-09-09: 29 tracked files carry 36 such citations, ten of them in production source.
-Nothing detects it when one rots — `tools/check-doc-references.mjs` validates the paths cited by
-`README.md` and nothing else, and widening it to these would fail all 36 permanently, since the
-files genuinely do not ship. What is guarded is this paragraph, by anyone who reads it.
+Six rule files are cited this way; the sixth, `rules/git-safety.md`, is cited by
+`.github/workflows/ci.yml`. Count them yourself rather than trusting a number here — the first
+version of this paragraph published two figures that came from two different greps and neither was
+reproducible:
+
+```bash
+git ls-files | grep -vE '^(BACKLOG|CHANGELOG)\.md$' | xargs grep -oE '(rules/[a-z-]+\.md)' | sort | uniq -c
+```
+
+Nothing detects it when one rots. `tools/check-doc-references.mjs` validates the paths cited by
+`README.md` and nothing else, and widening it on its current rule — *the path resolves* — would fail
+every one of these permanently, since the files genuinely do not ship.
+
+**A citation asserts more than it credits, and that part IS checkable.** `rules/error-handling.md
+§ 5` claims that section says something particular. Two such section numbers were wrong when this
+paragraph was written — one of them in the argument for leaving them unguarded, and one in
+production source. The sentence still stood on its own in both cases, which is why they survived:
+a wrong § number costs nothing to a reader and misleads anyone who goes to check.
 
 ## Ways a careful measurement still lies
 

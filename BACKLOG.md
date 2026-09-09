@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-163 items — **Open** 3 · **In flight** 0 · **Closed** 160
+164 items — **Open** 4 · **In flight** 0 · **Closed** 160
 
-### Open (3)
+### Open (4)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `raw` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
@@ -7344,6 +7345,22 @@ dod:
 
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
+
+## B-164 — A cited section number is unverifiable, and two were wrong   [ ]
+
+domain: TheoCode
+repo: TheoCode
+suggested_mode: evolve
+source: discover-review
+evidence: Comments across tracked files cite rule sections — `rules/error-handling.md § 5`, `rules/testing.md § 4.1` — and the § number is an ASSERTION that the named section says a particular thing. Nothing checks it, and B-163's review found two wrong out of 24 section-bearing citations: `packages/shared/src/turn-error.ts:23` cited `error-handling.md § 3` (the six-step hierarchy) for the generic-message anti-pattern, which is § 5; and B-163's own ADR-2 cited `testing.md § 6` (six bullets on test anti-patterns) for "a gate that cannot pass is worse than none", a phrase that is this repository's own from `tools/check-english-only.mjs`. Both were found by a reviewer opening the files. The review also showed the guard is buildable: `tools/check-doc-references.mjs` already ships `DESCRIBED_NOT_CITED` with per-entry reasons and `test_the_exemption_list_does_not_swallow_everything` as its anti-vacuity floor, so the shape exists.
+why_now: B-163 documented that a `rules/*.md` citation is an attribution whose sentence stands alone — verified across all 38-45 sites, no counterexample. What it did NOT establish is that the § number is right, and that half is both checkable and wrong twice. The asymmetry is what makes it worth a gate: a wrong § costs a reader nothing, because the sentence carries the meaning, and misleads exactly the person who goes to verify. B-163's ADR-2 argued nothing could be mechanized here and was itself the counterexample.
+status: raw
+dod:
+  - every cited `rules/X.md` belongs to a declared closed set, so a typo or a kit-side rename fails
+  - where `.claude/rules/` is present, a cited `§ N` is checked to exist, and the check SKIPs loudly where it is not
+  - the check is shown to catch both known-wrong citations before they were fixed, not asserted to
+
+> Registered 2026-09-09 from B-163's REVIEW, which found the defect inside the argument for not building this.
 
 ## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
 

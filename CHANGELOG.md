@@ -38,6 +38,14 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `packages/shared/src/turn-error.ts:23` cited `rules/error-handling.md § 3` for the generic-message
+  anti-pattern. § 3 is the six-step hierarchy of handling; the anti-pattern is § 5. Production
+  source, and the kind of error nothing detects: the sentence around the citation is correct and
+  complete, so the wrong § misleads only the reader who goes to check it.
+
+  Found alongside a second instance in the same review, in the argument for **not** building a
+  checker for exactly this. Registered as B-164.
+
 ### Security
 
 ## [0.24.2] - 2026-09-09
