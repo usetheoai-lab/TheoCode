@@ -22,12 +22,17 @@ import { describe, expect, it } from 'vitest'
 
 const PACKAGES = fileURLToPath(new URL('../../', import.meta.url))
 
+/**
+ * Every `.ts`/`.tsx` under a package's `tests/`, not only `*.test.ts`. A violation in a helper the
+ * tests import reaches the build exactly as one in a test does, and this repository has such helpers
+ * (`hooks-test-helpers.ts`). Scanning only test files was the first version and would have missed them.
+ */
 function testFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === 'dist' || entry.startsWith('.')) continue
     const full = join(dir, entry)
     if (statSync(full).isDirectory()) testFiles(full, out)
-    else if (/\.test\.tsx?$/.test(entry)) out.push(full)
+    else if (/\.tsx?$/.test(entry)) out.push(full)
   }
   return out
 }
@@ -35,6 +40,8 @@ function testFiles(dir: string, out: string[] = []): string[] {
 describe('no test hands the build the real working directory', () => {
   it('test_no_test_file_passes_the_ambient_cwd_as_a_project_directory', () => {
     const offenders: string[] = []
+    const packagesSeen: string[] = []
+    let scanned = 0
     for (const pkg of readdirSync(PACKAGES)) {
       const tests = join(PACKAGES, pkg, 'tests')
       let stat
@@ -44,12 +51,30 @@ describe('no test hands the build the real working directory', () => {
         continue
       }
       if (!stat.isDirectory()) continue
+      packagesSeen.push(pkg)
       for (const file of testFiles(tests)) {
-        if (/\bcwd:\s*process\.cwd\(\)/.test(readFileSync(file, 'utf8'))) {
+        scanned += 1
+        // Comments are stripped first: this guard's own file discusses the idiom, and so does
+        // `chat-cwd.test.ts` — which strips comments before counting for the same reason. A guard
+        // that fires on prose teaches people to phrase around it instead of to fix the code.
+        const source = readFileSync(file, 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/^\s*\/\/.*$/gm, '')
+        if (/\bcwd:\s*process\.cwd\(\)/.test(source)) {
           offenders.push(file.slice(PACKAGES.length))
         }
       }
     }
+
+    // ANTI-VACUITY. Without this, mutating the root above from `../../` to `../` leaves this test
+    // green: it scans zero files and reports zero offenders, forever. A missing root throws; a
+    // wrong-but-existing one is silent, which is the failure mode this whole item is about.
+    // `registry.test.ts:39-44` carries the same floor for the same reason.
+    expect(scanned, 'the scan found no test files — the root is wrong, not the tree clean').toBeGreaterThan(100)
+    expect(
+      packagesSeen.sort(),
+      'a package stopped being scanned, so a violation there would pass unseen',
+    ).toEqual(['agent', 'cli', 'shared', 'tui'])
 
     expect(
       offenders,

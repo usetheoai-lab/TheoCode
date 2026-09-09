@@ -357,11 +357,27 @@ describe('interpretCommand — the partition the chain rests on', () => {
     expect([...claimed].sort()).toEqual([...GROUPS].sort())
   })
 
-describe('B-168 — a published record does not decide what the next test sees', () => {
-  it('test_the_record_is_cleared_between_tests_in_this_file', () => {
-    // Positioned after `test_showStatus_reaches_the_inspection_group`, which publishes one. Without
-    // the afterEach this reads that record instead of undefined.
-    expect(currentWiring(), 'the wiring record leaked from an earlier test in this file').toBeUndefined()
-  })
 })
+
+describe('B-168 — a published record does not decide what the next test sees', () => {
+  // The pair is anti-vacuous and order-independent, and the first version was neither: removing the
+  // publish left it green with nothing to guard, and its correctness depended on sitting below
+  // another test — under `--sequence.shuffle` the mutant survived on 5 of 12 seeds. Publishing HERE
+  // makes the pair prove both halves on its own, wherever the file runs it.
+  //
+  // It was also nested inside the describe above by accident, which the reporter path showed.
+  it('test_publishing_a_record_is_observable', () => {
+    recordWiring({
+      agentsMd: { active: [], requested: [], suppressedByTrust: false },
+      rules: { count: 0, read: 0 },
+    } as never)
+
+    expect(currentWiring(), 'the publisher stopped publishing, so the test below guards nothing').toBeDefined()
+  })
+
+  it('test_the_record_is_cleared_between_tests_in_this_file', () => {
+    // `.toBeUndefined()` rather than `.toBeFalsy()`: a `clearWiring` that set `null` would pass the
+    // looser assertion, and that is the mutant most likely to be written by accident.
+    expect(currentWiring(), 'the wiring record leaked from the test above').toBeUndefined()
+  })
 })

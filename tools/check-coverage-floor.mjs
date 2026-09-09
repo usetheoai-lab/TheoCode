@@ -124,6 +124,8 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *          survives. Recorded because a floor citing a denominator nothing measures is exactly the
  *          drift the ladder exists to make visible.
  *   58.97  the same 2647 lines over 4488. Measured after the third site was migrated.
+ *   58.98  2648/4489, after B-168 added two guards. The floor tracks the tree; each move here is a
+ *          measurement someone ran, not a number someone chose.
  *   58.95  declared at B-161's close, and the first one measured with the CHECKOUT axis actually
  *          closed rather than assumed: 2646/4488, twice in a real `git clone` with its own install
  *          and twice here, compared per file — 239 files, four metrics, zero divergences.
@@ -157,7 +159,7 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 58.97
+export const DECLARED_FLOOR = 58.98
 
 /**
  * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.
