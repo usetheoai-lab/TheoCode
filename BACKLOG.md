@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `raw` | — |
+| [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `triaged` | — |
 | [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
 | [`B-160`](#b-160--ci-cannot-check-the-tracked-coverage-floor-against-anything----) | CI cannot check the tracked coverage floor against anything | `raw` | — |
 
@@ -7352,13 +7352,13 @@ domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
 source: discover-review
-evidence: Comments across tracked files cite rule sections — `rules/error-handling.md § 5`, `rules/testing.md § 4.1` — and the § number is an ASSERTION that the named section says a particular thing. Nothing checks it, and B-163's review found two wrong out of 24 section-bearing citations: `packages/shared/src/turn-error.ts:23` cited `error-handling.md § 3` (the six-step hierarchy) for the generic-message anti-pattern, which is § 5; and B-163's own ADR-2 cited `testing.md § 6` (six bullets on test anti-patterns) for "a gate that cannot pass is worse than none", a phrase that is this repository's own from `tools/check-english-only.mjs`. Both were found by a reviewer opening the files. The review also showed the guard is buildable: `tools/check-doc-references.mjs` already ships `DESCRIBED_NOT_CITED` with per-entry reasons and `test_the_exemption_list_does_not_swallow_everything` as its anti-vacuity floor, so the shape exists.
+evidence: MEASURED 2026-09-09, and **the fix this item was filed to build does not work**. B-163's review proposed checking that a cited `§ N` exists in the named rule file, and stated it "would have caught both" wrong citations. It catches neither: `.claude/rules/testing.md` HAS a `## § 6` and `.claude/rules/error-handling.md` HAS a `## § 3`. Both cited sections EXIST — the defect was never a dangling section number, it was a section that exists and does not say what the citing sentence claims. An existence check passes on both. Measured surface: 19 section-bearing citations across tracked files, every one of which names a section that exists today, so the proposed gate would be green over a corpus containing two known-wrong citations. **I recorded the reviewer's claim in this item's first filing without executing it**, which is the same error this session has been correcting in three other forms.
 why_now: B-163 documented that a `rules/*.md` citation is an attribution whose sentence stands alone — verified across all 38-45 sites, no counterexample. What it did NOT establish is that the § number is right, and that half is both checkable and wrong twice. The asymmetry is what makes it worth a gate: a wrong § costs a reader nothing, because the sentence carries the meaning, and misleads exactly the person who goes to verify. B-163's ADR-2 argued nothing could be mechanized here and was itself the counterexample.
-status: raw
+status: triaged
 dod:
   - every cited `rules/X.md` belongs to a declared closed set, so a typo or a kit-side rename fails
-  - where `.claude/rules/` is present, a cited `§ N` is checked to exist, and the check SKIPs loudly where it is not
-  - the check is shown to catch both known-wrong citations before they were fixed, not asserted to
+  - whatever is built is DEMONSTRATED against the two known-wrong citations in their pre-fix state — the existence check is already known not to catch them, so a design that cannot be shown catching them is not this item's fix
+  - or, if no mechanical check can distinguish "§ 6 exists" from "§ 6 says that", the item is KILLED with that as its kill_reason — which is a legitimate outcome and cheaper than a gate that is green over known defects
 
 > Registered 2026-09-09 from B-163's REVIEW, which found the defect inside the argument for not building this.
 
