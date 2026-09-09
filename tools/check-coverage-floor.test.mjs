@@ -299,6 +299,18 @@ describe('the CLI contract', () => {
     expect(run(scaffold({ floor: DECLARED_FLOOR, pct: DECLARED_FLOOR + 0.5 })).code).toBe(0)
   })
 
+  it('test_a_gate_it_cannot_reach_is_an_error_and_never_an_agreement', () => {
+    // Mutation-tested: neutering the error branch survived the suite, because the only test of it
+    // called resolveViaGate directly and never went through main(). A thresholds file the checker
+    // cannot ask about is the realistic case — the kit is not installed in this root.
+    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
+    writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${DECLARED_FLOOR}\n`)
+    const result = run(root)
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('could not ask the gate')
+  })
+
   it('test_an_absent_thresholds_file_skips_loudly_and_exits_zero', () => {
     const result = run(mkdtempSync(join(tmpdir(), 'coverage-floor-')))
     expect(result.code).toBe(0)

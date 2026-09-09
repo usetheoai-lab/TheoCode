@@ -79,7 +79,13 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** Both layouts, in the order `coverage_gate.py::_THRESHOLD_FILES` tries them. */
+/**
+ * Both layouts. Used ONLY to decide whether there is anything to ask about, and to name the paths
+ * in the skip message — the precedence between them belongs to `resolve_threshold` now.
+ *
+ * Mutation-tested: reversing this list changes nothing, and that is correct rather than a gap in
+ * the suite. It used to be load-bearing, and every time it was, it produced a finding.
+ */
 const FLOOR_PATHS = ['rules/code-quality-thresholds.txt', '.claude/rules/code-quality-thresholds.txt']
 const REPORT_PATH = 'coverage/coverage-summary.json'
 
