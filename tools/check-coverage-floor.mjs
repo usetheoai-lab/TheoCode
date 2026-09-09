@@ -57,10 +57,16 @@
  *
  * ## What it deliberately cannot do
  *
- * CI cannot compare them. The thresholds file lives under `.claude/`, which this repository does
- * not version, so in a CI checkout it is absent and this SKIPs — loudly, naming the path, the way
- * `check-codex-parity.mjs` does for its own absent input. **It does not make coverage a merge
- * gate.** What CI does get is `DECLARED_FLOOR` in a reviewable diff.
+ * CI cannot compare the two DECLARATIONS. The thresholds file lives under `.claude/`, which this
+ * repository does not version, so in a CI checkout it is absent and the two halves cannot be held
+ * against each other there — that agreement stays a property of a machine that installed the kit.
+ *
+ * What it CAN do there, since B-160: hold `DECLARED_FLOOR` against a coverage report, if one
+ * exists. With neither the thresholds file nor a report it still SKIPs, naming which of the two it
+ * lacks. **This does not make coverage a merge gate** — no workflow produces a report today, so in
+ * CI as it stands the skip path is what runs, and `.github/workflows/ci.yml` was deliberately left
+ * alone: coverage there costs a measured +23s on a 70-second job, so the obstacle is not price but
+ * that adding the step changes what every future PR must satisfy.
  *
  * Nor does it verify coverage at `pnpm lint` time. `run_validation.py` runs `npm run lint` BEFORE
  * the step that regenerates the report, so at lint time the report is from a previous run or
@@ -139,6 +145,22 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
 export const DECLARED_FLOOR = 59.15
+
+/**
+ * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.
+ *
+ * `.github/workflows/ci.yml` produces no coverage report, so in CI the check above takes the skip
+ * path and this constant is compared against nothing. That is a decision, not an oversight, and the
+ * number behind it is measured: `pnpm test` 42.5s, `pnpm test:coverage` 65.3s, the CI `test` job
+ * 70s — **+23s**. Price is not the obstacle. Adding the step changes what every future pull request
+ * must satisfy, which is a decision about this project's CI policy rather than part of fixing a
+ * checker.
+ *
+ * It is written in this file rather than in a plan because B-160's own acceptance criterion asked
+ * for the decision "recorded with its reason WHERE THE FLOOR IS DECLARED" — and the plan that first
+ * recorded it lives under `.claude/`, which no clone receives. A reason filed where the reader
+ * cannot reach it satisfies the letter of that criterion and not its point.
+ */
 
 /** Percentage points the total may sit above the floor before a re-declaration is asked for. */
 const TOLERANCE = 1
@@ -262,13 +284,37 @@ function main() {
   const root = process.env['COVERAGE_FLOOR_ROOT'] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const say = (line) => process.stdout.write(`${line}\n`)
 
+  const reportFileEarly = join(root, REPORT_PATH)
   const present = FLOOR_PATHS.map((relative) => join(root, relative)).filter((path) => existsSync(path))
   if (present.length === 0) {
+    // B-160. This used to skip and say "nothing here to compare it against" — with a coverage report
+    // sitting in the directory beside it. There IS something: `DECLARED_FLOOR` is tracked and
+    // travels, so in a clone it is the ONLY half available, and comparing it to the measured total
+    // is the one check this environment supports. `evaluateFloor` already does it: a floor sitting
+    // further below the tree than TOLERANCE fails, which is exactly the mutant this was filed about
+    // — DECLARED_FLOOR lowered to 40 against a measured 59, surviving the whole suite until now.
+    //
+    // What this still cannot see is `coverage.min_percent`, which no clone has. The two halves
+    // agreeing stays a property of a machine that installed the kit.
+    const earlyText = existsSync(reportFileEarly) ? readOrNull(reportFileEarly) : null
+    const earlyMeasured = earlyText === null ? null : readMeasured(earlyText)
+    if (earlyMeasured === null) {
+      say(
+        `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')} and no parseable ${REPORT_PATH}. ` +
+          `The tracked floor is ${DECLARED_FLOOR}%, and nothing here measures the tree to compare it to.`,
+      )
+      return 0
+    }
+    const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured: earlyMeasured })
+    // The age travels on this route too. Line 250 of this file says a number without its age is a
+    // claim about now, and the first version of this branch dropped it — including on the failing
+    // arm, which tells the reader to raise the floor to a figure it will not date.
+    const earlyAge = ageMinutes(reportFileEarly)
+    const earlyStamp = earlyAge === null ? '' : ` (report ${earlyAge}m old)`
     say(
-      `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')}. ` +
-        `The tracked floor is ${DECLARED_FLOOR}%; nothing here to compare it against.`,
+      `[coverage-floor] no thresholds file — checking the TRACKED floor only. ${trackedOnly.message}${earlyStamp}`,
     )
-    return 0
+    return trackedOnly.status === 'OK' ? 0 : 1
   }
 
   const resolved = resolveViaGate(root)

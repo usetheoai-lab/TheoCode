@@ -28,6 +28,37 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Security
 
+## [0.25.1] - 2026-09-09
+
+### Fixed
+
+- The coverage-floor checker skipped the one comparison it could make in a checkout without the
+  kit, and said there was nothing to compare. `coverage.min_percent` is gitignored and never reaches
+  a clone, but `DECLARED_FLOOR` is tracked and does — so the tracked number can always be checked
+  against the coverage just measured, and the logic for that was already there and exercised. Only
+  the path to it was missing: `main()` returned first, while a coverage report sat in the directory
+  beside it.
+
+  Measured in a checkout with no `.claude/`, before and after: `DECLARED_FLOOR` lowered to 40
+  against a measured 59.15 used to exit 0 and now exits 1, naming the slack; lowered to 58,
+  likewise. The real value still passes, and a checkout with neither the thresholds file nor a
+  report still skips — and now says which of the two it lacks.
+
+  What this still cannot see is `coverage.min_percent` itself, so the two halves *agreeing* remains
+  a property of a machine that installed the kit. The checker's header says so.
+
+  **Corrected before release.** The first version of this entry said the mutant "survived the whole
+  suite in every fresh clone until now". It did not stop surviving: every new fixture was computed
+  *from* `DECLARED_FLOOR`, so lowering the constant lowered the report with it and every assertion
+  still held. A fixture derived from the thing under test cannot detect a change in that thing. The
+  fixtures are literals now, the constant is pinned by a literal of its own, and the three mutants
+  were measured dying in a genuine kit-less clone — where they had survived, including under the
+  first version of this fix.
+
+  Why no coverage step in CI is now recorded in the file that declares the floor, not only in a plan
+  under `.claude/` that no clone receives: **+23 s** measured, so the obstacle is not price but that
+  the step changes what every future pull request must satisfy.
+
 ## [0.25.0] - 2026-09-09
 
 ### Added
