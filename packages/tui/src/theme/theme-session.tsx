@@ -13,10 +13,20 @@
  * the whole mechanism: mutating a module variable is not enough, and a test that only asserted the
  * variable changed would have passed against the very defect this replaces.
  *
- * NOT PERSISTED, deliberately, and the argument is `memory-switch.ts`'s: a durable preference
- * belongs in config — or here, in `THEOCODE_THEME` — where it can be reviewed, rather than in a
- * switch someone flipped once and forgot. `/theme` and `/status` both report when an override is in
- * force, so it is never a silent divergence from what the environment says.
+ * The OVERRIDE is per-session; the CHOICE is not, since #72. This paragraph used to read "NOT
+ * PERSISTED, deliberately", borrowing `memory-switch.ts`'s argument that a durable preference
+ * belongs somewhere reviewable rather than in a switch someone flipped once and forgot. `/theme`
+ * reversed that and the comment did not follow: `handleTheme` calls `persist(known)` ->
+ * `storeThemeBase()`, `storedThemeBase()` comes back as the `stored` source of `resolveThemeBase`,
+ * and `theme-store.ts` records the reversal in its own words. A stale argument is the load-bearing
+ * kind of stale comment — it is what a maintainer would cite when deciding whether persistence
+ * belongs here, and it argued against shipped behaviour.
+ *
+ * What survives is the reviewability the old argument was really about: the file is named in the
+ * toast, `THEOCODE_THEME` still outranks it, and `/theme` and `/status` both report when an
+ * override is in force — so it is never a silent divergence from what the environment says.
+ * A CUSTOM theme is the exception and is genuinely session-only: `storeThemeBase` takes a
+ * `ThemeBase`, and there is nowhere for a slug to go.
  *
  * The override outranks `NO_COLOR`, which is the one ordering worth defending. `NO_COLOR` wins the
  * ENVIRONMENT race because it is the more specific of two ambient signals; an override is not
@@ -47,18 +57,16 @@ import { THEME_RESOLUTION, THEMES } from './theme.js'
 let override: TheoThemeProp | undefined
 const listeners = new Set<() => void>()
 
-/** The base `/theme` picked for this session, or `undefined` while the environment still decides. */
-export function sessionThemeBase(): ThemeBase | undefined {
-  return sessionBaseName
-}
-
-let sessionBaseName: ThemeBase | undefined
-
 /**
- * What `/theme` selected, for the status line: a base name, or `custom:<slug>`.
+ * What `/theme` selected, for `/status` and for `/theme`'s own report: a base name, or
+ * `custom:<slug>`. `undefined` while the environment still decides.
  *
- * A second fact rather than a widening of `sessionThemeBase`, whose callers ask specifically
- * "which of the three built-in bases", and would silently start receiving a slug.
+ * #14 — this used to sit beside `sessionThemeBase()`, which answered the NARROWER question "which
+ * of the three built-in bases", and both reports read that one. So after `/theme custom:midnight`
+ * they were handed `undefined`, reported the environment's answer while the frame was drawn in the
+ * operator's own file, and `/theme` listed that very file under "also" — as one still available to
+ * switch to. The narrow accessor had no other caller and is gone: one selection, one fact, and no
+ * second accessor that can silently answer about a different one.
  */
 let sessionLabelValue: string | undefined
 
@@ -74,7 +82,6 @@ export function sessionThemeLabel(): string | undefined {
  * repaints on unrelated keystrokes is read as a rendering bug rather than as a command.
  */
 export function setSessionThemeBase(base: ThemeBase): void {
-  sessionBaseName = base
   sessionLabelValue = base
   setSessionTheme(THEMES[base])
 }
@@ -87,10 +94,7 @@ export function setSessionThemeBase(base: ThemeBase): void {
  */
 export function setSessionTheme(prop: TheoThemeProp, label?: string): void {
   override = prop
-  if (label !== undefined) {
-    sessionLabelValue = label
-    sessionBaseName = undefined
-  }
+  if (label !== undefined) sessionLabelValue = label
   for (const listener of listeners) listener()
 }
 
@@ -129,7 +133,6 @@ export function ThemedSurface({ children }: { children: ReactNode }): ReactEleme
 /** Test-only: drop the override so each test starts from the environment's answer. */
 export function resetSessionThemeForTest(): void {
   override = undefined
-  sessionBaseName = undefined
   sessionLabelValue = undefined
 }
 

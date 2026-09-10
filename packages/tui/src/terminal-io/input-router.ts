@@ -26,6 +26,13 @@ export interface KeyboardState {
   readonly inLogin: boolean
   readonly rotating: boolean
   readonly mode: string
+  /**
+   * #58 — VISIBLE, not toggled. `routeEscape` is the visual stacking order, so every `showing*`
+   * here is a claim that the surface is on screen. `showingUsage` used to be fed `screen.showUsage`
+   * raw, while the panel renders on `showUsage && lastUsage`: `/usage` before the first turn armed
+   * a flag with nothing behind it, and this branch — which sits above `streaming` — then ate the
+   * first Escape of the next stream. The conjunction is built in `use-tui-keyboard.ts`.
+   */
   readonly showingUsage: boolean
   readonly showingDiff: boolean
   readonly showingHelp: boolean
@@ -203,6 +210,10 @@ function routeInComposer(
  * Escape is its own dismiss ladder: whatever is topmost closes first, and only when nothing is open
  * does it reach the backtrack gesture. The order here is the visual stacking order, which is why it
  * is written as a list rather than derived.
+ *
+ * That framing is load-bearing and it is a PRECONDITION on the caller: each flag below must mean
+ * the surface is on screen. This function cannot check it — a flag whose two possible meanings are
+ * indistinguishable from here is exactly how #58 shipped.
  */
 function routeEscape(state: KeyboardState): KeyAction[] {
   if (state.mode === 'progress') return [{ kind: 'close-progress' }]

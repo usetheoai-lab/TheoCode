@@ -80,7 +80,7 @@ function stubSpies() {
   }
 }
 
-function harness() {
+function harness(over: { hasLastUsage?: boolean } = {}) {
   const { agent, SESSION, ptyOwner } = stubCollaborators()
   const spies = stubSpies()
 
@@ -102,6 +102,9 @@ function harness() {
     goalActive: false,
     events: [],
     streaming: false,
+    // #58 — whether the last turn left usage to draw. Default `false`: a fresh session, which is
+    // the state `/usage` used to arm an invisible panel from.
+    hasLastUsage: over.hasLastUsage ?? false,
   } as unknown as CommandCapabilities
 
   return { cap, agent, SESSION, ptyOwner, ...spies }
@@ -136,6 +139,27 @@ describe('interpretCommand — the session-and-screen group claims its actions',
     expect(h.resetSession).not.toHaveBeenCalled()
     expect(h.setToast).not.toHaveBeenCalled()
     expect(h.agent.send).not.toHaveBeenCalled()
+  })
+
+  it('test_usage_before_the_first_turn_says_so_instead_of_toggling_nothing', () => {
+    // #58 — the panel renders on `showUsage && lastUsage`, so before any turn the toggle armed a
+    // flag with nothing behind it: `/usage` rendered nothing and said nothing. `/copy` answers
+    // "nothing to copy — the agent has not replied yet" in the same situation, and that is the
+    // shape this follows.
+    const h = run({ kind: 'toggleUsage' } as CommandAction, '', harness({ hasLastUsage: false }))
+
+    expect(h.setShowUsage, 'the toggle armed a panel that cannot render').not.toHaveBeenCalled()
+    expect(h.setToast).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('no usage') }),
+    )
+  })
+
+  it('test_usage_toggles_the_panel_once_a_turn_has_reported_usage', () => {
+    // Anti-vacuity floor: refusing unconditionally would satisfy the assertion above.
+    const h = run({ kind: 'toggleUsage' } as CommandAction, '', harness({ hasLastUsage: true }))
+
+    expect(h.setShowUsage).toHaveBeenCalled()
+    expect(h.setToast).not.toHaveBeenCalled()
   })
 
   it('test_toggleHelp_reaches_the_help_setter_and_not_the_panel', () => {

@@ -28,8 +28,10 @@ const OURS = [
   'profile', 'profiles',
 ]
 
+// `hooksDelivery: 'ours'` because these cases are about the KEY partition, not about hooks: it is
+// the setting that leaves hook translation on our own path, so no case here depends on it.
 const read = (raw: unknown, foreignRoot = false) =>
-  translateSettings(raw, { ownKeys: OURS, foreignRoot })
+  translateSettings(raw, { ownKeys: OURS, foreignRoot, hooksDelivery: 'ours' })
 
 describe('Phase 1.1 — keys this product recognises and does not act on', () => {
   it('test_a_foreign_key_is_reported_not_silently_dropped', () => {

@@ -118,6 +118,7 @@ function useInterruptAndBacktrack(d: {
   trusted: boolean
   goalActive: boolean
   goalAbort: { current: AbortController | null }
+  hasLastUsage: boolean
   currentSessionId: () => string
   forkCurrentSession: ReturnType<typeof getTuiRoot>['sessionFork']
   setSessionAndPersist: ReturnType<typeof getTuiRoot>['pointToSession']
@@ -134,6 +135,7 @@ function useInterruptAndBacktrack(d: {
     trusted,
     goalActive,
     goalAbort,
+    hasLastUsage,
     currentSessionId,
     setSessionAndPersist,
     setPendingQuestion,
@@ -159,6 +161,7 @@ function useInterruptAndBacktrack(d: {
     trusted,
     streaming,
     goalActive,
+    hasLastUsage,
     currentSessionId,
     setPendingQuestion,
     interruptTurn,
@@ -212,8 +215,9 @@ function buildComposerDeps(args: {
   conv: ReturnType<typeof useConversationState>
   credential: Parameters<typeof composerDeps>[2]['credential']
   events: Parameters<typeof composerDeps>[3]
+  hasLastUsage: boolean
 }): ReturnType<typeof composerDeps> {
-  const { s, screen, backtrack, conv, credential, events } = args
+  const { s, screen, backtrack, conv, credential, events, hasLastUsage } = args
   return composerDeps(
     s,
     screen,
@@ -224,6 +228,7 @@ function buildComposerDeps(args: {
       approvalMode: conv.approvalMode,
       goalRun: conv.goalRun,
       goalActive: conv.goalActive,
+      hasLastUsage,
       setGoalRun: conv.setGoalRun,
       setApprovalMode: conv.setApprovalMode,
       credential,
@@ -253,6 +258,11 @@ export function useTuiComposition() {
   const posture = s.SESSION.cfg().sandboxPosture
   const { pendingApproval, settleApproval } = useApprovals(agent, conv.approvalMode, posture)
 
+  // #58 — derived ONCE. The Escape ladder and `/usage` both need to know whether there is anything
+  // to draw, and the panel's render condition is `showUsage && lastUsage`: re-deriving it in either
+  // consumer is how the halves drifted apart in the first place.
+  const hasLastUsage = lastUsage !== undefined
+
   const backtrack = useInterruptAndBacktrack({
     screen,
     agent,
@@ -263,6 +273,7 @@ export function useTuiComposition() {
     trusted: conv.trusted,
     goalActive: conv.goalActive,
     goalAbort: conv.goalAbort,
+    hasLastUsage,
     currentSessionId,
     forkCurrentSession: s.forkCurrentSession,
     setSessionAndPersist: s.setSessionAndPersist,
@@ -271,7 +282,7 @@ export function useTuiComposition() {
   })
 
   const { handleSubmit } = useComposerCommands(
-    buildComposerDeps({ s, screen, backtrack, conv, credential, events }),
+    buildComposerDeps({ s, screen, backtrack, conv, credential, events, hasLastUsage }),
   )
 
   const c = {

@@ -7,8 +7,22 @@ export const ACCENT = '#d97757'
 
 /**
  * B-073 — resolved once at module load. The resolver takes its inputs as arguments so IT stays
- * deterministic under test; this is the single place that reads the real ones. `invalid` is surfaced
- * by `App` rather than dropped here — a module-level side effect would print during test collection.
+ * deterministic under test; this is the single place that reads the real ones. Nothing is printed
+ * from here — a module-level side effect would print during test collection.
+ *
+ * #16 — that last sentence used to end "`invalid` is surfaced by `App`", and `App` has never read
+ * this constant: the three consumers are `theme-session.tsx` (picks the base for the provider),
+ * `/theme` and the `theme` row of `/status`. So a rejected `THEOCODE_THEME=drak` is reported ON
+ * DEMAND, by either of those two commands, and never at startup.
+ *
+ * The CLAIM was fixed rather than the wiring, and the precedent is one this product already wrote
+ * down for the same class of fact: `use-tui-keyboard.ts` decided exactly this for a keybinding that
+ * could not be applied — "this hook has no place to put a message, and stderr under the TUI is a
+ * log file nobody has open. `/status` reports it, beside the theme." The two facts sit in adjacent
+ * rows of one panel; surfacing one at launch and the other on demand would be the inconsistency,
+ * and a banner-time toast for a cosmetic knob is what `theme-base.ts` is refusing when it returns
+ * the rejected value instead of throwing. The residual is real and is the price: an operator who
+ * never types `/status` or `/theme` is not told their variable was ignored.
  *
  * Since #72 the real inputs are two: the process environment and the operator's stored preference on
  * disk. So this CONSTANT is machine-dependent, while `resolveThemeBase` is not. No test asserts its

@@ -133,7 +133,9 @@ function sessionAndScreen(
       setShowHelp((h) => !h)
       return true
     case 'toggleUsage':
-      setShowUsage((u) => !u)
+      // `cap.` rather than a destructured name, like `cap.setResumed` above: this function is at
+      // its `max-lines-per-function` budget and one more binding line pushes it over.
+      toggleUsagePanel(cap.hasLastUsage, setShowUsage, setToast)
       return true
     case 'codexName':
       // Answered here, in the cheapest group, because it renders nothing and starts no turn — it
@@ -144,6 +146,30 @@ function sessionAndScreen(
     default:
       return false
   }
+}
+
+/**
+ * #58 — `/usage` answers when there is nothing to show, rather than arming an invisible panel.
+ *
+ * The panel renders on `showUsage && lastUsage` (`ConversationRegion.tsx`), so before the first
+ * turn the toggle flipped a flag with nothing behind it: no panel, and no word about why. Worse,
+ * the Escape ladder read that flag as "a panel is on screen" and ate the first Escape of the next
+ * stream. The ladder is fixed at its own seam; this is the half the operator sees, and it follows
+ * `/copy`, which already answers "nothing to copy — the agent has not replied yet".
+ *
+ * Its own function rather than a branch inside the switch: `sessionAndScreen` is at its complexity
+ * budget, and a case body that stays one call keeps it there.
+ */
+function toggleUsagePanel(
+  hasLastUsage: boolean,
+  setShowUsage: SessionAndScreenCapabilities['setShowUsage'],
+  setToast: SessionAndScreenCapabilities['setToast'],
+): void {
+  if (!hasLastUsage) {
+    setToast({ message: 'no usage yet — the agent has not finished a turn', variant: 'info' })
+    return
+  }
+  setShowUsage((u) => !u)
 }
 
 function identity(action: CommandAction, _text: string, cap: IdentityCapabilities): boolean {

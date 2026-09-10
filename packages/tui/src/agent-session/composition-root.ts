@@ -116,7 +116,8 @@ function build(): TuiRoot {
       // #132 — `/new` starts a session, so `SessionStart` fires here. NOT through the framework's
       // `on_session_start`: that one is once per loop context, and this product builds an agent per
       // turn, so the mapping would run the hook on every message. `void` because a hook must not
-      // hold the frame — its failures are reported through `onWarn`, never by blocking the reset.
+      // hold the frame — #57: `fireSessionStart` itself degrades and reports, including the config
+      // read that `/new` repeats, so the bare `void` cannot become an unhandled rejection.
       void fireSessionStart(session.session(), cwd)
     },
     sessionFork: () =>

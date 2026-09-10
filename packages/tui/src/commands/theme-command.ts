@@ -24,7 +24,7 @@ import { homedir } from 'node:os'
 import type { ToastPayload } from '../screen-types.js'
 import { listCustomThemes, loadCustomTheme } from '../theme/custom-theme.js'
 import { THEME_BASES, type ThemeBase, type ThemeResolution } from '../theme/theme-base.js'
-import { sessionThemeBase, setSessionTheme, setSessionThemeBase } from '../theme/theme-session.js'
+import { sessionThemeLabel, setSessionTheme, setSessionThemeBase } from '../theme/theme-session.js'
 import { THEME_RESOLUTION } from '../theme/theme.js'
 
 /**
@@ -80,8 +80,12 @@ function selectCustom(
  * light" and "the terminal would have given you dark" answer different questions, and collapsing
  * them would leave a user who has forgotten they typed `/theme` unable to tell a session override
  * from an environment they need to go and fix.
+ *
+ * #14 — `override` is a LABEL (`string`), not a `ThemeBase`. It was the narrower type, fed by an
+ * accessor that returned `undefined` after `/theme custom:<slug>`, so the one selection this line
+ * exists to announce was the one it could not carry.
  */
-export function themeResolutionLine(resolution: ThemeResolution, override?: ThemeBase): string {
+export function themeResolutionLine(resolution: ThemeResolution, override?: string): string {
   const rejected =
     resolution.invalid === undefined
       ? ''
@@ -123,10 +127,16 @@ export function handleTheme(
   if (requested.length === 0) {
     // The custom themes are listed here because nothing else tells an operator which slugs exist;
     // a feature discoverable only by reading the source is a feature nobody uses.
-    const custom = listCustomThemes(home).map((t) => `${CUSTOM_PREFIX}${t.slug}`)
+    // #14 — the one in FORCE is excluded. It is already named at the head of this line as the
+    // active theme, and repeating it after "also" offers the operator a switch to where they
+    // already are — the report contradicting itself in a single sentence.
+    const active = sessionThemeLabel()
+    const custom = listCustomThemes(home)
+      .map((t) => `${CUSTOM_PREFIX}${t.slug}`)
+      .filter((label) => label !== active)
     const also = custom.length > 0 ? ` — also ${custom.join(', ')}` : ''
     setToast({
-      message: `theme: ${themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())} — ${HOW_TO_CHANGE}${also}`,
+      message: `theme: ${themeResolutionLine(THEME_RESOLUTION, active)} — ${HOW_TO_CHANGE}${also}`,
       variant: 'info',
     })
     return
