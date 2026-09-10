@@ -16,6 +16,9 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+- **A hook declared in `.theokit/hooks.json` never ran, and nothing said why.** The framework's compatibility loader reads that file itself and spawns what it finds, bypassing this product's per-hook approval — so the gate refuses it, and a refused hook is treated as one that was never configured: the operation proceeds and there is no signal at all. The module had written the sentence that would explain it and nothing ever emitted it; `refusalNotice` had no production caller in any package. `theocode doctor` now names the file and the commands in it, beside the row where the equivalent `.claude/settings.json` refusal already lands. Answered from disk at diagnosis rather than at the spawn, deliberately: a spawn-time message can only arrive after the hook has already failed to fire, while "will my hook run?" is answerable before the turn starts. (#9)
+
 ### Changed
 - The all-projects session sweep is two modules, `all-sessions.ts` (plan) and `all-sessions-apply.ts` (apply), and the collection floor both planners obey lives in `collection-window.ts` rather than inside one of them. The seam is the one the audit found rather than a tidy-up: every test file importing this module imported the PLAN phase only, and the arm that deletes registry entries was entered by nothing — which is how two data-losing defects sat inside it at 78.78% coverage with 21 sibling test files. A module boundary makes "which phase does this test drive?" answerable from the import line. The 400-line gate is what forced the question; the answer was already overdue.
 

@@ -8,6 +8,7 @@ export type { CredentialState } from './doctor.js'
 export type { WiredCapabilities, WiredEntity } from './wired-capabilities.js'
 
 export { skillsOnDisk } from './skills-on-disk.js'
+export { foreignHookRefusals } from './hooks/foreign-hook-gate.js'
 
 export { loadOutputStyle } from './context/output-styles.js'
 export { FOREIGN_SURFACES } from './setting-sources.js'

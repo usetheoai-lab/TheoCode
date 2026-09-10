@@ -25,6 +25,7 @@
  * installation nobody examined is fine. The local version had exactly that hole.
  */
 import type { SettingsFileReport } from './config/settings-load.js'
+import { refusalNotice } from './hooks/foreign-hook-gate.js'
 import type { Check } from '@theokit/agents/doctor'
 
 /**
@@ -144,6 +145,31 @@ function skillsOnDiskCheck(
   return [{ name: 'skills-on-disk', status: 'warn', detail: parts.join(' · ') }]
 }
 
+/**
+ * The hook files the framework loads directly, which this product refuses to let it spawn.
+ *
+ * Lands beside `settingsCheck` because it is the same question with a different file: a hook in a
+ * project `.claude/settings.json` already reaches the operator through `droppedHooks`, and
+ * `.theokit/hooks.json` reached them through nothing. Inventing a second surface for one question
+ * is how two answers start to disagree.
+ *
+ * Appended only when there is something to say — the rule the rows around it follow.
+ */
+export function foreignHookCheck(
+  refusals: readonly { path: string; commands: readonly string[] }[] = [],
+): Check[] {
+  if (refusals.length === 0) return []
+  return [
+    {
+      name: 'hooks-not-run',
+      // A warning, never a failure. The operation a refused hook attached to still proceeds by
+      // design, so nothing is broken; exiting non-zero would report a working install as broken.
+      status: 'warn' as const,
+      detail: refusals.map((r) => refusalNotice(r)).join(' | '),
+    },
+  ]
+}
+
 function settingsCheck(reports: readonly SettingsFileReport[] = []): Check[] {
   const said = reports
     .map((r) => {
@@ -214,6 +240,14 @@ export function collectChecks(input: {
    */
   readonly settingsIgnored?: readonly SettingsFileReport[]
   /**
+   * Hook files the framework loads directly, which this product refuses to let it spawn (#130).
+   *
+   * Supplied by the caller rather than read here, like `skillsOnDisk` beside it: this module turns
+   * facts into rows and does no I/O, so a test can state a situation instead of building one on
+   * disk. Optional, so a caller that did not look says nothing rather than asserting there are none.
+   */
+  readonly foreignHooks?: readonly { path: string; commands: readonly string[] }[]
+  /**
    * The configured output style and whether a file was found for it. Optional: a caller that did not
    * look says nothing, rather than asserting no style is configured.
    */
@@ -254,6 +288,11 @@ export function collectChecks(input: {
     // them is what lets the product start; naming them is what stops the tolerance from teaching an
     // operator that a key is read when it is not.
     ...settingsCheck(input.settingsIgnored),
+    // #130 — the hooks the framework would spawn without this product's approval, and therefore does
+    // not spawn at all. Answered from disk at diagnosis rather than at the spawn: the spawn-time
+    // notice can only arrive after the hook has already failed to fire, and "will my hook run?" is
+    // answerable before the turn starts.
+    ...foreignHookCheck(input.foreignHooks),
     // The style is applied silently — a name that matches no file falls back to the built-in
     // instructions so a typo cannot take the turn away. That fallback has to be loud somewhere.
     ...outputStyleCheck(input.outputStyle),

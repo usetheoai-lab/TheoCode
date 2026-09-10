@@ -45,16 +45,20 @@ describe('#130 — hooks the framework loaded itself', () => {
 describe('what the operator is told', () => {
   it('test_the_notice_names_the_file_and_where_hooks_do_run', () => {
     // "A hook was refused" sends someone reading every settings file in the repository.
-    const notice = refusalNotice(request())
-    expect(notice).toContain('/repo/.claude/settings.json')
+    const notice = refusalNotice({ path: '/repo/.theokit/hooks.json', commands: ['guard.sh'] })
+    expect(notice).toContain('/repo/.theokit/hooks.json')
+    expect(notice).toContain('guard.sh')
     expect(notice).toContain('.theocode/settings.json')
   })
 
-  it('test_it_says_something_useful_when_the_framework_gave_no_path', () => {
-    // `sourcePath` is optional in the framework's request. A notice reading "declared in undefined"
-    // is worse than one that admits it does not know.
-    const notice = refusalNotice(request({ sourcePath: undefined }))
+  it('test_it_says_something_useful_when_no_command_could_be_read', () => {
+    // The shape moved from the framework's spawn-time request to the file on disk, and this case
+    // moved with it: `sourcePath` was optional there, and here the unknown is the COMMAND — a file
+    // the framework will still load but that this product could not parse. A notice reading
+    // "undefined will NOT run" is worse than one that admits what it does not know.
+    const notice = refusalNotice({ path: '/repo/.theokit/hooks.json', commands: [] })
     expect(notice).not.toContain('undefined')
+    expect(notice).toContain('the hooks it declares')
   })
 })
 
