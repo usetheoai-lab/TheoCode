@@ -18,9 +18,8 @@
  * deliberately not used here — there is no run to drive.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+
+import { tempRoot } from './helpers/temp-root.js'
 
 /**
  * B-161 — HOME is isolated here for the same reason `cwd` is: `buildChatAgent` reads the operator's
@@ -36,7 +35,7 @@ import { join } from 'node:path'
 const realHome = process.env.HOME
 
 beforeEach(() => {
-  process.env.HOME = mkdtempSync(join(tmpdir(), 'composition-home-'))
+  process.env.HOME = tempRoot('composition-home-')
 })
 
 afterEach(() => {

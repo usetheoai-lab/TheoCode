@@ -24,13 +24,13 @@
  * when dogfooding surfaced 39 foreign skills. Written as an assertion rather than a comment so the
  * decision is defended by the suite instead of by memory.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { discoverRoles } from '../../src/delegation/role-discovery.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 let PROJ: string
 let HOME: string
@@ -45,7 +45,7 @@ const role = (root: string, dialect: string, name: string): void => {
 }
 
 beforeAll(() => {
-  const base = mkdtempSync(join(tmpdir(), 'role-compat-'))
+  const base = tempRoot('role-compat-')
   PROJ = join(base, 'proj')
   HOME = join(base, 'home')
   role(PROJ, '.theokit', 'native-proj')

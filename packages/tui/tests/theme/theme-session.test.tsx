@@ -33,6 +33,7 @@ import {
   themeSubscriberCountForTest,
 } from '../../src/theme/theme-session.js'
 import { THEME_RESOLUTION } from '../../src/theme/theme.js'
+import { waitFor } from '../helpers/wait-for.js'
 
 /**
  * Renders one theme token as text, because that is the only way a test can see what the provider
@@ -51,14 +52,22 @@ function probeTextFor(base: (typeof THEME_BASES)[number]): string {
 }
 
 /**
- * Let Ink paint.
+ * Let Ink paint — and wait for the paint, not for a stopwatch.
  *
  * The store write happens outside React's own event handling, so the re-render it schedules is
- * committed on a later tick — Ink throttles its writes to the frame budget rather than emitting one
+ * committed on a later tick: Ink throttles its writes to the frame budget rather than emitting one
  * per `setState`. Reading `lastFrame()` on the same tick returns the frame BEFORE the switch, which
  * would read as "the switch did not reach the provider" and is really "the test asked too early".
+ *
+ * This was a flat 50 ms sleep. Fifty is not derived from anything — the frame budget is 34 ms
+ * (`coalesceWindowMs(TUI_MAX_FPS)`) and this runner is documented as inflating a 700 ms test to
+ * 5 100 ms under full-suite parallelism, so the margin over one frame is thinner than the contention
+ * the same repository measures. `repainted` ends on the frame CHANGING, so a slow commit costs time
+ * instead of a false red, and a commit that never comes is reported as "the frame never repainted"
+ * rather than as a theme that failed to resolve.
  */
-const painted = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 50))
+const repainted = async (lastFrame: () => string | undefined, before: string | undefined): Promise<void> =>
+  waitFor(() => lastFrame() !== before, 'the mounted frame to repaint after the base changed')
 
 /** A base the environment did NOT resolve, so "it switched" cannot be satisfied by standing still. */
 const OTHER_BASE = THEME_BASES.find((base) => base !== THEME_RESOLUTION.base) as
@@ -94,7 +103,7 @@ describe('a theme picked in the session reaches the rendered provider', () => {
     const before = lastFrame()
 
     setSessionThemeBase(OTHER_BASE as (typeof THEME_BASES)[number])
-    await painted()
+    await repainted(lastFrame, before)
 
     expect(lastFrame(), 'the mounted frame kept the base it was built with').not.toBe(before)
     expect(lastFrame(), 'the provider did not resolve the base that was picked').toContain(
@@ -112,9 +121,10 @@ describe('a theme picked in the session reaches the rendered provider', () => {
         <DiffBackgroundProbe />
       </ThemedSurface>,
     )
+    const before = lastFrame()
 
     handleTheme(OTHER_BASE as string, vi.fn(), () => true, () => '<store>')
-    await painted()
+    await repainted(lastFrame, before)
 
     expect(lastFrame(), '/theme did not reach the provider').toContain(
       probeTextFor(OTHER_BASE as (typeof THEME_BASES)[number]),
@@ -134,7 +144,16 @@ describe('a theme picked in the session reaches the rendered provider', () => {
 
     for (const base of THEME_BASES) {
       setSessionThemeBase(base)
-      await painted()
+      // Waiting on the CONTENT rather than on a change, because one pass of this loop sets the base
+      // the frame is already on: nothing repaints, and a wait for a change would time out on the one
+      // base that was already correct. The condition is therefore already true for that pass and the
+      // wait costs nothing; for every other base it ends on the repaint. The `expect` below restates
+      // it so the case still reads as an assertion — the wait is what fails first, and it names the
+      // base it was waiting for.
+      await waitFor(
+        () => lastFrame()?.includes(probeTextFor(base)) === true,
+        `the frame to be drawn as ${base}`,
+      )
       expect(lastFrame(), `${base} is offered but does not render as itself`).toContain(
         probeTextFor(base),
       )

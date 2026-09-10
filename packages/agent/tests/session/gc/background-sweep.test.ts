@@ -54,20 +54,45 @@ const closingWith = (
 })
 
 describe('startSessionSweepInBackground', () => {
-  it('test_it_returns_without_waiting_for_the_sweep', () => {
+  it('test_it_hands_the_sweep_to_a_child_and_returns_before_that_child_finishes', () => {
     // The finding, as an assertion: 37 s of synchronous sweeping used to happen inside this call.
+    //
+    // What proves the delegation is the SEAM, not the clock. `spawnSweep` is injected, so "the work
+    // was handed to a child" is a fact this test can read directly; `fakeChild` never fires `close`,
+    // so a parent that waited for the sweep to finish could not have returned here at all, and one
+    // that reported a finished sweep would have had to invent it.
+    //
+    // The clock stays only as a coarse regression net, and its ceiling is chosen against the
+    // measurement `spawn-sweep.ts` records: 4.9 s was the FASTEST in-process sweep ever measured
+    // (warm, 13 269 projects). Anything under that is evidence the parent did not do the work, and
+    // 4 s is far enough above a delegating call — which spawns nothing here — that a loaded runner
+    // cannot approach it. The old ceiling was 500 ms, close enough to the contention this repository
+    // documents in `vitest.config.ts` to decide a pass on scheduling.
+    //
+    // Stated honestly, because the net is weaker than it looks: `projectsRootOverride` points at an
+    // EMPTY directory, so an inline sweep of THAT root would return in microseconds and no clock
+    // could see it. The delegation assertion is what carries the claim; the clock only catches a
+    // parent that goes looking at the real tree.
     const root = scratchRoot()
+    const handed: (readonly string[])[] = []
+    const reports: string[] = []
     const started = Date.now()
 
     const outcome = startSessionSweepInBackground({
       enabled: true,
-      onReport: () => {},
+      onReport: (l) => reports.push(l),
       projectsRootOverride: root,
-      spawnSweep: fakeChild,
+      spawnSweep: (cmd) => {
+        handed.push(cmd.args)
+        return fakeChild()
+      },
     })
 
     expect(outcome.started).toBe(true)
-    expect(Date.now() - started, 'the call did work instead of delegating it').toBeLessThan(500)
+    expect(handed, 'the sweep was never handed to a child — this call did the work itself').toHaveLength(1)
+    expect(handed[0], 'the child was spawned without the collector subcommand').toContain('gc')
+    expect(reports, 'the call reported a finished sweep before the child had finished one').toEqual([])
+    expect(Date.now() - started, 'the call took longer than the fastest sweep ever measured').toBeLessThan(4_000)
   })
 
   it('test_a_disabled_collector_spawns_nothing_and_stamps_nothing', () => {

@@ -9,11 +9,12 @@
  * covers the second defect this could have: `/skills` listing a set the agent does not hold, which
  * is the config-versus-reality disagreement `wired-capabilities.ts` exists to make impossible.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
+
+import { tempRoot } from '../helpers/temp-root.js'
 
 const realHome = process.env.HOME
 
@@ -24,7 +25,7 @@ afterEach(() => {
 
 describe('#65 — an operator skill is wired into the agent', () => {
   it('test_the_record_lists_a_skill_that_exists_only_in_the_operators_root', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'user-skills-wiring-'))
+    const home = tempRoot('user-skills-wiring-')
     const dir = join(home, '.theokit', 'skills', 'reply-in-portuguese')
     mkdirSync(dir, { recursive: true })
     writeFileSync(
@@ -42,7 +43,7 @@ describe('#65 — an operator skill is wired into the agent', () => {
       // store keyed by the path. Measured: three production lines were covered on a maintainer's
       // machine and not in a clean checkout, which made total coverage a property of the machine.
       // The half that was isolated was not the half the content arrives through.
-      cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
+      cwd: tempRoot('b161-project-'),
       surface: 'headless',
       onWired: (w) => {
         wired = w as typeof wired
@@ -58,7 +59,7 @@ describe('#65 — an operator skill is wired into the agent', () => {
   it('test_negative_control_an_operator_with_no_skills_adds_nothing', async () => {
     // Anti-vacuity. Without this, a record that listed 'reply-in-portuguese' unconditionally — or a
     // `toContain` against a list built from something else entirely — would pass the arm above.
-    const home = mkdtempSync(join(tmpdir(), 'user-skills-wiring-empty-'))
+    const home = tempRoot('user-skills-wiring-empty-')
     process.env.HOME = home
 
     const { buildChatAgent } = await import('../../src/chat.js')
@@ -70,7 +71,7 @@ describe('#65 — an operator skill is wired into the agent', () => {
       // store keyed by the path. Measured: three production lines were covered on a maintainer's
       // machine and not in a clean checkout, which made total coverage a property of the machine.
       // The half that was isolated was not the half the content arrives through.
-      cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
+      cwd: tempRoot('b161-project-'),
       surface: 'headless',
       onWired: (w) => {
         wired = w as typeof wired

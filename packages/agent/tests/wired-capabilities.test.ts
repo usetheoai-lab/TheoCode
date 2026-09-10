@@ -5,13 +5,10 @@
  * the same as nothing being configured. Collapsing them sends a user to approve something that was
  * never going to run, or to debug a config that is fine.
  */
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
 import { describe, expect, it } from 'vitest'
 
 import { wiredCapabilities } from '../src/wired-capabilities.js'
+import { tempRoot } from './helpers/temp-root.js'
 
 const allows = (mcp: boolean, skills: boolean, hooks: boolean, agentsMd = hooks) => ({
   allows: { mcp, skills, hooks, agentsMd },
@@ -112,12 +109,12 @@ describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
       // operator's skills change nothing it checks — which is why this one is safe to leave, and why
       // `composition.test.ts`, whose assertions compare exact lists, is not.
       // The half that was isolated was not the half the content arrives through.
-      cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
+      cwd: tempRoot('b161-project-'),
       // B-167 — the other half. A comment here once CLAIMED this file isolated HOME; it did not, and
       // the claim was removed rather than made true, because the assertion below is shape-only and
       // nothing depended on it. Now it is made true: the operator root is a parameter, so this build
       // no longer reads whatever `~/.theokit/` the machine holds.
-      home: mkdtempSync(join(tmpdir(), 'b167-home-')),
+      home: tempRoot('b167-home-'),
       surface: 'headless',
       onWired: (w) => {
         seen = w

@@ -24,6 +24,7 @@ import {
   titleSelection,
   type TitleFacts,
 } from '../src/title-session.js'
+import { waitFor } from './helpers/wait-for.js'
 
 /**
  * The two answer channels, discarded.
@@ -54,13 +55,19 @@ function titlesWritten(s: ReturnType<typeof sink>): string[] {
 }
 
 /**
- * Let Ink commit.
+ * Let Ink commit — and wait for the commit rather than for a stopwatch.
  *
  * The same wait `theme-session.test.tsx` documents: a store write outside React's event handling
  * commits on a later tick, and reading the sink on the same tick reports "the command did nothing"
  * when it really means "the test asked too early".
+ *
+ * It was a flat 50 ms. Every case below knows exactly how many OSC payloads it is expecting, so the
+ * honest wait is for that count to arrive — it ends on the write instead of on a guess, and a write
+ * that never comes is reported as "only 1 of 2 titles was written" rather than as a `/title` that
+ * silently did nothing.
  */
-const painted = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 50))
+const titlesSettle = async (s: ReturnType<typeof sink>, count: number): Promise<void> =>
+  waitFor(() => titlesWritten(s).length >= count, `${String(count)} title write(s) to reach the stream`)
 
 afterEach(() => {
   titleSelection.reset()
@@ -87,7 +94,7 @@ describe('the terminal title is written from a mounted frame', () => {
     const { rerender, unmount } = render(<TerminalTitle facts={facts()} out={s.out} />)
 
     rerender(<TerminalTitle facts={facts({ model: 'gpt-5.6-terra' })} out={s.out} />)
-    await painted()
+    await titlesSettle(s, 2)
 
     expect(titlesWritten(s), 'the tab kept naming the model this session left').toEqual([
       'TheoCode — gpt-5.6',
@@ -99,13 +106,25 @@ describe('the terminal title is written from a mounted frame', () => {
   it('test_a_render_that_changes_no_fact_writes_nothing_further', async () => {
     // Anti-thrash. The effect runs on every commit, and a streaming turn commits dozens of times a
     // second; a terminal repainting its tab bar at that rate is visible and is read as a fault.
+    //
+    // The assertion is a NEGATIVE — "nothing more was written" — and a negative taken after a fixed
+    // sleep passes for two reasons: nothing was written, or the write has not landed yet. So the
+    // unchanged rerender is followed by a rerender that DOES change a fact, and the wait is for that
+    // second title. Once it has arrived, everything the identical rerender would have emitted has
+    // had its turn, and the sequence of writes says whether it emitted one: two entries means it
+    // stayed quiet, three means it thrashed.
     const s = sink()
+    titleSelection.select(['app', 'model'])
     const { rerender, unmount } = render(<TerminalTitle facts={facts()} out={s.out} />)
 
     rerender(<TerminalTitle facts={facts()} out={s.out} />)
-    await painted()
+    rerender(<TerminalTitle facts={facts({ model: 'gpt-5.6-terra' })} out={s.out} />)
+    await titlesSettle(s, 2)
 
-    expect(titlesWritten(s), 'an unchanged title was re-emitted').toHaveLength(1)
+    expect(titlesWritten(s), 'an unchanged title was re-emitted').toEqual([
+      'TheoCode — gpt-5.6',
+      'TheoCode — gpt-5.6-terra',
+    ])
     unmount()
   })
 
@@ -116,7 +135,7 @@ describe('the terminal title is written from a mounted frame', () => {
     const { unmount } = render(<TerminalTitle facts={facts()} out={s.out} />)
 
     handleTitle('session', screen())
-    await painted()
+    await titlesSettle(s, 2)
 
     expect(titlesWritten(s).at(-1), '/title never reached the terminal').toBe('tui-abc')
     unmount()
@@ -129,7 +148,7 @@ describe('the terminal title is written from a mounted frame', () => {
     const { unmount } = render(<TerminalTitle facts={facts()} out={s.out} />)
 
     handleTitle('none', screen())
-    await painted()
+    await titlesSettle(s, 2)
 
     expect(titlesWritten(s).at(-1), '/title none left our title on the tab').toBe('')
     unmount()
