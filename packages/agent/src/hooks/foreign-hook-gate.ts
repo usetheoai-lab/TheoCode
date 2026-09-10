@@ -52,7 +52,7 @@ export function refuseForeignHook(_request: HookApprovalRequest): false {
  * already failed to fire.
  *
  * These files are on disk before the turn starts. "Will my hook run?" is answerable up front, with
- * the command named, which is the difference between a diagnostic and a post-mortem.
+ * the command named, which is the difference between a diagnostic and an autopsy.
  *
  * A `.claude/settings.json` hook is already covered by a different path — `normaliseHooks` pushes a
  * message into `droppedHooks`, which `settingsReport` collects and `doctor` renders — so it is not

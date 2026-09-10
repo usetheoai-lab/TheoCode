@@ -123,6 +123,26 @@ export default defineConfig({
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
      * the next item, and 62.03% is a ratchet against the clean reading, never a target.
+     *
+     * WHAT `include` LEAVES OUT, AND WHY IT IS A DECISION RATHER THAN AN OVERSIGHT. The glob is
+     * `packages/*/src`, so the twelve checkers under `tools/` — the `npm run lint` chain and two of
+     * the six required status checks — contribute nothing to this number. That includes
+     * `check-coverage-floor.mjs` itself: the gate guarding coverage sits outside the thing it
+     * guards.
+     *
+     * They ARE tested — eleven `.mjs` test files run in this suite and pass. What did not exist was
+     * a number. Measured 2026-09-10 over `tools/**\/*.mjs` with the same provider: lines 43.72%
+     * (331/757), statements 43.95%, functions 52%.
+     *
+     * That number is why they stay out rather than an argument for folding them in. At 43.72% they
+     * sit twenty points under this floor, so a single `include` covering both would drop the total
+     * and force the ratchet DOWN — a gate weakened by the act of widening its scope. Two populations
+     * with different coverage expectations averaged into one figure also make the figure answer
+     * neither question: a regression in app source could be masked by a checker gaining a test.
+     *
+     * The honest fix, if one is wanted, is a SEPARATE floor for `tools/`, not a shared one. It is
+     * deliberately not built here: nothing has yet needed it, and this comment turns "nobody knows
+     * how much of the build chain is reached" into a measured 43.72% that anyone can re-run.
      */
     coverage: {
       provider: 'v8',

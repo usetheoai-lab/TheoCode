@@ -127,6 +127,7 @@ const TECHNICAL = new Set([
   'https', // pt: conjugation of "hipar" in some lists — here it is the URL scheme
   'distro', // pt: a verb form — here it is the Linux-distribution abbreviation
   'eval', // present in pt_BR.dic — here it is the English evaluate/eval abbreviation
+  'coalescer', // pt: a verb form — here it is the English agent noun for something that coalesces
   'renormalize', // present in /usr/share/dict/portuguese — an English verb either way
   // Tool and protocol names that collide with a Portuguese dictionary entry. Measured against the
   // theokit repositories, where they accounted for ~19% of all matches.
