@@ -16,13 +16,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
-### Fixed
-
-- Three tests no longer fail for operators who export `$THEOKIT_HOME`. They asserted about the
-  operator-root seam while letting the environment decide where the loader looked, so an ordinary
-  local setting produced three red tests that were about the environment rather than the code
-  (B-172).
-
 ### Added
 
 ### Changed
@@ -34,6 +27,28 @@ for `release.yml` in this repository will not find it, and should not have been 
 ### Fixed
 
 ### Security
+
+## [0.26.1] - 2026-09-10
+
+### Fixed
+
+- **`/status` no longer reports the rules as fully loaded after a second ceiling cut them (B-173).**
+  Two limits act on the rule corpus in series: the loader's, which bounds what is read, and an
+  aggregate one that trims the whole composed persona to fit the model. Only the first reached the
+  status row, so a run whose rules had ~30,000 chars removed downstream still printed "12 loaded" —
+  the agent answering normally, having never seen a third of what the repository wrote for it.
+  The information was never missing; it was announced in a warning string no surface could read.
+  `composeInstructions` now RETURNS what it cut and from which source, and the row reports the
+  second limit as its own clause: *"12 loaded; a later ceiling cut the block from 50,000 to 20,000
+  chars"*. Two clauses rather than one percentage, because the limits count different things — the
+  first source characters, the second rendered ones — and a single share over two units would be a
+  number no reader could check. A cut the aggregate limit takes from the surface document or the
+  AGENTS.md chain is not attributed to the rules — that mis-attribution is what made an earlier
+  attempt describe an intact 18-character rule block as cut from 200,000 chars to 86,346.
+- Three tests no longer fail for operators who export `$THEOKIT_HOME`. They asserted about the
+  operator-root seam while letting the environment decide where the loader looked, so an ordinary
+  local setting produced three red tests that were about the environment rather than the code
+  (B-172).
 
 ## [0.26.0] - 2026-09-09
 

@@ -9,6 +9,7 @@ import type { RulesLoad } from './context/rules.js'
 import { parseHooks } from './hooks/index.js'
 import type { McpScopes } from './mcp-scopes.js'
 import { wiredCapabilities } from './wired-capabilities.js'
+import type { InstructionCut } from './context/agents-md.js'
 import type { WiredCapabilities } from './wired-capabilities.js'
 
 /** The hook events, each with the command it runs — see the comment inside for why both. */
@@ -102,6 +103,26 @@ export function bothRuleRoots(
 }
 
 /**
+ * B-173 — fold the aggregate ceiling's rules cut into the record the surfaces read.
+ *
+ * Only a cut whose `source` is `rules` reaches the rules row. The ceiling can equally cut the
+ * surface document or leave an oversized base, and attributing either here is how a 25-char
+ * intact load once reported "1 of 1 — 0% dropped": false in both numbers, about a block nothing
+ * had touched.
+ *
+ * Returns the record UNCHANGED when nothing cut the rules — the identity case is the one an
+ * implementation that always reports a cut gets wrong, so it is the one the tests assert.
+ */
+export function withAggregateCut(
+  record: WiredCapabilities['rules'],
+  cuts: readonly InstructionCut[],
+): WiredCapabilities['rules'] {
+  if (record === undefined) return record
+  const cut = cuts.find((c) => c.source === 'rules')
+  return cut === undefined ? record : { ...record, aggregateCut: { from: cut.from, to: cut.to } }
+}
+
+/**
  * Build the record and hand it to whoever asked for it.
  *
  * Derived from the SAME values the builder just received, at the point it received them. That is
@@ -116,6 +137,8 @@ export function publishWiring(
     mcp: McpScopes
     operatorSkills: readonly InlineSkill[]
     rules: ReturnType<typeof bothRuleRoots>
+    /** B-173 — what the aggregate ceiling cut, from the build that applied it. */
+    aggregateCuts?: readonly InstructionCut[]
   },
 ): void {
   onWired?.(
@@ -125,7 +148,7 @@ export function publishWiring(
       from.cfg,
       from.mcp,
       from.operatorSkills.map((s) => s.name),
-      from.rules.record,
+      withAggregateCut(from.rules.record, from.aggregateCuts ?? []),
     ),
   )
 }

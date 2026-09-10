@@ -61,3 +61,53 @@ describe('#91 — the rules row', () => {
       .toBe('<none>')
   })
 })
+
+describe('B-173 — the row reflects BOTH ceilings, or says which one it saw', () => {
+  it('test_a_second_ceiling_cut_is_named_even_when_the_first_passed_everything', () => {
+    // The defect this item is about. The loader's ceiling passed the whole block, so `truncated`
+    // is false and the row said "12 loaded" — over a corpus the aggregate ceiling had cut by
+    // ~30,000 rendered chars downstream, in a warning string no surface could read.
+    const row = rulesRow({
+      count: 12,
+      read: 12,
+      chars: 4_000,
+      kept: 4_000,
+      truncated: false,
+      aggregateCut: { from: 50_000, to: 20_000 },
+    })
+
+    // `toBe`, not `toContain`: review showed that rendering the two clauses in the wrong order
+    // produced "; a later ceiling cut the block from 50,000 to 20,000 chars12 loaded" and passed
+    // every containment assertion. One equality pins order, separator and thousands-formatting.
+    expect(row).toBe('12 loaded; a later ceiling cut the block from 50,000 to 20,000 chars')
+  })
+
+  it('test_the_two_ceilings_are_reported_separately_and_never_as_one_percentage', () => {
+    // They measure different things — the first in SOURCE chars from the loader, the second in
+    // RENDERED chars from the composed prompt. A single share over two units is a number nobody
+    // can check, and computing one is how a reversed attempt printed "0% dropped" over a persona
+    // cut to 363 chars.
+    const row = rulesRow({
+      count: 8,
+      read: 34,
+      chars: 246_582,
+      kept: 64_000,
+      truncated: true,
+      aggregateCut: { from: 64_000, to: 30_000 },
+    })
+
+    expect(row).toBe(
+      '8 of 34 — 74% dropped (246,582 chars over the ceiling); a later ceiling cut the block from 64,000 to 30,000 chars',
+    )
+  })
+
+  it('test_no_second_cut_leaves_the_row_exactly_as_it_was', () => {
+    // ANTI-VACUITY CONTROL. Without it, a renderer that always appended a second clause — or one
+    // that appended "cut to undefined" — passes both assertions above. The previous attempt at
+    // this item shipped with precisely that mutant alive.
+    expect(rulesRow({ count: 12, read: 12, chars: 4_000, kept: 4_000, truncated: false })).toBe('12 loaded')
+    expect(rulesRow({ count: 8, read: 34, chars: 246_582, kept: 64_000, truncated: true })).toBe(
+      '8 of 34 — 74% dropped (246,582 chars over the ceiling)',
+    )
+  })
+})

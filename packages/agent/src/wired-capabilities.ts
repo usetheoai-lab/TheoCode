@@ -56,6 +56,22 @@ export interface WiredCapabilities {
     /** Length that reached the prompt, so a surface computes the loss without knowing the ceiling. */
     readonly kept: number
     readonly truncated: boolean
+    /**
+     * B-173 — what the AGGREGATE ceiling cut from the rules, in RENDERED chars.
+     *
+     * A second ceiling acts after the loader's: `composeInstructions` trims the whole persona to
+     * `MAX_AGGREGATE`, and it can take ~30,000 chars of rules that the first ceiling passed
+     * untouched. Until this field existed the record said "N loaded" over that corpus.
+     *
+     * Its own field rather than a smaller `kept`, because the two ceilings measure different
+     * things: `chars`/`kept` are SOURCE chars from the loader, these are RENDERED chars from the
+     * composed prompt. Folding one into the other would produce a percentage over two units —
+     * a number no reader could check, and the shape that made a reversed attempt print
+     * "0% dropped" over a persona cut to 363 chars.
+     *
+     * `undefined` means the aggregate ceiling did not cut the rules — never that it did not run.
+     */
+    readonly aggregateCut?: { readonly from: number; readonly to: number }
   }
   /** Whether `.theokit/agents/*.md` were allowed to load — subagents and project hooks ride on it. */
   readonly projectSources: boolean

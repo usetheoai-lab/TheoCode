@@ -137,12 +137,34 @@ function defaultRulesOnDisk(cwd: string): WiredCapabilities['rules'] {
 }
 
 function rulesBody(rules: NonNullable<WiredCapabilities['rules']>): string {
+  return `${firstCeiling(rules)}${secondCeiling(rules)}`
+}
+
+/** The loader's ceiling, in SOURCE chars. Unchanged from #91. */
+function firstCeiling(rules: NonNullable<WiredCapabilities['rules']>): string {
   if (!rules.truncated) return `${String(rules.count)} loaded`
 
   // From the two numbers the record carries — never from the ceiling, which lives in the loader
   // and would be a second copy here, wrong the day it moved.
   const dropped = Math.round((100 * (rules.chars - rules.kept)) / rules.chars)
   return `${String(rules.count)} of ${String(rules.read)} — ${String(dropped)}% dropped (${rules.chars.toLocaleString('en-US')} chars over the ceiling)`
+}
+
+/**
+ * B-173 — the aggregate ceiling, in RENDERED chars, as its OWN clause.
+ *
+ * Appended rather than folded into the share above, and the separation is the point: the first
+ * ceiling counts source chars the loader read, this one counts rendered chars in the composed
+ * prompt. One percentage over two units would be unverifiable, and the attempt that tried it
+ * printed "0% dropped" over a persona cut to 363 chars.
+ *
+ * Empty when the aggregate ceiling did not cut the rules — which is the case a renderer that
+ * always appends gets wrong, and the one the tests pin.
+ */
+function secondCeiling(rules: NonNullable<WiredCapabilities['rules']>): string {
+  const cut = rules.aggregateCut
+  if (cut === undefined) return ''
+  return `; a later ceiling cut the block from ${cut.from.toLocaleString('en-US')} to ${cut.to.toLocaleString('en-US')} chars`
 }
 
 /** Both halves, or whichever exists; `<none>` only when there is genuinely nothing. */
