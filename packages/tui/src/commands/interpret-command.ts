@@ -42,7 +42,7 @@ import { initAgents, sendMessage, diffPanel, statusPanel, switchModel } from './
 import { currentWiring } from '../agent-session/wiring-record.js'
 import { handleAgents } from './agents-panel.js'
 import { permissionsPanel } from './permissions-panel.js'
-import { storeThemeBase, themeStorePath } from '../theme-store.js'
+import { storeThemeBase, themeStorePath } from '../theme/theme-store.js'
 import { handleTheme } from './theme-command.js'
 import { handleStatusline, handleTitle } from './surface-commands.js'
 import { handleRaw } from './raw-command.js'

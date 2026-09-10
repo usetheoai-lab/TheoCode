@@ -122,7 +122,7 @@ function build(): TuiRoot {
     sessionFork: () =>
       forkCurrentSessionWith({
         newId: () => `tui-${randomUUID()}`,
-        fork: (de, para) => forkSession(de, para),
+        fork: (from, to) => forkSession(from, to),
         current: () => session.session(),
         commit: (id) => {
           session.setSession(id)

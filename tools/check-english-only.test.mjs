@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest'
 import {
   EXTS,
   portugueseConstruction,
+  portugueseIdentifierPair,
   isPortuguese,
   portugueseInComments,
   portugueseWordsInFilename,
@@ -238,5 +239,77 @@ describe('B-084 — the Portuguese possessive construction', () => {
     ]) {
       expect(portugueseConstruction(name), name).toBe(false)
     }
+  })
+})
+
+describe('T7 — bare Portuguese function words used as identifiers', () => {
+  // The gap this closes, measured on 2026-09-10: `fork: (de, para) => forkSession(de, para)`
+  // shipped in packages/tui/src/agent-session/composition-root.ts:125 and the guard reported
+  // `english-only: clean`, exit 0.
+  //
+  // The mechanism is not a missing word. `isPortuguese` short-circuits on `EN.words.has(w)`, and
+  // BOTH words are in the English lexicons the guard loads — `de` in all three
+  // (/usr/share/dict/words, /usr/share/hunspell/en_US.dic, /usr/share/dict/american-english) and
+  // `para` in en_US.dic. They are outside the rule the guard implements, so no denylist entry
+  // could reach them; adding one would also be the goalpost-moving that
+  // rules/english-only.md § Anti-patterns forbids.
+  //
+  // Detector 6 (portugueseConstruction) already exists for the neighbouring shape —
+  // `pluginDeHooks`, where the same words hide inside a compound. This is the other shape: the
+  // function word standing ALONE as a whole identifier.
+  //
+  // Why a PAIR and not a single word. rules/english-only.md § "Detection is precise, not
+  // exhaustive" makes a deliberate call: `para`, `de` and `com` are NOT matched in prose,
+  // because "the first thing anyone does with a noisy gate is turn it off". That call is right
+  // and this must not reverse it. `para` alone is a real English identifier — the standard
+  // abbreviation for paragraph, `para.textContent`. Two bare Portuguese function words on one
+  // line is not ambiguous: it is someone naming parameters in Portuguese.
+
+  it('test_a_portuguese_parameter_pair_is_flagged', () => {
+    expect(portugueseIdentifierPair('fork: (de, para) => forkSession(de, para)')).toBe(true)
+  })
+
+  it('test_other_portuguese_pairs_are_flagged', () => {
+    for (const line of [
+      'const copy = (origem, destino) => move(origem, destino)',
+      'function run(com, sem) { return com }',
+    ]) {
+      expect(portugueseIdentifierPair(line), line).toBe(true)
+    }
+  })
+
+  it('test_a_lone_ambiguous_word_is_not_flagged', () => {
+    // `para` for paragraph and `de` inside a name are the false positives the pair rule exists
+    // to avoid. Flagging these is what makes a guard get switched off.
+    for (const line of [
+      'const para = document.createElement("p")',
+      'para.textContent = title',
+      'const decoded = decode(mode, data)',
+      'export function parameters(mode) { return mode }',
+    ]) {
+      expect(portugueseIdentifierPair(line), line).toBe(false)
+    }
+  })
+
+  it('test_english_code_is_never_flagged', () => {
+    // Anti-vacuity floor: a detector that flags everything passes the tests above.
+    for (const line of [
+      'fork: (from, to) => forkSession(from, to)',
+      'const merge = (source, target) => ({ ...source, ...target })',
+      'function compare(first, second) { return first < second }',
+    ]) {
+      expect(portugueseIdentifierPair(line), line).toBe(false)
+    }
+  })
+
+  it('test_the_words_must_be_whole_identifiers', () => {
+    // Substring matching is what would turn `parameters`/`decode`/`comment` into violations.
+    expect(portugueseIdentifierPair('const comment = decodeParams(mode)')).toBe(false)
+  })
+
+  it('test_prose_is_left_to_the_prose_detectors', () => {
+    // A comment is stripped before the identifier scan; this detector must not reach into it,
+    // or it reverses the documented decision to tolerate these words in prose.
+    expect(portugueseIdentifierPair('// mapeia de origem para destino')).toBe(false)
   })
 })

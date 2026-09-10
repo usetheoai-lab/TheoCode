@@ -16,9 +16,9 @@ import type {
   SessionTheInterpreterUses,
 } from './command-capabilities.js'
 import { workingDirectory } from '../working-directory.js'
-import { THEME_RESOLUTION } from '../theme.js'
+import { THEME_RESOLUTION } from '../theme/theme.js'
 import { themeResolutionLine } from './theme-command.js'
-import { sessionThemeBase } from '../theme-session.js'
+import { sessionThemeBase } from '../theme/theme-session.js'
 import { keybindingsNotApplied } from '../terminal-io/use-tui-keyboard.js'
 import type { WiredCapabilities } from '@theocode/agent'
 import { BASE_NAMES, agentsMdChain, loadRules, loadUserRules } from '@theocode/agent/context'

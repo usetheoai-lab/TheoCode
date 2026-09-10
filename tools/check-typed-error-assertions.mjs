@@ -32,6 +32,23 @@ const TEST = /\.test\.tsx?$/
 /** A `toThrow` / `toThrowError` / `rejects.toThrow` with an EMPTY argument list. */
 const BARE = /(?<!not\.)\btoThrow(?:Error)?\(\s*\)/
 
+/**
+ * The decision, as a function of one line.
+ *
+ * Extracted 2026-09-10. Everything below used to run at module top level and call `process.exit`,
+ * so importing this file WAS running the check — which is why a gate in the `npm run lint` chain
+ * shipped without a test. A checker that mis-globs or matches nothing still exits 0, and the green
+ * build is read as evidence that the rule holds.
+ *
+ * Comments are stripped first: this guard's own prose contains the literal it searches for, and so
+ * does any comment explaining why an assertion was tightened. Flagging those makes the check fire
+ * on the documentation of its own rule.
+ */
+export function isBareThrowAssertion(line) {
+  const code = String(line).replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '')
+  return BARE.test(code)
+}
+
 function* files(dir) {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === 'dist' || entry.startsWith('.')) continue
@@ -42,7 +59,8 @@ function* files(dir) {
 }
 
 const found = []
-for (const root of ROOTS) {
+const runningAsCli = import.meta.url === `file://${process.argv[1]}`
+for (const root of runningAsCli ? ROOTS : []) {
   let exists = true
   try {
     statSync(root)
@@ -56,8 +74,7 @@ for (const root of ROOTS) {
       .forEach((line, i) => {
         // A line that only TALKS about the bare form (this file's own prose, or a comment
         // explaining why an assertion was tightened) is not an assertion.
-        const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '')
-        if (BARE.test(code)) found.push(`${path}:${i + 1}: ${line.trim().slice(0, 100)}`)
+        if (isBareThrowAssertion(line)) found.push(`${path}:${i + 1}: ${line.trim().slice(0, 100)}`)
       })
   }
 }

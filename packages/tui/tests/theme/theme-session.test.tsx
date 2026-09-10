@@ -24,15 +24,15 @@ import type { ReactElement } from 'react'
 
 import { themes, useTheoTheme } from '@theokit/tui'
 
-import { handleTheme } from '../src/commands/theme-command.js'
-import { THEME_BASES } from '../src/theme-base.js'
+import { handleTheme } from '../../src/commands/theme-command.js'
+import { THEME_BASES } from '../../src/theme/theme-base.js'
 import {
   resetSessionThemeForTest,
   setSessionThemeBase,
   ThemedSurface,
   themeSubscriberCountForTest,
-} from '../src/theme-session.js'
-import { THEME_RESOLUTION } from '../src/theme.js'
+} from '../../src/theme/theme-session.js'
+import { THEME_RESOLUTION } from '../../src/theme/theme.js'
 
 /**
  * Renders one theme token as text, because that is the only way a test can see what the provider

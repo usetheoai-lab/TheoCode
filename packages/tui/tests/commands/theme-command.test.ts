@@ -18,9 +18,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { statusPanel } from '../../src/commands/command-content.js'
 import type { PtysTheInterpreterUses, SessionTheInterpreterUses } from '../../src/commands/command-capabilities.js'
 import type { ToastPayload } from '../../src/screen-types.js'
-import { THEME_BASES } from '../../src/theme-base.js'
-import { resetSessionThemeForTest, sessionThemeBase } from '../../src/theme-session.js'
-import { THEME_RESOLUTION } from '../../src/theme.js'
+import { THEME_BASES } from '../../src/theme/theme-base.js'
+import { resetSessionThemeForTest, sessionThemeBase } from '../../src/theme/theme-session.js'
+import { THEME_RESOLUTION } from '../../src/theme/theme.js'
 import { handleTheme, themeResolutionLine } from '../../src/commands/theme-command.js'
 
 /** The one toast a call produces, or a failure that says the command was silent. */

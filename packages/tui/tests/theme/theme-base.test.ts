@@ -20,7 +20,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_THEME_BASE, resolveThemeBase } from '../src/theme-base.js'
+import { DEFAULT_THEME_BASE, resolveThemeBase } from '../../src/theme/theme-base.js'
 
 describe('B-073 — theme base resolution', () => {
   it('test_defaults_to_dark_when_nothing_is_set', () => {
@@ -85,8 +85,8 @@ describe('B-073 — theme base resolution', () => {
  */
 describe('B-073 — the resolution reaches the user', () => {
   it('test_status_panel_reports_the_theme_and_its_source', async () => {
-    const { statusPanel } = await import('../src/commands/command-content.js')
-    const { THEME_RESOLUTION } = await import('../src/theme.js')
+    const { statusPanel } = await import('../../src/commands/command-content.js')
+    const { THEME_RESOLUTION } = await import('../../src/theme/theme.js')
 
     const panel = statusPanel(
       {

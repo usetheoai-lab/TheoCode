@@ -6,10 +6,10 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { copyToClipboard } from '../src/clipboard.js'
-import { NoClipboardError } from '../src/clipboard-errors.js'
-import { ClipboardWriteError } from '../src/clipboard-write-error.js'
-import type { ClipboardCommand } from '../src/clipboard-commands.js'
+import { copyToClipboard } from '../../src/clipboard/clipboard.js'
+import { NoClipboardError } from '../../src/clipboard/clipboard-errors.js'
+import { ClipboardWriteError } from '../../src/clipboard/clipboard-write-error.js'
+import type { ClipboardCommand } from '../../src/clipboard/clipboard-commands.js'
 
 const CANDIDATES: readonly ClipboardCommand[] = [
   { bin: 'first', args: ['-a'] },

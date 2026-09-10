@@ -193,6 +193,17 @@ export async function buildChatAgent(overrides: {
 
   publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules, aggregateCuts })
 
+  // M70 — the two registrations that depend on the surface PROFILE, applied here because the builder
+  // is a fluent chain with no `.tools([...])`: there is no way to skip a link in the middle of it.
+  //
+  // `request_user_input` is dropped for the headless profile (m70-goal-convergence#ADR-4): with no TUI
+  // subscribed, `ask()` never resolves and the tool falls into the built-in's 5-minute timeout.
+  // `extraTools` is the seam that was missing — it is how goal mode registers `update_goal` instead of
+  // building a second agent from scratch.
+  // M76 — the framework's own tool, built straight from the factory. It used to be a 20-line ADAPTER with
+  // two casts, because `createQuestionTool` returned its own interface and took no name. T1.1 aligned the
+  // type, T1.2 made name and description options, and the adapter stopped existing — it did not shrink,
+  // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
   const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
   return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
@@ -352,9 +363,27 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
     : base
 }
 
-function withShellAndProjectEntities(
-  withWrites: ReturnType<typeof withWriteTools<ReturnType<typeof baseAgent>['agent']>>,
-  ctx: {
+/**
+ * Composition point. Split 2026-09-10: this was one 177-line function doing the two jobs its own
+ * name announces. `rules/testing.md` § 3 applies the "and in the name is a smell" test to test
+ * names; it reads the same on production code, and here the conjunction was load-bearing.
+ *
+ * The halves are genuinely different concerns, not a cut at the midpoint. The first wires TOOLS
+ * THIS PROCESS PROVIDES and the approvals gating them. The second wires ENTITIES READ FROM THE
+ * PROJECT'S DISK — MCP servers, skills, setting sources, hooks — every one trust-gated, because
+ * an untrusted repository must not steer the agent.
+ *
+ * The name keeps its `And` and now earns it: it composes two named things instead of hiding two
+ * jobs in one body.
+ */
+/**
+ * Everything the shell-tool and project-entity wiring needs, declared once.
+ *
+ * Named 2026-09-10 when the wiring split in two. Repeating this literal per function would have
+ * been the same knowledge in three places — and it measurably cost: the duplicated copies pushed
+ * the file past this repository's own `max-lines` gate.
+ */
+type ShellAndProjectCtx = {
     registry: ToolRegistry
     interactiveBackend: InteractiveBackend
     posture: TrustPosture
@@ -373,9 +402,26 @@ function withShellAndProjectEntities(
      * agent does not hold.
      */
     searchConfigured: boolean
-  },
+  }
+function withShellAndProjectEntities(
+  withWrites: ReturnType<typeof withWriteTools<ReturnType<typeof baseAgent>['agent']>>,
+  ctx: ShellAndProjectCtx,
 ) {
-  const { registry, interactiveBackend, posture, cfg, lifecycleHooks, modelId, writePolicy } = ctx
+  return withProjectEntities(withShellTools(withWrites, ctx), ctx)
+}
+
+/**
+ * The tools this process provides, and the approvals that gate them.
+ *
+ * A chain hand-off rather than a `.tools([...])` array, for the reason recorded at the call site
+ * of `profileTools`: the builder is fluent and a link cannot be skipped mid-chain.
+ * `withWriteTools` already takes and returns the builder; this follows the same seam.
+ */
+function withShellTools(
+  withWrites: ReturnType<typeof withWriteTools<ReturnType<typeof baseAgent>['agent']>>,
+  ctx: ShellAndProjectCtx,
+) {
+  const { registry, interactiveBackend, modelId, writePolicy } = ctx
   return (
     withWrites
       // M2 — the write side: atomic multi-file edits, gated behind approval below. M18: now the Codex-faithful
@@ -443,6 +489,23 @@ function withShellAndProjectEntities(
         // refused by the framework at construction, so this ternary is load-bearing, not cosmetic.
         ...(ctx.searchConfigured ? { web_search: { question: 'Search the web for this?' } } : {}),
       })
+  )
+}
+
+/**
+ * The entities read from the project's own disk: MCP servers, skills, setting sources, hooks.
+ *
+ * Every link here is TRUST-GATED, and that is what makes them one concern rather than a leftover.
+ * `.mcp.json` is repo-tracked and its servers are spawned as external processes before any
+ * per-tool approval; a SKILL.md steers the model. An untrusted repository gets none of them.
+ */
+function withProjectEntities(
+  withShell: ReturnType<typeof withShellTools>,
+  ctx: ShellAndProjectCtx,
+) {
+  const { posture, cfg, lifecycleHooks } = ctx
+  return (
+    withShell
       // M8 — MCP tools (Codex parity): wire external Model Context Protocol servers declared in the
       // project's `.mcp.json`. The SDK owns MCP execution (spawn + tools/list + tools/call); their tools
       // appear alongside the built-in ones. Absent `.mcp.json` ⇒ empty map ⇒ no-op (MCP is opt-in).
@@ -499,18 +562,6 @@ function withShellAndProjectEntities(
       .hookApproval({ approve: refuseForeignHook })
       .hooks(lifecycleHooks)
   )
-
-  // M70 — the two registrations that depend on the surface PROFILE, applied here because the builder
-  // is a fluent chain with no `.tools([...])`: there is no way to skip a link in the middle of it.
-  //
-  // `request_user_input` is dropped for the headless profile (m70-goal-convergence#ADR-4): with no TUI
-  // subscribed, `ask()` never resolves and the tool falls into the built-in's 5-minute timeout.
-  // `extraTools` is the seam that was missing — it is how goal mode registers `update_goal` instead of
-  // building a second agent from scratch.
-  // M76 — the framework's own tool, built straight from the factory. It used to be a 20-line ADAPTER with
-  // two casts, because `createQuestionTool` returned its own interface and took no name. T1.1 aligned the
-  // type, T1.2 made name and description options, and the adapter stopped existing — it did not shrink,
-  // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
 }
 
 /**
@@ -551,6 +602,25 @@ function readTool(registry: ToolRegistry, name: (typeof READ_TOOLS)[number]): Cu
   return tool
 }
 
+/**
+ * MEASURED AND DELIBERATELY NOT SPLIT (2026-09-10).
+ *
+ * An architecture review flagged this at 165 lines beside `withShellAndProjectEntities`, and asked
+ * for the check before the cut: is the length sequential wiring, which is acceptable, or branching,
+ * which is not. The answer, measured rather than eyeballed:
+ *
+ *   163 lines total — 49 code, 114 comment (70% prose)
+ *   15 fluent chain links, 6 branch operators
+ *   cyclomatic complexity 10 by typescript-eslint's AST — AT this repository's gate, not over it
+ *
+ * So it is a linear builder chain that is mostly its own documentation. Splitting it would cut a
+ * chain that has no seam and move the prose away from the link it explains, buying a smaller number
+ * and a worse file. Its sibling was split because its name carried an `And`; this one does not.
+ *
+ * What WOULD justify revisiting: branch operators climbing, or `complexity` breaching 10. Both are
+ * already enforced — `eslint.config.mjs` sets `complexity: ['error', 10]` and it runs in
+ * `npm run lint`, so this decision is watched rather than merely asserted.
+ */
 function baseAgent(ctx: {
   cfg: EffectiveConfig
   modelId: string

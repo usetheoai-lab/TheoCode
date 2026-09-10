@@ -533,6 +533,54 @@ function codeOnly(line) {
     .replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""')
 }
 
+/**
+ * Portuguese function words used as BARE IDENTIFIERS — the fourth face.
+ *
+ * The comment above names this blind spot as having three faces: a sentence (B-083), a possessive
+ * construction (B-084, detected), and a single homograph noun. Measured on 2026-09-10, there is a
+ * fourth, and it shipped:
+ *
+ *     fork: (de, para) => forkSession(de, para)
+ *         — packages/tui/src/agent-session/composition-root.ts:125
+ *
+ * The guard printed `english-only: clean`, exit 0. Correctly, by its own rule: `isPortuguese`
+ * short-circuits on `EN.words.has(w)`, and both words are in the English lexicons it loads — `de`
+ * in all three, `para` in `en_US.dic`. No denylist entry can reach them, and the comment above
+ * forbids trying: forcing `para` would break the EN/PT collision handling this guard was rewritten
+ * to get right.
+ *
+ * So this detects a SHAPE, the way detector 6 does. Not the word — the CO-OCCURRENCE. Two bare
+ * Portuguese function words standing as whole identifiers on one line is somebody naming
+ * parameters in Portuguese; there is no English reading of `(de, para)`.
+ *
+ * The pair is what makes it safe, and the safety is the point. `rules/english-only.md`
+ * § "Detection is precise, not exhaustive" made a deliberate call not to match `para`, `de` or
+ * `com`, because "the first thing anyone does with a noisy gate is turn it off". That call stands:
+ * `para` ALONE is a real English identifier — the standard abbreviation for paragraph,
+ * `para.textContent` — and a lone match would be exactly the noise the rule refuses. Requiring two
+ * costs the single-word case, which is stated here rather than hidden, and buys a detector nobody
+ * has a reason to disable.
+ *
+ * Whole identifiers only, and code only: `parameters`, `decode` and `comment` contain these
+ * letters and are English, and a comment is prose, which detectors 2 and 3 own.
+ */
+const PT_BARE_WORDS = new Set([
+  // Prepositions and conjunctions that name nothing on their own in English code.
+  'de', 'da', 'do', 'dos', 'das', 'para', 'com', 'sem', 'ate', 'pelo', 'pela',
+  'num', 'numa', 'nos', 'nas', 'aos', 'pra', 'por',
+  // The from/to pair a Portuguese speaker reaches for when naming a copy or a move.
+  'origem', 'destino', 'entrada', 'saida', 'valor', 'nome', 'lista', 'texto',
+])
+
+export function portugueseIdentifierPair(line) {
+  const identifiers = codeOnly(line).match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []
+  const hits = new Set()
+  for (const identifier of identifiers) {
+    if (PT_BARE_WORDS.has(identifier.toLowerCase())) hits.add(identifier.toLowerCase())
+  }
+  return hits.size >= 2
+}
+
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
     if (name === 'node_modules' || name === 'dist' || name.startsWith('.')) continue
@@ -596,6 +644,18 @@ function main() {
             violations.push({
               at,
               why: `Portuguese word "${inString[0]}" in a string literal`,
+              text: line.trim().slice(0, 100),
+            })
+            return
+          }
+
+          // Detector 7 — bare Portuguese function words naming things (2026-09-10). Runs before
+          // the word loop for the same reason detector 6 does: the loop decides per WORD, and each
+          // of these words is declined CORRECTLY as English, so the pair survives it intact.
+          if (portugueseIdentifierPair(line)) {
+            violations.push({
+              at,
+              why: 'Portuguese function words used as identifiers on one line',
               text: line.trim().slice(0, 100),
             })
             return

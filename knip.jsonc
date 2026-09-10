@@ -15,6 +15,12 @@
   //   packages/agent/src/chat-acp.ts       entry          -> not reported
   //   packages/tui/tools/render-banner.tsx entry          -> not reported
   //
+  // The paths above are the ones that existed ON 2026-09-03 and are left as written. `theme.ts`
+  // moved to `packages/tui/src/theme/theme.ts` on 2026-09-10 (B-fo1, the clipboard/theme fold).
+  // Re-anchoring them would falsify the observation — rules/testing.md § 5: a live pointer is
+  // re-anchored, a quotation of a measurement stays. Re-verified after the move by the same
+  // method, and the answer is unchanged: a dead export in the new location is still REPORTED.
+  //
   // Four for four: an export declared in an entry file is exempt anyway. Setting it here, setting it
   // inside a workspace block, and passing `--include-entry-exports` on the command line all produce
   // the same result. So the gate covers non-entry files — which is most of the tree, and includes

@@ -21,8 +21,8 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { resolveThemeBase } from '../src/theme-base.js'
-import { storeThemeBase, storedThemeBase, themeStorePath } from '../src/theme-store.js'
+import { resolveThemeBase } from '../../src/theme/theme-base.js'
+import { storeThemeBase, storedThemeBase, themeStorePath } from '../../src/theme/theme-store.js'
 
 let home: string
 

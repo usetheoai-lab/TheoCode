@@ -22,10 +22,10 @@
 import { homedir } from 'node:os'
 
 import type { ToastPayload } from '../screen-types.js'
-import { listCustomThemes, loadCustomTheme } from '../custom-theme.js'
-import { THEME_BASES, type ThemeBase, type ThemeResolution } from '../theme-base.js'
-import { sessionThemeBase, setSessionTheme, setSessionThemeBase } from '../theme-session.js'
-import { THEME_RESOLUTION } from '../theme.js'
+import { listCustomThemes, loadCustomTheme } from '../theme/custom-theme.js'
+import { THEME_BASES, type ThemeBase, type ThemeResolution } from '../theme/theme-base.js'
+import { sessionThemeBase, setSessionTheme, setSessionThemeBase } from '../theme/theme-session.js'
+import { THEME_RESOLUTION } from '../theme/theme.js'
 
 /**
  * Their prefix, not one invented here. Their docs say a custom theme "appears as `custom:<slug>`

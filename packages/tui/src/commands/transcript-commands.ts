@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path'
 
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
 import { workingDirectory } from '../working-directory.js'
-import { copyToClipboard } from '../clipboard.js'
+import { copyToClipboard } from '../clipboard/clipboard.js'
 import { conversationToMarkdown, lastAssistantText } from '../transcript-export.js'
 import { subagentsPanelBody } from './agents-panel.js'
 import { hooksPanelBody, mcpPanelBody, skillsPanelBody } from './wiring-panels.js'

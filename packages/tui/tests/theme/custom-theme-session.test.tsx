@@ -16,12 +16,12 @@ import type { ReactElement } from 'react'
 
 import { useTheoTheme } from '@theokit/tui'
 
-import { loadCustomTheme } from '../src/custom-theme.js'
+import { loadCustomTheme } from '../../src/theme/custom-theme.js'
 import {
   resetSessionThemeForTest,
   setSessionTheme,
   ThemedSurface,
-} from '../src/theme-session.js'
+} from '../../src/theme/theme-session.js'
 
 let home: string
 
