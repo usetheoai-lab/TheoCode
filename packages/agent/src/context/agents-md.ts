@@ -124,6 +124,33 @@ interface AggregateBudget {
   warn: (m: string) => void
 }
 
+/**
+ * One cut the aggregate ceiling made, in RENDERED chars.
+ *
+ * `source` is what makes this usable downstream: the ceiling can cut the surface document or
+ * leave the base oversized, and neither is a rule. A report that omitted the source made the
+ * `/status` RULES row claim truncation over a block nothing had touched (B-173).
+ */
+export interface InstructionCut {
+  readonly source: 'rules' | 'agentsMd' | 'surface'
+  readonly from: number
+  readonly to: number
+}
+
+/**
+ * The composed persona, and what fitting it cost.
+ *
+ * The name and the shape follow `@theokit/agents`, which publishes a `ComposedInstructions`
+ * for the same job. Its trimming semantics differ from ours and are deliberately not adopted
+ * here; the vocabulary for REPORTING a cut was already designed, and a third one would be the
+ * reinvention Rule 9 is about.
+ */
+export interface ComposedInstructions {
+  readonly text: string
+  /** Empty when the composition fit. Never a boolean: the surface renders a share, not a yes. */
+  readonly cuts: readonly InstructionCut[]
+}
+
 export const MAX_AGGREGATE = 96_000
 
 const RULE_SEPARATOR = '\n\n---\n\n'
@@ -153,8 +180,8 @@ export function composeInstructions(
   projectDoc: string,
   surfaceDoc = '',
   opts?: AggregateBudget,
-): string {
-  if (opts === undefined) return build(base, projectDoc, surfaceDoc)
+): ComposedInstructions {
+  if (opts === undefined) return { text: build(base, projectDoc, surfaceDoc), cuts: [] }
   if (opts.maxChars <= 0) {
     throw new RangeError(`maxChars=${String(opts.maxChars)} — the aggregate budget must be > 0`)
   }
@@ -166,9 +193,10 @@ function withinBudget(
   projectDoc: string,
   surfaceDoc: string,
   opts: AggregateBudget,
-): string {
+): ComposedInstructions {
   let doc = projectDoc
   let surface = surfaceDoc
+  const cuts: InstructionCut[] = []
   const total = (): number => build(base, doc, surface).length
 
   if (total() > opts.maxChars) {
@@ -178,6 +206,7 @@ function withinBudget(
       Math.max(0, rules.length - (total() - opts.maxChars)),
     )
     if (truncatedRules.length !== rules.length) {
+      cuts.push({ source: 'rules', from: rules.length, to: truncatedRules.length })
       opts.warn(
         `[instructions] source 'rules' truncated from ${String(rules.length)} to ` +
           `${String(truncatedRules.length)} chars (aggregate budget ${String(opts.maxChars)})`,
@@ -189,6 +218,7 @@ function withinBudget(
     const { rules, agentsMd } = splitProjectDoc(doc)
     const truncatedMd = agentsMd.slice(-Math.max(0, agentsMd.length - (total() - opts.maxChars)))
     if (truncatedMd.length !== agentsMd.length) {
+      cuts.push({ source: 'agentsMd', from: agentsMd.length, to: truncatedMd.length })
       opts.warn(
         `[instructions] source 'agentsMd' truncated from ${String(agentsMd.length)} to ` +
           `${String(truncatedMd.length)} chars (aggregate budget ${String(opts.maxChars)})`,
@@ -199,6 +229,7 @@ function withinBudget(
   if (total() > opts.maxChars && surface.length > 0) {
     const before = surface.length
     surface = surface.slice(-Math.max(0, before - (total() - opts.maxChars)))
+    cuts.push({ source: 'surface', from: before, to: surface.length })
     opts.warn(
       `[instructions] source 'appendInstructions' truncated from ${String(before)} to ` +
         `${String(surface.length)} chars (aggregate budget ${String(opts.maxChars)})`,
@@ -210,7 +241,7 @@ function withinBudget(
         `(${String(total())} > ${String(opts.maxChars)}) — nothing was truncated`,
     )
   }
-  return build(base, doc, surface)
+  return { text: build(base, doc, surface), cuts }
 }
 
 function build(base: string, projectDoc: string, surfaceDoc: string): string {

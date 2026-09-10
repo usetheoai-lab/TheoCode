@@ -148,7 +148,7 @@ export async function buildChatAgent(overrides: {
   const searchConfigured = webSearchConfigured()
   const rules = bothRuleRoots(cwd, operatorHome)
   const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules, operatorHome }
-  const base = baseAgent({ ...baseCtx, searchConfigured })
+  const { agent: base, cuts: aggregateCuts } = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
     writePolicy,
@@ -191,7 +191,7 @@ export async function buildChatAgent(overrides: {
     searchConfigured,
   })
 
-  publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules })
+  publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules, aggregateCuts })
 
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
   const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
@@ -353,7 +353,7 @@ function withWriteTools<T extends { tool: (t: CustomTool) => T }>(
 }
 
 function withShellAndProjectEntities(
-  withWrites: ReturnType<typeof withWriteTools<ReturnType<typeof baseAgent>>>,
+  withWrites: ReturnType<typeof withWriteTools<ReturnType<typeof baseAgent>['agent']>>,
   ctx: {
     registry: ToolRegistry
     interactiveBackend: InteractiveBackend
@@ -571,7 +571,23 @@ function baseAgent(ctx: {
   }
 }) {
   const { cfg, modelId, posture, providerPlugins, registry, overrides } = ctx
-  return (
+
+  // B-173 — composed HERE rather than inline in `.system()`, because what the aggregate ceiling
+  // cut has to leave this function. It is the only place that knows: the loader's ceiling is
+  // reported by `bothRuleRoots` upstream, this one acts on the rendered persona and used to be
+  // announced in a `warn` string nothing could read, so `/status` reported the rules as fully
+  // loaded over a corpus this call had already trimmed.
+  const composed = composeInstructions(
+    // M?? — an output style REPLACES the built-in instructions unless its frontmatter says
+    // `keep-coding-instructions: true`. `overrides.baseInstructions` still wins over both: it
+    // is a caller passing an explicit persona, which is a stronger statement than a file.
+    overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
+    projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
+    overrides?.appendInstructions ?? '',
+    { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
+  )
+
+  const agent =
     AgentBuilder.create()
       .input(z.object({ message: z.string() }))
       // M94 — the window declared in config reaches all the way to the compaction budget. Without it, a
@@ -604,17 +620,7 @@ function baseAgent(ctx: {
       // M5 — fold any project AGENTS.md (root→cwd) into the persona so per-project rules are honored, but
       // ONLY for a TRUSTED directory (anti-prompt-injection, Codex parity): an untrusted repo's AGENTS.md is
       // NOT loaded, so it cannot hijack the agent. The TUI prompts to trust the cwd on first run.
-      .system(
-        composeInstructions(
-          // M?? — an output style REPLACES the built-in instructions unless its frontmatter says
-          // `keep-coding-instructions: true`. `overrides.baseInstructions` still wins over both: it
-          // is a caller passing an explicit persona, which is a stronger statement than a file.
-          overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
-          projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
-          overrides?.appendInstructions ?? '',
-          { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
-        ),
-      )
+      .system(composed.text)
       // M49 — durable memory (`.theokit/memory/` in the cwd: `Remember:` capture with secret redaction,
       // auto-injected recall, memory_search/memory_get). interactive-sandbox#ADR-2: the store WRITES to the cwd, so memory is
       // enabled only for a TRUSTED directory — same gate as AGENTS.md/skills. `{enabled:false}` and an
@@ -702,7 +708,8 @@ function baseAgent(ctx: {
       .when(ctx.searchConfigured, (b) =>
         b.tool(createWebSearchTool({ search: createGenericHttpSearchAdapter() })),
       )
-  )
+
+  return { agent, cuts: composed.cuts }
 
   // M23 — write tools exist ONLY when the sandbox mode grants writes (Codex `read-only` removes the
   // capability instead of denying it later). `workspace-write` confines them to the project root;
