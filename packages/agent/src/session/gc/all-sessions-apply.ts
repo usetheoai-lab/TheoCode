@@ -24,6 +24,7 @@ import {
   type AllResult,
   type ApplyAllOptions,
 } from './all-sessions.js'
+import { removeTolerant } from './remove-tolerant.js'
 
 function backstopRefusal(
   c: AllCandidate,
@@ -100,16 +101,7 @@ export async function runSessionGCAllProjects(
       errors.push(refusal)
       continue
     }
-    try {
-      await removeCandidate(c, opts)
-      removed.push(c.target)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removed.push(c.target)
-        continue
-      }
-      errors.push(`${c.target}: ${(err as Error).message}`)
-    }
+    await removeTolerant(c.target, () => removeCandidate(c, opts), removed, errors)
   }
 
   await removeEmptyProjects(plan, opts, removed, errors)

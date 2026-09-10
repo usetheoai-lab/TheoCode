@@ -7,6 +7,7 @@ import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agent
 import { listAgents } from '../agent-list.js'
 import { assertCollectionFloor } from './collection-window.js'
 import { readPointerId } from './pointer.js'
+import { removeTolerant } from './remove-tolerant.js'
 
 const defaultBaseDir = transcriptRoot
 
@@ -176,18 +177,6 @@ export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<Se
       kept.push(id)
       continue
     }
-    // #106 — "I could not read this" is not "this belongs to nobody", and only the second justifies
-    // deletion. `@theokit/sdk@5.3.0`'s `listSessions` reports `idSource: "unavailable"` rather than
-    // falling back to the filename — the fallback that produced this whole family of defect in two
-    // independent consumers. Without the distinction an unreadable transcript matched no registry
-    // id, fell into "not registered", and was unlinked.
-    //
-    // ABSENT means "no reason to doubt", not "unreadable": this repository's own `readdir` seam does
-    // not supply the field, and reading its absence as doubt would switch `gc` off entirely for
-    // every caller that has not adopted the new listing.
-    //
-    // The asymmetry is the argument. Keeping a file that turns out to be junk costs disk; deleting
-    // one that turns out to be a live session costs the session, and `unlink` has no undo.
     if (!protectedIds.has(id) && ageDays > maxAgeDays) {
       // `registryAll` holds SESSION ids and `id` is a transcript name — comparing them directly is
       // what made this field permanently false. Ask the registry in its own vocabulary.
@@ -260,19 +249,14 @@ export async function runSessionGC(
       )
       continue
     }
-    try {
-      // #102 — the registry's own vocabulary. `c.id` is the transcript name; `Agent.delete` wants
-      // the session id, and got the wrong one until the match started carrying it.
-      if (c.inRegistry) await del(c.agentId ?? c.id)
-      else await unlink(c.id)
-      removed.push(c.id)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removed.push(c.id)
-        continue
-      }
-      errors.push(`${c.id}: ${(err as Error).message}`)
-    }
+    // #102 — the registry's own vocabulary. `c.id` is the transcript name; `Agent.delete` wants
+    // the session id, and got the wrong one until the match started carrying it.
+    await removeTolerant(
+      c.id,
+      () => (c.inRegistry ? del(c.agentId ?? c.id) : unlink(c.id)),
+      removed,
+      errors,
+    )
   }
   return { dryRun: false, removed, errors }
 }
