@@ -2,6 +2,11 @@ import { basename } from 'node:path'
 
 import { transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
+import {
+  assertCollectionFloor,
+  DEFAULT_WINDOW_DAYS,
+} from './collection-window.js'
+
 import { classifyEntry, type ArtifactKind } from '../artifacts.js'
 /**
  * The GC's own verdict vocabulary.
@@ -18,11 +23,7 @@ export type Liveness =
   | { state: 'DEAD'; cwd?: string }
   | { state: 'UNDETERMINED'; reason: string }
 
-const FLOOR_DAYS = 1
-
 const KEEP_PER_PROJECT = 10
-
-const DEFAULT_WINDOW_DAYS = 30
 
 export interface ProjectEntry {
   name: string
@@ -39,13 +40,22 @@ interface RegistryEntry {
 
 export type CollectableKind = ArtifactKind | 'registry'
 
-interface AllCandidate {
+export interface AllCandidate {
   project: string
   kind: CollectableKind
   target: string
   id?: string
   ageDays: number
   inRegistry?: boolean
+  /**
+   * The SESSION id, when this candidate is a registered transcript.
+   *
+   * `id` is the transcript NAME — a hash of the session id under 5.x — and `Agent.delete` takes the
+   * session id. The mapping is one-way (usetheokit/theokit-sdk#577), so the only moment the pair is
+   * in hand is at plan time, where the registry supplies both. Carrying it is what lets the apply
+   * phase call `deleteAgent` with something it can act on.
+   */
+  agentId?: string
 }
 
 export interface AllPlan {
@@ -70,7 +80,7 @@ export interface PlanAllOptions {
   readPointer: (cwd: string) => string | undefined
 }
 
-interface ApplyAllOptions {
+export interface ApplyAllOptions {
   apply?: boolean
   unlink: (path: string) => Promise<void>
   rmdir: (path: string) => Promise<void>
@@ -88,7 +98,7 @@ export interface AllResult {
   errors: string[]
 }
 
-function transcriptId(name: string): string {
+export function transcriptId(name: string): string {
   return name.slice(0, -'.jsonl'.length)
 }
 
@@ -97,13 +107,13 @@ function transcriptId(name: string): string {
  * apply phase both strip it and a divergence between them would let the apply phase delete a lock
  * whose transcript the plan phase believed was still on disk (B-020).
  */
-const LOCK_SUFFIX = /\.jsonl(\.writer)?\.lock$/
+export const LOCK_SUFFIX = /\.jsonl(\.writer)?\.lock$/
 
 function lockId(name: string): string {
   return name.replace(LOCK_SUFFIX, '')
 }
 
-function empty(): Record<CollectableKind, number> {
+function emptyByKind(): Record<CollectableKind, number> {
   return { transcript: 0, 'lock-file': 0, 'lock-directory': 0, tmp: 0, registry: 0 }
 }
 
@@ -216,15 +226,51 @@ async function resolveGuards(
 function registryNames(
   liveness: { state: string; cwd?: string },
   registry: readonly RegistryEntry[],
-): Set<string> {
-  if (liveness.state !== 'ALIVE' || liveness.cwd === undefined) return new Set()
+): Map<string, string> {
+  if (liveness.state !== 'ALIVE' || liveness.cwd === undefined) return new Map()
   const cwd = liveness.cwd
-  return new Set(
-    registry.flatMap((e) => [
-      transcriptId(basename(transcriptPath(transcriptRoot(), cwd, e.agentId))),
-      e.agentId,
+  return new Map(
+    registry.flatMap((e): [string, string][] => [
+      [transcriptId(basename(transcriptPath(transcriptRoot(), cwd, e.agentId))), e.agentId],
+      [e.agentId, e.agentId],
     ]),
   )
+}
+
+/**
+ * The project's entries, and its transcripts newest-first.
+ *
+ * Returns `undefined` when the directory could not be listed, having recorded the reason — one
+ * unreadable project skips itself rather than aborting the sweep.
+ *
+ * Ordering is BY MTIME rather than by id, and the reason is a decision nobody wrote down until an
+ * audit named it (SD-07.2). Session ids are random UUIDs handed out by the SDK
+ * (`session-ops.ts:52`), so they carry no order at all: sorting by name would produce an arbitrary
+ * permutation that LOOKS deterministic. The filesystem timestamp is the only ordering signal this
+ * layer has, which is why `keepLast` has to reason about entries that cannot be `stat`ed — the whole
+ * class of bug B-140 exists downstream of this choice.
+ *
+ * `localeCompare` is the tiebreaker so equal mtimes still yield a stable order.
+ */
+function listTranscripts(
+  project: string,
+  opts: PlanAllOptions,
+  errors: string[],
+): { entries: ProjectEntry[]; transcripts: ProjectEntry[] } | undefined {
+  let entries: ProjectEntry[]
+  try {
+    entries = opts.listProject(project)
+  } catch (err) {
+    errors.push(`${project}: could not list — ${(err as Error).message}`)
+    return undefined
+  }
+
+  const transcripts = entries
+    .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
+    .sort(
+      (a, b) => (b.mtimeMs ?? Infinity) - (a.mtimeMs ?? Infinity) || a.name.localeCompare(b.name),
+    )
+  return { entries, transcripts }
 }
 
 async function planOneProject(
@@ -242,28 +288,11 @@ async function planOneProject(
     return
   }
 
-  let entries: ProjectEntry[]
-  try {
-    entries = opts.listProject(project)
-  } catch (err) {
-    errors.push(`${project}: could not list — ${(err as Error).message}`)
-    return
-  }
+  const listed = listTranscripts(project, opts, errors)
+  if (listed === undefined) return
+  const { entries, transcripts } = listed
 
   const dir = `${opts.projectsRoot}/${project}`
-  // Newest first, BY MTIME rather than by id — and the reason is a decision nobody wrote down until
-  // an audit named it (SD-07.2). Session ids are random UUIDs handed out by the SDK
-  // (`session-ops.ts:52`), so they carry no order at all: sorting by name would produce an arbitrary
-  // permutation that LOOKS deterministic. The filesystem timestamp is the only ordering signal this
-  // layer has, which is why `keepLast` has to reason about entries that cannot be `stat`ed — the
-  // whole class of bug B-140 fixed below exists downstream of this choice.
-  //
-  // `localeCompare` is the tiebreaker so equal mtimes still yield a stable order.
-  const transcripts = entries
-    .filter((e) => classifyEntry(e.name, e.isDirectory) === 'transcript')
-    .sort(
-      (a, b) => (b.mtimeMs ?? Infinity) - (a.mtimeMs ?? Infinity) || a.name.localeCompare(b.name),
-    )
   const idsOnDisk = new Set(transcripts.map((t) => transcriptId(t.name)))
 
   const guards = await resolveGuards(liveness, transcripts, keepLast, opts)
@@ -295,7 +324,17 @@ async function planOneProject(
   )
 
   if (liveness.state === 'ALIVE') {
-    planRegistryEntries(project, registry, idsOnDisk, { maxAgeDays, now }, recordCandidate)
+    planRegistryEntries(
+      project,
+      registry,
+      idsOnDisk,
+      (agentId) => [
+        transcriptId(basename(transcriptPath(transcriptRoot(), liveness.cwd, agentId))),
+        agentId,
+      ],
+      { maxAgeDays, now },
+      recordCandidate,
+    )
   }
 
   if (plannedSomething) touchedProjects.push(dir)
@@ -313,7 +352,7 @@ interface ProjectState {
   readonly entries: readonly ProjectEntry[]
   readonly protectedIds: ReadonlySet<string>
   readonly idsOnDisk: ReadonlySet<string>
-  readonly idsInRegistry: ReadonlySet<string>
+  readonly idsInRegistry: ReadonlyMap<string, string>
 }
 
 /**
@@ -403,6 +442,7 @@ function planTranscript(
     id,
     ageDays: ctx.ageDays,
     inRegistry: ctx.st.idsInRegistry.has(id),
+    agentId: ctx.st.idsInRegistry.get(id),
   }
 }
 
@@ -410,13 +450,20 @@ function planRegistryEntries(
   project: string,
   registry: readonly RegistryEntry[],
   idsOnDisk: ReadonlySet<string>,
+  namesOf: (agentId: string) => readonly string[],
   previewWindow: CollectionWindow,
   recordCandidate: (c: AllCandidate) => void,
 ): void {
   for (const entry of registry) {
     if (entry.archived === true) continue
-    if (idsOnDisk.has(entry.agentId)) continue
-    const ageDays = (previewWindow.now() - (entry.lastModified ?? 0)) / 86_400_000
+    // #102 — `idsOnDisk` holds transcript NAMES. Asking it for a session id matched nothing, so the
+    // sweep kept a transcript and collected the registry entry naming it. Both conventions are
+    // checked because an upgraded machine carries 4.x names beside 5.x hashes.
+    if (namesOf(entry.agentId).some((n) => idsOnDisk.has(n))) continue
+    // B-020 — an entry with no date is not an old entry. `?? 0` dated it to 1970, which reads as
+    // ~19 000 days and is collected on sight; the same coercion was removed for `mtimeMs` above.
+    if (entry.lastModified === undefined) continue
+    const ageDays = (previewWindow.now() - entry.lastModified) / 86_400_000
     if (ageDays <= previewWindow.maxAgeDays) continue
     recordCandidate({
       project,
@@ -430,12 +477,7 @@ function planRegistryEntries(
 
 export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<AllPlan> {
   const maxAgeDays = opts.maxAgeDays ?? DEFAULT_WINDOW_DAYS
-  if (maxAgeDays < FLOOR_DAYS) {
-    throw new RangeError(
-      `maxAgeDays=${String(maxAgeDays)} is below the floor of ${String(FLOOR_DAYS)} day(s) — ` +
-        `refusing: silently normalising would delete yesterday's session`,
-    )
-  }
+  assertCollectionFloor(maxAgeDays)
   const now = opts.now ?? Date.now
   const keepLast = opts.keepLast ?? KEEP_PER_PROJECT
 
@@ -444,7 +486,7 @@ export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<Al
   const touchedProjects: string[] = []
   const liveCwds: string[] = []
   const errors: string[] = []
-  const totalByKind = empty()
+  const totalByKind = emptyByKind()
 
   let projects: string[]
   try {
@@ -465,112 +507,6 @@ export async function planSessionGCAllProjects(opts: PlanAllOptions): Promise<Al
   return { candidates, kept, touchedProjects, liveCwds, totalByKind, errors }
 }
 
-function backstopRefusal(
-  c: AllCandidate,
-  livePointers: ReadonlySet<string>,
-  opts: ApplyAllOptions,
-): string | undefined {
-  if (c.id !== undefined && livePointers.has(c.id)) {
-    return `${c.target}: refused — the live-session pointer changed between plan and apply`
-  }
-  if (opts.hasLiveWriter === undefined) return undefined
-  // B-003 — transcripts are re-checked here too. The early return used to drop everything that was
-  // not a lock, so a transcript that gained a writer between plan and apply was deleted anyway.
-  if (c.kind === 'transcript') {
-    return opts.hasLiveWriter(c.target)
-      ? `${c.target}: refused — the transcript gained a live writer between plan and apply`
-      : undefined
-  }
-  if (c.kind !== 'lock-file' && c.kind !== 'lock-directory') return undefined
-  const transcript = c.target.replace(LOCK_SUFFIX, '.jsonl')
-  return opts.hasLiveWriter(transcript)
-    ? `${c.target}: refused — the sibling transcript gained a live writer between plan and apply`
-    : undefined
-}
-
-async function removeCandidate(c: AllCandidate, opts: ApplyAllOptions): Promise<void> {
-  switch (c.kind) {
-    case 'transcript':
-      if (c.inRegistry === true && c.id !== undefined) await opts.deleteAgent(c.id)
-      else await opts.unlink(c.target)
-      return
-    case 'registry':
-      await opts.deleteAgent(c.target)
-      return
-    case 'lock-file':
-    case 'tmp':
-      await opts.unlink(c.target)
-      return
-    case 'lock-directory':
-      await opts.rmdir(c.target)
-      return
-    default:
-      assertNeverKind(c.kind)
-  }
-}
-
-export async function runSessionGCAllProjects(
-  plan: AllPlan,
-  opts: ApplyAllOptions,
-): Promise<AllResult> {
-  if (opts.apply !== true) {
-    return { dryRun: true, removed: plan.candidates.map((c) => c.target), errors: [] }
-  }
-  const removed: string[] = []
-  const errors: string[] = []
-
-  const livePointers = new Set<string>()
-  if (opts.readPointer !== undefined) {
-    for (const cwd of new Set(plan.liveCwds)) {
-      const p = opts.readPointer(cwd)
-      if (p !== undefined) livePointers.add(p)
-    }
-  }
-
-  for (const c of plan.candidates) {
-    const refusal = backstopRefusal(c, livePointers, opts)
-    if (refusal !== undefined) {
-      errors.push(refusal)
-      continue
-    }
-    try {
-      await removeCandidate(c, opts)
-      removed.push(c.target)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        removed.push(c.target)
-        continue
-      }
-      errors.push(`${c.target}: ${(err as Error).message}`)
-    }
-  }
-
-  await removeEmptyProjects(plan, opts, removed, errors)
-
-  return { dryRun: false, removed, errors }
-}
-
-async function removeEmptyProjects(
-  plan: AllPlan,
-  opts: ApplyAllOptions,
-  removed: string[],
-  errors: string[],
-): Promise<void> {
-  const list = opts.listProject
-  if (list === undefined) return
-  for (const dir of plan.touchedProjects) {
-    const project = dir.slice(dir.lastIndexOf('/') + 1)
-    try {
-      if (list(project).length === 0) {
-        await opts.rmdir(dir)
-        removed.push(dir)
-      }
-    } catch (err) {
-      errors.push(`${dir}: ${(err as Error).message}`)
-    }
-  }
-}
-
-function assertNeverKind(kind: never): never {
+export function assertNeverKind(kind: never): never {
   throw new Error(`unhandled artifact shape: ${String(kind)}`)
 }

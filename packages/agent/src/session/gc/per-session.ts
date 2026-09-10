@@ -5,6 +5,7 @@ import { Agent } from '@theokit/agents'
 import { encodeProjectDir, transcriptPath, transcriptRoot } from '@theokit/agents/persistence'
 
 import { listAgents } from '../agent-list.js'
+import { assertCollectionFloor } from './collection-window.js'
 import { readPointerId } from './pointer.js'
 
 const defaultBaseDir = transcriptRoot
@@ -112,6 +113,8 @@ function unreadable(entry: { id: string; mtimeMs: number }): boolean {
 export async function planSessionGC(opts: PlanSessionGCOptions = {}): Promise<SessionGCPlan> {
   const { cwd, baseDir, now, keepLast, maxAgeDays, listFn, readdir, readPointer } =
     resolvePlanOptions(opts)
+
+  assertCollectionFloor(maxAgeDays)
 
   const onDisk = readdir(transcriptDir(cwd, baseDir)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs || a.id.localeCompare(b.id),
