@@ -67,19 +67,18 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-175 items — **Open** 1 · **In flight** 1 · **Closed** 173
+175 items — **Open** 0 · **In flight** 2 · **Closed** 173
 
-### Open (1)
+### Open (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `triaged` | — |
+_None._
 
-### In flight (1)
+### In flight (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly----) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `planned` | — |
+| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `planned` | — |
 
 ### Closed (173)
 
@@ -7436,6 +7435,9 @@ dod:
 > it — the check is blind to exactly this failure. A heading-integrity assertion belongs in
 > `check_backlog_structure.py`, and that lives in the kit, not here.
 
+> Riding PR #213 (0.26.1). `BACKLOG.md` is versioned in this repository, so the repair is
+> releasable and closes on the tag.
+
 ## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
 
 domain: theocode
@@ -7446,7 +7448,7 @@ evidence: `.claude/records/discoveries/opportunities/status-reports-untruncated-
 why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
 
 What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
-status: triaged
+status: planned
 dod:
   - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
   - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
@@ -7507,6 +7509,39 @@ dod:
 > **And the predicted mutant must die.** `withAggregateCut` returning a cut unconditionally has to fail
 > a test, which means a test whose expected value is *no cut* — the anti-vacuity control the previous
 > plan prescribed by name and the previous commit never shipped.
+
+> IMPLEMENTED AND REVIEWED 2026-09-10 — `11e6fec` + `cc7a8ad`, riding PR #213. **Still `planned`:
+> nothing ships until the tag exists.**
+>
+> The decision above held under review. What did not hold was my confidence about it: three
+> reviewers found fifteen actionable defects, two of them blocking `npm run lint` — which I had not
+> run before committing, having stopped at `tsc` and the suite.
+>
+> **Three of the five serious findings were one mistake made three times: the right control written
+> for one source and not for the other two, then asserted in the commit message as impossible.**
+> Two mutants reproducing the exact failure that reversed the previous attempt survived all 1192
+> tests in the agent and TUI packages:
+>
+> | mutant | survived | now |
+> |---|---|---|
+> | `cuts.find(c => c.source === 'rules')` → `cuts[0]` | 1192 tests green | fails 3 |
+> | the `agentsMd` branch relabelled `source: 'rules'` | 1192 tests green | fails 1 |
+>
+> The first is not academic. Review drove the real product under it: a project holding ONE 18-char
+> rules file with a large surface document rendered *"1 loaded; a later ceiling cut the block from
+> 200,000 to 86,346 chars"* — an intact rule block described as gutted.
+>
+> **And the DoD arm was named for something it did not do.** `two loads that each fit` used 20
+> blocks of 6,000 per root against a 64,000 loader ceiling, so both loads overflowed, `truncated`
+> was already true, and the case the CHANGELOG describes — loader passes whole, aggregate cuts —
+> was covered nowhere end to end. At 8 blocks each load genuinely fits; the arm now asserts
+> `truncated: false` beside the cut.
+>
+> One finding is deliberately open and named rather than dropped: **F-arch-3**, a LOW refactor
+> hoisting the composition to `buildChatAgent` to shorten one type expression. The reviewer marked
+> it "not required for correctness"; parsimony ladder rung 1 answers no.
+>
+> Full record: `records/reviews/status-reports-untruncated-rules-review-2026-09-10.md`.
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
