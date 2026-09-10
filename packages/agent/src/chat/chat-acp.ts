@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import { resolveFreshCredential } from './auth/index.js'
+import { resolveFreshCredential } from '../auth/index.js'
 import { toAgentFactory } from '@theokit/agents'
 
 import { buildChatAgent } from './chat.js'

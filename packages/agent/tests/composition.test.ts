@@ -174,7 +174,7 @@ interface CompiledAgent {
 }
 
 async function compile(overrides: Record<string, unknown>): Promise<CompiledAgent> {
-  const { buildChatAgent } = await import('../src/chat.js')
+  const { buildChatAgent } = await import('../src/chat/chat.js')
   return buildChatAgent(overrides as never) as unknown as CompiledAgent
 }
 

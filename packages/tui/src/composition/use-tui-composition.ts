@@ -4,19 +4,19 @@ import {
   credentialSource,
   makeInterruptTurn,
   getTuiRoot,
-} from './agent-session/index.js'
-import { composerDeps } from './composition/composer-deps.js'
-import { useTuiSession } from './composition/use-tui-session.js'
-import { useComposerCommands } from './commands/index.js'
-import { type ApprovalMode, useApprovals, useConsent } from './consent/index.js'
-import { useGoalRun } from './persistence/index.js'
+} from '../agent-session/index.js'
+import { composerDeps } from './composer-deps.js'
+import { useTuiSession } from './use-tui-session.js'
+import { useComposerCommands } from '../commands/index.js'
+import { type ApprovalMode, useApprovals, useConsent } from '../consent/index.js'
+import { useGoalRun } from '../persistence/index.js'
 import {
   useTimeline,
   useScreenState,
   useContextWarning,
   useResumedHistory,
-} from './rendering/index.js'
-import { useTuiKeyboard } from './terminal-io/index.js'
+} from '../rendering/index.js'
+import { useTuiKeyboard } from '../terminal-io/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -25,13 +25,13 @@ import { basename } from 'node:path'
 
 import { AGENT } from '@theocode/shared/agent'
 
-import { workingDirectory } from './working-directory.js'
+import { workingDirectory } from '../working-directory.js'
 
 import { currentQuestion, setListener } from '@theocode/agent/ask'
 import { installAuthHome } from '@theocode/agent/auth'
 import { installClaudeProjectDir } from '@theocode/agent/hooks'
 
-import { useBacktrack } from './backtrack/index.js'
+import { useBacktrack } from '../backtrack/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 
 // The same call the CLI's bootstrap makes. It used to be a hand-rolled `??=` here and a function

@@ -46,21 +46,21 @@ const loadRules = vi.fn(() => ({ text: '' }))
 const loadApprovedHooks = vi.fn(() => new Map())
 const createDelegateToTeamTool = vi.fn(() => ({ name: 'delegate_to_team' }))
 
-vi.mock('../src/config/index.js', async (orig) => ({
+vi.mock('../../src/config/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   resolveTrustPosture,
   resolveEffectiveConfig,
 }))
-vi.mock('../src/context/index.js', async (orig) => ({
+vi.mock('../../src/context/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadAgentsMd,
   loadRules,
 }))
-vi.mock('../src/delegation/index.js', async (orig) => ({
+vi.mock('../../src/delegation/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   createDelegateToTeamTool,
 }))
-vi.mock('../src/hooks/index.js', async (orig) => ({
+vi.mock('../../src/hooks/index.js', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadApprovedHooks,
 }))
@@ -81,7 +81,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   })
 
   it('test_the_trust_posture_is_resolved_for_the_injected_directory', async () => {
-    const { buildChatAgent } = await import('../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
 
     buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
@@ -93,7 +93,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   })
 
   it('test_the_effective_config_is_resolved_for_the_injected_directory', async () => {
-    const { buildChatAgent } = await import('../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
 
     buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
@@ -101,7 +101,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   })
 
   it('test_the_project_instructions_come_from_the_injected_directory', async () => {
-    const { buildChatAgent } = await import('../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
 
     buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
@@ -123,7 +123,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
     // Comments are stripped first. The prose in `chat.ts` legitimately CITES `process.cwd()` while
     // explaining why it is gone — the first version of this assertion read that history and failed
     // on it, which is a detector that punishes documenting the defect it guards against.
-    const source = await readFile(new URL('../src/chat.ts', import.meta.url), 'utf8')
+    const source = await readFile(new URL('../../src/chat/chat.ts', import.meta.url), 'utf8')
     const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
     expect(
@@ -156,7 +156,7 @@ describe('B-032 — the injected directory reaches the delegated team', () => {
     // `resolveToolScope` derives BOTH the writeRoot and the sandbox workDir from the directory it is
     // given, so a team built against `process.cwd()` confines its worker to the wrong tree. This is
     // the one B-015 bypass with a confinement consequence rather than a configuration one.
-    const { buildChatAgent } = await import('../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
 
     buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 

@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 
 import { diagnose } from '@theokit/agents/doctor'
 
-import { collectChecks } from '../../src/doctor.js'
+import { collectChecks } from '../../src/doctor/doctor.js'
 import { foreignHookRefusals } from '../../src/hooks/foreign-hook-gate.js'
 
 const files = (contents: Record<string, string>) => ({

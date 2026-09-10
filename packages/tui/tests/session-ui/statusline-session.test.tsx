@@ -13,9 +13,9 @@
 import { render } from 'ink-testing-library'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { handleStatusline } from '../src/commands/surface-commands.js'
-import { SessionFooter, type FooterProps } from '../src/components/SessionFooter.js'
-import { STATUSLINE_ITEMS, statuslineSelection } from '../src/statusline-session.js'
+import { handleStatusline } from '../../src/commands/surface-commands.js'
+import { SessionFooter, type FooterProps } from '../../src/components/SessionFooter.js'
+import { STATUSLINE_ITEMS, statuslineSelection } from '../../src/session-ui/statusline-session.js'
 
 /**
  * The two answer channels, discarded.

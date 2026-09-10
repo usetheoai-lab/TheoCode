@@ -90,7 +90,7 @@ describe('B-069/B-070/B-071 — wiredCapabilities', () => {
  */
 describe('B-069/B-070/B-071 — buildChatAgent publishes the record', () => {
   it('test_the_listener_receives_what_the_build_wired', async () => {
-    const { buildChatAgent } = await import('../src/chat.js')
+    const { buildChatAgent } = await import('../src/chat/chat.js')
     let seen: unknown
     // #65 — `buildChatAgent` became async when the operator's skills started being read from disk.
     // Without the await, `onWired` had not fired yet and `seen` was `undefined` — a real failure, not

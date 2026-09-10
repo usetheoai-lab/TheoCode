@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { memoryFacts, withFactRemoved } from '../src/memory-facts.js'
+import { memoryFacts, withFactRemoved } from '../../src/memory/memory-facts.js'
 
 const STORE = `# Memory
 

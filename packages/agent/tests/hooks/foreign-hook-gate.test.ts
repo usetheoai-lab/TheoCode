@@ -68,7 +68,7 @@ describe('the wiring', () => {
     // which is what this issue WAS, one layer up. Reading the source is crude and it is the only
     // check available without standing up an agent: the fluent chain has no seam to inspect.
     const chat = readFileSync(
-      fileURLToPath(new URL('../../src/chat.ts', import.meta.url)),
+      fileURLToPath(new URL('../../src/chat/chat.ts', import.meta.url)),
       'utf8',
     )
     expect(chat).toContain('.hookApproval({ approve: refuseForeignHook })')

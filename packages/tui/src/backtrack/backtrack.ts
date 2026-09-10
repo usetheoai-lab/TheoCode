@@ -10,7 +10,7 @@ import {
   forkSessionBeforeUserTurn,
   readUserTurnPreviewsAsync,
 } from '@theocode/agent/session'
-import { SENTINEL } from '../backtrack-select.js'
+import { SENTINEL } from './backtrack-select.js'
 import type { ToastPayload } from '../screen-types.js'
 
 export interface PrimeBacktrackDeps {

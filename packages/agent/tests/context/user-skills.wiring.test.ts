@@ -34,7 +34,7 @@ describe('#65 — an operator skill is wired into the agent', () => {
     )
     process.env.HOME = home
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
       // B-161: a directory of its own, not `process.cwd()`. This test isolates HOME into a tmpdir
@@ -62,7 +62,7 @@ describe('#65 — an operator skill is wired into the agent', () => {
     const home = tempRoot('user-skills-wiring-empty-')
     process.env.HOME = home
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
       // B-161: a directory of its own, not `process.cwd()`. This test isolates HOME into a tmpdir

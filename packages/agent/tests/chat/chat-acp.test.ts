@@ -19,13 +19,13 @@ const buildChatAgent = vi.fn(() => ({ kind: 'fake-agent' }))
 const toAgentFactory = vi.fn((factory: unknown, _options?: unknown) => factory)
 const resolveFreshCredential = vi.fn()
 
-vi.mock('../src/chat.js', () => ({ buildChatAgent }))
+vi.mock('../../src/chat/chat.js', () => ({ buildChatAgent }))
 vi.mock('@theokit/agents', () => ({
   toAgentFactory,
   setDiagnosticsSink: vi.fn(),
 }))
 vi.mock('@theocode/shared/diagnostic-sink', () => ({ installDiagnosticSink: vi.fn() }))
-vi.mock('../src/auth/index.js', () => ({ resolveFreshCredential }))
+vi.mock('../../src/auth/index.js', () => ({ resolveFreshCredential }))
 
 describe('B-001 — the ACP entry declares the headless profile', () => {
   beforeEach(() => {
@@ -34,7 +34,7 @@ describe('B-001 — the ACP entry declares the headless profile', () => {
   })
 
   it('test_acp_builds_the_agent_with_the_headless_surface', async () => {
-    await import('../src/chat-acp.js')
+    await import('../../src/chat/chat-acp.js')
 
     // `toAgentFactory` receives the builder; invoking it is what reaches `buildChatAgent`.
     const factory = toAgentFactory.mock.calls[0]?.[0] as () => Promise<unknown>
@@ -73,7 +73,7 @@ describe('B-007 — credential failure is not degraded to an empty key', () => {
     const boom = new Error('no credential found for provider openai')
     resolveFreshCredential.mockRejectedValueOnce(boom)
 
-    await import('../src/chat-acp.js')
+    await import('../../src/chat/chat-acp.js')
     const options = toAgentFactory.mock.calls[0]?.[1] as { apiKey: () => Promise<string> }
 
     await expect(
@@ -88,7 +88,7 @@ describe('B-007 — credential failure is not degraded to an empty key', () => {
     // Anti-vacuity floor: a resolver that always threw would satisfy the test above.
     resolveFreshCredential.mockResolvedValueOnce({ apiKey: 'sk-real-key' })
 
-    await import('../src/chat-acp.js')
+    await import('../../src/chat/chat-acp.js')
     const options = toAgentFactory.mock.calls[0]?.[1] as { apiKey: () => Promise<string> }
 
     await expect(options.apiKey()).resolves.toBe('sk-real-key')

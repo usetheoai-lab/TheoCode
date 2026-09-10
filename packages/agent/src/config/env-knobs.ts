@@ -175,7 +175,7 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
   },
   {
     name: ENV_SEARCH_API_URL,
-    reader: 'packages/agent/src/chat.ts:webSearchConfigured',
+    reader: 'packages/agent/src/chat/chat.ts:webSearchConfigured',
     default: '—',
     effect:
       'The web-search provider endpoint. Absent or misspelt, `web_search` is not declared to the ' +

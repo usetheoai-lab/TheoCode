@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { collectChecks, diagnose } from '../src/doctor.js'
+import { collectChecks, diagnose } from '../../src/doctor/doctor.js'
 
 const base = {
   cwd: '/tmp/p',

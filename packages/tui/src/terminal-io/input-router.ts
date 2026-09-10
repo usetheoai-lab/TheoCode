@@ -15,7 +15,7 @@
  */
 import { routeThroughLayers, type KeyLayer } from '@theokit/tui/keys'
 
-import { stepBacktrack } from '../backtrack-select.js'
+import { stepBacktrack } from '../backtrack/backtrack-select.js'
 import type { Keybinding } from './keybindings.js'
 
 export interface KeyboardState {

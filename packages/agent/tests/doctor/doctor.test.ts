@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { collectChecks, diagnose, renderDiagnosis } from '../src/doctor.js'
+import { collectChecks, diagnose, renderDiagnosis } from '../../src/doctor/doctor.js'
 
 const base = {
   cwd: '/workspace',

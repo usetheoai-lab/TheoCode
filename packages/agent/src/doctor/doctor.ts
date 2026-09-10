@@ -24,8 +24,8 @@
  * non-zero, because a product whose check list failed to load would otherwise announce that an
  * installation nobody examined is fine. The local version had exactly that hole.
  */
-import type { SettingsFileReport } from './config/settings-load.js'
-import { refusalNotice } from './hooks/foreign-hook-gate.js'
+import type { SettingsFileReport } from '../config/settings-load.js'
+import { refusalNotice } from '../hooks/foreign-hook-gate.js'
 import type { Check } from '@theokit/agents/doctor'
 
 /**

@@ -64,7 +64,7 @@ describe('the operator root is a parameter of the build', () => {
     const injected = operatorRoot('from-the-parameter')
     process.env.HOME = tempRoot('b167-env-empty-')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
       cwd: tempRoot('b167-project-'),
@@ -91,7 +91,7 @@ describe('the operator root is a parameter of the build', () => {
     const injected = operatorRootWithAgentsMd('MARKER-FROM-THE-PARAMETER')
     process.env.HOME = operatorRootWithAgentsMd('MARKER-FROM-THE-ENVIRONMENT')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     const agent = await buildChatAgent({
       cwd: tempRoot('b167-project-'),
       home: injected,
@@ -121,7 +121,7 @@ describe('the operator root is a parameter of the build', () => {
     writeFileSync(join(ambient, '.theokit', 'rules', 'r.md'), '# R\n\nMARKER-RULES-FROM-ENVIRONMENT\n')
     process.env.HOME = ambient
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     const agent = await buildChatAgent({
       cwd: tempRoot('b167-project-'),
       home: injected,
@@ -140,7 +140,7 @@ describe('the operator root is a parameter of the build', () => {
     // behaviour for every surface while claiming to be a test affordance.
     process.env.HOME = operatorRoot('from-the-environment')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
       cwd: tempRoot('b167-project-'),

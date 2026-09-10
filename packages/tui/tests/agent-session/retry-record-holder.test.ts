@@ -12,7 +12,7 @@ import {
   resetRetryRecord,
   sinkRetryEvent,
   startRetryTurn,
-} from '../../src/agent-session/retry-record.js'
+} from '../../src/agent-session/retry-record-holder.js'
 
 const rateLimit = (attempt: number): Parameters<typeof sinkRetryEvent>[0] =>
   ({ type: 'rate_limit', attempt }) as never

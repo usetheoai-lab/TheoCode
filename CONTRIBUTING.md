@@ -410,3 +410,33 @@ measuring against the artifact: it reads a tree whose version field, as above, m
 `CHANGELOG.md` is written for the person consuming this product, not for the person who changed it.
 Reasoning about how a change was measured belongs in the commit message and in the source; what the
 entry owes the reader is what became different for them.
+
+## Naming and placement conventions
+
+Measured into existence by the 2026-09-10 architecture review: each rule below was either being
+followed everywhere except one or two spots (which read as drift), or followed consistently but
+written down nowhere (which invites the first divergence). The structural decisions behind them
+are in `docs/adr/0002-feature-first-placement-and-naming.md`.
+
+- **Modules are kebab-case, including React hooks.** `use-backtrack.ts`, not `useBacktrack.ts` —
+  the wider React ecosystem writes hooks camelCase, and this repository deliberately does not:
+  every module file is kebab-case, with zero exceptions in the tree. Do not introduce the first
+  `useX.ts`.
+- **`.tsx` files are named for their PRIMARY export.** A component file is PascalCase
+  (`Banner.tsx`, `BacktrackOverlay.tsx`); a module that happens to export a component among other
+  things stays kebab-case (`theme-session.tsx` exports a store, three functions and
+  `ThemedSurface`). `main.tsx` is the conventional entrypoint name.
+- **Test variants use the dot qualifier: `<source>.<qualifier>.test.ts`.** `user-skills.wiring.test.ts`,
+  `run-composition.smoke.test.ts` — the dot preserves the pairing between test and source
+  basename, which the `tests/` mirror convention and the TDD pairing gate rely on. Do not hyphenate
+  the qualifier into the basename (`on-disk-wiring.test.ts` was the drift; it is
+  `on-disk.wiring.test.ts` now).
+- **Feature files live in feature folders; package roots hold entrypoints and genuinely
+  cross-cutting files only.**
+- **Session vocabulary, because three folders can plausibly claim the word:**
+  `packages/agent/src/session` is engine state (ops, history, GC, artifacts);
+  `packages/tui/src/persistence` is what survives a restart;
+  `packages/tui/src/agent-session` is the live bridge between the running agent and the UI.
+- **Package-local scripts live in `<package>/scripts/`.** The repository root owns `tools/` for
+  the build gates; a second unrelated `tools/` inside a package makes every `tools/` path
+  ambiguous.

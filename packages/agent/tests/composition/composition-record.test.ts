@@ -18,8 +18,8 @@
  */
 import { describe, expect, test } from 'vitest'
 
-import { withAggregateCut } from '../src/composition-record.js'
-import type { InstructionCut } from '../src/context/agents-md.js'
+import { withAggregateCut } from '../../src/composition/composition-record.js'
+import type { InstructionCut } from '../../src/context/agents-md.js'
 
 const RECORD = { count: 3, read: 3, chars: 900, kept: 900, truncated: false } as const
 

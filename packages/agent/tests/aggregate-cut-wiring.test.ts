@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, test } from 'vitest'
 
-import { buildChatAgent } from '../src/chat.js'
+import { buildChatAgent } from '../src/chat/chat.js'
 import type { TrustPosture } from '../src/config/index.js'
 import type { WiredCapabilities } from '../src/wired-capabilities.js'
 

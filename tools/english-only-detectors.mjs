@@ -352,7 +352,7 @@ export function portugueseConstruction(identifier) {
  * grammar-level signal, scored for false positives against this corpus BEFORE it lands — a guard
  * that cries wolf is what killed version one.
  */
-export function portugueseInStrings(line) {
+function portugueseInStrings(line) {
   if (/^\s*(?:import|export)\s.*\sfrom\s/.test(line)) return []
   const found = []
   for (const m of line.matchAll(/(['"`])((?:\\.|(?!\1)[^\\])*)\1/g)) {

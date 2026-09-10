@@ -29,7 +29,7 @@ import { useEffect } from 'react'
 import type { OscSink } from '@theokit/tui'
 
 import { createItemSelection, useItemSelection } from './session-items.js'
-import { writeTerminalTitle } from './terminal-io/terminal-title.js'
+import { writeTerminalTitle } from '../terminal-io/terminal-title.js'
 
 export const TITLE_ITEMS = ['app', 'dir', 'model', 'session'] as const
 

@@ -16,15 +16,15 @@
 import { render } from 'ink-testing-library'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { handleTitle } from '../src/commands/surface-commands.js'
+import { handleTitle } from '../../src/commands/surface-commands.js'
 import {
   TITLE_ITEMS,
   TerminalTitle,
   composeTitle,
   titleSelection,
   type TitleFacts,
-} from '../src/title-session.js'
-import { waitFor } from './helpers/wait-for.js'
+} from '../../src/session-ui/title-session.js'
+import { waitFor } from '../helpers/wait-for.js'
 
 /**
  * The two answer channels, discarded.

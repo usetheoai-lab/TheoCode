@@ -1,12 +1,12 @@
 import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 
-import { mcpScopes } from './mcp-scopes.js'
-import { bothRuleRoots, publishWiring } from './composition-record.js'
-import type { WiredCapabilities } from './wired-capabilities.js'
-import { memoryEnabledForSession } from './memory-switch.js'
-import { sandboxModeForSession } from './sandbox-switch.js'
-import { withSandboxMode } from './config/effective-config.js'
+import { mcpScopes } from '../mcp-scopes.js'
+import { bothRuleRoots, publishWiring } from '../composition/composition-record.js'
+import type { WiredCapabilities } from '../wired-capabilities.js'
+import { memoryEnabledForSession } from '../memory/memory-switch.js'
+import { sandboxModeForSession } from '../sandbox-switch.js'
+import { withSandboxMode } from '../config/effective-config.js'
 import {
   createGenericHttpSearchAdapter,
   createQuestionTool,
@@ -23,30 +23,30 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from './context/index.js'
-import type { RulesLoad } from './context/rules.js'
-import { userSkills } from './context/user-skills.js'
+import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from '../context/index.js'
+import type { RulesLoad } from '../context/rules.js'
+import { userSkills } from '../context/user-skills.js'
 import type { InlineSkill } from '@theokit/sdk'
 import {
   resolveEffectiveConfig,
   type EffectiveConfig,
   type ReasoningEffort,
-} from './config/index.js'
+} from '../config/index.js'
 import { interactiveWrapCommand } from '@theokit/agents/sandbox'
-import { loadApprovedHooks } from './hooks/index.js'
-import { buildHookHandlers, withBuiltinShellVeto, parseHooks } from './hooks/index.js'
-import { sandboxWritePolicy } from './config/index.js'
-import { resolveTrustPosture, type TrustPosture } from './config/index.js'
-import { baseInstructionsFor } from './output-style-wiring.js'
-import { createAnalystSubagent, createDelegateToTeamTool } from './delegation/index.js'
-import { abandonQuestion, ask } from './ask/index.js'
-import { createInteractiveShellTool } from './ask/index.js'
-import { MAX_PTY_SESSIONS } from './pty/index.js'
-import type { SessionPtyOwner } from './pty/index.js'
-import { ToolRegistry, resolveToolScope } from './tools/index.js'
-import { declareAgent, toolsNamed } from './composition/agent-spec.js'
-import { refuseForeignHook } from './hooks/foreign-hook-gate.js'
-import { settingSourcesFor } from './setting-sources.js'
+import { loadApprovedHooks } from '../hooks/index.js'
+import { buildHookHandlers, withBuiltinShellVeto, parseHooks } from '../hooks/index.js'
+import { sandboxWritePolicy } from '../config/index.js'
+import { resolveTrustPosture, type TrustPosture } from '../config/index.js'
+import { baseInstructionsFor } from '../output-style-wiring.js'
+import { createAnalystSubagent, createDelegateToTeamTool } from '../delegation/index.js'
+import { abandonQuestion, ask } from '../ask/index.js'
+import { createInteractiveShellTool } from '../ask/index.js'
+import { MAX_PTY_SESSIONS } from '../pty/index.js'
+import type { SessionPtyOwner } from '../pty/index.js'
+import { ToolRegistry, resolveToolScope } from '../tools/index.js'
+import { declareAgent, toolsNamed } from '../composition/agent-spec.js'
+import { refuseForeignHook } from '../hooks/foreign-hook-gate.js'
+import { settingSourcesFor } from '../setting-sources.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
 export type HookVetoListener = (veto: { tool: string; reason: string }) => void

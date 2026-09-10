@@ -7,7 +7,7 @@
  * box read that one. Setting only the global renders every width as 100 and would make this tool
  * lie about the layout it exists to show.
  *
- * It lives under `packages/tui/tools/` rather than the repository's `tools/` because pnpm isolates
+ * It lives under `packages/tui/scripts/` rather than the repository's `tools/` because pnpm isolates
  * dependencies per package: `react` and `ink-testing-library` resolve from `packages/tui` and are
  * not reachable from the root.
  *

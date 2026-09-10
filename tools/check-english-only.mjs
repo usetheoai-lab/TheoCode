@@ -90,7 +90,6 @@ export {
   portugueseConstruction,
   portugueseIdentifierPair,
   portugueseInComments,
-  portugueseInStrings,
   portugueseWordsInFilename,
   wordParts,
 } from './english-only-detectors.mjs'

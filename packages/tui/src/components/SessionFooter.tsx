@@ -12,7 +12,7 @@ import {
   separatorBefore,
   useStatuslineItems,
   type StatuslineItem,
-} from '../statusline-session.js'
+} from '../session-ui/statusline-session.js'
 import type { ApprovalMode } from '../consent/index.js'
 import type { ReasoningEffort } from '@theocode/agent/config'
 

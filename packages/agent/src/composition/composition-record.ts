@@ -2,15 +2,15 @@ import { homedir } from 'node:os'
 
 import type { InlineSkill } from '@theokit/sdk'
 
-import type { EffectiveConfig, TrustPosture } from './config/index.js'
-import { projectSourceAllowed } from './config/project-source.js'
-import { agentsMdChain, loadRules, loadUserRules } from './context/index.js'
-import type { RulesLoad } from './context/rules.js'
-import { parseHooks } from './hooks/index.js'
-import type { McpScopes } from './mcp-scopes.js'
-import { wiredCapabilities } from './wired-capabilities.js'
-import type { InstructionCut } from './context/agents-md.js'
-import type { WiredCapabilities } from './wired-capabilities.js'
+import type { EffectiveConfig, TrustPosture } from '../config/index.js'
+import { projectSourceAllowed } from '../config/project-source.js'
+import { agentsMdChain, loadRules, loadUserRules } from '../context/index.js'
+import type { RulesLoad } from '../context/rules.js'
+import { parseHooks } from '../hooks/index.js'
+import type { McpScopes } from '../mcp-scopes.js'
+import { wiredCapabilities } from '../wired-capabilities.js'
+import type { InstructionCut } from '../context/agents-md.js'
+import type { WiredCapabilities } from '../wired-capabilities.js'
 
 /** The hook events, each with the command it runs — see the comment inside for why both. */
 function configuredHookEvents(cfg: EffectiveConfig): readonly string[] {
