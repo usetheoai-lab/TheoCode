@@ -18,18 +18,6 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
-- The operator's rules now follow `$THEOKIT_HOME` when it points outside the home directory, as
-  config, the trust store and MCP scopes already did. One build could resolve config from one
-  operator root and its instructions from another: `homeStateDir` returns the configured path
-  verbatim, while the rules loader dropped any root it could not express relative to the home.
-  Both roots are read, and the 64,000-char prompt ceiling is applied once across them — an earlier
-  attempt assembled each root separately and merged, which let two corpora that each fit produce a
-  prompt of 126,012 chars reporting nothing truncated (B-171).
-- The two operator roots are compared by resolved path, so a home reachable by two names does not
-  have its rules read twice. `/home -> /var/home` on Fedora Silverblue, systemd-homed and any
-  symlinked `$HOME` produce that shape; measured there, two rule files came back as four and a corpus
-  that fit began truncating, dropping one of the operator's own files (B-171).
-
 ### Added
 
 ### Changed
@@ -90,6 +78,17 @@ for `release.yml` in this repository will not find it, and should not have been 
   partial run did touch files it is indistinguishable from a real regression, so the guard still
   fails and the message names that third possibility instead of offering two that do not apply
   (B-165).
+- The operator's rules now follow `$THEOKIT_HOME` when it points outside the home directory, as
+  config, the trust store and MCP scopes already did. One build could resolve config from one
+  operator root and its instructions from another: `homeStateDir` returns the configured path
+  verbatim, while the rules loader dropped any root it could not express relative to the home.
+  Both roots are read, and the 64,000-char prompt ceiling is applied once across them — an earlier
+  attempt assembled each root separately and merged, which let two corpora that each fit produce a
+  prompt of 126,012 chars reporting nothing truncated (B-171).
+- The two operator roots are compared by resolved path, so a home reachable by two names does not
+  have its rules read twice. `/home -> /var/home` on Fedora Silverblue, systemd-homed and any
+  symlinked `$HOME` produce that shape; measured there, two rule files came back as four and a corpus
+  that fit began truncating, dropping one of the operator's own files (B-171).
 
 ## [0.25.1] - 2026-09-09
 
