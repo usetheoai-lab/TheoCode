@@ -18,6 +18,11 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ### Fixed
 
+- `/status` no longer reports the operator's rules as fully loaded after a later ceiling cut them.
+  Two ceilings run in series — one bounds a single rules load at 64,000 chars, the other bounds the
+  whole composed persona at 96,000 — and two loads that each fit could compose into a persona that
+  did not, with the row still printing "N loaded" over text that was dropped (B-173).
+
 - Three tests no longer fail for operators who export `$THEOKIT_HOME`. They asserted about the
   operator-root seam while letting the environment decide where the loader looked, so an ordinary
   local setting produced three red tests that were about the environment rather than the code

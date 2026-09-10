@@ -116,6 +116,11 @@ export function publishWiring(
     mcp: McpScopes
     operatorSkills: readonly InlineSkill[]
     rules: ReturnType<typeof bothRuleRoots>
+    /**
+     * B-173 — whether the AGGREGATE ceiling cut the composed persona, which the per-load `truncated`
+     * cannot see: two loads that each fit can compose into one that does not.
+     */
+    aggregate?: { truncated: boolean }
   },
 ): void {
   onWired?.(
@@ -125,9 +130,28 @@ export function publishWiring(
       from.cfg,
       from.mcp,
       from.operatorSkills.map((s) => s.name),
-      from.rules.record,
+      // B-173 — `truncated` is a disjunction over everything that could drop content on the way to
+      // the prompt, and the aggregate ceiling is one of those things. The per-load flag cannot see it:
+      // two loads that each fit their own 64,000 compose into a persona that passes 96,000, and the
+      // row reported "N loaded" over text that was cut afterwards.
+      withAggregateCut(from.rules.record, from.aggregate?.truncated === true),
     ),
   )
+}
+
+/**
+ * B-173 — fold the aggregate ceiling's outcome into the record.
+ *
+ * A separate function rather than a spread at the call site: `rules` is optional on the record, so a
+ * spread there widens every field to `| undefined` and the type stops guaranteeing what `/status`
+ * reads. Guarding first keeps the shape intact and says why in one place.
+ */
+function withAggregateCut(
+  record: WiredCapabilities['rules'],
+  cut: boolean,
+): WiredCapabilities['rules'] {
+  if (!cut || record === undefined) return record
+  return { ...record, truncated: true }
 }
 
 /**
