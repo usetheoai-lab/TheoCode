@@ -7356,19 +7356,20 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
-## B-173 — The prompt ceiling is per loader call, not per prompt   [ ]
+## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
 
 domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
 evidence: `.claude/agents/review-two-operator-roots-2026-09-09/findings/architecture-v2.yaml` (F-arch-v2-3), reproduced on an unmodified tree
-why_now: `MAX_CHARS` is 64,000 and `assemble` applies it once per LOADER CALL. `chat.ts:276-278` then concatenates `rules.user.text` and `rules.project.text`, each ceilinged separately, so the prompt receives up to twice the declared limit: **126,012 chars measured with `truncated: false`**. That is the same number that reversed B-171's first attempt — and a reviewer reproduced it on a tree with NO B-171 changes at all, so the defect predates that item entirely and the reversal diagnosed the wrong cause for the right symptom. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
+why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
+
+What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
 status: raw
 dod:
-  - the text that reaches the prompt is bounded by one declared ceiling, whichever loads compose it
-  - `truncated` is true whenever any content was dropped on the way, so `/status` cannot report "N loaded" over a dropped file
-  - a test builds a prompt from two loads that each fit and fails if their sum exceeds the ceiling silently
+  - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
+  - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
