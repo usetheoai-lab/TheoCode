@@ -34,7 +34,7 @@ async function markdownIn(dir, readDir) {
 /**
  * The decision, separated from the process it used to be welded to.
  *
- * B-XXX (2026-09-10) — this file ran its whole check at module top level and called
+ * Rewritten 2026-09-10: this file ran its whole check at module top level and called
  * `process.exit`, so importing it WAS running it. That is why it shipped without a test while
  * sitting in the `npm run lint` chain that gates every build, and it is the shape the finding
  * objected to: a checker that mis-globs, throws early, or returns 0 over an empty match set passes
