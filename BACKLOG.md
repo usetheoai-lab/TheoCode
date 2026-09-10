@@ -7458,6 +7458,10 @@ dod:
 
 > SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
 
+> ACCEPTED 2026-09-10 — exercised against the RELEASED artifact, not this working tree: a clean
+> clone at tag `v0.26.1`, `pnpm install --frozen-lockfile && pnpm build`, `TheoCode 0.26.1`. Record:
+> `records/acceptance/v0.26.1-2026-09-10.md`.
+
 ## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [x]
 
 domain: theocode
@@ -7565,6 +7569,10 @@ dod:
 > Full record: `records/reviews/status-reports-untruncated-rules-review-2026-09-10.md`.
 
 > SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
+
+> ACCEPTED 2026-09-10 — exercised against the RELEASED artifact, not this working tree: a clean
+> clone at tag `v0.26.1`, `pnpm install --frozen-lockfile && pnpm build`, `TheoCode 0.26.1`. Record:
+> `records/acceptance/v0.26.1-2026-09-10.md`.
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
