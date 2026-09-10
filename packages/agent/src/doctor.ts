@@ -155,7 +155,7 @@ function skillsOnDiskCheck(
  *
  * Appended only when there is something to say — the rule the rows around it follow.
  */
-export function foreignHookCheck(
+function foreignHookCheck(
   refusals: readonly { path: string; commands: readonly string[] }[] = [],
 ): Check[] {
   if (refusals.length === 0) return []
