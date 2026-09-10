@@ -67,25 +67,25 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-173 items — **Open** 5 · **In flight** 4 · **Closed** 164
+173 items — **Open** 2 · **In flight** 7 · **Closed** 164
 
-### Open (5)
+### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `triaged` | — |
-| [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
-| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
-| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `triaged` | — |
 
-### In flight (4)
+### In flight (7)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `planned` | — |
 | [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `planned` | — |
+| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `planned` | — |
 | [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `planned` | — |
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
+| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `planned` | — |
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
 
 ### Closed (164)
@@ -7410,7 +7410,7 @@ suggested_mode: review
 source: discover-review
 evidence: `.claude/agents/review-operator-home-seam-2026-09-09/findings/architecture.yaml` (F-arch-2), measured end to end
 why_now: A review of B-167 measured a build where config came from one operator root and instructions from another, reachable through the public seams. One `composeRun` call with `userDir` and `THEOKIT_HOME` pointing at different roots, each holding its own `settings.json` and `rules/`, produced `cfg.model` from the `THEOKIT_HOME` root while the prompt carried the rules from `userDir`. Two causes meeting: `homeStateDir` puts the env var FIRST (`config/home-dir.ts:48-53`), while `userRuleRoots` DROPS a configured root that is not under `home` (`context/rules.ts:122-126`). Neither file was touched by B-167, so this is pre-existing in kind — but B-167 made it expressible per build, and `composeRun` forwards `seams.env` to config resolution (`run-composition.ts:88-94`) and not to the build (`:113-125`), so even a caller passing consistent seams gets one layer on the seam and one on `process.env`. The comment at `run-composition.ts:82-83` describes exactly this split for B-033, one call lower. A third finding sits beside it: `userSkills` hardcodes `.theokit` (`context/user-skills.ts:53`) and never calls `homeStateDir`, so under the supported `home_dir = .claude` setting rules read both roots, AGENTS.md follows `.claude`, and skills silently read only `.theokit/skills`.
-status: raw
+status: planned
 dod:
   - one build resolves config, rules, skills and AGENTS.md from ONE operator root, or refuses and says which disagreed
   - `composeRun` passes the same env to config resolution and to the build, or the divergence is a declared decision with a test
@@ -7430,6 +7430,7 @@ dod:
 >
 > **Also measured, still open:** `$THEOKIT_HOME` inside the home but outside `.theokit` (`~/custom-state`) works and is undefended by any test; a symlinked `$THEOKIT_HOME` loads the same tree twice, because the inside/outside test is textual `relative()` and never `realpath`; and `loadUserRules` reads `process.env` directly while `userRuleRoots` takes an `env` seam no caller can reach.
 
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
 
 ## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
 
@@ -7487,11 +7488,13 @@ suggested_mode: review
 source: discover-review
 evidence: `.claude/records/discoveries/opportunities/unowned-review-findings-opportunity.md` (SHIPPABLE) — 0 sites pass the real cwd today and nothing guards it; the record publishes at line 155 with 13 tests running after it
 why_now: B-161's review surfaced three HIGH/MEDIUM findings that belong to no single item and would otherwise be carried only in a review report nobody re-reads. (1) The plan declared a regression test `test_no_test_hands_build_chat_agent_the_real_cwd` and it was never written — verified absent by two agents independently — so the invariant T1.1 established is enforced by nothing and a future edit reintroduces it silently. (2) `recordWiring` mutates module-level state in `packages/tui/src/agent-session/wiring-record.ts` with no reset, so a test that publishes a record leaves `currentWiring()` set for every later test in the file; proven by probe, and one later test reads it through production and survives only because the fake omits `skills`. (3) A plan under `.claude/` cannot be diffed against the commits it describes, because the directory is gitignored — so "the plan was edited after implementation" is unfalsifiable here, which is itself the finding.
-status: triaged
+status: planned
 dod:
   - the T1.1 invariant has a test that fails when a test hands the build the real cwd
   - publishing a wiring record in a test does not change what a later test in the same file observes
   - either a plan's post-implementation edits are detectable, or the records state plainly that they are not
+
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
 
 ## B-167 — The suite reads the operator's home, so coverage still varies by machine   [ ]
 
@@ -7551,7 +7554,7 @@ suggested_mode: bug
 source: human
 evidence: `.claude/records/discoveries/opportunities/coverage-floor-partial-report-opportunity.md` (SHIPPABLE, 100)
 why_now: observed 2026-09-09 while closing B-161. Running `vitest run --coverage <one-file>` overwrites `coverage/coverage-summary.json` with that file's total (10.29%). The next `pnpm lint` read it and failed with "the floor 59.15% is above the measured total 10.29% — either the tree regressed, or the floor was declared against a different one", proposing a re-declaration. Nothing regressed and the floor was right; the report simply covered one file. The guard does print the report age, so it is not silent, but age does not distinguish a stale full run from a fresh partial one, and the message names neither possibility.
-status: triaged
+status: planned
 dod:
   - a report showing coverage for NO source file is not reported as a floor regression
   - **corrected 2026-09-09, measured:** the original bullet said "a report produced by a single-file
@@ -7561,6 +7564,8 @@ dod:
     The guard fails there, which is the safe side, and says so
   - whatever the guard does instead, it names the scope it read, not only the age
   - a real regression is still caught: a test asserts the true-positive path did not become a skip
+
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
 
 ## B-164 — A cited section number is unverifiable, and two were wrong   [ ]
 
