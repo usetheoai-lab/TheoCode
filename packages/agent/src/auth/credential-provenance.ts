@@ -7,9 +7,28 @@ export type SourceOrigin =
   // "oauth (anthropic)" and the user can tell an account login apart from a pasted API key or a .env value.
   | { kind: 'oauth'; provider: string }
 
-function closesQuote(s: string, q: string): boolean {
-  const body = s.trimStart().startsWith(q) ? s.trimStart().slice(1) : s
-  return body.includes(q)
+/**
+ * Does the value OPEN and CLOSE on its own line?
+ *
+ * The leading quote is stripped first because it is the one that opened the value: without that,
+ * `"still` reads as closed by the quote that opened it, and the scan resumes mid-value.
+ */
+function opensAndCloses(value: string, q: string): boolean {
+  const withoutOpening = value.trimStart().startsWith(q) ? value.trimStart().slice(1) : value
+  return withoutOpening.includes(q)
+}
+
+/**
+ * Does this CONTINUATION line carry the closing quote?
+ *
+ * Deliberately does not strip, and the two predicates were one function until 2026-09-10. Stripping
+ * here removes the only quote from a line that is just `"` — the conventional way to end a
+ * multi-line value — so the line read as "still open" and the scan swallowed the remainder of the
+ * file. Every declaration below such a value was lost, and the footer then reported `(shell)` for a
+ * variable the `.env` declares.
+ */
+function carriesClosingQuote(line: string, q: string): boolean {
+  return line.includes(q)
 }
 
 export function dotenvNames(path: string): Set<string> {
@@ -51,9 +70,9 @@ function skipMultilineValue(value: string, lines: readonly string[], i: number):
   const withoutLeadingSpace = value.trimStart()
   const q = withoutLeadingSpace[0]
   if (q !== '"' && q !== "'" && q !== '`') return i
-  if (closesQuote(withoutLeadingSpace, q)) return i
+  if (opensAndCloses(withoutLeadingSpace, q)) return i
   let j = i
-  while (j < lines.length && !closesQuote(lines[j]!, q)) j++
+  while (j < lines.length && !carriesClosingQuote(lines[j]!, q)) j++
   return j + 1
 }
 

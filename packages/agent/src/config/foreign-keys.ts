@@ -64,28 +64,3 @@ export const FOREIGN_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   'sshHostAllowlist', 'statusLine', 'strictKnownMarketplaces', 'strictPluginOnlyCustomization',
   'subagentPromptCacheTtl', 'ultracode', 'workflowSizeGuideline',
 ])
-
-/** What a settings file declared that this product recognises and does not act on. */
-export function foreignKeysIn(raw: unknown): string[] {
-  if (typeof raw !== 'object' || raw === null) return []
-  return Object.keys(raw).filter((k) => FOREIGN_SETTINGS_KEYS.has(k))
-}
-
-/**
- * Strip them before the strict schema sees the object.
- *
- * Deliberately NOT a merge or a translation. Only `model` plausibly maps by name AND semantics;
- * every other apparent overlap is a name collision with different meaning — `effortLevel` over
- * `reasoning_effort` with unmeasured values, `sandbox.enabled` (boolean) over `sandbox_mode` (a
- * three-value enum), `cleanupPeriodDays` (a number of days) over `session_gc` (a boolean).
- *
- * A name that matches while the meaning does not is the most expensive shape this repository has
- * met: it type-checks, it reads as supported, and it does the wrong thing quietly. Each mapping is
- * its own measurement, and none is guessed here.
- */
-export function withoutForeignKeys(raw: unknown): unknown {
-  if (typeof raw !== 'object' || raw === null) return raw
-  return Object.fromEntries(
-    Object.entries(raw as Record<string, unknown>).filter(([k]) => !FOREIGN_SETTINGS_KEYS.has(k)),
-  )
-}

@@ -99,20 +99,24 @@ describe('the names a .env file declares', () => {
     expect(namesIn('A="never closed\nB=2\n')).toEqual(['A'])
   })
 
-  it('test_dotenv_names_loses_the_declarations_after_a_value_closed_by_a_lone_quote', () => {
-    // MEASURED, not desired — this pins a real defect rather than asserting the behaviour is right.
+  it('test_dotenv_names_keeps_the_declarations_after_a_value_closed_by_a_lone_quote', () => {
+    // `closesQuote` served two questions with one implementation, and only one of them wanted the
+    // leading quote stripped. On the line that OPENS a value, stripping is what tells `"one line"`
+    // (closed) from `"still` (open). On a CONTINUATION line it is wrong: a line that is just `"`
+    // has its only quote removed and reads as "still open", so the scan swallowed the rest of the
+    // file — every declaration below a value closed in the conventional style was lost, and the
+    // footer reported `(shell)` for a variable the `.env` declares.
     //
-    // `closesQuote` strips a leading quote before looking for one, which is correct for the line
-    // that OPENS the value and wrong for every continuation line: a line that is just `"` has its
-    // only quote stripped and reads as "still open". So a `.env` ending a multiline value in the
-    // conventional style loses every declaration below it, and the footer reports `(shell)` for a
-    // variable the file declares.
-    //
-    // Pinned here because it is the direction that under-claims — a wrong `(shell)` label, never a
-    // wrong `(.env)` one — and because the fix belongs in `src/auth/credential-provenance.ts`,
-    // which this change does not own. Reported alongside it. When it is fixed, this expectation
-    // becomes `['A', 'B']` and the test name loses its `loses`.
-    expect(namesIn('A="first\nmiddle\n"\nB=2\n')).toEqual(['A'])
+    // Two questions, two predicates. This case was pinned as `loses` on 2026-09-10 by the change
+    // that covered this file, and fixed the same day.
+    expect(namesIn('A="first\nmiddle\n"\nB=2\n')).toEqual(['A', 'B'])
+  })
+
+  it('test_a_value_that_opens_and_closes_on_one_line_does_not_swallow_the_next', () => {
+    // Anti-vacuity, and the arm that keeps the strip where it belongs: dropping it from the OPENING
+    // line would make `"one line"` read as unterminated and eat `B` — the same data loss, entering
+    // from the other side.
+    expect(namesIn('A="one line"\nB=2\n')).toEqual(['A', 'B'])
   })
 })
 

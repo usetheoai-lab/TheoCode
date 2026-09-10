@@ -93,6 +93,42 @@ The project layer is read **only for a trusted directory** — an untrusted
 one falls back to your user layer, and no repository hook is wired at all. `/hooks` reports which of
 those two you are in; `/status` reports the resolved model, effort, approval and sandbox.
 
+## Environment
+
+Every knob below is read at runtime and wins over the `settings.json` layer beneath it. The list is
+not prose: `tools/check-env-knobs-documented.mjs` refuses a knob that is read in `packages/*/src` and
+missing from either this table or `packages/agent/src/config/env-knobs.ts`. It was added on
+2026-09-10 because two of these — `THEOKIT_SEARCH_API_URL` and `THEOCODE_DIAGNOSTICS` — changed real
+behaviour while appearing in no document anyone reads. The gate sees `env.NAME` and `env['NAME']`;
+a read assembled at runtime is invisible to it, so a clean run means those two shapes are covered,
+not that every knob is.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `THEOCODE_MODEL` | `openai/gpt-5.6-terra` | Switches the model. Wins over every settings layer. |
+| `THEOCODE_REASONING_EFFORT` | `medium` | `minimal` … `xhigh`. A value outside the set fails loud. |
+| `THEOCODE_SANDBOX_MODE` | `workspace-write` | Tool confinement. `read-only` registers no write tool; `danger-full-access` raises the write root to `/`. |
+| `THEOCODE_APPROVAL_POLICY` | `on-request` | When you are consulted before a gated tool runs. |
+| `THEOCODE_GOAL_ORACLE` | `judge` | Who decides the objective is met: the LLM judge (one extra call per turn) or the `update_goal` tool the model calls itself. |
+| `THEOCODE_OUTPUT_STYLE` | — | The output style to apply, by name. See [Output styles](#output-styles). |
+| `THEOCODE_CONTEXT_WINDOW` | — | Context window in tokens. Absent, it comes from the model catalogue. |
+| `THEOCODE_SHELL_TIMEOUT_MS` | `10000` | Milliseconds before a custom command's shell expansion is killed. |
+| `THEOCODE_MEMORY` | `false` | Durable memory across sessions. An unrecognised value fails loud rather than defaulting. |
+| `THEOCODE_SESSION_GC` | `true` | Whether the session collector runs on its own, at most once a day. |
+| `THEOCODE_PROVIDER` | — | Declares the provider explicitly. **Fail-closed**: if its key is absent, resolution aborts rather than silently falling back to another provider. |
+| `THEOCODE_HOME` | `~/.theocode` | Moves the credential store (`auth.json`). |
+| `THEOKIT_HOME` | `~/.theokit` | Root of runtime state, including transcripts. Moves what `sessions gc` sweeps. |
+| `THEOKIT_AUTH_HOME` | derived | Points the SDK's ambient credential store at this product's. An explicit value wins. |
+| `THEOCODE_TRUST_ALL_DIRS` | — | CI/headless escape: `=1` trusts EVERY directory. It switches **off** the defence against a hostile repository — set it only where you control the checkout. |
+| `THEOKIT_TRUST_ALL_DIRS` | — | **Deprecated** alias of the above. Still grants, and warns once per process. |
+| `THEOCODE_DIAGNOSTICS` | off | `stderr` to see the framework's diagnostics. This is the recovery path when a turn fails and the message does not say why — a rate-limit error has surfaced no other way. Unset and disabled look identical, which is the reason it is listed here. |
+| `THEOCODE_THEME` | — | Forces the colour theme by name. Outranks `/theme` and `NO_COLOR`. A name outside the set is reported by `/status`, not applied. |
+| `NO_COLOR` | — | The [cross-tool convention](https://no-color.org): any value disables colour. `THEOCODE_THEME` deliberately outranks it. |
+| `THEOKIT_SEARCH_API_URL` | — | The web-search provider endpoint. Absent or misspelt, `web_search` is **not declared to the model at all** — the capability disappears in a way that looks exactly like a model choosing not to search. |
+| `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | — | Provider keys, in that precedence order. |
+| `SHELL` | `/bin/sh` | The shell used to expand a custom command in the TUI. |
+| `LIVE_MODEL` | `google/gemini-2.5-flash-lite` | Used by the live test harnesses only. Does not affect the product runtime. |
+
 ## Output styles
 
 `output_style` names a `.md` file under `~/.claude/output-styles/` or `<project>/.claude/output-styles/`

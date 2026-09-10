@@ -27,6 +27,11 @@ const ENV_OPENROUTER_API_KEY = 'OPENROUTER_API_KEY'
 const ENV_LIVE_MODEL = 'LIVE_MODEL'
 const ENV_SHELL = 'SHELL'
 
+const ENV_DIAGNOSTICS = 'THEOCODE_DIAGNOSTICS'
+const ENV_THEME = 'THEOCODE_THEME'
+const ENV_NO_COLOR = 'NO_COLOR'
+const ENV_SEARCH_API_URL = 'THEOKIT_SEARCH_API_URL'
+
 const ENV_ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'
 const ENV_OPENAI_API_KEY = 'OPENAI_API_KEY'
 
@@ -141,6 +146,41 @@ export const ENV_KNOBS: readonly EnvKnob[] = [
     default: '—',
     effect:
       'DEPRECATED — an alias of `THEOCODE_TRUST_ALL_DIRS`. It still grants, and emits a stderr warning once per process. Slated for removal; no date is promised, because this repository has no roadmap to promise one against.',
+  },
+  {
+    name: ENV_DIAGNOSTICS,
+    reader: 'packages/shared/src/diagnostic-sink.ts:installDiagnosticSink',
+    default: 'off',
+    effect:
+      'Where the framework writes its diagnostics (`stderr`). The documented recovery path for a ' +
+      'masked turn failure: `turn-error.ts` records a turn whose real cause was a RateLimitError ' +
+      'that only this knob could reveal. Unset is indistinguishable from disabled, which is why it ' +
+      'has to be findable.',
+  },
+  {
+    name: ENV_THEME,
+    reader: 'packages/tui/src/theme/theme.ts:resolveTheme',
+    default: '—',
+    effect:
+      'Forces the colour theme by name. Outranks the `/theme` command and `NO_COLOR`; a value ' +
+      'outside the set is reported by `/status` and `/theme` rather than applied.',
+  },
+  {
+    name: ENV_NO_COLOR,
+    reader: 'packages/tui/src/theme/theme.ts:resolveTheme',
+    default: '—',
+    effect:
+      'The cross-tool convention (no-color.org): any value disables colour. `THEOCODE_THEME` wins ' +
+      'over it, deliberately — an explicit theme is a narrower instruction than a global default.',
+  },
+  {
+    name: ENV_SEARCH_API_URL,
+    reader: 'packages/agent/src/chat.ts:webSearchConfigured',
+    default: '—',
+    effect:
+      'The web-search provider endpoint. Absent or misspelt, `web_search` is not declared to the ' +
+      'model at all and its approval entry is omitted — the capability disappears silently, which ' +
+      'looks identical to a model that chose not to search.',
   },
   {
     name: ENV_OPENROUTER_API_KEY,

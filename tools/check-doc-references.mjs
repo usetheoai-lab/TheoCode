@@ -49,6 +49,12 @@ const DESCRIBED_NOT_CITED = new Map([
       'by itself when explaining that it replaced config.toml.',
   ],
   [
+    'auth.json',
+    'the credential store this product writes under the operator\'s home. Same category as ' +
+      'settings.json: naming the file is how the environment table explains what THEOCODE_HOME ' +
+      'moves, and a copy in this repository would be a committed credential store.',
+  ],
+  [
     'config.toml',
     'the file settings.json replaced. The README names it to say it is no longer read and how to ' +
       'convert it; requiring a copy in this repository would mean documenting the migration only ' +
