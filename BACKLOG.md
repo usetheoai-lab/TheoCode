@@ -254,7 +254,7 @@ _None._
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation---x) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted---x) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
-| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
+| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four---x) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
 | [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
 
 <!-- BACKLOG-INDEX:END -->
@@ -8063,7 +8063,7 @@ dod:
   - either one ceiling, or two with the reason for the difference written where both are defined
   - a test that fails if the surviving set stops matching the stated rule
 
-## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [ ]
+## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [x]
 
 domain: TheoCode
 repo: TheoCode
