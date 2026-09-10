@@ -7391,6 +7391,12 @@ dod:
 >
 > **The shape a real fix needs:** `composeInstructions` returning how much it cut and from which source, rather than warning about it — which is exactly how B-171 solved this class one layer down (`packages/agent/src/context/rules.ts`). One production call site (`chat.ts:619`). The mutable flag the attempt used was the only one in the entire product source.
 
+> ONE FINDING THE REVERSAL DOES NOT ADDRESS, from the tests review: the attempt shipped with a mutant alive that **the plan had predicted by name**. `withAggregateCut` always returning `truncated: true` survived all three new tests AND the whole suite — 203 files, 1530 passed, 0 failed. The plan's own TDD section prescribed an anti-vacuity test for exactly that shape ("a fix hardcoding `truncated: true` would pass"), and what shipped never guarded the record. The commit message claimed "both mutants die" and named only the two that do.
+>
+> That is the finding worth carrying forward, because it is what would have caught the defect BEFORE it shipped rather than after: a real fix here needs the predicted mutant killed, not merely the obvious two.
+>
+> The tests review also reported the declared floor no longer matching the tree. Not reproduced after the reversal: a fresh report measures 59.06% against a declared 59.03, and the guard exits 0. Their numbers came from the reverted commit and from a worktree whose `node_modules` resolution has misled measurements repeatedly in this session — recorded so the next reader does not chase it.
+
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
