@@ -67,28 +67,27 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-173 items — **Open** 2 · **In flight** 2 · **Closed** 169
+175 items — **Open** 1 · **In flight** 1 · **Closed** 173
 
-### Open (2)
+### Open (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `triaged` | — |
-| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 
-### In flight (2)
-
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `planned` | — |
-| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
-
-### Closed (169)
+### In flight (1)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | — |
-| [`B-002`](#b-002--the-usage-panel-is-a-local-copy-of-a-composition-the-library-publishes---x) | The usage panel is a local copy of a composition the library publishes | `shipped` | — |
+| [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly----) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `planned` | — |
+
+### Closed (173)
+
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-001`](#b-001--the-acp-surface-registers-a-tool-it-cannot-answer---x) | The ACP surface registers a tool it cannot answer | `shipped` | BLOCKER |
+| [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | Wrong identity exposed to the end user | `shipped` | HIGH (4 HIGH findings) |
+| [`B-002`](#b-002--wrong-identity-exposed-to-the-end-user---x) | The usage panel is a local copy of a composition the library publishes | `shipped` | — |
 | [`B-003`](#b-003--session-gc-deletion-guards-fail-open-with-no-test-at-all---x) | Session-GC deletion guards fail open, with no test at all | `shipped` | HIGH (4 HIGH findings) |
 | [`B-004`](#b-004--ask-bridge-promise-abandoned-without-settling-typed-error-escaping---x) | Ask-bridge: promise abandoned without settling, typed error escaping | `shipped` | HIGH (2 HIGH findings) |
 | [`B-005`](#b-005--consent-store-held-to-a-weaker-permission-standard-than-the-credential-store---x) | Consent store held to a weaker permission standard than the credential store | `shipped` | HIGH |
@@ -243,8 +242,11 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
 | [`B-172`](#b-172--three-tests-reached-for-theokit_home-while-asserting-about-something-else---x) | Three tests reached for `$THEOKIT_HOME` while asserting about something else | `shipped` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots---x) | Config and instructions can resolve from two different operator roots | `shipped` | — |
+| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal---x) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `shipped` | — |
+| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land---x) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `shipped` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan---x) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `shipped` | — |
 | [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine---x) | The suite reads the operator's home, so coverage still varies by machine | `shipped` | — |
+| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one---x) | The architecture detector picks the composite script over the dedicated one | `shipped` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression---x) | The coverage-floor guard reads a partial report as a regression | `shipped` | — |
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
@@ -261,9 +263,11 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Items
 
-Next free id: **B-058**
+Next free id: **B-175**
 
----## B-001 — The ACP surface registers a tool it cannot answer   [x]
+---
+
+## B-001 — The ACP surface registers a tool it cannot answer   [x]
 
 fixed_in: abd9bf7
 
@@ -278,7 +282,22 @@ severity: BLOCKER
 dod:
   - `chat-acp.ts:25` passes `surface: 'headless'`, the same value `run-composition.ts:57` uses
   - a test covers that the headless profile does NOT register `request_user_input`
-  - the ACP surface is exercised and no tool call is left pending## B-002 — Wrong identity exposed to the end user   [x]
+  - the ACP surface is exercised and no tool call is left pending
+
+> **TWO RECORDS OF THIS ITEM EXISTED UNTIL 2026-09-10, AND THE CAUSE WAS TWO MISSING NEWLINES.**
+> A second block was written on 2026-09-03, opening "RECONSTRUCTED — this block was absent from the
+> registry while the id was cited in production source and in the public CHANGELOG". It was not absent.
+> It was here, on this line, glued to the `---` above it as `---## B-001 — …`, so every tool that
+> matches a heading at line start walked straight past it. The reconstruction was then assembled from
+> the CHANGELOG and source comments, and it is measurably poorer than what it replaced: this block
+> carries `chat-acp.ts:25` → `chat.ts:419`, the 2026-08-07 cross-validation, `severity: BLOCKER` and
+> three DoD bullets; the reconstruction carried none of the pointers and said so honestly.
+>
+> The duplicate is removed and this record stands. Nothing is renumbered. Registered as B-174.
+
+
+
+## B-002 — Wrong identity exposed to the end user   [x]
 
 fixed_in: c237f5a
 
@@ -295,37 +314,25 @@ dod:
   - no product or SDK string is hard-coded outside `shared/agent.ts`
   - the banner's model id stops being a divergent copy and reads the single source
   - comments citing `@theokit/sdk-pty`, `@theokit/sdk@>=4.2.10` and non-existent paths are corrected or removed
-## B-001 — The ACP surface registers a tool it cannot answer   [x]
 
-domain: theocode
-repo: TheoCode
-suggested_mode: bug
-source: human
-evidence: |
-  RECONSTRUCTED 2026-09-03 from the two records that survived — this block was absent from the
-  registry while the id was cited in production source and in the public CHANGELOG. Nothing here is
-  inferred: every claim below is quoted from one of those two.
+> **THIS NUMBER IS SHARED BY TWO DIFFERENT ITEMS, AND THAT IS A FACT ALREADY PUBLISHED — not a
+> registry error to tidy away.** Both shipped under `B-002` and both said so in files that travel:
+>
+> | item | `fixed_in` | dated | cited as `B-002` in |
+> |---|---|---|---|
+> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, `packages/shared/tests/agent.test.ts:2,55`, `packages/shared/src/agent.ts:19`, `packages/tui/tests/components/Banner.test.tsx:181` |
+> | the usage panel comes from the library | `c7a678d` | 2026-08-19 | `CHANGELOG.md:1313`, and the commit's own subject line |
+>
+> **Neither is renumbered.** A released CHANGELOG entry is never edited, and a comment recording which
+> item a test was written for is a quotation, not a live pointer — rewriting either would make the
+> tracked file say something that was not true when it was written. `fixed_in` is what tells the two
+> apart; a reader arriving from any citation above needs both blocks visible to land on the right one,
+> which until 2026-09-10 they were not.
+>
+> How it happened: the first block sat glued to the line above it (`…left pending## B-002 — …`), so no
+> anchored parser saw it. Believing the id vacant, a session on 2026-09-03 reconstructed `B-002` from
+> the CHANGELOG — and reached the *other* item. Registered as B-174.
 
-  `packages/agent/src/chat-acp.ts:23` — "the ACP client owns the prompt, so there is no TUI
-  subscribed to the `AskBridge`". `packages/agent/src/composition.test.ts:415` — "`request_user_input`
-  resolves through a bridge only the TUI subscribes to".
-
-  CHANGELOG: "every such call used to stall for five minutes waiting on a bridge only the terminal UI
-  listens to".
-why_now: |
-  The block is being restored rather than written. `rules/cycle-backlog.md` states that an id is the
-  audit trail and survives forever; two ids did not, and a reader following `B-001` from
-  `chat-acp.ts:23` reached nothing — the same shape as a citation that resolves to no file (B-134),
-  one registry over.
-status: shipped
-fixed_in: abd9bf7
-dod:
-  - the headless surface does not register a tool whose answer requires a TUI subscriber
-  - a call that cannot be answered fails instead of waiting out a five-minute timeout
-
-> Reconstructed 2026-09-03. The original intake is lost; what is recorded above is only what the
-> CHANGELOG and the source comments already asserted. No date, evidence pointer or field was invented
-> to fill the shape.
 
 ## B-002 — The usage panel is a local copy of a composition the library publishes   [x]
 
@@ -351,6 +358,25 @@ dod:
   - no primitive is composed locally that the library already composes
 
 > Reconstructed 2026-09-03, on the same terms as B-001.
+
+> **THIS NUMBER IS SHARED BY TWO DIFFERENT ITEMS, AND THAT IS A FACT ALREADY PUBLISHED — not a
+> registry error to tidy away.** Both shipped under `B-002` and both said so in files that travel:
+>
+> | item | `fixed_in` | dated | cited as `B-002` in |
+> |---|---|---|---|
+> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, `packages/shared/tests/agent.test.ts:2,55`, `packages/shared/src/agent.ts:19`, `packages/tui/tests/components/Banner.test.tsx:181` |
+> | the usage panel comes from the library | `c7a678d` | 2026-08-19 | `CHANGELOG.md:1313`, and the commit's own subject line |
+>
+> **Neither is renumbered.** A released CHANGELOG entry is never edited, and a comment recording which
+> item a test was written for is a quotation, not a live pointer — rewriting either would make the
+> tracked file say something that was not true when it was written. `fixed_in` is what tells the two
+> apart; a reader arriving from any citation above needs both blocks visible to land on the right one,
+> which until 2026-09-10 they were not.
+>
+> How it happened: the first block sat glued to the line above it (`…left pending## B-002 — …`), so no
+> anchored parser saw it. Believing the id vacant, a session on 2026-09-03 reconstructed `B-002` from
+> the CHANGELOG — and reached the *other* item. Registered as B-174.
+
 
 ## B-003 — Session-GC deletion guards fail open, with no test at all   [x]
 
@@ -7356,6 +7382,60 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-174 — Two missing newlines hid two items, and a later session reconstructed one of them wrongly   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: |
+  Measured 2026-09-10 while regenerating the index. Two headings were not at line start —
+  `---## B-001 — …` and `…no tool call is left pending## B-002 — …` — so `grep -c '^## B-[0-9]'`
+  returned **173** where `grep -c '## B-[0-9]'` returned **175**. Two items were invisible to every
+  anchored parser, and the generated index agreed: it said "173 items · Closed 172" and listed
+  neither block. Repaired, regenerated, and it now says 175 · Closed 174.
+
+  The damage was not cosmetic. `B-001`'s visible block opened "RECONSTRUCTED 2026-09-03 from the two
+  records that survived — this block was absent from the registry while the id was cited in production
+  source". It was never absent; it was unparseable. The reconstruction, assembled from the CHANGELOG
+  and source comments, carried no `file:line` pointer, no severity and two DoD bullets where the
+  original carries `chat-acp.ts:25` → `chat.ts:419`, the 2026-08-07 cross-validation, `severity:
+  BLOCKER` and three.
+
+  Reconstructing `B-002` reached a **different item**: the visible block was "the usage panel is a
+  local copy" (`c7a678d`, 2026-08-19), the hidden one "wrong identity exposed to the end user"
+  (`c237f5a`, 2026-08-07). Both had already shipped under that number — `CHANGELOG.md:1313` and
+  `:1753` each say `B-002`, as do `packages/shared/tests/agent.test.ts:2,55` and the subject line of
+  `c7a678d`.
+why_now: |
+  The registry's first stated rule is that an id is the audit trail. Two ids stopped resolving, and
+  the response — reconstructing from secondary sources — is the correct instinct applied to a false
+  premise, so it manufactured a duplicate and a collision instead of restoring anything. Nothing
+  detected either: no gate reads this file for heading integrity, and the index generator uses an
+  unanchored pattern, so it rendered rows for blocks it could not count.
+status: planned
+dod:
+  - every `## B-NNN` heading starts a line, and the anchored and unanchored counts agree
+  - the duplicate record of B-001 is gone and the surviving block is the one with the pointers
+  - the two items sharing B-002 are both reachable, and each says which is which
+  - nothing is renumbered, because the shared number is already published in tracked files
+
+> **What was fixed, and what deliberately was not.** The newlines, the duplicate, and the stale
+> `Next free id: B-058` marker (B-173 already existed) are corrected. The shared `B-002` is NOT:
+> renumbering would falsify a released CHANGELOG entry and four test-file comments that were true when
+> written. Both blocks now carry a table naming `fixed_in` as the discriminator.
+>
+> **`BACKLOG.md` IS versioned in this repository**, contrary to what this block first said. `git ls-files
+> --error-unmatch BACKLOG.md` resolves, and the last eight commits include six `docs(backlog):` subjects.
+> The kit's own convention (`~/.claude/CLAUDE.md`) says a backlog is personal maintenance and stays out
+> of git; this project decided otherwise, and the decision is visible in its history. So the correction
+> above is releasable, and the item stays open until it rides a release.
+>
+> **The gap this leaves open.** Nothing prevents a recurrence. `backlog_index.py --check` compares the
+> index against the blocks it can see, so a block it cannot see is consistent with an index that omits
+> it — the check is blind to exactly this failure. A heading-integrity assertion belongs in
+> `check_backlog_structure.py`, and that lives in the kit, not here.
+
 ## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
 
 domain: theocode
@@ -7397,6 +7477,36 @@ dod:
 >
 > The tests review also reported the declared floor no longer matching the tree. Not reproduced after the reversal: a fresh report measures 59.06% against a declared 59.03, and the guard exits 0. Their numbers came from the reverted commit and from a worktree whose `node_modules` resolution has misled measurements repeatedly in this session — recorded so the next reader does not chase it.
 
+> **DECISION 2026-09-10, delegated by the project owner, who named three options and refused all three.**
+> None is taken. The three assumed the record is published before the cut; instrumenting both points
+> refuted that — `baseAgent` (`chat.ts:151`) contains the cut, `publishWiring` runs at `:194`, so the
+> information already exists when the record is written and simply has no way up. Publishing later
+> solves an ordering that is not wrong, publishing twice needs a second meaning for a field whose
+> `undefined` is documented, and duplicating the budget arithmetic makes a second copy of a number
+> that drifted twice in one session.
+>
+> **What is taken is the fourth option done properly: `composeInstructions` RETURNS what it cut and
+> from which source.** The evidence that settles it is that the framework already publishes this exact
+> shape — `@theokit/agents` exports `composeInstructions(base, sources, opts): ComposedInstructions`
+> with `{ text, dropped: string[], trimmed?: string }`. Our local copy shadows that name, returns a
+> bare `string`, and throws the attribution away in a `warn` string. Rule 9 does not ask us to adopt
+> the library's different trimming semantics; it does say the vocabulary for reporting a cut was
+> already designed, and inventing a third one here would be the reinvention.
+>
+> **Three constraints the reversed attempt proved, and this design must satisfy:**
+>
+> 1. **A boolean cannot carry it.** `command-content.ts:143` renders `(chars - kept) / chars` from
+>    three fields; setting `truncated` alone printed `0% dropped` over a persona cut to 363 chars.
+> 2. **The cut must name its source.** The aggregate ceiling can drop `appendInstructions` or the base
+>    persona, neither of which is a rule. Attributing those to the RULES row is how a 25-char intact
+>    load reported `1 of 1 — 0% dropped`, false in both numbers.
+> 3. **The two ceilings are measured in different units** — the loader's in source chars, the
+>    aggregate's in rendered chars — so the second is reported as its own clause and NEVER folded into
+>    `kept`. A single percentage over two units would be a number nobody can check.
+>
+> **And the predicted mutant must die.** `withAggregateCut` returning a cut unconditionally has to fail
+> a test, which means a test whose expected value is *no cut* — the anti-vacuity control the previous
+> plan prescribed by name and the previous commit never shipped.
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
@@ -7463,7 +7573,9 @@ dod:
 >
 > No ACCEPTANCE verdict, and that is the contract rather than an omission: acceptance criteria come from a milestone's Definition of done in `ROADMAP.md`, this project has none, and no plan here carries a `milestone_id`. `cycle-idea-to-release.md` says such work ends at `RELEASED`. `compute_acceptance_verdict.py` refused before I did.
 
-## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
+## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [x]
+
+fixed_in: squad@d8b35b2
 
 domain: theocode
 repo: TheoCode
@@ -7471,12 +7583,21 @@ suggested_mode: bug
 source: discover-review
 evidence: `.claude/records/implementations/soft-cap-dismissal-punctuation-implementation.md` — 3 of 6 tests RED against the old expression, 6 green after; the five plans of this session re-score with zero undismissed caps
 why_now: `run_structural.py:690` matches dismissals with `<!--\s*ADR-DISMISS-SOFT-CAP:\s*([a-z0-9_-]+)\s*:\s*[^>]+?-->`. The reason segment excludes `>`, so a reason written with an arrow — `it went 15 -> 0`, a natural way to state a before/after in this repository's own idiom — ends the match early and the dismissal registers as ABSENT. Reproduced: the same marker scored `undismissed_soft_caps: ['soft_cap_mutation_unconfigured_typescript']` with the arrow and `[]` without it, nothing else changed. The failure is silent in the worst way: the plan simply stays capped at 70 and demotes to NON_SHIPPABLE, which is indistinguishable from a cap that was never dismissed. `cycle-code-quality.md` records that an undismissable soft cap is a hard cap under another name; a dismissal that voids itself on punctuation is the same defect reached by accident.
-status: planned
+status: shipped
 dod:
   - a dismissal reason containing `>` registers the dismissal
   - a malformed marker is REPORTED rather than ignored, so the author learns why the cap stands
   - a test asserts both, and fails if the reason segment goes back to excluding a common character
 
+> PORTED AND CLOSED 2026-09-10 — `squad@d8b35b2`, on a commit describing only this fix.
+>
+> **A THIRD defect surfaced in the kit that does not exist here.** Its id pattern was `[a-z0-9_]+`, without the
+> hyphen — so `auditor_unavailable_dependency-cruiser`, a cap the kit's own architecture detector emits, could
+> never be dismissed by any consumer, ever. TheoCode's copy already allowed the hyphen, so porting the fix meant
+> porting a *different* expression, and the seventh test (`test_a_hyphenated_cap_id_can_be_dismissed`) exists only
+> because the port made the difference visible. Three defects in one regular expression, in the function that
+> decides whether a plan may enter `/implement`, and nothing had ever tested it.
+>
 > VERIFIED LOCALLY 2026-09-09, NOT closed — the fix lives in `.claude/`, gitignored, so it reaches this checkout and no other. The port is B-169's subject.
 >
 > A second defect surfaced while testing the first: an EMPTY reason dismissed the cap, because `\s*` absorbed the nothing between the colon and the closer. A dismissal with no justification is what the audit trail exists to refuse, and it had been accepted all along.
@@ -7484,7 +7605,9 @@ dod:
 > The finding behind both: **the function that decides whether a plan may enter `/implement` had no test at all.** That is why a punctuation defect and an empty-reason defect both lived in one expression unnoticed.
 
 
-## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [ ]
+## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [x]
+
+fixed_in: squad@377a218, squad@d8b35b2
 
 domain: theocode
 repo: TheoCode
@@ -7492,12 +7615,41 @@ suggested_mode: bug
 source: discover-review
 evidence: measured 2026-09-09 during B-166
 why_now: Two facts, one cause. (1) B-166's fix is verified in this checkout and cannot ship from here: `.claude/` is gitignored, so it reaches one machine. The same three lines stand at `skills/code-quality/scripts/detectors/typescript.py:559-561` in `/home/paulo/Projetos/squad` (`git@github.com:paulohenriquevn/squad.git`), where a release reaches every consumer — but that working tree carries uncommitted work from another session (`M CHANGELOG.md`, `M mechanisms/README.md`, `A mechanisms/conventions/installed_plugins.py`), and committing on top of it would fold someone else's work into a commit that does not describe it. (2) The two copies have already drifted: `scripts/detectors/python.py` differs by 29 lines and `tests/test_python_detector.py` by 112, and `test_python_detector_flags_unused_function` FAILS in the installed copy while PASSING in the kit. So the gates running in this repository are not the gates the kit ships, and anyone running the kit's suite here meets a red test that is not theirs.
-status: triaged
+status: shipped
 dod:
   - B-166's fix exists in the kit repository, on a commit that describes only that fix
   - the installed copy and the kit agree, or the divergence is recorded with the reason it is kept
   - `test_python_detector_flags_unused_function` passes in this checkout, or its failure is explained by something other than drift
 
+> CLOSED 2026-09-10, all three DoD bullets met by measurement.
+>
+> **(1) The fix exists in the kit, on its own commit** — `squad@377a218` (B-166) and `squad@d8b35b2` (B-170). The
+> blocker this item named is gone: the kit's working tree went from 65 modified files to 0, so each fix landed on a
+> commit that describes only itself, which is what the bullet asked for.
+>
+> **(2) The divergence is either closed or recorded with its reason.** After syncing, measured file by file:
+>
+> | file | differing lines | resolution |
+> |---|---|---|
+> | `detectors/python.py` | 0 | synced from the kit |
+> | `tests/test_python_detector.py` | 0 | synced from the kit |
+> | `detectors/typescript.py` | 22 | **comment-only** — proven by tokenizing both and comparing code tokens: identical. The kit de-identifies private repository names in its prose, correctly, since it ships to everyone. Kept. |
+> | `plan-confidence/scripts/run_structural.py` | 181 | **genuinely ahead in the kit**, and deliberately not synced: it imports `squad.paths` and two checkers (`check_alignment_gate`, `check_panel_approval`) that this install predates, and it renames the Portuguese-named internals (`_compute_completude` → `_compute_completeness`). Copying it here would break the install rather than update it. |
+>
+> **(3) `test_python_detector_flags_unused_function` passes.** The cause was drift of a specific kind, and my first
+> reading of it was wrong: I looked for the fixture under `tests/fixtures/` and concluded it was missing. It is at
+> `fixtures/python/` and was always there. The real cause is written in the kit's own docstring, dated 2026-08-29:
+> `.claude` is in `DEFAULT_SKIP_DIRS`, the detector passes that list to vulture as `--exclude`, so in a *consumer*
+> install the fixture is swallowed and the detector returns zero on a known positive. The kit fixed it by copying
+> the fixture out of the skill tree before scanning; this checkout carried the pre-fix test. Syncing the test alone
+> then failed a second test — `test_an_unimportable_vulture_module_caps_the_auditor_instead_of_reporting_clean` —
+> because the install's detector was older than the tests exercising it. With both synced: **240 passed, 0 failed.**
+>
+> One kit defect found on the way and NOT fixed here, because it belongs to the migration another session is
+> running: `skills/plan-confidence/tests/test_audit_findings.py::test_walk_up_picks_closest_claude` fails in the kit
+> because `check_deps_audit.py` imports `squad.paths`, which is not importable from the isolated tree the test
+> copies to `/tmp`. Proven pre-existing by stashing this session's edit and re-running: identical failure.
+>
 > EXTENDED 2026-09-09 — a SECOND red test in the installed kit: `skills/plan-confidence/tests/test_real_plans_snapshot.py::test_snapshots_cover_active_plans_with_matrix` fails with ten active plans missing a snapshot entry, five of them predating this session's work. A missing snapshot is unrelated to any code change made here, so it is almost certainly pre-existing — **stated as inference, not measurement**: the attempt to prove it by reverting a parser and re-running left the file syntactically invalid and the run died in collection.
 >
 > With `test_python_detector_flags_unused_function`, that is two red tests in the kit's own suite in this checkout. Anyone running it meets failures that are not theirs, which is the cost of the drift this item is about.
@@ -7569,7 +7721,9 @@ dod:
 >
 > No ACCEPTANCE verdict, and that is the contract rather than an omission: acceptance criteria come from a milestone's Definition of done in `ROADMAP.md`, this project has none, and no plan here carries a `milestone_id`. `cycle-idea-to-release.md` says such work ends at `RELEASED`. `compute_acceptance_verdict.py` refused before I did.
 
-## B-166 — The architecture detector picks the composite script over the dedicated one   [ ]
+## B-166 — The architecture detector picks the composite script over the dedicated one   [x]
+
+fixed_in: squad@377a218
 
 domain: theocode
 repo: TheoCode
@@ -7577,12 +7731,22 @@ suggested_mode: bug
 source: human
 evidence: `.claude/records/implementations/depcruise-script-selection-implementation.md` — matches on this manifest are `[lint, depcruise]`, first wins; `/code-quality` soft caps went from two to one after the fix
 why_now: measured 2026-09-09 during the CODE-QUALITY phase of B-161. `_depcruise_script` (in the installed kit's `detectors/typescript.py`) returns the FIRST package.json script whose command contains "depcruise". In this repo that is `lint`, because the lint chain ends with `npm run depcruise` — the dedicated `depcruise` script exists and is never selected. Reproduced by running the same selection logic against the manifest: matches are `['lint', 'depcruise']`, first wins. The audit then runs the whole lint chain (eslint, knip, seven checkers, the coverage-floor guard) instead of the cruise, and reports `auditor_unavailable_dependency-cruiser` when any unrelated link fails — while `depcruise` is on PATH and in node_modules/.bin, and `pnpm lint` cruises 278 modules with 0 violations.
-status: planned
+status: shipped
 dod:
   - the detector selects a script that runs only the cruise when one exists
   - a repo whose only match is a composite script still gets a cruise, or an honest reason
   - the fix lands in the kit repository, not only in this checkout's gitignored .claude/
 
+> PORTED AND CLOSED 2026-09-10. DoD bullet 3 — "the fix lands in the kit repository" — is met: `squad@377a218`,
+> a commit describing only this fix, with both tests (the dedicated script wins; a chain is still used when it is
+> the only match). The kit repository is where a release reaches every consumer, which is what this checkout could
+> never do.
+>
+> **What `shipped` claims here, and what it does not.** The fix left this project and reached the repository that
+> can release it. That commit sits on the kit's `workspace` branch, unreleased — promoting and tagging it belongs
+> to that repository's own cycle, not to this one. Consumers other than this checkout receive it when the kit cuts
+> its next release.
+>
 > VERIFIED LOCALLY 2026-09-09, and NOT closed — its own DoD bullet 3 requires the kit repository, which is unmet. `killed` was written here first and was wrong twice over: it means a hypothesis the measurement refuted, and this one held. Fixed and verified in this checkout: RED test, anti-vacuity sibling, 46 unit tests green, and the end-to-end proof — `/code-quality` stopped emitting `auditor_unavailable_dependency-cruiser`.
 >
 > `killed` is the registry's word for "this chain ends here", and the reason is not that the hypothesis failed — it held and the fix works. No release from THIS repository can carry it: `.claude/` is gitignored, so the change reaches one checkout.
