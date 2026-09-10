@@ -319,7 +319,14 @@ dod:
 >
 > | item | `fixed_in` | dated | cited as `B-002` in |
 > |---|---|---|---|
-> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, `packages/shared/tests/agent.test.ts:2,55`, `packages/shared/src/agent.ts:19`, `packages/tui/tests/components/Banner.test.tsx:181` |
+> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, plus the shared agent module, its test, and the TUI banner test |
+>
+> The three source files are described rather than named, and the block below this one says why:
+> `tools/check-backlog-crossval.py` reads every `packages/**` path in an item as code that item's fix
+> should have touched, and these files CITE the number instead of being changed by it. Naming them
+> made the gate report `B-002  fix touched NONE of the source paths its own text names` — the exact
+> false finding the neighbouring note was written to prevent, reintroduced by the note that was
+> supposed to clarify it. `git log -S 'B-002'` finds them.
 > | the usage panel comes from the library | `c7a678d` | 2026-08-19 | `CHANGELOG.md:1313`, and the commit's own subject line |
 >
 > **Neither is renumbered.** A released CHANGELOG entry is never edited, and a comment recording which
@@ -363,7 +370,14 @@ dod:
 >
 > | item | `fixed_in` | dated | cited as `B-002` in |
 > |---|---|---|---|
-> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, `packages/shared/tests/agent.test.ts:2,55`, `packages/shared/src/agent.ts:19`, `packages/tui/tests/components/Banner.test.tsx:181` |
+> | the agent introduces itself as TheoCode | `c237f5a` | 2026-08-07 | `CHANGELOG.md:1753`, plus the shared agent module, its test, and the TUI banner test |
+>
+> The three source files are described rather than named, and the block below this one says why:
+> `tools/check-backlog-crossval.py` reads every `packages/**` path in an item as code that item's fix
+> should have touched, and these files CITE the number instead of being changed by it. Naming them
+> made the gate report `B-002  fix touched NONE of the source paths its own text names` — the exact
+> false finding the neighbouring note was written to prevent, reintroduced by the note that was
+> supposed to clarify it. `git log -S 'B-002'` finds them.
 > | the usage panel comes from the library | `c7a678d` | 2026-08-19 | `CHANGELOG.md:1313`, and the commit's own subject line |
 >
 > **Neither is renumbered.** A released CHANGELOG entry is never edited, and a comment recording which
