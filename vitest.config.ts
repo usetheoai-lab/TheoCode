@@ -125,7 +125,7 @@ export default defineConfig({
      * the next item, and 62.03% is a ratchet against the clean reading, never a target.
      *
      * WHAT `include` LEAVES OUT, AND WHY IT IS A DECISION RATHER THAN AN OVERSIGHT. The glob is
-     * `packages/*/src`, so the twelve checkers under `tools/` — the `npm run lint` chain and two of
+     * `packages/*\/src`, so the twelve checkers under `tools/` — the `npm run lint` chain and two of
      * the six required status checks — contribute nothing to this number. That includes
      * `check-coverage-floor.mjs` itself: the gate guarding coverage sits outside the thing it
      * guards.
