@@ -147,16 +147,7 @@ export async function buildChatAgent(overrides: {
   // given — so two reads that disagreed would crash the user's terminal at construction.
   const searchConfigured = webSearchConfigured()
   const rules = bothRuleRoots(cwd, operatorHome)
-  // B-173 — the aggregate ceiling cuts the persona inside `baseAgent`, which runs BELOW this line and
-  // ABOVE `publishWiring`. So the outcome is already known when the record is built; it just had no
-  // way to travel. A flag set by the warn callback that already fires there is the whole mechanism:
-  // no second publish, no moved contract, and no second copy of `MAX_AGGREGATE`'s arithmetic — two
-  // copies of one number drifted twice in this repository in a single day.
-  //
-  // An earlier reading of this item had the ordering backwards, from comparing `chat.ts:194` against
-  // `:615` as if file position were execution order. `:615` lives inside the function called at :151.
-  const aggregate = { truncated: false }
-  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules, operatorHome, aggregate }
+  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules, operatorHome }
   const base = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
@@ -200,7 +191,7 @@ export async function buildChatAgent(overrides: {
     searchConfigured,
   })
 
-  publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules, aggregate })
+  publishWiring(overrides?.onWired, { posture, cwd, cfg, mcp, operatorSkills, rules })
 
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
   const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
@@ -573,8 +564,6 @@ function baseAgent(ctx: {
   rules: { project: RulesLoad; user: RulesLoad }
   /** B-167 — the operator root this build resolved, so no site below reaches for `homedir()` again. */
   operatorHome: string
-  /** B-173 — set when the aggregate ceiling cuts the composed persona, so the record can say so. */
-  aggregate: { truncated: boolean }
   overrides?: {
     baseInstructions?: string
     appendInstructions?: string
@@ -623,15 +612,7 @@ function baseAgent(ctx: {
           overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
           projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
           overrides?.appendInstructions ?? '',
-          {
-            maxChars: MAX_AGGREGATE,
-            warn: (m: string) => {
-              // B-173 — the callback that already reported this to stderr now also records it, so
-              // `/status` can say what reached the prompt instead of what was loaded for it.
-              ctx.aggregate.truncated = true
-              process.stderr.write(`${m}\n`)
-            },
-          },
+          { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),
       )
       // M49 — durable memory (`.theokit/memory/` in the cwd: `Remember:` capture with secret redaction,
