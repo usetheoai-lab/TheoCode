@@ -67,6 +67,14 @@ vi.mock('../src/hooks/index.js', async (orig) => ({
 
 const INJECTED = '/injected/project'
 
+/**
+ * B-167 — the operator root, injected for the same reason `INJECTED` is. This file already controlled
+ * the PROJECT side and left the operator side ambient, so it read whatever `~/.theokit/rules` the
+ * machine happened to hold: four truncation warnings here, and coverage that moved with the size of
+ * the maintainer's own configuration.
+ */
+const INJECTED_HOME = '/injected/home'
+
 describe('B-015 — an injected working directory reaches every resolution', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -75,7 +83,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   it('test_the_trust_posture_is_resolved_for_the_injected_directory', async () => {
     const { buildChatAgent } = await import('../src/chat.js')
 
-    buildChatAgent({ surface: 'headless', cwd: INJECTED })
+    buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
     expect(
       resolveTrustPosture,
@@ -87,7 +95,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   it('test_the_effective_config_is_resolved_for_the_injected_directory', async () => {
     const { buildChatAgent } = await import('../src/chat.js')
 
-    buildChatAgent({ surface: 'headless', cwd: INJECTED })
+    buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
     expect(resolveEffectiveConfig).toHaveBeenCalledWith(expect.objectContaining({ cwd: INJECTED }))
   })
@@ -95,7 +103,7 @@ describe('B-015 — an injected working directory reaches every resolution', () 
   it('test_the_project_instructions_come_from_the_injected_directory', async () => {
     const { buildChatAgent } = await import('../src/chat.js')
 
-    buildChatAgent({ surface: 'headless', cwd: INJECTED })
+    buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
     expect(loadAgentsMd).toHaveBeenCalledWith(INJECTED)
   })
@@ -150,7 +158,7 @@ describe('B-032 — the injected directory reaches the delegated team', () => {
     // the one B-015 bypass with a confinement consequence rather than a configuration one.
     const { buildChatAgent } = await import('../src/chat.js')
 
-    buildChatAgent({ surface: 'headless', cwd: INJECTED })
+    buildChatAgent({ surface: 'headless', cwd: INJECTED, home: INJECTED_HOME })
 
     expect(
       createDelegateToTeamTool,

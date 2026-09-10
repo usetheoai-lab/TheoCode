@@ -17,7 +17,14 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { DECLARED_FLOOR, compareToDeclared, evaluateFloor, readMeasured, resolveViaGate } from './check-coverage-floor.mjs'
+import {
+  DECLARED_FLOOR,
+  compareToDeclared,
+  evaluateFloor,
+  readFilesCovered,
+  readMeasured,
+  resolveViaGate,
+} from './check-coverage-floor.mjs'
 
 /**
  * Whether the kit's gate is installed here.
@@ -157,6 +164,30 @@ describe('reading the measured total', () => {
 
   it('test_an_unparseable_report_yields_null_rather_than_a_number', () => {
     expect(readMeasured('not json')).toBeNull()
+  })
+
+  it('test_readFilesCovered_answers_null_when_it_cannot_tell', () => {
+    // M5/M6 survived because this reader was exported and imported by nothing — its sibling
+    // `readMeasured` has exactly these tests one block up. Under those mutants an unreadable report
+    // is announced as "coverage for NO source file", which is a claim about a document the checker
+    // failed to parse.
+    expect(readFilesCovered('not json'), 'garbage read as a scope claim').toBeNull()
+    expect(readFilesCovered('null'), 'a null document read as a scope claim').toBeNull()
+    expect(readFilesCovered('{"total":{"lines":{"pct":50}}}'), 'no per-file entries is not zero').toBeNull()
+    expect(
+      readFilesCovered('{"total":{"lines":{"pct":50}},"/a.ts":{"statements":{"covered":3}}}'),
+      'an entry with no lines block is unknown, not zero covered',
+    ).toBeNull()
+  })
+
+  it('test_readFilesCovered_counts_only_files_with_covered_lines', () => {
+    const report = JSON.stringify({
+      total: { lines: { pct: 50 } },
+      '/a.ts': { lines: { covered: 4 } },
+      '/b.ts': { lines: { covered: 0 } },
+    })
+
+    expect(readFilesCovered(report)).toBe(1)
     expect(readMeasured('{}')).toBeNull()
   })
 })
@@ -169,6 +200,18 @@ describe('the record in vitest.config.ts', () => {
 
   it('test_it_no_longer_claims_no_threshold_exists', () => {
     expect(config).not.toContain('NO THRESHOLD IS SET HERE')
+  })
+
+  it('test_the_number_it_states_is_the_number_that_is_declared', () => {
+    // The assertion this describe existed for and did not make. Every other test here checks that
+    // the prose MENTIONS the right things; none checked that what it SAYS is true. So the block sat
+    // at "the declared floor is 59.18" through three re-declarations (59.18 -> 59.15 -> 58.95 -> 58.96) with
+    // the suite green, and the file is tracked — every clone read the wrong number from it.
+    //
+    // Substrings cannot catch this. A number can.
+    const stated = /declared floor is (\d+(?:\.\d+)?)/.exec(config)
+    expect(stated, 'vitest.config.ts no longer states a declared floor at all').not.toBeNull()
+    expect(Number(stated[1]), 'the record and the declaration disagree').toBe(DECLARED_FLOOR)
   })
 
   it('test_it_names_where_the_floor_actually_lives', () => {
@@ -256,7 +299,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     symlinkSync(GATE_DIR, join(root, ...prefix, 'skills', 'implement', 'scripts'))
   }
 
-  function scaffold({ floor, pct }) {
+  function scaffold({ floor, pct, files }) {
     const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
     if (floor !== undefined) {
       mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
@@ -265,7 +308,19 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     linkGate(root, ['.claude'])
     if (pct !== undefined) {
       mkdirSync(join(root, 'coverage'), { recursive: true })
-      writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct } } }))
+      // `files` is optional so every existing caller keeps the `{total: …}` shape it was written
+      // with. Passing it is what reaches the MAIN route's scope check: with no per-file entries the
+      // reader returns null and that branch is unreachable, which is why deleting the branch used to
+      // leave the whole suite green (M7, found independently by two reviewers).
+      const report = { total: { lines: { pct } } }
+      if (files !== undefined) {
+        for (let i = 0; i < files.total; i += 1) {
+          report[`/repo/packages/x/src/file-${String(i)}.ts`] = {
+            lines: { pct: i < files.covered ? 80 : 0, total: 10, covered: i < files.covered ? 8 : 0 },
+          }
+        }
+      }
+      writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify(report))
     }
     return root
   }
@@ -301,6 +356,29 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     const result = run(root)
     expect(result.code).toBe(1)
     expect(result.stdout).toContain("'default'")
+  })
+
+  it('test_the_main_route_also_refuses_a_report_that_covered_no_source_file', () => {
+    // M7 — deleting the main route's whole scope guard left all 51 tests green, found independently
+    // by two reviewers. The bug was OBSERVED on this route (`pnpm lint` in a kit-installed checkout)
+    // and only the tracked-only route had a test for the fix. The one fixture with per-file entries
+    // lived in the other describe, so this branch was unreachable from here.
+    const result = run(scaffold({ floor: 59.03, pct: 0, files: { total: 3, covered: 0 } }))
+
+    expect(result.code, 'the main route reported a scope mismatch as a regression').toBe(0)
+    expect(result.stdout).toContain('NO source file')
+    expect(
+      result.stdout,
+      'the main-route message must name the overwrite, which is what makes it actionable',
+    ).toContain('same path')
+  })
+
+  it('test_the_main_route_still_fails_when_the_tree_really_is_below_the_floor', () => {
+    // Anti-vacuity for the test above, on this route: files ARE covered and the total is genuinely
+    // below the floor, so the guard must still refuse.
+    const result = run(scaffold({ floor: 59.03, pct: 40, files: { total: 3, covered: 3 } }))
+
+    expect(result.code).toBe(1)
   })
 
   it('test_slack_beyond_the_default_tolerance_exits_nonzero', () => {
@@ -487,14 +565,81 @@ describe('the tracked floor is checkable without the kit', () => {
     // The other half of the same trap: pin the constant itself against a literal, so a mutant that
     // moves it is caught where `test_the_two_declarations_agree` cannot run — that one is
     // skipIf(!GATE_INSTALLED) and is skipped in exactly this environment.
-    expect(DECLARED_FLOOR).toBe(59.15)
+    expect(DECLARED_FLOOR).toBe(59.03)
   })
 
   it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
-    // F-cf-5: the only slack fixture was +19, so widening TOLERANCE from 1 to 10 survived. These
-    // two bracket the real value: 0.5 above passes, 2 above fails.
-    expect(run(reportOnly(59.65)).code).toBe(0)
-    expect(run(reportOnly(61.15)).code).toBe(1)
+    // These pin the EXACT boundary, one hundredth apart, so no widening of TOLERANCE survives.
+    //
+    // The previous pair (59.65 / 61.15) was written as the floor plus 0.5 and plus 2. Literal in the
+    // source, relative in intent — and when the floor moved 59.15 -> 58.95 they stayed put and became
+    // +0.70 / +2.20, which still brackets 1 but no longer brackets it tightly: mutating TOLERANCE
+    // from 1 to 2 passed all 48 tests. Measured on this file, before and after that move.
+    //
+    // So the numbers below are literal AND adjacent: floor+1.00 must pass, floor+1.01 must fail.
+    // `59.96 - 58.96` is exactly 1 in IEEE 754 (checked, not assumed), so the passing side is not
+    // float-fragile. Moving the floor again without moving these two turns this test red, which is
+    // the property the old pair lacked.
+    expect(run(reportOnly(60.03)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
+    expect(run(reportOnly(60.04)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
+  })
+
+  // B-165 — `vitest run --coverage <one-file>` overwrites the same path with a report from a
+  // different run, and the guard compared it to a whole-tree floor: observed 2026-09-09, `pnpm lint`
+  // failed with "the floor 59.15% is above the measured total 10.29% ... Re-measure and re-declare"
+  // of a floor that was correct.
+  //
+  // Measured against real reports from this repository, only one of three candidate signals works:
+  // key count is 239 in both, the denominator is 4488 in both (the include glob is fixed), and files
+  // WITH coverage is 181 whole-tree against 0 for a run that touches no source file. So the check
+  // settles the extreme and nothing else, which is what these two tests pin.
+  function report({ pct, filesCovered, filesTotal = 3 }) {
+    const root = mkdtempSync(join(tmpdir(), 'floor-scope-'))
+    mkdirSync(join(root, 'coverage'), { recursive: true })
+    const json = { total: { lines: { pct, total: 4488, covered: Math.round((pct / 100) * 4488) } } }
+    for (let i = 0; i < filesTotal; i += 1) {
+      json[`/repo/packages/x/src/file-${String(i)}.ts`] = {
+        lines: { pct: i < filesCovered ? 80 : 0, total: 10, covered: i < filesCovered ? 8 : 0 },
+      }
+    }
+    writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify(json))
+    return root
+  }
+
+  it('test_a_report_that_covered_no_source_file_is_not_a_regression', () => {
+    // A genuine 0% would mean the suite executed nothing, which the runner reports first. So this
+    // shape is provably a partial run, and the one case the guard may settle on its own.
+    const result = run(report({ pct: 0, filesCovered: 0 }))
+
+    expect(result.code, 'a report covering no source file was called a regression').toBe(0)
+    expect(result.stdout).toContain('NO source file')
+    // F-tests-4: this read `.not.toContain('Re-measure and re-declare')` and was VACUOUS — the same
+    // commit lowercased that phrase, so `toContain` was false on every reachable path and the
+    // assertion could never fail. Matching case-insensitively is what makes it an assertion.
+    expect(
+      result.stdout.toLowerCase(),
+      'it still proposed re-declaring a floor that is correct',
+    ).not.toContain('re-measure and re-declare')
+  })
+
+  it('test_a_partial_run_that_did_cover_files_still_fails_and_says_why', () => {
+    // The honest limit: 10.29% from one package's tests and 10.29% from a real regression are the
+    // same JSON. The guard does NOT guess — it fails, which is the safe side, and the message names
+    // the third possibility so a human settles it in one command instead of re-declaring the floor.
+    const result = run(report({ pct: 10.29, filesCovered: 1 }))
+
+    expect(result.code, 'the safe side is to fail when the report cannot be told apart').toBe(1)
+    // F-tests-3: this matched /partial|full suite|whole tree/i, which survives restoring the old
+    // two-cause text and appending "Re-run the full suite" — the misleading remedy comes back and
+    // the test stays green. These pin the CAUSE and the absence of the wrong prescription instead.
+    expect(
+      result.stdout,
+      'the message does not name the partial-run cause',
+    ).toMatch(/came from a PARTIAL run/i)
+    expect(
+      result.stdout.toLowerCase(),
+      'the message prescribes re-declaring before ruling out a partial run',
+    ).toContain('re-run the full suite first')
   })
 
   it('test_a_regression_below_the_tracked_floor_fails', () => {

@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
 
 import { loadInstructionTree } from '@theokit/agents/config'
@@ -132,7 +133,31 @@ export function loadUserRules(
   warn: WarnFn = (m) => process.stderr.write(`${m}\n`),
   budget: TraversalBudget = DEFAULT_BUDGET,
 ): RulesLoad {
-  return loadRulesFrom(home, userRuleRoots(home), warn, budget)
+  const blocks = [...blocksFrom(home, userRuleRoots(home), warn, budget)]
+
+  // B-171 — the state directory may sit outside the home, and every other consumer follows it there:
+  // config, the trust store, MCP scopes all resolve through `homeStateDir`. Rules were the outlier,
+  // so one build could serve config from `$THEOKIT_HOME` and instructions from `~/.theokit`.
+  //
+  // Collected as blocks and assembled ONCE below, never assembled separately and merged: the ceiling
+  // belongs to the PROMPT, so applying it per-load lets two corpora that each fit produce a prompt
+  // that does not. The first attempt at this item did exactly that — 126,012 chars against a declared
+  // 64,000, with `truncated` reporting false — and was reversed for it.
+  //
+  // A base of its own rather than another root NAME, because `loadInstructionTree` joins names
+  // against a base and `join('/home/op', '/srv/state/rules')` is `/home/op/srv/state/rules`.
+  // Compared by REAL path, not by text. `loadInstructionTree`'s cycle guard is per CALL, so splitting
+  // into two calls removed the only thing stopping the same tree being walked twice — and a home
+  // reachable by two paths is ordinary, not exotic: `/home -> /var/home` on Fedora Silverblue,
+  // systemd-homed, any symlinked `$HOME`. Measured on this shape before the fix: two rule files came
+  // back as `read=4`, and a corpus that fit began truncating, dropping one of the operator's files.
+  const stateDir = realPath(homeStateDir(process.env, home))
+  const outside = relative(realPath(home), stateDir)
+  if (outside.length === 0 || outside.startsWith('..') || isAbsolute(outside)) {
+    blocks.push(...blocksFrom(stateDir, ['rules'], warn, budget))
+  }
+
+  return assemble(blocks, warn)
 }
 
 /**
@@ -154,19 +179,39 @@ function loadRulesFrom(
   warn: WarnFn,
   budget: TraversalBudget,
 ): RulesLoad {
+  return assemble(blocksFrom(cwd, roots, warn, budget), warn)
+}
+
+/**
+ * A path with its symlinks resolved, or the path itself when it does not exist.
+ *
+ * Falling back rather than throwing: an operator may point `$THEOKIT_HOME` at a directory they have
+ * not created yet, and a missing rules directory is the ordinary case the loader already tolerates.
+ * Refusing to start over it would turn a shrug into a crash.
+ */
+function realPath(candidate: string): string {
+  try {
+    return realpathSync(candidate)
+  } catch {
+    return candidate
+  }
+}
+
+/**
+ * The blocks under one base, WITHOUT assembling them.
+ *
+ * B-171 — split out so a caller reading two bases assembles ONCE. A first attempt assembled each and
+ * merged the results, which defeated the 64,000-char prompt ceiling: two corpora that each fit
+ * produced 126,012 chars with `truncated: false`, measured. The ceiling belongs to the prompt, so it
+ * has to be applied to everything that reaches it, together.
+ */
+function blocksFrom(cwd: string, roots: readonly string[], warn: WarnFn, budget: TraversalBudget): readonly string[] {
   requirePositiveBudget(budget)
 
   const tree = loadInstructionTree({
     cwd,
     roots,
-    // See § 3 — the walk is bounded by depth and file count, the ceilings this product declares.
-    budget: {
-      maxDepth: budget.maxDepth,
-      maxFiles: budget.maxFiles,
-      maxChars: Number.MAX_SAFE_INTEGER,
-    },
-    // Prefixed, not rewritten. The wording is the framework's — it knows what it refused and why —
-    // and the prefix says which subsystem is speaking.
+    budget: { maxDepth: budget.maxDepth, maxFiles: budget.maxFiles, maxChars: Number.MAX_SAFE_INTEGER },
     onWarn: (message) => {
       warn(`[rules] ${message}`)
     },
@@ -174,8 +219,7 @@ function loadRulesFrom(
     order: 'lexicographic',
   })
 
-  const blocks = tree.blocks.map(scopedBlock).filter((block) => block.length > 0)
-  return assemble(blocks, warn)
+  return tree.blocks.map(scopedBlock).filter((block) => block.length > 0)
 }
 
 /**

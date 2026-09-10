@@ -52,6 +52,13 @@ describe('#102 — deletion speaks the registry vocabulary', () => {
 
     await runSessionGC(plan, {
       apply: true,
+      // B-161: `readdir` and `cwd` are injected here as well as into planSessionGC. Without them
+      // `resolveApply` falls through to `process.cwd()` and reads the REAL transcript store —
+      // per-session.ts:226, `(opts.readdir ?? readTranscriptDir)(transcriptDir(cwd, baseDir))` — so
+      // this test covered three production lines on a machine that had sessions and none on a clean
+      // checkout, making total coverage a property of the machine.
+      cwd: '/p',
+      readdir: () => [],
       delete: (id: string) => {
         deleted.push(id)
         return Promise.resolve()

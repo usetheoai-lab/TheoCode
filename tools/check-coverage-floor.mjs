@@ -118,33 +118,49 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *   59.15  the same, after B-162 moved the tests out of `src/`. `hooks-test-helpers.ts` is test
  *          scaffolding that lived there; it is not a `*.test.*` file, so the reporter's exclude
  *          never matched it and the include counted its 3 lines as PRODUCTION. Moving it removes
- *          them from both sides — 2655/4488, measured in a checkout with all three channels
- *          verified absent one at a time, not derived by subtracting 3.
+ *          them from both sides — 2655/4488.
+ *   58.96  declared at B-167's first pass, over 2647/4489 — the denominator carried one
+ *          instrumented line that the second pass removed, so this pair describes no revision that
+ *          survives. Recorded because a floor citing a denominator nothing measures is exactly the
+ *          drift the ladder exists to make visible.
+ *   58.97  the same 2647 lines over 4488. Measured after the third site was migrated.
+ *   58.98  2648/4489, after B-168 added two guards.
+ *   59.06  2656/4497, after B-171 taught rules and skills to follow the configured state dir. The floor tracks the tree; each move here is a
+ *          measurement someone ran, not a number someone chose.
+ *   58.95  declared at B-161's close, and the first one measured with the CHECKOUT axis actually
+ *          closed rather than assumed: 2646/4488, twice in a real `git clone` with its own install
+ *          and twice here, compared per file — 239 files, four metrics, zero divergences.
  *
- * THREE independent channels make the total depend on the machine, not one:
+ * The drop from 59.15 is the point, not a regression. Those ~9 lines were covered only because
+ * tests read the ambient environment; the repository had them by accident of where the suite ran,
+ * and no clone ever did.
  *
- *   +1 line   `rules.ts:82` — the default `warn` callback runs only when the rules corpus exceeds
- *             64 000 chars, and an installed `.claude/rules/` is 248 669. So the total depends on
- *             the SIZE of the kit installed beside the checkout.
- *   +1 line   `context/agents-md.ts` — walks ancestors for THEO.md/AGENTS.md/CLAUDE.md until it
- *             finds `.git`, reaching a context file in the home directory from one checkout and
- *             nothing from another.
- *   +3 lines  `session/gc/per-session.ts` — `readTranscriptDir` reads
- *             `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds transcripts for the
- *             working tree's path and nothing for a /tmp one.
+ * FOUR channels were closed, and every one had the same shape — the seam existed and the call site
+ * did not use it:
  *
- *   2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree)
+ *   `context/agents-md.ts`      three tests passed `process.cwd()` where a tmpdir belonged.
+ *   `session/gc/per-session.ts` a test injected `readdir`/`cwd` into `planSessionGC` and gave
+ *                               `runSessionGC` neither.
+ *   `context/rules.ts` (panel)  four `statusPanel` calls omitted the wiring record, and one passed
+ *                               a PARTIAL record — which reaches the same disk fallback, because
+ *                               `rules` is optional on the type.
+ *   `context/rules.ts` (route)  `showStatus` reaches that fallback via `currentWiring()`.
  *
- * So: zero slack against the cleanest environment, and in richer ones the excess is exactly the
- * contamination — 1 line with a kit installed, 5 in this working tree. That is tolerated by
- * `TOLERANCE`, and calling it a ratchet everywhere would be false. **It is a ratchet against the
- * clean reading and a floor with named slack anywhere else**, and it stays that way until B-161
- * closes all three channels. Only then is a single number a property of the code.
+ * WHAT IS STILL OPEN, so the number above is not read as more than it is: the HOME axis, tracked as
+ * B-167. Same tree, same commit, varying only $HOME — empty measures 2646/4488, a home holding a
+ * 163,836-char `~/.theokit/rules` measures 2648/4488. `ChatOverrides` carries `cwd` and no `home`,
+ * so `homedir()` is reached at three sites in one build and no caller can redirect it.
  *
+ * A populated home therefore measures ABOVE this floor, inside `TOLERANCE`, and passes — which is
+ * what a floor is for. The declaration is sound; it is the equality that is axis-scoped.
+ *
+ * Re-declare from a real clone with its own install — not a worktree with linked `node_modules`,
+ * which resolves `@theocode/*` back into the original tree and silently measures a blend of both.
+ * That mistake was made once here and its numbers were discarded.
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 59.15
+export const DECLARED_FLOOR = 59.03
 
 /**
  * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.
@@ -212,6 +228,51 @@ export function compareToDeclared(floor, declared = DECLARED_FLOOR) {
  * The gate tries four artifact shapes; this reads the one this repository's reporter emits. Saying
  * "as the gate reads it" overstated that.
  */
+/**
+ * How many source files the report shows ANY coverage for, or `null` when unreadable.
+ *
+ * B-165 — a report is a claim about a set of files, and `vitest run --coverage <one-file>` overwrites
+ * the same path with a report from a different run. The guard compared one to a whole-tree floor and
+ * said "the floor 58.95% is above the measured total 10.29% ... Re-measure and re-declare" — of a
+ * floor that was correct. Observed 2026-09-09 in `pnpm lint`.
+ *
+ * Three candidate signals were measured against real reports from this repository, and two of them
+ * do not work here:
+ *
+ *   key count     239 in BOTH. `coverage.include` is a fixed glob, so every source file appears in
+ *                 every report whether or not the run touched it.
+ *   denominator   4488 in BOTH, for the same reason.
+ *   files covered 181 whole-tree, 0 for a `tools/` run.
+ *
+ * So the only honest reading is the third, and it only settles the extreme: a report where NO source
+ * file has coverage did not measure the source tree, and cannot be a regression — a genuine 0% would
+ * mean the suite executed nothing, which the suite runner would have reported first.
+ *
+ * A partial run that DOES touch some files (a single package's tests, the 10.29% case) is
+ * indistinguishable from a real regression by anything inside the JSON. The guard does not guess
+ * there; it fails, and names the third possibility so the reader can settle it in one command.
+ */
+export function readFilesCovered(reportJson) {
+  try {
+    const report = JSON.parse(reportJson)
+    if (report === null || typeof report !== 'object') return null
+    const files = Object.entries(report).filter(([name]) => name !== 'total')
+    // No per-file entries at all is not "zero files covered" — it is a report that does not carry
+    // the information, and the two must not collapse. A minimal `{total: …}` document says nothing
+    // about scope, so the caller gets `null` and falls through to the value check as before. This
+    // is also what closes the serious case: a broken `coverage.include` yields a report with no
+    // entries and `pct: "Unknown"` (measured), so it reaches the value check rather than the skip.
+    if (files.length === 0) return null
+    // An entry without a `lines` block is unknown, not zero. Reading it as zero let a report the
+    // checker could not understand be reported as "coverage for NO source file" — naming a cause it
+    // never observed, which is the defect this file exists to refuse.
+    if (files.some(([, entry]) => typeof entry?.lines?.covered !== 'number')) return null
+    return files.filter(([, entry]) => entry.lines.covered > 0).length
+  } catch {
+    return null
+  }
+}
+
 export function readMeasured(reportJson) {
   try {
     // `_from_json_summary` reads this exact field, already rounded. Recomputing from covered/total
@@ -234,8 +295,11 @@ export function evaluateFloor({ floor, measured, tolerance = TOLERANCE }) {
       status: 'FAIL',
       message:
         `the floor ${floor}% is above the measured total ${measured}% — every plan halts here. ` +
-        'Either the tree regressed, or the floor was declared against a different one ' +
-        '(a coverage-tool major bump re-accounts the same code). Re-measure and re-declare.',
+        'THREE things produce this and the report cannot tell them apart: the tree regressed; ' +
+        'the floor was declared against a different one (a coverage-tool major bump re-accounts ' +
+        'the same code); or this report came from a PARTIAL run — a single-file coverage run ' +
+        'writes to this same path. Re-run the full suite first; re-measure and re-declare only ' +
+        'if the number holds.',
     }
   }
   if (measured - floor > tolerance) {
@@ -305,6 +369,17 @@ function main() {
       )
       return 0
     }
+    // B-165 — the same scope refusal as the main path below. The partial-report false alarm fires on
+    // THIS route too: a checkout without the kit installed reaches here, and a single-file report is
+    // just as incomparable to a whole-tree floor with or without a thresholds file.
+    if (readFilesCovered(earlyText) === 0) {
+      say(
+        '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
+          'measure the source tree. Run `pnpm test:coverage` — `pnpm test` writes no report.',
+      )
+      return 0
+    }
+
     const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured: earlyMeasured })
     // The age travels on this route too. Line 250 of this file says a number without its age is a
     // claim about now, and the first version of this branch dropped it — including on the failing
@@ -347,6 +422,21 @@ function main() {
   const reportFile = join(root, REPORT_PATH)
   const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
   const measured = reportText === null ? null : readMeasured(reportText)
+
+  // A report that covered no source file did not measure the tree, so its total is not comparable to
+  // a whole-tree floor. This is an exact test, not a fraction: ADR-1 rejected a coverage-fraction
+  // threshold by name, because any ratio is a number that silently accepts real regressions.
+  const covered = reportText === null ? null : readFilesCovered(reportText)
+  if (covered === 0) {
+    const fileCount = Object.keys(JSON.parse(reportText)).length - 1
+    say(
+      `[coverage-floor] SKIPPED — the report shows coverage for NO source file (0 of ${String(fileCount)} ` +
+        'entries), so it did not measure the source tree: a partial coverage run writes to the same ' +
+        'path. Run `pnpm test:coverage` to check the value — `pnpm test` writes no report.',
+    )
+    return 0
+  }
+
   const result = evaluateFloor({ floor: resolved.value, measured })
 
   if (result.status === 'UNMEASURED') {

@@ -102,6 +102,12 @@ describe('B-073 — the resolution reaches the user', () => {
       'suggest',
       () => 'session-1',
       { backend: () => ({ activeSessionCount: () => 0 }) } as never,
+      // Without a wiring record the panel reads the rules off disk, which makes this file's
+      // coverage depend on the machine (B-161). This test is about the theme row.
+      {
+        agentsMd: { active: [], requested: [], suppressedByTrust: false },
+        rules: { count: 0, read: 0 },
+      } as never,
     )
 
     // Matched WITHOUT the padding. The column width is computed from the widest label now, so a

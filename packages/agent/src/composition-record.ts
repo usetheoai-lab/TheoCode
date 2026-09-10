@@ -82,14 +82,22 @@ function wiringRecord(
  * only trace that 74% of this repository's own rules were being cut was a `stderr` line the TUI
  * does not surface.
  */
-export function bothRuleRoots(cwd: string): {
+export function bothRuleRoots(
+  cwd: string,
+  /**
+   * B-167 — the operator's root, injectable for the same reason `cwd` is. `homedir()` was read here
+   * and at two sites in `chat.ts`, so a build could not be told which operator root to read and every
+   * test wanting a controlled one reached for the process-wide `HOME`.
+   */
+  home: string = homedir(),
+): {
   project: RulesLoad
   user: RulesLoad
   /** The same load, projected for the record — so the call site cannot project it differently. */
   record: WiredCapabilities['rules']
 } {
   const project = loadRules(cwd)
-  const user = loadUserRules(homedir())
+  const user = loadUserRules(home)
   return { project, user, record: rulesLoad([project, user]) }
 }
 

@@ -36,7 +36,13 @@ describe('#65 — an operator skill is wired into the agent', () => {
     const { buildChatAgent } = await import('../../src/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
-      cwd: process.cwd(),
+      // B-161: a directory of its own, not `process.cwd()`. This test isolates HOME into a tmpdir
+      // and used to hand the build the REPOSITORY as the project directory — so the context it
+      // assembled depended on what that tree held: the rule corpus, a project document, the session
+      // store keyed by the path. Measured: three production lines were covered on a maintainer's
+      // machine and not in a clean checkout, which made total coverage a property of the machine.
+      // The half that was isolated was not the half the content arrives through.
+      cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
       surface: 'headless',
       onWired: (w) => {
         wired = w as typeof wired
@@ -58,7 +64,13 @@ describe('#65 — an operator skill is wired into the agent', () => {
     const { buildChatAgent } = await import('../../src/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
-      cwd: process.cwd(),
+      // B-161: a directory of its own, not `process.cwd()`. This test isolates HOME into a tmpdir
+      // and used to hand the build the REPOSITORY as the project directory — so the context it
+      // assembled depended on what that tree held: the rule corpus, a project document, the session
+      // store keyed by the path. Measured: three production lines were covered on a maintainer's
+      // machine and not in a clean checkout, which made total coverage a property of the machine.
+      // The half that was isolated was not the half the content arrives through.
+      cwd: mkdtempSync(join(tmpdir(), 'b161-project-')),
       surface: 'headless',
       onWired: (w) => {
         wired = w as typeof wired

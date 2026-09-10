@@ -23,10 +23,11 @@
 import { readFileSync } from 'node:fs'
 
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { CommandCapabilities } from '../../src/commands/command-capabilities.js'
 import { interpretCommand } from '../../src/commands/interpret-command.js'
+import { clearWiring, currentWiring, recordWiring } from '../../src/agent-session/wiring-record.js'
 import type { CommandAction } from '../../src/commands/registry.js'
 
 /** The collaborators a command may reach through, as opposed to the effects it may cause. */
@@ -106,6 +107,12 @@ function harness() {
   return { cap, agent, SESSION, ptyOwner, ...spies }
 }
 
+// B-168 — the record is process-wide within this file: vitest isolates per FILE, not per test. Before
+// this, publishing one at line 155 left 13 tests observing it.
+afterEach(() => {
+  clearWiring()
+})
+
 const run = (action: CommandAction, text = '', h = harness()) => {
   interpretCommand(action, text, h.cap)
   return h
@@ -146,6 +153,15 @@ describe('interpretCommand — later groups claim their own', () => {
   })
 
   it('test_showStatus_reaches_the_inspection_group', () => {
+    // B-161: with no record published, `statusPanel` falls back to reading the rules off disk, so
+    // this test's coverage depended on whether the checkout it ran in had `.claude/rules/` — a
+    // 248,682-char corpus here, absent in a clean clone, which took the truncation path with it.
+    // `recordWiring` is how a real build publishes the record; using it keeps the assertion about
+    // routing, which is what this test is for.
+    recordWiring({
+      agentsMd: { active: [], requested: [], suppressedByTrust: false },
+      rules: { count: 0, read: 0 },
+    } as never)
     const h = run({ kind: 'showStatus' } as CommandAction)
     expect(h.setPanel).toHaveBeenCalled()
   })
@@ -339,5 +355,29 @@ describe('interpretCommand — the partition the chain rests on', () => {
     // and a group that claims nothing is dead code in the chain.
     const claimed = new Set([...claimsByGroup().values()].flat())
     expect([...claimed].sort()).toEqual([...GROUPS].sort())
+  })
+
+})
+
+describe('B-168 — a published record does not decide what the next test sees', () => {
+  // The pair is anti-vacuous and order-independent, and the first version was neither: removing the
+  // publish left it green with nothing to guard, and its correctness depended on sitting below
+  // another test — under `--sequence.shuffle` the mutant survived on 5 of 12 seeds. Publishing HERE
+  // makes the pair prove both halves on its own, wherever the file runs it.
+  //
+  // It was also nested inside the describe above by accident, which the reporter path showed.
+  it('test_publishing_a_record_is_observable', () => {
+    recordWiring({
+      agentsMd: { active: [], requested: [], suppressedByTrust: false },
+      rules: { count: 0, read: 0 },
+    } as never)
+
+    expect(currentWiring(), 'the publisher stopped publishing, so the test below guards nothing').toBeDefined()
+  })
+
+  it('test_the_record_is_cleared_between_tests_in_this_file', () => {
+    // `.toBeUndefined()` rather than `.toBeFalsy()`: a `clearWiring` that set `null` would pass the
+    // looser assertion, and that is the mutant most likely to be written by accident.
+    expect(currentWiring(), 'the wiring record leaked from the test above').toBeUndefined()
   })
 })
