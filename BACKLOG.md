@@ -7377,6 +7377,20 @@ dod:
 >
 > Each is a contract decision reaching past this item, which is the same shape as `homeStateDir` in B-171: a decision about one surface does not belong inside the function five subsystems share. Option 1 is probably right — `onWired` is documented as "what the last build actually wired", and a record published before the last cut does not describe that — but it deserves its own plan.
 
+> ATTEMPTED AND REVERSED 2026-09-10 (`309fbe0` reversed by `861796d`). The attempt is worth more than its code, because it refuted every option this item had listed — including the one I proposed.
+>
+> **The three original options are refuted by the execution order.** `baseAgent` is called at `packages/agent/src/chat.ts:151` and the aggregate cut happens inside it; `publishWiring` runs at `:194`. The cut ALREADY precedes the publish — verified by instrumenting both points, not by reading line numbers, which is how this item got the ordering backwards in the first place. So "publish later" is unnecessary, "publish twice" is unnecessary, and duplicating the budget arithmetic was never needed.
+>
+> **The fourth option — a flag set by the `warn` callback — is refuted by the surface.** `packages/tui/src/commands/command-content.ts:143` renders the dropped share from THREE record fields, `(chars - kept) / chars`. A boolean cannot carry that: setting `truncated: true` without moving `kept` printed `1 of 1 — 0% dropped (50,005 chars over the ceiling)` over a persona cut to 363.
+>
+> **And the aggregate cut has no source attribution.** It can drop `appendInstructions` or the base persona, neither of which is a rule, and the RULES row then claimed truncation. Measured on a production path (`packages/cli/src/commands/goal.ts:51`): a 25-char intact rules load went from `1 loaded` — true — to `1 of 1 — 0% dropped`, false in both numbers about a block nothing touched.
+>
+> **The seam was also wrong in kind:** `warn` is a warning channel, and one of its branches (`packages/agent/src/context/agents-md.ts:208-211`) fires to say *"nothing was truncated"*. The callback set the truncation flag there too.
+>
+> **What the attempt established as sound:** the ordering above, and that the shared `aggregate` object does not leak between concurrent builds (two racing `buildChatAgent` calls, one truncating, measured clean).
+>
+> **The shape a real fix needs:** `composeInstructions` returning how much it cut and from which source, rather than warning about it — which is exactly how B-171 solved this class one layer down (`packages/agent/src/context/rules.ts`). One production call site (`chat.ts:619`). The mutable flag the attempt used was the only one in the entire product source.
+
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
