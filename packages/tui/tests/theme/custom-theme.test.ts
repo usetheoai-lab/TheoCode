@@ -128,6 +128,17 @@ describe('the overrides that map', () => {
     expect(loadCustomTheme('x', home)?.prop.override?.accent).toBe('#f00')
   })
 
+  it('test_overrides_that_are_not_an_object_apply_nothing_and_crash_nothing', () => {
+    // A hand-written file can put anything under `overrides`. An array or a string is not a token
+    // map: nothing applies, nothing is reported token-by-token (there are no tokens to name), and
+    // the theme still loads on its base.
+    theme('x', { overrides: ['#111111'] as unknown as Record<string, string> })
+    const loaded = loadCustomTheme('x', home)
+
+    expect(loaded?.prop.override).toBeUndefined()
+    expect(loaded?.notApplied).toEqual([])
+  })
+
   it('test_a_theme_that_overrides_nothing_reports_nothing', () => {
     // Anti-vacuity floor for the reporting arms above.
     theme('x', { base: 'light' })

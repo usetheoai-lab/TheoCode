@@ -121,6 +121,17 @@ function resolveBase(raw: unknown, notApplied: string[]): ThemeBase {
   return axis
 }
 
+/** Write one accepted token where it lives: a root field, or a leaf inside one. */
+function placeToken(
+  override: Record<string, unknown>,
+  home: readonly [field: string, leaf: string],
+  value: string,
+): void {
+  const [field, leaf] = home
+  if (leaf === '') override[field] = value
+  else override[field] = { ...(override[field] as object | undefined), [leaf]: value }
+}
+
 function applyOverrides(raw: unknown, notApplied: string[]): TheoThemeOverride | undefined {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
   const override: Record<string, unknown> = {}
@@ -134,9 +145,7 @@ function applyOverrides(raw: unknown, notApplied: string[]): TheoThemeOverride |
       notApplied.push(`token "${token}": ${String(value)} — only #rgb and #rrggbb are rendered here`)
       continue
     }
-    const [field, leaf] = home
-    if (leaf === '') override[field] = value
-    else override[field] = { ...(override[field] as object | undefined), [leaf]: value }
+    placeToken(override, home, value)
   }
   return Object.keys(override).length > 0 ? (override as TheoThemeOverride) : undefined
 }
