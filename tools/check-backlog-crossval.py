@@ -114,6 +114,79 @@ def named_source_paths(block):
     return named
 
 
+def _touched_by_fix(bid, raw, candidates, *, commit_exists, files_touched):
+    """`(records, touched)` — the union of files the fix commits touched, or the problem records
+    that explain why it could not be read. `touched is None` means classification stops here."""
+    records, touched, missing = [], set(), False
+    for s in candidates:
+        if not commit_exists(s):
+            records.append(("problems", (bid, "`fixed_in` names a commit that does not exist", s)))
+            missing = True
+            continue
+        touched |= files_touched(s)
+    if missing:
+        return records, None
+    if not touched:
+        return [("problems", (bid, "`fixed_in` commit(s) touched no files", raw))], None
+    return records, touched
+
+
+def _check_named_paths(bid, block, touched, *, path_exists):
+    """`records` for the named-source-path half: stale citations, then the verdict."""
+    records = []
+    named = named_source_paths(block)
+    live = {n for n in named if path_exists(n)}
+    stale = sorted(named - live)
+    if stale:
+        # Reported for its own sake. An item can have a perfectly good fix and a citation that
+        # has since moved; the record is what rotted, and this gate exists to protect it.
+        records.append(("stale_paths", (bid, stale)))
+
+    if not named:
+        records.append(("unverified", (bid, len(touched), "no source path named")))
+        return records
+    if not live:
+        # The compound case, and the one that used to be invisible: the filter emptied the set
+        # and the item fell through to the branch above, counted consistent having checked
+        # nothing.
+        records.append(
+            ("unverified", (bid, len(touched), f"every source path it names has moved or been deleted: {', '.join(stale)}"))
+        )
+        return records
+
+    hit = {n for n in live if any(n in tf for tf in touched)}
+    if not hit:
+        records.append(
+            ("problems", (bid, "fix touched NONE of the source paths its own text names", ", ".join(sorted(live))))
+        )
+    else:
+        records.append(("verified", (bid, len(touched), f"{len(hit)}/{len(live)} named source paths touched")))
+    return records
+
+
+def classify_item(bid, block, *, commit_exists, files_touched, path_exists):
+    """`(report field, entry)` records for one closed item — the loop only dispatches them.
+
+    Extracted from `cross_validate`'s loop body (Decompose Conditional): each classification used
+    to be a guard branch in one nine-way body, and every new outcome grew the same function.
+    """
+    fx = FIXED_IN.search(block)
+    if not fx:
+        return [("problems", (bid, "closed with no `fixed_in`", "nothing records which commit closed it"))]
+    raw = fx.group(1)
+
+    candidates = sha_candidates(raw)
+    if not any(commit_exists(s) for s in candidates):
+        return [("skipped", (bid, "decision-only or upstream — no local commit by design"))]
+
+    records, touched = _touched_by_fix(
+        bid, raw, candidates, commit_exists=commit_exists, files_touched=files_touched
+    )
+    if touched is None:
+        return records
+    return records + _check_named_paths(bid, block, touched, path_exists=path_exists)
+
+
 def cross_validate(text, *, commit_exists, files_touched, path_exists):
     """The decision, as a function of the registry and the history.
 
@@ -122,60 +195,11 @@ def cross_validate(text, *, commit_exists, files_touched, path_exists):
     contents rather than of the rule.
     """
     report = Report()
-
     for bid, block in closed_items(text):
-        fx = FIXED_IN.search(block)
-        if not fx:
-            report.problems.append((bid, "closed with no `fixed_in`", "nothing records which commit closed it"))
-            continue
-        raw = fx.group(1)
-
-        candidates = sha_candidates(raw)
-        if not any(commit_exists(s) for s in candidates):
-            report.skipped.append((bid, "decision-only or upstream — no local commit by design"))
-            continue
-
-        touched, missing = set(), False
-        for s in candidates:
-            if not commit_exists(s):
-                report.problems.append((bid, "`fixed_in` names a commit that does not exist", s))
-                missing = True
-                continue
-            touched |= files_touched(s)
-        if missing:
-            continue
-        if not touched:
-            report.problems.append((bid, "`fixed_in` commit(s) touched no files", raw))
-            continue
-
-        named = named_source_paths(block)
-        live = {n for n in named if path_exists(n)}
-        stale = sorted(named - live)
-        if stale:
-            # Reported for its own sake. An item can have a perfectly good fix and a citation that
-            # has since moved; the record is what rotted, and this gate exists to protect it.
-            report.stale_paths.append((bid, stale))
-
-        if not named:
-            report.unverified.append((bid, len(touched), "no source path named"))
-            continue
-        if not live:
-            # The compound case, and the one that used to be invisible: the filter emptied the set
-            # and the item fell through to the branch above, counted consistent having checked
-            # nothing.
-            report.unverified.append(
-                (bid, len(touched), f"every source path it names has moved or been deleted: {', '.join(stale)}")
-            )
-            continue
-
-        hit = {n for n in live if any(n in tf for tf in touched)}
-        if not hit:
-            report.problems.append(
-                (bid, "fix touched NONE of the source paths its own text names", ", ".join(sorted(live)))
-            )
-        else:
-            report.verified.append((bid, len(touched), f"{len(hit)}/{len(live)} named source paths touched"))
-
+        for category, entry in classify_item(
+            bid, block, commit_exists=commit_exists, files_touched=files_touched, path_exists=path_exists
+        ):
+            getattr(report, category).append(entry)
     return report
 
 

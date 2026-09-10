@@ -49,23 +49,25 @@ function manifests() {
 /** Every `@theokit/*` range declared anywhere, with who declares it. */
 function declaredRanges() {
   const byPackage = new Map()
+  // One place records how a declaration is accumulated — the entry shape lives here and nowhere
+  // else, so a change to it is made once.
+  const record = (name, label, field, range) => {
+    if (!name.startsWith(SCOPE)) return
+    const entry = byPackage.get(name) ?? { name, declarations: [] }
+    entry.declarations.push({ label, field, range })
+    byPackage.set(name, entry)
+  }
   for (const { label, path } of manifests()) {
     const manifest = JSON.parse(readFileSync(path, 'utf8'))
     for (const field of DEP_FIELDS) {
       for (const [name, range] of Object.entries(manifest[field] ?? {})) {
-        if (!name.startsWith(SCOPE)) continue
-        const entry = byPackage.get(name) ?? { name, declarations: [] }
-        entry.declarations.push({ label, field, range })
-        byPackage.set(name, entry)
+        record(name, label, field, range)
       }
     }
     // `overrides` pins a transitive version and is a declaration like any other: it is the reason
     // `@theokit/presenter` is at 0.7.0, and a reader who saw only `packages/cli` would not know it.
     for (const [name, range] of Object.entries(manifest.overrides ?? {})) {
-      if (!name.startsWith(SCOPE)) continue
-      const entry = byPackage.get(name) ?? { name, declarations: [] }
-      entry.declarations.push({ label, field: 'overrides', range })
-      byPackage.set(name, entry)
+      record(name, label, 'overrides', range)
     }
   }
   return [...byPackage.values()].sort((a, b) => a.name.localeCompare(b.name))
@@ -161,8 +163,8 @@ function majorOf(version) {
   return Number(version.split('.')[0])
 }
 
-function main() {
-  const json = process.argv.includes('--json')
+/** Ask the registry about every declared dependency; collect rows and per-package failures. */
+function collectRows() {
   const rows = []
   const failures = []
 
@@ -195,38 +197,49 @@ function main() {
     })
   }
 
-  if (json) {
+  return { rows, failures }
+}
+
+/** Human table rendering — a distinct reason to change from the fetching above. */
+function renderTable(rows, failures) {
+  const width = (pick) => Math.max(...rows.map((r) => pick(r).length), 0)
+  const nameWidth = Math.max(width((r) => r.name), 'package'.length)
+  const installedWidth = Math.max(width((r) => r.installed), 'installed'.length)
+  const latestWidth = Math.max(width((r) => r.latest), 'published'.length)
+  // The channel is printed BESIDE the number, because a version with no channel is the ambiguity
+  // #73 reports: the reader cannot tell which question the number answered.
+  const channelWidth = Math.max(width((r) => r.channel ?? 'latest'), 'tag'.length)
+
+  process.stdout.write(
+    `${'package'.padEnd(nameWidth)}  ${'installed'.padEnd(installedWidth)}  ${'published'.padEnd(latestWidth)}  ${'tag'.padEnd(channelWidth)}  declared by\n`,
+  )
+  for (const row of rows) {
+    const mark = row.split ? '><' : row.current ? '  ' : row.major ? '!!' : ' →'
+    const where = row.declarations
+      .map((d) => `${d.label} ${d.range}${d.field === 'overrides' ? ' (override)' : ''}`)
+      .join(', ')
+    process.stdout.write(
+      `${row.name.padEnd(nameWidth)}  ${row.installed.padEnd(installedWidth)}  ${row.latest.padEnd(latestWidth)}  ${(row.channel ?? 'latest').padEnd(channelWidth)}  ${mark} ${where}\n`,
+    )
+  }
+  const behind = rows.filter((r) => !r.current)
+  process.stdout.write(
+    behind.length === 0
+      // "on the tag it tracks", not "at latest": since #73 a prerelease pin is compared against
+      // `next`, and saying `latest` there would be the same wrong claim in the summary line.
+      ? `\nEvery @theokit/* dependency is current on the tag it tracks.\n`
+      : `\n${behind.length} of ${rows.length} behind. \`!!\` is a MAJOR — read its changelog and run the suite before taking it.\n`,
+  )
+  for (const f of failures) process.stderr.write(`could not check ${f.name}: ${f.reason}\n`)
+}
+
+function main() {
+  const { rows, failures } = collectRows()
+
+  if (process.argv.includes('--json')) {
     process.stdout.write(`${JSON.stringify({ rows, failures }, null, 2)}\n`)
   } else {
-    const width = (pick) => Math.max(...rows.map((r) => pick(r).length), 0)
-    const nameWidth = Math.max(width((r) => r.name), 'package'.length)
-    const installedWidth = Math.max(width((r) => r.installed), 'installed'.length)
-    const latestWidth = Math.max(width((r) => r.latest), 'published'.length)
-    // The channel is printed BESIDE the number, because a version with no channel is the ambiguity
-    // #73 reports: the reader cannot tell which question the number answered.
-    const channelWidth = Math.max(width((r) => r.channel ?? 'latest'), 'tag'.length)
-
-    process.stdout.write(
-      `${'package'.padEnd(nameWidth)}  ${'installed'.padEnd(installedWidth)}  ${'published'.padEnd(latestWidth)}  ${'tag'.padEnd(channelWidth)}  declared by\n`,
-    )
-    for (const row of rows) {
-      const mark = row.split ? '><' : row.current ? '  ' : row.major ? '!!' : ' →'
-      const where = row.declarations
-        .map((d) => `${d.label} ${d.range}${d.field === 'overrides' ? ' (override)' : ''}`)
-        .join(', ')
-      process.stdout.write(
-        `${row.name.padEnd(nameWidth)}  ${row.installed.padEnd(installedWidth)}  ${row.latest.padEnd(latestWidth)}  ${(row.channel ?? 'latest').padEnd(channelWidth)}  ${mark} ${where}\n`,
-      )
-    }
-    const behind = rows.filter((r) => !r.current)
-    process.stdout.write(
-      behind.length === 0
-        // "on the tag it tracks", not "at latest": since #73 a prerelease pin is compared against
-        // `next`, and saying `latest` there would be the same wrong claim in the summary line.
-        ? `\nEvery @theokit/* dependency is current on the tag it tracks.\n`
-        : `\n${behind.length} of ${rows.length} behind. \`!!\` is a MAJOR — read its changelog and run the suite before taking it.\n`,
-    )
-    for (const f of failures) process.stderr.write(`could not check ${f.name}: ${f.reason}\n`)
+    renderTable(rows, failures)
   }
 
   if (failures.length > 0) process.exit(2)

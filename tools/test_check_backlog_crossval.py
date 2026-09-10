@@ -117,6 +117,15 @@ class CrossValidate(unittest.TestCase):
         self.assertEqual([b for b, *_ in report.problems], ["B-007"])
         self.assertIn("does not exist", report.problems[0][1])
 
+    def test_a_fix_whose_commits_touched_no_files_is_a_problem(self):
+        """A commit that exists but shows an empty diff verified nothing — an empty merge or a
+        mis-cited sha. This branch had no test when the 2026-09-10 architecture review measured
+        the function's path deficit; it is pinned before the classification was extracted."""
+        text = item("B-014", body="fixed_in: aaaaaaa\n`packages/a/src/b.ts`")
+        report = run(text, commits={"aaaaaaa": True})
+        self.assertEqual([b for b, *_ in report.problems], ["B-014"])
+        self.assertIn("touched no files", report.problems[0][1])
+
     def test_a_sha_that_resolves_in_no_local_history_is_skipped_not_flagged(self):
         """MEASURED before it was asserted, because the first draft of this test asserted the
         opposite. Two closed items are in this shape — B-053 `94fd582e (theokit)` and B-093
