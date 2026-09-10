@@ -19,8 +19,11 @@ CHANGELOG.md
 # B-073 — the BACKLOG is a PARSED record, not prose, and this file already knew the lesson for the
 # CHANGELOG two entries up without anyone extending it here.
 #
-# `tools/check-backlog-crossval.py:27` reads `^fixed_in: (.+)$` — anchored at column 0 — and line 32
-# skips an item whose value names an upstream repo. Running `prettier --write .` reflowed 6,982
+# `tools/check-backlog-crossval.py` reads `^fixed_in: (.+)$` — anchored at column 0, at `FIXED_IN`
+# — and skips an item whose value names no local commit. (Cited by line number until 2026-09-10;
+# the refactor that gave that file its first tests moved both, and a `path:line` pointer survives a
+# relocation by pointing at the wrong thing. The symbol does not move.) Running `prettier --write .`
+# reflowed 6,982
 # lines of this file and left THREE `fixed_in:` lines no longer starting a line: 128 became 125, and
 # crossval went from `0 problems / 42 skipped` to `3 problems / 39 skipped`.
 #

@@ -28,7 +28,7 @@
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
     "lint:english": "node tools/check-english-only.mjs",
-    "crossval": "python3 tools/check-backlog-crossval.py",
+    "crossval": "python3 -B -m unittest discover -s tools && python3 tools/check-backlog-crossval.py",
     "test:coverage": "vitest run --coverage",
     "blockers": "node tools/check-upstream-blockers.mjs"
   },
