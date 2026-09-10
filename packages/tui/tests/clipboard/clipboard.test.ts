@@ -19,7 +19,15 @@ const CANDIDATES: readonly ClipboardCommand[] = [
 const absent = { error: Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' }) }
 const ok = { status: 0 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/**
+ * Adapt a partial `spawnSync` stub to the `Runner` the module expects.
+ *
+ * Every case below sets only the fields `copyToClipboard` branches on — `error` for a binary that
+ * is not installed, `status` for one that is and refused the text. A real `SpawnSyncReturns<string>`
+ * also carries `pid`, `output`, `stdout`, `stderr` and `signal`, and spelling those out per fixture
+ * would bury the one field the case turns on under five the code never reads.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- widening is this helper's whole job, and keeping it here is what stops `any` reaching each fixture
 const runner = (fn: (bin: string, args: readonly string[], input: string) => unknown): any => fn
 
 describe('B-075 — copyToClipboard', () => {

@@ -1,6 +1,13 @@
-# Prettier 3 already honours `.gitignore` by default — every runtime artifact (`.theokit/`, `dist/`)
-# is excluded without being repeated here. This file declares ONLY what is versioned source and
-# still must not be rewritten by a machine.
+# Prettier 3 honours the `.gitignore` AT THE ROOT — every runtime artifact listed there (`.theokit/`,
+# `dist/`) is excluded without being repeated here. It does not read a NESTED one: measured
+# 2026-09-10, `dist/theocode.mjs` is skipped (root `.gitignore:4`) while `.complexipy_cache/README.md`
+# is offered for reformatting despite `.complexipy_cache/.gitignore` excluding it. A directory kept
+# out of git by its own nested file needs a line here as well, or `npm run format` will rewrite it.
+#
+# Otherwise this file declares ONLY what is versioned source and still must not be rewritten by a
+# machine. Most of what follows is here for one reason: the file's contract is that something PARSES
+# it, and "make this pretty" and "these bytes are read by a program" are answers to different
+# questions. The formatter only knows the first one.
 
 # #321 — the CHANGELOG is immutable history: the project's changelog rule forbids editing an entry
 # of an already-released version, and `prettier --write .` changed 224 lines of it (inserting a blank
@@ -32,3 +39,12 @@ CHANGELOG.md
 # file's contract was "these lines are parsed". Measured, restored from the pre-format commit, and
 # verified back to 128 and 0 problems.
 BACKLOG.md
+
+# #38 — the lockfile, which is generated, parsed, and the largest thing `npm run format` would
+# silently rewrite. Measured 2026-09-10: `prettier pnpm-lock.yaml` differs on 3,292 of its 3,763
+# lines, exploding every `resolution: {integrity: sha512-…}` onto four lines of its own. Nothing
+# about the resolution changes and nothing good comes of it — pnpm rewrites the file on the next
+# install, so the diff is churn that survives exactly until someone runs the package manager, while
+# sitting in review as three thousand lines that hide whatever real dependency change shipped
+# beside it. Same class as the CHANGELOG and the BACKLOG above: a record with a machine reader.
+pnpm-lock.yaml

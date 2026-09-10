@@ -9,6 +9,36 @@ file holds the one thing no gate can check: **how to know that what you measured
 `npm run lint && npm run typecheck && npm test && npm run depcruise` before a commit. `npm run build`
 before believing anything about the binary.
 
+### Formatting is a separate channel, deliberately
+
+`npm run format:check` reports every file that does not match `.prettierrc`; `npm run format`
+rewrites them. Neither is in `npm run lint`, and neither should be added to it. That chain decides
+whether a build is allowed to exist, and a brace style is not that — put the two in one channel and
+a correctness gate fails the same way a whitespace preference does, after which the whole channel
+gets read as noise. `lint` blocks; `format:check` informs.
+
+It reports well over a hundred files on any given day — drift accumulated across the life of the
+repository, not anything a new change introduced. No number is quoted here on purpose: it moves with
+every commit, and this file has published an unreproducible figure before. `npm run format:check`
+prints its own total on the last line — read that, and resist recounting it with a pipe. The first
+attempt at this paragraph did exactly that and was off by one, because the summary line starts with
+the same `[warn] ` prefix as every path above it.
+
+Clearing that backlog is a separate mechanical commit nobody has made. The check was added ahead of
+the cleanup on purpose — the drift only became visible because something finally prints it, and a
+style declared in `.prettierrc` that no channel ever checked is a style nobody agreed to.
+
+Run `format` on what your change touched, not across the tree. A formatting diff spread over
+unrelated files is where a real change hides, and this repository has the receipt: reformatting
+`per-session.test.ts` pushed a `describe` block past `max-lines-per-function`, which is documented in
+`eslint.config.mjs` as the reason that rule is now off for test files.
+
+**Before formatting anything, check `.prettierignore`.** It is not a tidiness list. Every entry is a
+file some program PARSES, and the comments there record what happened when one was reformatted —
+`prettier --write .` took three `fixed_in:` lines in `BACKLOG.md` off column 0 and turned
+`tools/check-backlog-crossval.py` from 0 problems into 3. Adding a machine-read record to this
+repository means adding a line there in the same change.
+
 Green gates are necessary and not sufficient. For a change that alters what the product *does* —
 a dependency bump, a new option reaching the framework, anything about what the agent can read —
 exercise the built binary in a throwaway project. The suite mocks the boundary this kind of change
@@ -124,6 +154,41 @@ revert correct behaviour.
 
 Before reporting a negative, run the arm that should succeed. If it also fails, the probe is what is
 broken.
+
+### A guard's own suite passes when the guard has been switched off
+
+The section above is one probe. This is the same fault at the scale of a test file, and most of this
+tree already follows the convention — measured 2026-09-10, 132 of 209 test files carried a case
+whose prose named it. It was written down nowhere a clone could read: the normative file that states
+it, `rules/testing.md`, lives under `.claude/` and does not ship.
+
+A guard test has two halves and both carry load:
+
+- **Lead with a fixture that MUST fail.** The first case feeds the guard input it is supposed to
+  reject, and asserts the rejection. Without it, a guard that has quietly become a no-op — a
+  mis-glob, an early return, a zero-length match set — passes its own suite and exits 0 in the lint
+  chain. That is worse than having no guard, because a green build is read as evidence.
+  `tools/check-english-only.mjs` reported clean over 144 Portuguese identifiers while its every fix
+  was "verified" by running it once and reading the output.
+- **Carry a floor asserting the guard does NOT fire on the clean case.** Without it, a guard that
+  flags everything satisfies the first half. Only the pair pins the behaviour between *rejects
+  nothing* and *rejects everything* — each half alone is satisfied by one of the two degenerate
+  guards, and those are the two failure modes a checker actually has.
+
+`tools/check-artifact-promotion.test.mjs`, `tools/check-doc-references.test.mjs` and
+`tools/check-english-only.test.mjs` are written this way and say so in their headers.
+
+**It is not only for checkers**, and the case that bought the convention was not one.
+`packages/agent/tests/aggregate-cut-wiring.test.ts` asserts that an oversized rule corpus gets cut —
+an assertion a build satisfies by reporting a cut *unconditionally*. The previous attempt at that
+item named that exact mutant in its own plan, shipped with it alive, and the commit was green across
+three new tests and the whole suite: 203 files, 1,530 passed, 0 failed. A human found it afterwards.
+The arm that fails against it — *a rule corpus that fits carries no aggregate cut at all* — exists
+now, and is the only one in that file that does.
+
+**Nothing enforces this.** A grep cannot tell a floor from a comment mentioning one, and the
+instrument that could — mutation testing — is a bigger decision than this paragraph. It is held by
+review, which is the reason it is written here instead of assumed.
 
 ### Two legitimate artifacts can disagree, and only one is executed
 
