@@ -73,7 +73,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-173`](#b-173--the-prompt-ceiling-is-per-loader-call-not-per-prompt----) | The prompt ceiling is per loader call, not per prompt | `raw` | — |
+| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `triaged` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
@@ -7362,14 +7362,21 @@ domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: `.claude/agents/review-two-operator-roots-2026-09-09/findings/architecture-v2.yaml` (F-arch-v2-3), reproduced on an unmodified tree
+evidence: `.claude/records/discoveries/opportunities/status-reports-untruncated-rules-opportunity.md` (SHIPPABLE, 4 pointers verified)
 why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
 
 What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
-status: raw
+status: triaged
 dod:
   - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
   - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
+
+> MEASURED, NOT IMPLEMENTED — and the reason is the ordering, not the size. `publishWiring` runs at `packages/agent/src/chat.ts:194`; the aggregate truncation happens at `:615`. **The record is published before the cut exists.**
+>
+> Reflecting it needs one of: publishing later (changing WHEN `onWired` fires for every consumer), publishing twice (and `wiring-record.ts` documents `undefined` as meaningfully distinct from "wired nothing", so a second publish needs its own semantics), or duplicating the aggregate budget arithmetic (which is how two copies of one number drift — `vitest.config.ts` and `check-coverage-floor.mjs` already paid for that this session).
+>
+> Each is a contract decision reaching past this item, which is the same shape as `homeStateDir` in B-171: a decision about one surface does not belong inside the function five subsystems share. Option 1 is probably right — `onWired` is documented as "what the last build actually wired", and a record published before the last cut does not describe that — but it deserves its own plan.
+
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
