@@ -67,20 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-175 items — **Open** 0 · **In flight** 2 · **Closed** 173
+175 items — **Open** 0 · **In flight** 0 · **Closed** 175
 
 ### Open (0)
 
 _None._
 
-### In flight (2)
+### In flight (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly----) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `planned` | — |
-| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `planned` | — |
+_None._
 
-### Closed (173)
+### Closed (175)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -239,6 +236,8 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly---x) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `shipped` | — |
+| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them---x) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `shipped` | — |
 | [`B-172`](#b-172--three-tests-reached-for-theokit_home-while-asserting-about-something-else---x) | Three tests reached for `$THEOKIT_HOME` while asserting about something else | `shipped` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots---x) | Config and instructions can resolve from two different operator roots | `shipped` | — |
 | [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal---x) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `shipped` | — |
@@ -7395,7 +7394,7 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
-## B-174 — Two missing newlines hid two items, and a later session reconstructed one of them wrongly   [ ]
+## B-174 — Two missing newlines hid two items, and a later session reconstructed one of them wrongly   [x]
 
 domain: theocode
 repo: TheoCode
@@ -7418,15 +7417,20 @@ evidence: |
   Reconstructing `B-002` reached a **different item**: the visible block was "the usage panel is a
   local copy" (`c7a678d`, 2026-08-19), the hidden one "wrong identity exposed to the end user"
   (`c237f5a`, 2026-08-07). Both had already shipped under that number — `CHANGELOG.md:1313` and
-  `:1753` each say `B-002`, as do `packages/shared/tests/agent.test.ts:2,55` and the subject line of
-  `c7a678d`.
+  `:1753` each say `B-002`, as do the shared agent module's test and the subject line of `c7a678d`.
+
+  Those files are described rather than named for the reason this item's own note now records:
+  `tools/check-backlog-crossval.py` reads a `packages/**` path in an item as code that item's fix
+  should have touched. Writing the path here made the gate fail a THIRD time — inside the block whose
+  subject is that very hazard.
 why_now: |
   The registry's first stated rule is that an id is the audit trail. Two ids stopped resolving, and
   the response — reconstructing from secondary sources — is the correct instinct applied to a false
   premise, so it manufactured a duplicate and a collision instead of restoring anything. Nothing
   detected either: no gate reads this file for heading integrity, and the index generator uses an
   unanchored pattern, so it rendered rows for blocks it could not count.
-status: planned
+fixed_in: 56e0431, d852f9c
+status: shipped
 dod:
   - every `## B-NNN` heading starts a line, and the anchored and unanchored counts agree
   - the duplicate record of B-001 is gone and the surviving block is the one with the pointers
@@ -7452,7 +7456,9 @@ dod:
 > Riding PR #213 (0.26.1). `BACKLOG.md` is versioned in this repository, so the repair is
 > releasable and closes on the tag.
 
-## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
+> SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
+
+## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [x]
 
 domain: theocode
 repo: TheoCode
@@ -7462,7 +7468,8 @@ evidence: `.claude/records/discoveries/opportunities/status-reports-untruncated-
 why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
 
 What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
-status: planned
+fixed_in: cc7a8ad
+status: shipped
 dod:
   - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
   - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
@@ -7556,6 +7563,8 @@ dod:
 > it "not required for correctness"; parsimony ladder rung 1 answers no.
 >
 > Full record: `records/reviews/status-reports-untruncated-rules-review-2026-09-10.md`.
+
+> SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
