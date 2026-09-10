@@ -33,6 +33,29 @@ function write(rel: string, name: string, body: string): void {
 
 const silent = (): void => {}
 
+/**
+ * B-172 — `$THEOKIT_HOME` is isolated because `userAgentsMdPath` HONOURS it, correctly: it resolves
+ * through `homeStateDir(env, home)` like config, the trust store and MCP scopes do. So an operator
+ * who exports it sends this test's loader looking somewhere other than the `home` the test built,
+ * and the failure is the test reaching into the environment — not the product ignoring it.
+ *
+ * Worth the comment because the opposite was recorded first: three failures under an exported
+ * `$THEOKIT_HOME` were registered as a product defect (B-172) without opening this file, which is
+ * the same inference that put a documented skills boundary through a whole implement-and-revert
+ * cycle earlier the same day.
+ */
+const realStateDir = process.env.THEOKIT_HOME
+
+beforeEach(() => {
+  delete process.env.THEOKIT_HOME
+})
+
+afterEach(() => {
+  if (realStateDir === undefined) delete process.env.THEOKIT_HOME
+  else process.env.THEOKIT_HOME = realStateDir
+})
+
+
 describe('#72 — user AGENTS.md in the unified directory', () => {
   it('test_the_unified_location_is_read', () => {
     write('.theokit', 'AGENTS.md', 'unified instruction\n')

@@ -16,13 +16,25 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const realHome = process.env.HOME
+
+const realStateDir = process.env.THEOKIT_HOME
+
+beforeEach(() => {
+  // B-172 — `$THEOKIT_HOME` outranks the `home` argument by design: `homeStateDir` reads the env
+  // first, and config, the trust store and MCP scopes all resolve through it. An operator who
+  // exports it therefore sends this file's builds to their own state dir, and the seam these tests
+  // pin has nothing to do with that. Isolating it is what makes the assertions about the SEAM.
+  delete process.env.THEOKIT_HOME
+})
 
 afterEach(() => {
   if (realHome === undefined) delete process.env.HOME
   else process.env.HOME = realHome
+  if (realStateDir === undefined) delete process.env.THEOKIT_HOME
+  else process.env.THEOKIT_HOME = realStateDir
 })
 
 function operatorRootWithAgentsMd(marker: string): string {

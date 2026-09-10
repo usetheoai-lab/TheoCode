@@ -67,14 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-173 items — **Open** 6 · **In flight** 4 · **Closed** 163
+173 items — **Open** 5 · **In flight** 4 · **Closed** 164
 
-### Open (6)
+### Open (5)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
 | [`B-173`](#b-173--the-prompt-ceiling-is-per-loader-call-not-per-prompt----) | The prompt ceiling is per loader call, not per prompt | `raw` | — |
-| [`B-172`](#b-172--agentsmd-is-the-last-operator-surface-that-ignores-the-configured-state-dir----) | `AGENTS.md` is the last operator surface that ignores the configured state dir | `raw` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 | [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `triaged` | — |
@@ -89,7 +88,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
 
-### Closed (163)
+### Closed (164)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -247,6 +246,7 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-172`](#b-172--three-tests-reached-for-theokit_home-while-asserting-about-something-else---x) | Three tests reached for `$THEOKIT_HOME` while asserting about something else | `shipped` | — |
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
@@ -7370,7 +7370,7 @@ dod:
   - `truncated` is true whenever any content was dropped on the way, so `/status` cannot report "N loaded" over a dropped file
   - a test builds a prompt from two loads that each fit and fails if their sum exceeds the ceiling silently
 
-## B-172 — `AGENTS.md` is the last operator surface that ignores the configured state dir   [ ]
+## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
 domain: theocode
 repo: TheoCode
@@ -7378,12 +7378,21 @@ suggested_mode: bug
 source: discover-review
 evidence: measured 2026-09-09 with a control run
 why_now: With `THEOKIT_HOME` exported, three tests fail and all three are about `AGENTS.md`: `context/unified-home-context.test.ts` twice (`test_the_unified_location_is_read`, `test_the_unified_location_wins_when_both_exist`) and `context/operator-home-seam.test.ts::test_the_operators_agents_md_follows_the_parameter_too`. **Corrected 2026-09-09, twice.** The '8' was wrong: `git stash` without `-u` left the three new test files in place, correctly RED because the fix was stashed, so the control counted them as pre-existing failures — the exact error a reviewer had been corrected for earlier in this session, repeated by me in the commit that cited it. A reviewer then reported the count as 3 inside the home and 5 outside; that is wrong too, and so was my inverted version of it (5 inside, 3 outside). **With the content controlled — two EMPTY directories — it is 3 and 3.** The variable was never the location; it is what the pointed-at directory HOLDS, which is why a bare failure count under `THEOKIT_HOME` is not a control at all. `loadUserAgentsMd` joins a fixed directory name to the home exactly as the rules loader did before B-171, which is why the same class of failure survives on the one surface that item did not touch. Config, trust store, MCP scopes and now rules all resolve through `homeStateDir`; `AGENTS.md` is the outlier left.
-status: raw
+status: shipped
 dod:
   - `loadUserAgentsMd` reads the instruction file from the configured state dir when one is set
   - the default location still loads when it is not, asserted rather than assumed
   - with `THEOKIT_HOME` pointing at an EMPTY directory the suite has zero failures — the qualifier is load-bearing, because the count moves with that directory's contents and a bare number measures nothing
   - the same holds whether that directory is inside the home or outside it, asserted rather than assumed
+
+> **The title above is the corrected one. The premise I filed this under was WRONG**, and measuring it took one `grep`: `userAgentsMdPath` (`packages/agent/src/context/user-agents-md.ts:44-52`) ALREADY resolves through `homeStateDir(env, home)`, exactly like config, the trust store and MCP scopes. It ignores nothing.
+>
+> The three failures were real; the cause was not the product. The tests write to `$home/.theokit/AGENTS.md` and the loader — honouring the env correctly — looks where the operator pointed. So an operator with `$THEOKIT_HOME` exported saw three red tests that were about their environment, not their code.
+>
+> **This is the same inference that put a documented skills boundary through a whole implement-and-revert cycle earlier today**, repeated after I had written that lesson into B-171's own record. It cost a file read this time instead of a cycle, only because the `grep` came first.
+>
+> FIXED 2026-09-09: `$THEOKIT_HOME` is isolated in `unified-home-context.test.ts` and `operator-home-seam.test.ts`, with the reason written where the next reader meets it. Measured: the suite goes from 3 failures to **0** with an empty `$THEOKIT_HOME` exported, and stays at 1553 passing without it.
+
 
 ## B-171 — Config and instructions can resolve from two different operator roots   [ ]
 
