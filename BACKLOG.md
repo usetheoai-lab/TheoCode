@@ -7380,12 +7380,17 @@ dod:
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
+fixed_in: 6c45a49
+
 domain: theocode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
 evidence: measured 2026-09-09 with a control run
-why_now: With `THEOKIT_HOME` exported, three tests fail and all three are about `AGENTS.md`: `context/unified-home-context.test.ts` twice (`test_the_unified_location_is_read`, `test_the_unified_location_wins_when_both_exist`) and `context/operator-home-seam.test.ts::test_the_operators_agents_md_follows_the_parameter_too`. **Corrected 2026-09-09, twice.** The '8' was wrong: `git stash` without `-u` left the three new test files in place, correctly RED because the fix was stashed, so the control counted them as pre-existing failures — the exact error a reviewer had been corrected for earlier in this session, repeated by me in the commit that cited it. A reviewer then reported the count as 3 inside the home and 5 outside; that is wrong too, and so was my inverted version of it (5 inside, 3 outside). **With the content controlled — two EMPTY directories — it is 3 and 3.** The variable was never the location; it is what the pointed-at directory HOLDS, which is why a bare failure count under `THEOKIT_HOME` is not a control at all. `loadUserAgentsMd` joins a fixed directory name to the home exactly as the rules loader did before B-171, which is why the same class of failure survives on the one surface that item did not touch. Config, trust store, MCP scopes and now rules all resolve through `homeStateDir`; `AGENTS.md` is the outlier left.
+why_now: Three tests fail whenever an operator exports `$THEOKIT_HOME`: `packages/agent/tests/context/unified-home-context.test.ts` twice and `packages/agent/tests/context/operator-home-seam.test.ts` once. They write their fixture under the `home` they built and let the environment decide where the loader looks, so an ordinary local setting turns them red for reasons that have nothing to do with what they assert.
+
+  **This item was filed against the wrong cause and the record keeps both.** The original text claimed `AGENTS.md` was the last operator surface ignoring the configured state directory. One read of `packages/agent/src/context/user-agents-md.ts` refutes it: `userAgentsMdPath` already resolves through `homeStateDir(env, home)`, exactly like config, the trust store and MCP scopes. The product was right; the tests reached for the environment. That file is deliberately NOT touched by the fix, which is why the cross-validation gate flagged this item — correctly — when the text still named it.
+
 status: shipped
 dod:
   - `loadUserAgentsMd` reads the instruction file from the configured state dir when one is set
