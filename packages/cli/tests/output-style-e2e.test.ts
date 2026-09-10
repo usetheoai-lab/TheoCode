@@ -18,6 +18,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { composeRun } from '../src/run-composition.js'
 
+/**
+ * B-167 — the operator root. `CompositionSeams` already carried it as `userDir`; it simply was not
+ * forwarded to the build, so this test read whatever `~/.theokit/` the machine held.
+ */
+const OPERATOR_HOME = mkdtempSync(join(tmpdir(), 'b167-cli-home-'))
+
 let cwd: string
 let store: string
 
@@ -41,7 +47,7 @@ function styled(name: string, body: string, keep: boolean): void {
 }
 
 async function compiledText(): Promise<string> {
-  const composed = await composeRun({ overrides: [] }, { cwd, store })
+  const composed = await composeRun({ overrides: [] }, { cwd, store, userDir: OPERATOR_HOME })
   return JSON.stringify(compileAgentModule(composed.mod, 'style-e2e'))
 }
 

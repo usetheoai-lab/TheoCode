@@ -97,6 +97,15 @@ export async function buildChatAgent(overrides: {
    * that IS the choice rather than a default buried six frames deep.
    */
   cwd: string
+  /**
+   * B-167 — the operator's root. Defaults to `homedir()`, which is what every existing caller gets.
+   *
+   * It exists because `cwd` alone was not enough to make a build hermetic: the operator's skills,
+   * rules and `AGENTS.md` all arrive through this root, and reaching them meant setting `HOME` for
+   * the whole process. Measured before it existed — the same commit reported 2646/4488 with an empty
+   * home and 2648/4488 with a populated one.
+   */
+  home?: string
   reasoning_effort?: ReasoningEffort
   posture?: TrustPosture
   config?: EffectiveConfig
@@ -105,6 +114,27 @@ export async function buildChatAgent(overrides: {
   sessionPty?: SessionPtyOwner
 }) {
   const { posture, cfg, writePolicy, registry, modelId, cwd } = chatContext(overrides)
+  // B-167 — resolved ONCE here, for the same reason `searchConfigured` is decided once below: the
+  // three sites that read the operator's root in this build are three chances to disagree.
+  //
+  // Those three were named in the item before any code was written — `chat.ts` twice and
+  // `composition-record.ts` once. The first pass migrated TWO of them and shipped, and the third
+  // went on reading the machine, so the operator's rules followed this value while their `AGENTS.md`
+  // did not.
+  //
+  // The lesson is NOT "the list was too short" — an earlier note here said that, and it was wrong.
+  // The list was correct and complete. An item on it was not ticked off. What a second pass needed
+  // was to re-read the three names it already had, not a wider search.
+  //
+  // (`grep -c 'homedir()'` was also prescribed here as the check. Do not: it counts these comments.
+  // It returns six against one executable call, and every paragraph written about the miss inflates
+  // it further. `packages/agent/tests/context/operator-home-seam.test.ts` is the check that holds,
+  // because it fails on behaviour rather than on a word.)
+  //
+  // Sites BEYOND this build's three still read the ambient home — trust store, config, hook trust,
+  // MCP scopes — and are not redirectable by this parameter. That is B-171, and it is why the
+  // CHANGELOG entry claims only what this function resolves.
+  const operatorHome = overrides.home ?? homedir()
 
   const interactiveBackend = resolveInteractiveBackend(overrides, cfg)
   // B-055 — a surface that wants to SHOW a veto passes a listener. The signal leaves at the veto
@@ -116,8 +146,8 @@ export async function buildChatAgent(overrides: {
   // written by two different functions, and the framework refuses a map naming a tool it was not
   // given — so two reads that disagreed would crash the user's terminal at construction.
   const searchConfigured = webSearchConfigured()
-  const rules = bothRuleRoots(cwd)
-  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules }
+  const rules = bothRuleRoots(cwd, operatorHome)
+  const baseCtx = { cfg, modelId, posture, providerPlugins, registry, overrides, cwd, rules, operatorHome }
   const base = baseAgent({ ...baseCtx, searchConfigured })
 
   const withWrites = withWriteTools(base, {
@@ -145,7 +175,7 @@ export async function buildChatAgent(overrides: {
   // the SKILL.md convention, which fails SILENTLY when the format moves — frontmatter lands inside
   // the instructions and nothing reports it. Four of the five call sites were already in async
   // functions, so the ripple is an `await`, not a restructure.
-  const operatorSkills = await userSkills(homedir())
+  const operatorSkills = await userSkills(operatorHome)
 
   const chain = withShellAndProjectEntities(withWrites, {
     registry,
@@ -233,8 +263,16 @@ function projectDocument(
   cwd: string,
   /** #91 — read by the caller, so the prompt and the `/status` row come from ONE load. */
   rules: { project: RulesLoad; user: RulesLoad },
+  /**
+   * B-167, second pass — this site survived the first. The review measured it end to end with markers
+   * in two roots: rules followed the parameter, the operator's `AGENTS.md` followed the machine.
+   *
+   * It survived because the list of sites came from B-161's review, which named three, and that list
+   * was treated as a census instead of a starting point. A `grep homedir()` after the migration would
+   * have shown four.
+   */
+  home: string,
 ): string {
-  const home = homedir()
   const user = [loadUserAgentsMd(home), rules.user.text].filter(Boolean).join('\n\n')
   if (!posture.allows.agentsMd) return user
   return [user, loadAgentsMd(cwd), rules.project.text].filter(Boolean).join('\n\n')
@@ -524,6 +562,8 @@ function baseAgent(ctx: {
   searchConfigured: boolean
   /** #91 — the single rules load, so the prompt and `/status` cannot disagree. */
   rules: { project: RulesLoad; user: RulesLoad }
+  /** B-167 — the operator root this build resolved, so no site below reaches for `homedir()` again. */
+  operatorHome: string
   overrides?: {
     baseInstructions?: string
     appendInstructions?: string
@@ -570,7 +610,7 @@ function baseAgent(ctx: {
           // `keep-coding-instructions: true`. `overrides.baseInstructions` still wins over both: it
           // is a caller passing an explicit persona, which is a stronger statement than a file.
           overrides?.baseInstructions ?? baseInstructionsFor(cfg.output_style, { project: ctx.cwd }),
-          projectDocument(ctx.posture, ctx.cwd, ctx.rules),
+          projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
           overrides?.appendInstructions ?? '',
           { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
         ),

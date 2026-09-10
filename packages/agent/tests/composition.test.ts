@@ -17,7 +17,32 @@
  * (no API key, no network); the framework's `./testing` stream seam is for driving a RUN and is
  * deliberately not used here — there is no run to drive.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+/**
+ * B-161 — HOME is isolated here for the same reason `cwd` is: `buildChatAgent` reads the operator's
+ * root at `chat.ts:148` and `:237`, and the assertions below compare `agent.skills` against an EXACT
+ * list. An operator with a skill in `~/.theokit/skills/` therefore turns `[]` into `['their-skill']`
+ * and reddens two trust tests on their machine and nowhere else — reproduced with a single file.
+ *
+ * Loading the operator's own skill for an untrusted PROJECT is correct: the assertion messages are
+ * about what "an untrusted repo" contributed, and the operator's root is not the repo. What was
+ * wrong is the instrument — an exact-list assertion cannot tell the two origins apart, so it reads
+ * an operator's ordinary setup as a gate failure.
+ */
+const realHome = process.env.HOME
+
+beforeEach(() => {
+  process.env.HOME = mkdtempSync(join(tmpdir(), 'composition-home-'))
+})
+
+afterEach(() => {
+  if (realHome === undefined) delete process.env.HOME
+  else process.env.HOME = realHome
+})
 
 // Every import of a module under test is DYNAMIC and inside the test body. `vi.mock` is hoisted
 // above the import section, so a static import here evaluates `./config/index.js` — and therefore

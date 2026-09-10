@@ -67,20 +67,28 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-164 items — **Open** 2 · **In flight** 0 · **Closed** 162
+173 items — **Open** 2 · **In flight** 7 · **Closed** 164
 
 ### Open (2)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
-| [`B-161`](#b-161--three-independent-channels-make-coverage-measure-the-machine-not-the-code----) | Three independent channels make coverage measure the machine, not the code | `raw` | — |
-| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `triaged` | — |
+| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `triaged` | — |
+| [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
 
-### In flight (0)
+### In flight (7)
 
-_None._
+| Item | Title | Status | Severity |
+|---|---|---|---|
+| [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `planned` | — |
+| [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal----) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `planned` | — |
+| [`B-168`](#b-168--three-review-findings-with-no-home-a-missing-test-a-leaking-global-an-undiffable-plan----) | Three review findings with no home: a missing test, a leaking global, an undiffable plan | `planned` | — |
+| [`B-167`](#b-167--the-suite-reads-the-operators-home-so-coverage-still-varies-by-machine----) | The suite reads the operator's home, so coverage still varies by machine | `planned` | — |
+| [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one----) | The architecture detector picks the composite script over the dedicated one | `planned` | — |
+| [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression----) | The coverage-floor guard reads a partial report as a regression | `planned` | — |
+| [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd----) | Three tests isolate HOME and pass the real cwd | `planned` | — |
 
-### Closed (162)
+### Closed (164)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -238,9 +246,11 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-172`](#b-172--three-tests-reached-for-theokit_home-while-asserting-about-something-else---x) | Three tests reached for `$THEOKIT_HOME` while asserting about something else | `shipped` | — |
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
 | [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
 | [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
+| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `shipped` | — |
 | [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
 | [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
@@ -7346,6 +7356,222 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `.claude/records/discoveries/opportunities/status-reports-untruncated-rules-opportunity.md` (SHIPPABLE, 4 pointers verified)
+why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
+
+What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
+status: triaged
+dod:
+  - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
+  - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
+
+> MEASURED, NOT IMPLEMENTED — and the reason is the ordering, not the size. `publishWiring` runs at `packages/agent/src/chat.ts:194`; the aggregate truncation happens at `:615`. **The record is published before the cut exists.**
+>
+> Reflecting it needs one of: publishing later (changing WHEN `onWired` fires for every consumer), publishing twice (and `wiring-record.ts` documents `undefined` as meaningfully distinct from "wired nothing", so a second publish needs its own semantics), or duplicating the aggregate budget arithmetic (which is how two copies of one number drift — `vitest.config.ts` and `check-coverage-floor.mjs` already paid for that this session).
+>
+> Each is a contract decision reaching past this item, which is the same shape as `homeStateDir` in B-171: a decision about one surface does not belong inside the function five subsystems share. Option 1 is probably right — `onWired` is documented as "what the last build actually wired", and a record published before the last cut does not describe that — but it deserves its own plan.
+
+
+## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
+
+fixed_in: 6c45a49
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 with a control run
+why_now: Three tests fail whenever an operator exports `$THEOKIT_HOME`: `packages/agent/tests/context/unified-home-context.test.ts` twice and `packages/agent/tests/context/operator-home-seam.test.ts` once. They write their fixture under the `home` they built and let the environment decide where the loader looks, so an ordinary local setting turns them red for reasons that have nothing to do with what they assert.
+
+  **This item was filed against the wrong cause and the record keeps both.** The original text claimed `AGENTS.md` was the last operator surface ignoring the configured state directory. One read of `packages/agent/src/context/user-agents-md.ts` refutes it: `userAgentsMdPath` already resolves through `homeStateDir(env, home)`, exactly like config, the trust store and MCP scopes. The product was right; the tests reached for the environment. That file is deliberately NOT touched by the fix, which is why the cross-validation gate flagged this item — correctly — when the text still named it.
+
+status: shipped
+dod:
+  - `loadUserAgentsMd` reads the instruction file from the configured state dir when one is set
+  - the default location still loads when it is not, asserted rather than assumed
+  - with `THEOKIT_HOME` pointing at an EMPTY directory the suite has zero failures — the qualifier is load-bearing, because the count moves with that directory's contents and a bare number measures nothing
+  - the same holds whether that directory is inside the home or outside it, asserted rather than assumed
+
+> **The title above is the corrected one. The premise I filed this under was WRONG**, and measuring it took one `grep`: `userAgentsMdPath` (`packages/agent/src/context/user-agents-md.ts:44-52`) ALREADY resolves through `homeStateDir(env, home)`, exactly like config, the trust store and MCP scopes. It ignores nothing.
+>
+> The three failures were real; the cause was not the product. The tests write to `$home/.theokit/AGENTS.md` and the loader — honouring the env correctly — looks where the operator pointed. So an operator with `$THEOKIT_HOME` exported saw three red tests that were about their environment, not their code.
+>
+> **This is the same inference that put a documented skills boundary through a whole implement-and-revert cycle earlier today**, repeated after I had written that lesson into B-171's own record. It cost a file read this time instead of a cycle, only because the `grep` came first.
+>
+> FIXED 2026-09-09: `$THEOKIT_HOME` is isolated in `unified-home-context.test.ts` and `operator-home-seam.test.ts`, with the reason written where the next reader meets it. Measured: the suite goes from 3 failures to **0** with an empty `$THEOKIT_HOME` exported, and stays at 1553 passing without it.
+
+
+## B-171 — Config and instructions can resolve from two different operator roots   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `.claude/agents/review-operator-home-seam-2026-09-09/findings/architecture.yaml` (F-arch-2), measured end to end
+why_now: A review of B-167 measured a build where config came from one operator root and instructions from another, reachable through the public seams. One `composeRun` call with `userDir` and `THEOKIT_HOME` pointing at different roots, each holding its own `settings.json` and `rules/`, produced `cfg.model` from the `THEOKIT_HOME` root while the prompt carried the rules from `userDir`. Two causes meeting: `homeStateDir` puts the env var FIRST (`config/home-dir.ts:48-53`), while `userRuleRoots` DROPS a configured root that is not under `home` (`context/rules.ts:122-126`). Neither file was touched by B-167, so this is pre-existing in kind — but B-167 made it expressible per build, and `composeRun` forwards `seams.env` to config resolution (`run-composition.ts:88-94`) and not to the build (`:113-125`), so even a caller passing consistent seams gets one layer on the seam and one on `process.env`. The comment at `run-composition.ts:82-83` describes exactly this split for B-033, one call lower. A third finding sits beside it: `userSkills` hardcodes `.theokit` (`context/user-skills.ts:53`) and never calls `homeStateDir`, so under the supported `home_dir = .claude` setting rules read both roots, AGENTS.md follows `.claude`, and skills silently read only `.theokit/skills`.
+status: planned
+dod:
+  - one build resolves config, rules, skills and AGENTS.md from ONE operator root, or refuses and says which disagreed
+  - `composeRun` passes the same env to config resolution and to the build, or the divergence is a declared decision with a test
+  - a test fails if a future change lets two roots serve one build
+
+> EXTENDED 2026-09-09 by B-167's review, which instrumented `homedir()` with a mock and ran ONE `buildChatAgent({ cwd, home })`: **7 calls at 5 distinct sites** beyond the three the persona now shares — `config/trust-store.ts:23` and `:193`, `config/config.ts:510`, `hooks/hook-trust.ts:72`, `mcp-scopes.ts:102`. All inside the build, none redirectable by the `home` parameter.
+>
+> So a build can read the operator root from six places while its persona reads one. B-167's CHANGELOG entry was narrowed to claim only what that function resolves, rather than something about the build it does not satisfy.
+>
+> None of these files was touched by B-167, which is why they are here and not folded into it: a commit that fixed the persona seam AND four other subsystems would explain none of them.
+
+> ATTEMPTED AND REVERSED 2026-09-09 (`f51f69c` reversed by `97a8358`). Two reviewers, two BLOCKERs, both measured. What the attempt established is worth more than the attempt:
+>
+> **The skills half of this item is NOT a defect and must be removed from its scope.** `packages/agent/src/context/user-skills.ts:43-50` forbids reading `~/.claude/skills/` in as many words — *"importing it would hand this product a skill set nobody declared for it"* — with 39 foreign skills measured there, and `role-discovery.ts:59-63` and `skills-on-disk.ts:98` hold the same boundary. Routing skills through `homeStateDir` means that under the SUPPORTED `home_dir = .claude` the operator's own skills disappear and a foreign kit's arrive: measured `own_skills_lost: true`, and five previously-passing tests failed, two of them B-167's own seam tests. The original B-167 review observed the behaviour correctly; registering it here as a defect was an inference nobody checked against the file.
+>
+> **The rules half is real and its fix is bigger than it looked.** `mergeLoads` joined two already-assembled corpora, so the 64,000-char PROMPT ceiling never re-ran: 126,012 chars measured with `truncated: false`, plus `truncated` dropped and `kept > chars`. The correct shape is to collect blocks from BOTH bases and call `assemble` ONCE — which restructures `loadRulesFrom`. `composition-record.ts:141` already merges these correctly, so any fix must reuse it rather than write a second one.
+>
+> **Also measured, still open:** `$THEOKIT_HOME` inside the home but outside `.theokit` (`~/custom-state`) works and is undefended by any test; a symlinked `$THEOKIT_HOME` loads the same tree twice, because the inside/outside test is textual `relative()` and never `realpath`; and `loadUserRules` reads `process.env` directly while `userRuleRoots` takes an `env` seam no caller can reach.
+
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
+
+## B-170 — A `>` in a soft-cap dismissal reason silently voids the dismissal   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `.claude/records/implementations/soft-cap-dismissal-punctuation-implementation.md` — 3 of 6 tests RED against the old expression, 6 green after; the five plans of this session re-score with zero undismissed caps
+why_now: `run_structural.py:690` matches dismissals with `<!--\s*ADR-DISMISS-SOFT-CAP:\s*([a-z0-9_-]+)\s*:\s*[^>]+?-->`. The reason segment excludes `>`, so a reason written with an arrow — `it went 15 -> 0`, a natural way to state a before/after in this repository's own idiom — ends the match early and the dismissal registers as ABSENT. Reproduced: the same marker scored `undismissed_soft_caps: ['soft_cap_mutation_unconfigured_typescript']` with the arrow and `[]` without it, nothing else changed. The failure is silent in the worst way: the plan simply stays capped at 70 and demotes to NON_SHIPPABLE, which is indistinguishable from a cap that was never dismissed. `cycle-code-quality.md` records that an undismissable soft cap is a hard cap under another name; a dismissal that voids itself on punctuation is the same defect reached by accident.
+status: planned
+dod:
+  - a dismissal reason containing `>` registers the dismissal
+  - a malformed marker is REPORTED rather than ignored, so the author learns why the cap stands
+  - a test asserts both, and fails if the reason segment goes back to excluding a common character
+
+> VERIFIED LOCALLY 2026-09-09, NOT closed — the fix lives in `.claude/`, gitignored, so it reaches this checkout and no other. The port is B-169's subject.
+>
+> A second defect surfaced while testing the first: an EMPTY reason dismissed the cap, because `\s*` absorbed the nothing between the colon and the closer. A dismissal with no justification is what the audit trail exists to refuse, and it had been accepted all along.
+>
+> The finding behind both: **the function that decides whether a plan may enter `/implement` had no test at all.** That is why a punctuation defect and an empty-reason defect both lived in one expression unnoticed.
+
+
+## B-169 — Two kit copies diverge, and the port that would close B-166 has nowhere safe to land   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: measured 2026-09-09 during B-166
+why_now: Two facts, one cause. (1) B-166's fix is verified in this checkout and cannot ship from here: `.claude/` is gitignored, so it reaches one machine. The same three lines stand at `skills/code-quality/scripts/detectors/typescript.py:559-561` in `/home/paulo/Projetos/squad` (`git@github.com:paulohenriquevn/squad.git`), where a release reaches every consumer — but that working tree carries uncommitted work from another session (`M CHANGELOG.md`, `M mechanisms/README.md`, `A mechanisms/conventions/installed_plugins.py`), and committing on top of it would fold someone else's work into a commit that does not describe it. (2) The two copies have already drifted: `scripts/detectors/python.py` differs by 29 lines and `tests/test_python_detector.py` by 112, and `test_python_detector_flags_unused_function` FAILS in the installed copy while PASSING in the kit. So the gates running in this repository are not the gates the kit ships, and anyone running the kit's suite here meets a red test that is not theirs.
+status: triaged
+dod:
+  - B-166's fix exists in the kit repository, on a commit that describes only that fix
+  - the installed copy and the kit agree, or the divergence is recorded with the reason it is kept
+  - `test_python_detector_flags_unused_function` passes in this checkout, or its failure is explained by something other than drift
+
+> EXTENDED 2026-09-09 — a SECOND red test in the installed kit: `skills/plan-confidence/tests/test_real_plans_snapshot.py::test_snapshots_cover_active_plans_with_matrix` fails with ten active plans missing a snapshot entry, five of them predating this session's work. A missing snapshot is unrelated to any code change made here, so it is almost certainly pre-existing — **stated as inference, not measurement**: the attempt to prove it by reverting a parser and re-running left the file syntactically invalid and the run died in collection.
+>
+> With `test_python_detector_flags_unused_function`, that is two red tests in the kit's own suite in this checkout. Anyone running it meets failures that are not theirs, which is the cost of the drift this item is about.
+
+> MEASURED AND NOT ACTED ON, 2026-09-09. The blocker is not gone; it grew. The kit repository at `/home/paulo/Projetos/squad` now carries **65 modified files** on `workspace` (24 under `skills/`, 18 under `mechanisms/`, 14 under `tests/`), against the three recorded when this item was filed. Another session is working there now.
+>
+> `detectors/typescript.py` — the file B-166's fix touches — is NOT among them, so the port could technically be committed in isolation. It was not, and the reason is the branch rather than the file: `workspace` is shared and single, so a commit there joins the promotion PR of work that is half-finished, carried by a commit describing something else. If that session rebases or abandons the state, the fix travels with it silently.
+>
+> **What would unblock this:** the other session landing or parking its work, after which B-166's fix (`_depcruise_script` preferring a dedicated script) and B-170's fix (the dismissal-reason regex, plus refusing an empty reason) both port as one commit each.
+>
+> Both fixes are verified here and reach one machine until then. That is the whole cost this item exists to name.
+
+
+## B-168 — Three review findings with no home: a missing test, a leaking global, an undiffable plan   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: review
+source: discover-review
+evidence: `.claude/records/discoveries/opportunities/unowned-review-findings-opportunity.md` (SHIPPABLE) — 0 sites pass the real cwd today and nothing guards it; the record publishes at line 155 with 13 tests running after it
+why_now: B-161's review surfaced three HIGH/MEDIUM findings that belong to no single item and would otherwise be carried only in a review report nobody re-reads. (1) The plan declared a regression test `test_no_test_hands_build_chat_agent_the_real_cwd` and it was never written — verified absent by two agents independently — so the invariant T1.1 established is enforced by nothing and a future edit reintroduces it silently. (2) `recordWiring` mutates module-level state in `packages/tui/src/agent-session/wiring-record.ts` with no reset, so a test that publishes a record leaves `currentWiring()` set for every later test in the file; proven by probe, and one later test reads it through production and survives only because the fake omits `skills`. (3) A plan under `.claude/` cannot be diffed against the commits it describes, because the directory is gitignored — so "the plan was edited after implementation" is unfalsifiable here, which is itself the finding.
+status: planned
+dod:
+  - the T1.1 invariant has a test that fails when a test hands the build the real cwd
+  - publishing a wiring record in a test does not change what a later test in the same file observes
+  - either a plan's post-implementation edits are detectable, or the records state plainly that they are not
+
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
+
+## B-167 — The suite reads the operator's home, so coverage still varies by machine   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `.claude/records/implementations/operator-home-seam-implementation.md` — 15 truncation warnings to 0; coverage 2647/4489 with an empty home and with a 163,836-char one, measured twice in each
+why_now: B-161 closed the CHECKOUT axis — a clean clone and an installed checkout now agree on 2646/4488 across 239 files, 0 divergences. The HOME axis was never in that plan's Goal and is still open. Measured, same tree, same commit, only $HOME varying: an empty home gives 2646/4488 (58.95%) and 0 truncation warnings; a home holding `~/.theokit/rules` of 163,836 chars and one `~/.theokit/skills/` entry gives 2648/4488 (59.00%) and 15 warnings. The +2 lines land in `context/agents-md.ts` and `context/rules.ts`. Root cause is the missing half of the seam B-015 built: `ChatOverrides` carries `cwd` and no `home`, so `homedir()` is called at three independent sites in one build (`chat.ts:148`, `chat.ts:237`, `composition-record.ts:92`) and no caller can redirect it. A review subagent instrumented `node:fs` with a `--require` preload and counted 880 reads outside the checkout where the truncation probe counted 0 — the probe measures the consequence (passing the 64,000-char budget), not the read.
+status: planned
+dod:
+  - a full coverage run reports the same total with an empty home and with a populated one
+  - the seam is reachable: some caller can direct the operator root without setting a process-wide env var
+  - a test asserts it, and fails if a later change reintroduces an ambient home read
+
+> IMPLEMENTED 2026-09-09, not yet released. All three DoD bullets hold, each measured rather than asserted:
+> a full coverage run reports 2647/4489 with an empty home and with a populated one, twice in each; the
+> seam is reachable without a process-wide env var (`buildChatAgent({ home })`, and the CLI forwards the
+> `userDir` seam it already carried since B-015); and two tests pin it in both directions, including the
+> anti-vacuity one proving the default still reads the operator's real root.
+>
+> Every site had the shape B-161 documented four times — **the seam existed and the call site did not use
+> it.** In the CLI the seam had a name, `CompositionSeams.userDir`, and a comment at the call site
+> describing this exact defect on the previous axis. It stood there for two releases.
+>
+> The floor moved with it: 58.95 -> 58.96, in all three carriers.
+>
+> What this does NOT establish: that no third axis exists. No run varied `$THEOKIT_HOME`, `PATH`, the
+> timezone, or anything under `/etc`. The instrument that would answer it — a `--require` preload wrapping
+> `node:fs` — is recorded in B-168 as a method available, not as work done.
+
+## B-166 — The architecture detector picks the composite script over the dedicated one   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: `.claude/records/implementations/depcruise-script-selection-implementation.md` — matches on this manifest are `[lint, depcruise]`, first wins; `/code-quality` soft caps went from two to one after the fix
+why_now: measured 2026-09-09 during the CODE-QUALITY phase of B-161. `_depcruise_script` (in the installed kit's `detectors/typescript.py`) returns the FIRST package.json script whose command contains "depcruise". In this repo that is `lint`, because the lint chain ends with `npm run depcruise` — the dedicated `depcruise` script exists and is never selected. Reproduced by running the same selection logic against the manifest: matches are `['lint', 'depcruise']`, first wins. The audit then runs the whole lint chain (eslint, knip, seven checkers, the coverage-floor guard) instead of the cruise, and reports `auditor_unavailable_dependency-cruiser` when any unrelated link fails — while `depcruise` is on PATH and in node_modules/.bin, and `pnpm lint` cruises 278 modules with 0 violations.
+status: planned
+dod:
+  - the detector selects a script that runs only the cruise when one exists
+  - a repo whose only match is a composite script still gets a cruise, or an honest reason
+  - the fix lands in the kit repository, not only in this checkout's gitignored .claude/
+
+> VERIFIED LOCALLY 2026-09-09, and NOT closed — its own DoD bullet 3 requires the kit repository, which is unmet. `killed` was written here first and was wrong twice over: it means a hypothesis the measurement refuted, and this one held. Fixed and verified in this checkout: RED test, anti-vacuity sibling, 46 unit tests green, and the end-to-end proof — `/code-quality` stopped emitting `auditor_unavailable_dependency-cruiser`.
+>
+> `killed` is the registry's word for "this chain ends here", and the reason is not that the hypothesis failed — it held and the fix works. No release from THIS repository can carry it: `.claude/` is gitignored, so the change reaches one checkout.
+>
+> **The port is outstanding, and it is what would make this shippable.** The same three lines stand in the kit repository (`/home/paulo/Projetos/squad`, `skills/code-quality/scripts/detectors/typescript.py:559-561`). It was not ported because that working tree carries uncommitted work from another session, and committing on top of it would fold someone else's work into a commit that does not describe it. Registered as B-169.
+
+## B-165 — The coverage-floor guard reads a partial report as a regression   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: human
+evidence: `.claude/records/discoveries/opportunities/coverage-floor-partial-report-opportunity.md` (SHIPPABLE, 100)
+why_now: observed 2026-09-09 while closing B-161. Running `vitest run --coverage <one-file>` overwrites `coverage/coverage-summary.json` with that file's total (10.29%). The next `pnpm lint` read it and failed with "the floor 59.15% is above the measured total 10.29% — either the tree regressed, or the floor was declared against a different one", proposing a re-declaration. Nothing regressed and the floor was right; the report simply covered one file. The guard does print the report age, so it is not silent, but age does not distinguish a stale full run from a fresh partial one, and the message names neither possibility.
+status: planned
+dod:
+  - a report showing coverage for NO source file is not reported as a floor regression
+  - **corrected 2026-09-09, measured:** the original bullet said "a report produced by a single-file
+    run", which is broader than anything the JSON supports. A partial run that DOES cover files is
+    byte-identical to a real regression — `vitest run --coverage packages/agent/tests/context/rules.test.ts`
+    gives 0.8% over 2 of 239 files, and no rule can tell that from a tree that regressed to 0.8%.
+    The guard fails there, which is the safe side, and says so
+  - whatever the guard does instead, it names the scope it read, not only the age
+  - a real regression is still caught: a test asserts the true-positive path did not become a skip
+
+> STATUS CORRECTED 2026-09-09: this item completed DISCOVER through RELEASE and rides PR #211 (`READY_TO_MERGE`, review on disk, named in the 0.26.0 CHANGELOG). Its `status:` still read the pre-work value — a registry that misreports finished work as outstanding is the rot `cycle-maintenance.md` names, and it drifted here while the work itself was being measured carefully. `planned` and not `shipped`: nothing ships until the PR merges.
+
 ## B-164 — A cited section number is unverifiable, and two were wrong   [ ]
 
 domain: TheoCode
@@ -7409,21 +7635,29 @@ dod:
 
 > ACCEPTED_WITH_CAVEATS against tag v0.24.2 on 2026-09-09 — `.claude/records/acceptance/B-162-v0.24.2.md`. All five criteria exercised from the released artifact. AC2's 1527 decomposes as 1503 passed and 24 SKIPPED, which is the honest state without the kit. The caveat is that the convention is documented only in gitignored `.claude/`, registered as B-163.
 
-## B-161 — Three independent channels make coverage measure the machine, not the code   [ ]
+## B-161 — Three tests isolate HOME and pass the real cwd   [ ]
 
 domain: TheoCode
 repo: TheoCode
 suggested_mode: bug
 source: discover-review
-evidence: THREE independent channels, each isolated by changing one variable at a time and measured on the same commit. `packages/agent/src/context/agents-md.ts:62-66` — MECHANISM demonstrated, TRIGGER unidentified. The walk returns at the first `.git`, so it cannot leave the repository; `/home/paulo/CLAUDE.md`, named as the cause in this item's first two filings, DOES NOT EXIST, and `specs/CLAUDE.md` was falsified as a second candidate (45 lines with and without it). A context file placed above a checkout reproduces exactly this +1 in a controlled test, so the channel is real. Identifying what triggers it here is part of this item. `packages/agent/src/session/gc/per-session.ts` — `readTranscriptDir` reads `$THEOKIT_HOME`/`~/.theokit/projects/<encoded cwd>`, which holds 16 transcripts for the working tree's path and none for a `/tmp` one; proved by creating that directory for a `/tmp` checkout, which turned lines 60-62 covered with nothing else changed (+3 lines). `packages/agent/src/context/rules.ts:82` — the default `warn` callback of `loadRules` runs only when the rules corpus exceeds 64 000 chars, and an installed `.claude/rules/` is 248 669, so the total depends on the SIZE of the kit sitting beside the checkout (+1 line). Measured chain: 2658 (nothing) -> 2659 (+kit) -> 2660 (+ancestor) -> 2663 (maintainer's tree), all out of 4491. **Correction to this item's first filing:** it credited all four lines to the ancestor walk alone. `per-session.ts` has no ancestor walk and never calls `agents-md`; that attribution was wrong, and the rules-corpus channel was not named at all. Found by the review of B-159's hotfix.
+evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/coverage-measures-the-machine-opportunity.md` (SHIPPABLE_WITH_CAVEATS, 89). **The trigger is identified, after two attributions in this item's own history were falsified by execution.** Two full coverage runs at the same commit: clean worktree 2655/4488, working tree 2660/4488, and exactly three files differ. Per-statement instrumentation names the lines: `context/agents-md.ts:219` (`parts.push(`, runs only when a project document exists to compose), `context/rules.ts:82` (the default `warn`, behind a 64 000-char corpus threshold) and `session/gc/per-session.ts:60-62` (`readdirSync` of the transcript store). All three are production branches that execute only when the environment holds real content. The ancestor-walk hypothesis is dead: `agentsMdChain(process.cwd())` returns `[]` in the working tree, measured by writing the chain out from inside a test — `walkInstructionChain` stops at the first `.git`, which the repo root has. The actual trigger is three tests that set `process.env.HOME` to a temp directory and then pass `cwd: process.cwd()`: `context/user-skills.wiring.test.ts:39` and `:61`, and `wired-capabilities.test.ts:98`. They isolated the half they thought about and left open the half the content arrives through.
 why_now: B-159 declared a zero-slack coverage ratchet, so the total is now a gate rather than a statistic — and a gate on a number that varies with where the checkout sits fails for reasons that have nothing to do with the code. It already did: the floor was declared at this machine's 59.29% and the released artifact measured 59.2%, so `run_validation.py` and `pnpm lint` both FAILed on the tag. The immediate fix re-declared the floor from a clean checkout, which stops the bleeding and leaves the cause: `rules/testing.md` § 3 requires deterministic tests, and a test whose coverage depends on the home directory of the machine running it is not.
-status: raw
+status: planned
 dod:
   - all three channels are closed: the rules-corpus threshold, the context-chain trigger (which must first be IDENTIFIED — two candidates are already falsified) and the transcript store
-  - a test that reaches outside the repository fails, or is shown not to exist
+  - the three `cwd: process.cwd()` call sites take a controlled directory instead — **the original bullet asked the wrong question**: no test reaches outside the repository, three reach INTO the real tree on purpose, and the tree is what varies
   - total line coverage is the same number in a bare checkout, in one with a kit installed, and in the maintainer's tree — so the floor can be re-declared from any of them and the word `ratchet` becomes true everywhere
 
 > Registered 2026-09-09 from B-159's ACCEPTANCE run (verdict REJECTED, blocker defect).
+
+> CLOSED on its own axis, 2026-09-09 — `.claude/records/implementations/coverage-measures-the-machine-implementation.md`. Four channels, not three: `agents-md.ts` (three `cwd: process.cwd()` sites), `per-session.ts` (a test injecting `readdir`/`cwd` into `planSessionGC` and not into `runSessionGC`), and `rules.ts` twice — four `statusPanel` calls with no wiring record, plus `showStatus` reaching the same fallback through `currentWiring()`. One of those calls passed a PARTIAL record, which reaches the disk exactly like no record because `rules` is optional on the type; that is why three earlier claims of closure were wrong.
+>
+> The plan's Goal names the CHECKOUT axis, and on that axis it is met: a real `git clone` with its own install and this checkout each measured twice at 2646/4488, compared per file — 239 files, four metrics, zero divergences. Floor re-declared 59.15 -> 58.95 in both carriers.
+>
+> The earlier PARTIAL note recorded totals from a `git worktree` whose linked `node_modules` resolved `@theocode/*` back into the original tree; it measured a blend of both and its numbers are discarded, not restated.
+>
+> The HOME axis was never in this plan's Goal and is NOT closed: same tree, same commit, an empty home measures 2646/4488 and a home with a 163,836-char `~/.theokit/rules` measures 2648/4488. Registered as B-167. A populated home measures ABOVE the floor and inside `TOLERANCE`, so the declaration holds; it is the equality that is axis-scoped. Found by the review's testing specialist, which also broke two trust tests in `composition.test.ts` with a single operator skill — fixed here, since a suite that reddens on someone else's machine is a defect regardless of which axis it sits on.
 
 ## B-160 — The checker returns before the one comparison CI can make   [ ]
 
@@ -7433,13 +7667,15 @@ suggested_mode: evolve
 source: discover-review
 evidence: MEASURED — opportunity `.claude/records/discoveries/opportunities/ci-cannot-check-the-floor-opportunity.md` (SHIPPABLE, 99.1). The filed premise is true and its framing is wrong. `DECLARED_FLOOR = 59.15` IS tracked and does travel; what does not is `coverage.min_percent`, and CI does not need it — it can compare the tracked constant against the coverage it just measured. The logic already exists and is exercised: `evaluateFloor` fails on slack, so `DECLARED_FLOOR = 40` against a measured 59.15 gives FAIL at 19.15 points, which is exactly the mutant this item was filed about, dying with no `.claude/` present. The defect is one early return: `main()` exits before reaching that comparison when the thresholds file is absent, and prints *"The tracked floor is 59.15%; nothing here to compare it against"* while a coverage report sits in the directory beside it. Cost measured rather than assumed, per the third DoD bullet: `pnpm test` 42.5s, `pnpm test:coverage` 65.3s, the CI `test` job 70s — **+23s**, not the 1347s that made mutation testing disproportionate.
 why_now: B-159 declared a coverage floor as a ratchet and made a downward edit visible in a diff, which was the gap it set out to close. What it did not close is enforcement outside a developer machine: the number binds a checkout that installed the kit, and a clone that did not is governed by nothing. The limit is stated in `CHANGELOG.md`, in `vitest.config.ts` and in the plan's R3, so it is disclosed rather than hidden — but disclosure is not enforcement, and every item after B-159 inherits the gap.
-status: triaged
+status: shipped
 dod:
   - a coverage measurement runs somewhere CI can see it, or the decision not to is recorded with its reason where the floor is declared
   - mutating `DECLARED_FLOOR` fails the suite in a checkout with no `.claude/`, or the reason it cannot is written down
   - the cost of running coverage in CI is measured before it is adopted, not assumed
 
 > Registered 2026-09-09 from B-159's round-4 review (finding `F-guard-13-r3`, deferred half).
+
+> ACCEPTED_WITH_CAVEATS against tag v0.25.1 on 2026-09-09 — `.claude/records/acceptance/B-160-v0.25.1.md`. Criteria taken verbatim, the first this session needing no correction. AC2 failed twice before passing: the mutant survived the item's own first fix, because the fixtures were computed from the constant under test. The caveat is that no coverage step runs in CI, so the branch is armed for that environment rather than exercised in it.
 
 ## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
 

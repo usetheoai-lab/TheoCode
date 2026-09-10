@@ -16,6 +16,13 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+
+- Three tests no longer fail for operators who export `$THEOKIT_HOME`. They asserted about the
+  operator-root seam while letting the environment decide where the loader looked, so an ordinary
+  local setting produced three red tests that were about the environment rather than the code
+  (B-172).
+
 ### Added
 
 ### Changed
@@ -27,6 +34,66 @@ for `release.yml` in this repository will not find it, and should not have been 
 ### Fixed
 
 ### Security
+
+## [0.26.0] - 2026-09-09
+
+### Added
+
+- `buildChatAgent` accepts a `home` option naming the operator's root, defaulting to the real one.
+  The operator's skills, rules and `AGENTS.md` all arrive through that root, and reaching it meant
+  setting `HOME` for the whole process — which leaks across anything sharing the worker and cannot
+  express one build reading one root while a sibling reads another. The three sites that composed the
+  persona now share one resolved value. Other subsystems reached during a build — the trust store,
+  config resolution, hook trust, MCP scopes — still read the ambient home and are NOT redirected by
+  this option (B-167, with the remainder tracked as B-171).
+- `clearWiring()` beside `recordWiring`, so a test that publishes a wiring record does not decide what
+  the next test in its file observes. Vitest isolates per file, not per test, and one file had 13
+  tests running after a publisher with the record still set (B-168).
+- A suite guard that fails when any test hands `buildChatAgent` the real working directory. The
+  invariant held by nobody having broken it; B-161 spent four channels establishing it and its plan
+  declared this guard, which was never written (B-168).
+
+### Changed
+
+- The test suite no longer reads the checkout it runs in. Four tests reached ambient state — the
+  process working directory, the real transcript store, and the rules corpus on disk — so the
+  coverage total differed between an installed checkout and a clean clone of the same commit. Both
+  now measure 2646/4488, verified twice in each environment against a real clone with its own
+  install and compared per file across 239 files with no divergence. The total falls from 59.15% to
+  58.95%: roughly ten lines were only ever covered by tests reading the real rules corpus off disk,
+  which is coverage this repository had by accident of where the suite ran. The declared floor moves
+  with it (B-161).
+- Two trust tests no longer fail for operators who have a skill in `~/.theokit/skills/`. They
+  compared the agent's skill list against an exact array, which cannot tell an operator's own skill
+  from one contributed by an untrusted repository — so an ordinary local setup read as a gate
+  failure (B-161).
+
+### Fixed
+
+- The coverage-floor guard's tolerance is pinned at its exact boundary again. Two fixtures were the
+  old floor plus a delta; when the floor moved they stayed behind, and widening the tolerance stopped
+  being caught by any test (B-161).
+- `vitest.config.ts` stated a coverage floor two re-declarations out of date, in a tracked file every
+  clone reads. The test meant to prevent that checked only that the prose mentioned the right things,
+  never that its number was true; it now compares the two (B-161).
+- The coverage-floor guard no longer reports a partial coverage run as a floor regression. Any
+  `--coverage` invocation overwrites the same report path, so a single-file run left a report the
+  guard compared against a whole-tree floor — it failed `pnpm lint` and proposed re-declaring a floor
+  that was correct. A report showing coverage for no source file is now skipped by name; where a
+  partial run did touch files it is indistinguishable from a real regression, so the guard still
+  fails and the message names that third possibility instead of offering two that do not apply
+  (B-165).
+- The operator's rules now follow `$THEOKIT_HOME` when it points outside the home directory, as
+  config, the trust store and MCP scopes already did. One build could resolve config from one
+  operator root and its instructions from another: `homeStateDir` returns the configured path
+  verbatim, while the rules loader dropped any root it could not express relative to the home.
+  Both roots are read, and the 64,000-char prompt ceiling is applied once across them — an earlier
+  attempt assembled each root separately and merged, which let two corpora that each fit produce a
+  prompt of 126,012 chars reporting nothing truncated (B-171).
+- The two operator roots are compared by resolved path, so a home reachable by two names does not
+  have its rules read twice. `/home -> /var/home` on Fedora Silverblue, systemd-homed and any
+  symlinked `$HOME` produce that shape; measured there, two rule files came back as four and a corpus
+  that fit began truncating, dropping one of the operator's own files (B-171).
 
 ## [0.25.1] - 2026-09-09
 
