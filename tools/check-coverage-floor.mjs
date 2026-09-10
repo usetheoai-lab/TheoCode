@@ -130,6 +130,14 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *   58.95  declared at B-161's close, and the first one measured with the CHECKOUT axis actually
  *          closed rather than assumed: 2646/4488, twice in a real `git clone` with its own install
  *          and twice here, compared per file — 239 files, four metrics, zero divergences.
+ * *   62.03  2814/4536, declared 2026-09-10 after a code review's 62 findings were fixed. The
+ *          numerator moved because four clusters gained tests where there had been none: the
+ *          all-projects session sweep's APPLY phase (entered by no test at all, with two
+ *          data-losing defects inside it), the three-state hook trust classification, the consent
+ *          state model at 0%, and credential provenance at 0%. Measured under the protocol below
+ *          rather than from the working tree — twice in a real `git clone` with its own install
+ *          and an empty `$HOME`, and once here; all three returned 2814/4536 exactly, which is the
+ *          agreement the CHECKOUT axis being closed predicts.
  *
  * The drop from 59.15 is the point, not a regression. Those ~9 lines were covered only because
  * tests read the ambient environment; the repository had them by accident of where the suite ran,
@@ -160,7 +168,7 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 59.03
+export const DECLARED_FLOOR = 62.03
 
 /**
  * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.
