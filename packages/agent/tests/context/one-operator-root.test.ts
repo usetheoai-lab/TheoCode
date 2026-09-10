@@ -13,7 +13,7 @@
  * `~/.claude/skills/`, says so, and is backed by two sibling files; routing it through the state dir
  * imported another kit's corpus and dropped the operator's own.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -54,14 +54,18 @@ describe('the rules follow the state directory the operator configured', () => {
     const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
     const outside = mkdtempSync(join(tmpdir(), 'b171-state-'))
     ruleAt(join(home, '.theokit'), 'a.md', 'MARKER-FROM-THE-DEFAULT-ROOT')
-    ruleAt(outside, 'b.md', 'MARKER-FROM-THE-CONFIGURED-STATE-DIR')
+    ruleAt(join(home, '.theokit'), 'b.md', 'MARKER-ALSO-DEFAULT')
+    ruleAt(outside, 'c.md', 'MARKER-FROM-THE-CONFIGURED-STATE-DIR')
     process.env.THEOKIT_HOME = outside
 
     const load = loadUserRules(home, silent)
 
     expect(load.text).toContain('MARKER-FROM-THE-DEFAULT-ROOT')
     expect(load.text).toContain('MARKER-FROM-THE-CONFIGURED-STATE-DIR')
-    expect(load.read, 'both roots were read, so both must be counted').toBe(2)
+    // THREE against two roots, deliberately asymmetric: `read` counts BLOCKS, not roots, and the
+    // symmetric fixture this replaced asserted `2` — a number that reads as "both roots" and would
+    // survive a mutant hardcoding it. Two files here and one there is what tells the two apart.
+    expect(load.read, 'read counts blocks across both roots, not roots').toBe(3)
   })
 
   it('test_the_prompt_ceiling_still_applies_across_both_roots', () => {
@@ -71,15 +75,42 @@ describe('the rules follow the state directory the operator configured', () => {
     const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
     const outside = mkdtempSync(join(tmpdir(), 'b171-state-'))
     const big = 'x'.repeat(40_000)
-    ruleAt(join(home, '.theokit'), 'a.md', big)
-    ruleAt(outside, 'b.md', big)
+    ruleAt(join(home, '.theokit'), 'a.md', `MARKER-KEPT\n${big}`)
+    ruleAt(outside, 'b.md', `MARKER-DROPPED\n${big}`)
     process.env.THEOKIT_HOME = outside
 
     const load = loadUserRules(home, silent)
 
+    // These four together, because the first version asserted only an UPPER bound plus
+    // `kept === text.length` — which restates `assemble`'s own assignment and cannot fail. Measured:
+    // truncating everything to 100 chars passed it, keeping only the omission notice passed it, and
+    // removing the notice passed it. An upper bound alone cannot tell "the ceiling ran" from
+    // "something ate the corpus".
     expect(load.text.length, 'the merged corpus exceeded the prompt ceiling').toBeLessThanOrEqual(64_000)
+    expect(load.text.length, 'the ceiling did not truncate, something discarded the corpus').toBeGreaterThan(39_000)
     expect(load.truncated, 'a block was dropped and nothing said so').toBe(true)
-    expect(load.kept, 'kept must describe the text that survived').toBe(load.text.length)
+    expect(load.text, 'the surviving block is not the one that was kept').toContain('MARKER-KEPT')
+    expect(load.text, 'the dropped block reached the prompt anyway').not.toContain('MARKER-DROPPED')
+    expect(load.text, 'nothing told the reader that a rule was dropped').toMatch(/omitted|dropped|truncat/i)
+  })
+
+  it('test_the_same_tree_reached_by_two_paths_is_read_once', () => {
+    // `loadInstructionTree`'s cycle guard is per CALL, so splitting into two calls removed the only
+    // thing stopping one tree being walked twice. A home reachable by two paths is ordinary —
+    // `/home -> /var/home` on Fedora Silverblue, systemd-homed, any symlinked `$HOME`. Measured
+    // before the fix: two rule files came back as `read: 4`, and a corpus that fit began truncating,
+    // dropping one of the operator's own files.
+    const base = mkdtempSync(join(tmpdir(), 'b171-two-paths-'))
+    const real = join(base, 'real')
+    ruleAt(join(real, '.theokit'), 'a.md', 'MARKER-ONE')
+    ruleAt(join(real, '.theokit'), 'b.md', 'MARKER-TWO')
+    symlinkSync(real, join(base, 'alias'))
+    process.env.THEOKIT_HOME = join(base, 'alias', '.theokit')
+
+    const load = loadUserRules(real, silent)
+
+    expect(load.read, 'the same tree was walked twice, by its two names').toBe(2)
+    expect(load.text.match(/MARKER-ONE/g) ?? [], 'a rule appeared twice in the prompt').toHaveLength(1)
   })
 
   it('test_with_no_state_dir_configured_the_home_roots_still_load', () => {

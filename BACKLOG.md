@@ -67,12 +67,13 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-172 items — **Open** 5 · **In flight** 4 · **Closed** 163
+173 items — **Open** 6 · **In flight** 4 · **Closed** 163
 
-### Open (5)
+### Open (6)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
+| [`B-173`](#b-173--the-prompt-ceiling-is-per-loader-call-not-per-prompt----) | The prompt ceiling is per loader call, not per prompt | `raw` | — |
 | [`B-172`](#b-172--agentsmd-is-the-last-operator-surface-that-ignores-the-configured-state-dir----) | `AGENTS.md` is the last operator surface that ignores the configured state dir | `raw` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots----) | Config and instructions can resolve from two different operator roots | `raw` | — |
 | [`B-169`](#b-169--two-kit-copies-diverge-and-the-port-that-would-close-b-166-has-nowhere-safe-to-land----) | Two kit copies diverge, and the port that would close B-166 has nowhere safe to land | `triaged` | — |
@@ -7355,6 +7356,20 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
+## B-173 — The prompt ceiling is per loader call, not per prompt   [ ]
+
+domain: theocode
+repo: TheoCode
+suggested_mode: bug
+source: discover-review
+evidence: `.claude/agents/review-two-operator-roots-2026-09-09/findings/architecture-v2.yaml` (F-arch-v2-3), reproduced on an unmodified tree
+why_now: `MAX_CHARS` is 64,000 and `assemble` applies it once per LOADER CALL. `chat.ts:276-278` then concatenates `rules.user.text` and `rules.project.text`, each ceilinged separately, so the prompt receives up to twice the declared limit: **126,012 chars measured with `truncated: false`**. That is the same number that reversed B-171's first attempt — and a reviewer reproduced it on a tree with NO B-171 changes at all, so the defect predates that item entirely and the reversal diagnosed the wrong cause for the right symptom. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
+status: raw
+dod:
+  - the text that reaches the prompt is bounded by one declared ceiling, whichever loads compose it
+  - `truncated` is true whenever any content was dropped on the way, so `/status` cannot report "N loaded" over a dropped file
+  - a test builds a prompt from two loads that each fit and fails if their sum exceeds the ceiling silently
+
 ## B-172 — `AGENTS.md` is the last operator surface that ignores the configured state dir   [ ]
 
 domain: theocode
@@ -7362,12 +7377,13 @@ repo: TheoCode
 suggested_mode: bug
 source: discover-review
 evidence: measured 2026-09-09 with a control run
-why_now: With `THEOKIT_HOME` exported, three tests fail and all three are about `AGENTS.md`: `context/unified-home-context.test.ts` twice (`test_the_unified_location_is_read`, `test_the_unified_location_wins_when_both_exist`) and `context/operator-home-seam.test.ts::test_the_operators_agents_md_follows_the_parameter_too`. Measured against a control — the same suite in the same environment with the working tree stashed gives **8** failures, so these three are pre-existing and B-171's second attempt reduced the count rather than raising it. `loadUserAgentsMd` joins a fixed directory name to the home exactly as the rules loader did before B-171, which is why the same class of failure survives on the one surface that item did not touch. Config, trust store, MCP scopes and now rules all resolve through `homeStateDir`; `AGENTS.md` is the outlier left.
+why_now: With `THEOKIT_HOME` exported, three tests fail and all three are about `AGENTS.md`: `context/unified-home-context.test.ts` twice (`test_the_unified_location_is_read`, `test_the_unified_location_wins_when_both_exist`) and `context/operator-home-seam.test.ts::test_the_operators_agents_md_follows_the_parameter_too`. **Corrected 2026-09-09, twice.** The '8' was wrong: `git stash` without `-u` left the three new test files in place, correctly RED because the fix was stashed, so the control counted them as pre-existing failures — the exact error a reviewer had been corrected for earlier in this session, repeated by me in the commit that cited it. A reviewer then reported the count as 3 inside the home and 5 outside; that is wrong too, and so was my inverted version of it (5 inside, 3 outside). **With the content controlled — two EMPTY directories — it is 3 and 3.** The variable was never the location; it is what the pointed-at directory HOLDS, which is why a bare failure count under `THEOKIT_HOME` is not a control at all. `loadUserAgentsMd` joins a fixed directory name to the home exactly as the rules loader did before B-171, which is why the same class of failure survives on the one surface that item did not touch. Config, trust store, MCP scopes and now rules all resolve through `homeStateDir`; `AGENTS.md` is the outlier left.
 status: raw
 dod:
   - `loadUserAgentsMd` reads the instruction file from the configured state dir when one is set
   - the default location still loads when it is not, asserted rather than assumed
-  - with `THEOKIT_HOME` exported the suite has zero failures, or each remaining one is explained by something other than a hardcoded root
+  - with `THEOKIT_HOME` pointing at an EMPTY directory the suite has zero failures — the qualifier is load-bearing, because the count moves with that directory's contents and a bare number measures nothing
+  - the same holds whether that directory is inside the home or outside it, asserted rather than assumed
 
 ## B-171 — Config and instructions can resolve from two different operator roots   [ ]
 

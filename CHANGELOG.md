@@ -25,6 +25,10 @@ for `release.yml` in this repository will not find it, and should not have been 
   Both roots are read, and the 64,000-char prompt ceiling is applied once across them — an earlier
   attempt assembled each root separately and merged, which let two corpora that each fit produce a
   prompt of 126,012 chars reporting nothing truncated (B-171).
+- The two operator roots are compared by resolved path, so a home reachable by two names does not
+  have its rules read twice. `/home -> /var/home` on Fedora Silverblue, systemd-homed and any
+  symlinked `$HOME` produce that shape; measured there, two rule files came back as four and a corpus
+  that fit began truncating, dropping one of the operator's own files (B-171).
 
 ### Added
 

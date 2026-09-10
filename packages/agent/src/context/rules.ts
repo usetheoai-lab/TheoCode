@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
 
 import { loadInstructionTree } from '@theokit/agents/config'
@@ -145,8 +146,13 @@ export function loadUserRules(
   //
   // A base of its own rather than another root NAME, because `loadInstructionTree` joins names
   // against a base and `join('/home/op', '/srv/state/rules')` is `/home/op/srv/state/rules`.
-  const stateDir = homeStateDir(process.env, home)
-  const outside = relative(home, stateDir)
+  // Compared by REAL path, not by text. `loadInstructionTree`'s cycle guard is per CALL, so splitting
+  // into two calls removed the only thing stopping the same tree being walked twice — and a home
+  // reachable by two paths is ordinary, not exotic: `/home -> /var/home` on Fedora Silverblue,
+  // systemd-homed, any symlinked `$HOME`. Measured on this shape before the fix: two rule files came
+  // back as `read=4`, and a corpus that fit began truncating, dropping one of the operator's files.
+  const stateDir = realPath(homeStateDir(process.env, home))
+  const outside = relative(realPath(home), stateDir)
   if (outside.length === 0 || outside.startsWith('..') || isAbsolute(outside)) {
     blocks.push(...blocksFrom(stateDir, ['rules'], warn, budget))
   }
@@ -174,6 +180,21 @@ function loadRulesFrom(
   budget: TraversalBudget,
 ): RulesLoad {
   return assemble(blocksFrom(cwd, roots, warn, budget), warn)
+}
+
+/**
+ * A path with its symlinks resolved, or the path itself when it does not exist.
+ *
+ * Falling back rather than throwing: an operator may point `$THEOKIT_HOME` at a directory they have
+ * not created yet, and a missing rules directory is the ordinary case the loader already tolerates.
+ * Refusing to start over it would turn a shrug into a crash.
+ */
+function realPath(candidate: string): string {
+  try {
+    return realpathSync(candidate)
+  } catch {
+    return candidate
+  }
 }
 
 /**
