@@ -95,7 +95,7 @@ export default defineConfig({
      * construction. An experiment is blind to the variable it does not vary, and saying which
      * variable that was is the difference between a measurement and a slogan.
      *
-     * The declared floor is 59.03 — the MINIMUM over the space, not "the clean number". Three
+     * The declared floor is 62.03 — the MINIMUM over the space, not "the clean number". Three
      * earlier attempts got it wrong and each failure is worth keeping: 59.29 came from this tree
      * and the v0.24.0 tag failed against it; 59.2 came from a worktree with `.claude` linked in;
      * 59.18 and 59.15 were each correct when written and were left standing here after the floor
@@ -122,7 +122,7 @@ export default defineConfig({
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
-     * the next item, and 59.03% is a ratchet against the clean reading, never a target.
+     * the next item, and 62.03% is a ratchet against the clean reading, never a target.
      */
     coverage: {
       provider: 'v8',
