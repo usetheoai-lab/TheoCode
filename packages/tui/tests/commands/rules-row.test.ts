@@ -76,9 +76,10 @@ describe('B-173 — the row reflects BOTH ceilings, or says which one it saw', (
       aggregateCut: { from: 50_000, to: 20_000 },
     })
 
-    expect(row).toContain('12 loaded')
-    expect(row).toContain('50,000')
-    expect(row).toContain('20,000')
+    // `toBe`, not `toContain`: review showed that rendering the two clauses in the wrong order
+    // produced "; a later ceiling cut the block from 50,000 to 20,000 chars12 loaded" and passed
+    // every containment assertion. One equality pins order, separator and thousands-formatting.
+    expect(row).toBe('12 loaded; a later ceiling cut the block from 50,000 to 20,000 chars')
   })
 
   it('test_the_two_ceilings_are_reported_separately_and_never_as_one_percentage', () => {
@@ -95,8 +96,9 @@ describe('B-173 — the row reflects BOTH ceilings, or says which one it saw', (
       aggregateCut: { from: 64_000, to: 30_000 },
     })
 
-    expect(row).toContain('74% dropped')
-    expect(row).toContain('30,000')
+    expect(row).toBe(
+      '8 of 34 — 74% dropped (246,582 chars over the ceiling); a later ceiling cut the block from 64,000 to 30,000 chars',
+    )
   })
 
   it('test_no_second_cut_leaves_the_row_exactly_as_it_was', () => {

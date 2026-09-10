@@ -45,6 +45,10 @@ describe('composeInstructions reports what the aggregate ceiling cut', () => {
     // observable. What must hold is the direction: something was there, less of it survived.
     expect(cut?.from).toBeGreaterThan(0)
     expect(cut?.to).toBeLessThan(cut?.from ?? 0)
+    // An upper bound too, because `from` is PRINTED verbatim in the status row: review showed
+    // that direction alone let `rules.length + agentsMd.length` through, putting a number on
+    // screen that describes a block bigger than the document it came from.
+    expect(cut?.from).toBeLessThanOrEqual(`${agentsMd}\n\n${rules}`.length - agentsMd.length)
     expect(composed.text.length).toBeLessThanOrEqual(2_000)
   })
 
@@ -56,6 +60,38 @@ describe('composeInstructions reports what the aggregate ceiling cut', () => {
 
     expect(composed.cuts.map((c) => c.source)).toContain('surface')
     expect(composed.cuts.map((c) => c.source)).not.toContain('rules')
+  })
+
+  test('cutting the AGENTS.md chain does NOT report a rules cut', () => {
+    // The mirror of the surface arm, for the branch that had none. Review measured that
+    // relabelling this push `source: 'rules'` — the same defect the surface arm guards —
+    // survived all 1192 tests in the agent and TUI packages.
+    //
+    // A document with no `\n\n---\n\n` separator is entirely AGENTS.md as far as
+    // `splitProjectDoc` is concerned, so the first branch finds no rules to trim and the
+    // second branch is the one that fires.
+    const composed = composeInstructions('base', 'A'.repeat(4_000), '', budget(1_000))
+
+    expect(composed.cuts.map((c) => c.source)).toContain('agentsMd')
+    expect(composed.cuts.map((c) => c.source)).not.toContain('rules')
+  })
+
+  test('a composition exactly at the ceiling is not a cut', () => {
+    // The `>` versus `>=` boundary. The "fits" control sits far from the edge, so nothing
+    // pinned what happens ON it — an off-by-one there reports a cut of zero chars.
+    const exact = composeInstructions('base', 'rules doc', 'surface doc')
+
+    expect(composeInstructions('base', 'rules doc', 'surface doc', budget(exact.text.length)).cuts).toEqual([])
+  })
+
+  test('a non-positive budget is a typed RangeError, not a silent pass', () => {
+    // Negative case per `rules/testing.md` § 4.1 — the specific error and its message, not
+    // merely "it throws". The sibling loader has exactly this test; the composer did not,
+    // and this commit reshaped every return path of the function.
+    expect(() => composeInstructions('base', '', '', budget(0))).toThrow(RangeError)
+    expect(() => composeInstructions('base', '', '', budget(-1))).toThrow(
+      /maxChars=-1 — the aggregate budget must be > 0/,
+    )
   })
 
   test('a base that alone exceeds the ceiling reports no cut, because nothing was cut', () => {

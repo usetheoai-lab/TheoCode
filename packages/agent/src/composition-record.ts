@@ -103,12 +103,6 @@ export function bothRuleRoots(
 }
 
 /**
- * Build the record and hand it to whoever asked for it.
- *
- * Derived from the SAME values the builder just received, at the point it received them. That is
- * the DoD bullet B-071 was reopened for: not a second read of config, but a record of the decision.
- */
-/**
  * B-173 — fold the aggregate ceiling's rules cut into the record the surfaces read.
  *
  * Only a cut whose `source` is `rules` reaches the rules row. The ceiling can equally cut the
@@ -128,6 +122,12 @@ export function withAggregateCut(
   return cut === undefined ? record : { ...record, aggregateCut: { from: cut.from, to: cut.to } }
 }
 
+/**
+ * Build the record and hand it to whoever asked for it.
+ *
+ * Derived from the SAME values the builder just received, at the point it received them. That is
+ * the DoD bullet B-071 was reopened for: not a second read of config, but a record of the decision.
+ */
 export function publishWiring(
   onWired: ((wired: WiredCapabilities) => void) | undefined,
   from: {

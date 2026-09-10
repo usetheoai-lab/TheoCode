@@ -10,12 +10,13 @@
  * So this drives the real `buildChatAgent` against a rule corpus large enough to trip the
  * aggregate ceiling, and reads `onWired`.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test } from 'vitest'
 
 import { buildChatAgent } from '../src/chat.js'
+import type { TrustPosture } from '../src/config/index.js'
 import type { WiredCapabilities } from '../src/wired-capabilities.js'
 
 /**
@@ -37,11 +38,29 @@ const TRUSTED = {
     subagents: true,
     customCommands: true,
   },
-} as never
+} as const satisfies TrustPosture
+
+/**
+ * Every temporary root this file makes, so none outlives the run. Measured during review: 193
+ * directories and 15 MB of generated rule corpora survived a single afternoon of re-runs,
+ * because this file was the one in its neighbourhood with no cleanup.
+ */
+const made: string[] = []
+
+afterEach(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
+function tempRoot(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  made.push(dir)
+  return dir
+}
 
 /** A project whose `.theokit/rules/` holds `blocks` files of `size` chars each. */
 function projectWithRules(blocks: number, size: number): string {
-  const cwd = mkdtempSync(join(tmpdir(), 'b173-project-'))
+  const cwd = tempRoot('b173-project-')
   const rules = join(cwd, '.theokit', 'rules')
   mkdirSync(rules, { recursive: true })
   for (let i = 0; i < blocks; i += 1) {
@@ -54,7 +73,7 @@ async function wiredFor(cwd: string, appendInstructions = ''): Promise<WiredCapa
   let seen: WiredCapabilities | undefined
   await buildChatAgent({
     cwd,
-    home: mkdtempSync(join(tmpdir(), 'b173-home-')),
+    home: tempRoot('b173-home-'),
     surface: 'headless',
     posture: TRUSTED,
     appendInstructions,
@@ -72,21 +91,30 @@ describe('B-173 — the aggregate cut travels from the composer to the record', 
     // `withinBudget` trims the rules FIRST — which is the path this arm exercises.
     const wired = await wiredFor(projectWithRules(30, 6_000), 'S'.repeat(40_000))
 
-    expect(wired?.rules?.aggregateCut).toBeDefined()
-    expect(wired?.rules?.aggregateCut?.to).toBeLessThan(wired?.rules?.aggregateCut?.from ?? 0)
+    const cut = wired?.rules?.aggregateCut
+    expect(cut).toBeDefined()
+    expect(cut?.to).toBeLessThan(cut?.from ?? 0)
   })
 
   test('two loads that each fit their own ceiling still trip the aggregate one', async () => {
-    // The DoD's own scenario, and the honest one — no surface document propping up the total.
-    // `bothRuleRoots` reads the project root and the operator root against SEPARATE `MAX_CHARS`
-    // budgets (64,000 each), so two corpora can each pass the loader and together hand the
-    // composer ~120,000 chars against a 96,000 aggregate. That is the shape a real operator with
-    // a large `~/.theokit/rules/` meets on a repository with a large `.theokit/rules/`.
-    const cwd = projectWithRules(20, 6_000)
-    const home = mkdtempSync(join(tmpdir(), 'b173-home-full-'))
+    // The DoD's own scenario, the CHANGELOG's headline case, and the arm this file got WRONG on
+    // the first pass: it used 20 blocks per root, which is 120,343 chars against a 64,000 loader
+    // ceiling, so BOTH loads overflowed and `truncated` was already true. The test's name, its
+    // comment and the commit message all claimed the opposite. Review printed the record and
+    // showed it: `{count:20, read:40, truncated:true}` — half the files dropped by the FIRST
+    // ceiling, in a test asserting the second.
+    //
+    // 8 blocks x 6,000 is 48,270 per root: each load passes its own ceiling whole, and the two
+    // together hand the composer ~96,000 rendered chars against a 96,000 aggregate.
+    //
+    // The `truncated: false` assertion is what makes this the DoD's test rather than a second
+    // copy of the arm above. It pins the exact case `/status` used to lie about: nothing the
+    // loader did, everything the aggregate ceiling did.
+    const cwd = projectWithRules(8, 6_000)
+    const home = tempRoot('b173-home-full-')
     const userRules = join(home, '.theokit', 'rules')
     mkdirSync(userRules, { recursive: true })
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 8; i += 1) {
       writeFileSync(join(userRules, `u${String(i)}.md`), `# user ${String(i)}\n\n${'y'.repeat(6_000)}\n`)
     }
 
@@ -101,8 +129,10 @@ describe('B-173 — the aggregate cut travels from the composer to the record', 
       },
     })
 
-    expect(seen?.rules?.aggregateCut).toBeDefined()
-    expect(seen?.rules?.aggregateCut?.to).toBeLessThan(seen?.rules?.aggregateCut?.from ?? 0)
+    const rules = seen?.rules
+    expect(rules?.truncated).toBe(false)
+    expect(rules?.aggregateCut).toBeDefined()
+    expect(rules?.aggregateCut?.to).toBeLessThan(rules?.aggregateCut?.from ?? 0)
   })
 
   test('a rule corpus that fits carries no aggregate cut at all', async () => {

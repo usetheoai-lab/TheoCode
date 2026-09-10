@@ -229,7 +229,13 @@ function withinBudget(
   if (total() > opts.maxChars && surface.length > 0) {
     const before = surface.length
     surface = surface.slice(-Math.max(0, before - (total() - opts.maxChars)))
-    cuts.push({ source: 'surface', from: before, to: surface.length })
+    // Guarded like the two branches above it, and for a reason `cuts` made newly load-bearing:
+    // when the overflow exceeds the whole surface, `slice(-0)` returns the WHOLE string, so an
+    // unguarded push records a zero-width cut. Harmless while this was only a warning; real now
+    // that a consumer reads it — the same phantom shape as a report claiming a cut nobody made.
+    if (surface.length !== before) {
+      cuts.push({ source: 'surface', from: before, to: surface.length })
+    }
     opts.warn(
       `[instructions] source 'appendInstructions' truncated from ${String(before)} to ` +
         `${String(surface.length)} chars (aggregate budget ${String(opts.maxChars)})`,
