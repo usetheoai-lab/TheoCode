@@ -139,6 +139,17 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *          and an empty `$HOME`, and once here; all three returned 2814/4536 exactly, which is the
  *          agreement the CHECKOUT axis being closed predicts.
  *
+ * VERIFIED — not re-declared — at `e06337c`, once the review batch was complete. A protocol run
+ * (real clone, own install, empty `$HOME`) reads 2799/4491 = 62.32%. Numerator AND denominator both
+ * moved from the 2814/4536 above: the command-dispatch restructure removed 131 code lines, so this
+ * is a different tree rather than drift within the same one.
+ *
+ * 62.32 against a floor of 62.03 is 0.29 of slack, inside `TOLERANCE`, so nothing was raised. That
+ * is the tolerance doing its job rather than an omission — the note on it below says a zero
+ * tolerance "would redden lint on every coverage-improving commit until someone edited a gitignored
+ * file, and a gate people bypass is the failure this ecosystem exists to prevent". Recorded so the
+ * next reader can tell a floor that was CHECKED from one that was merely left alone.
+ *
  * The drop from 59.15 is the point, not a regression. Those ~9 lines were covered only because
  * tests read the ambient environment; the repository had them by accident of where the suite ran,
  * and no clone ever did.
