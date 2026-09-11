@@ -49,6 +49,12 @@ const DESCRIBED_NOT_CITED = new Map([
       'by itself when explaining that it replaced config.toml.',
   ],
   [
+    'auth.json',
+    'the credential store this product writes under the operator\'s home. Same category as ' +
+      'settings.json: naming the file is how the environment table explains what THEOCODE_HOME ' +
+      'moves, and a copy in this repository would be a committed credential store.',
+  ],
+  [
     'config.toml',
     'the file settings.json replaced. The README names it to say it is no longer read and how to ' +
       'convert it; requiring a copy in this repository would mean documenting the migration only ' +
@@ -95,6 +101,56 @@ export function danglingReferences(paths, { exists = existsSync, ignored = isIgn
 }
 
 /**
+ * Backticked subpaths into THIS workspace's own packages — `@theocode/shared/shutdown`.
+ *
+ * A second shape for the same defect. `PATH_RE` requires a file extension, so it sees a citation to
+ * a file and is blind to a citation to a package ENTRY POINT, which is how the README went on
+ * advertising `@theocode/shared/shutdown` after the module was deleted in favour of the framework's.
+ * A contributor following that row gets an unresolved specifier, which is exactly what this guard
+ * exists to prevent — the extension is not new scope, it is the scope the guard already claimed.
+ *
+ * Scoped to `@theocode/` deliberately. `@theokit/agents/persistence` is a real, resolvable subpath
+ * of an upstream dependency whose exports map is not ours to audit; treating it as ours would make
+ * the guard report a dependency's surface as this repository's defect.
+ */
+const SUBPATH_RE = /`(@theocode\/[a-z0-9-]+)((?:\/[a-z0-9-]+)+)`/g
+
+export function citedSubpaths(markdown) {
+  const seen = new Map()
+  for (const m of markdown.matchAll(SUBPATH_RE)) seen.set(`${m[1]}${m[2]}`, [m[1], `.${m[2]}`])
+  return [...seen.values()]
+}
+
+/**
+ * Reads a workspace package's exports map, or `undefined` when there is no such package.
+ *
+ * The two answers are different and the difference is the point: an unreadable manifest means the
+ * name is not one of ours, not that its surface is broken.
+ */
+export function workspaceExports(pkg, read = readFileSync) {
+  try {
+    return JSON.parse(read(`packages/${pkg.split('/')[1]}/package.json`, 'utf8')).exports
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * A cited subpath is dangling when the package declares it in no exports map.
+ *
+ * A package with no manifest is passed over rather than reported. Absence of a manifest is absence
+ * of evidence — asserting a missing export from it would be a claim nobody measured.
+ */
+export function danglingSubpaths(pairs, { exportsOf = workspaceExports } = {}) {
+  return pairs
+    .filter(([pkg, sub]) => {
+      const map = exportsOf(pkg)
+      return map !== undefined && !(sub in map)
+    })
+    .map(([pkg, sub]) => `${pkg}${sub.slice(1)}`)
+}
+
+/**
  * CHANGELOG.md is deliberately NOT checked, and the reason is worth writing down because the
  * omission looks like one.
  *
@@ -112,7 +168,11 @@ export function danglingReferences(paths, { exists = existsSync, ignored = isIgn
 if (import.meta.url === `file://${process.argv[1]}`) {
   const quiet = process.argv.includes('--quiet')
   const file = 'README.md'
-  const dangling = danglingReferences(citedPaths(readFileSync(file, 'utf8')))
+  const markdown = readFileSync(file, 'utf8')
+  const dangling = [
+    ...danglingReferences(citedPaths(markdown)),
+    ...danglingSubpaths(citedSubpaths(markdown)),
+  ]
   if (dangling.length > 0) {
     process.stderr.write(
       `${file} cites ${String(dangling.length)} path(s) a reader who clones cannot open:\n` +

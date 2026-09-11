@@ -13,7 +13,7 @@ import {
   LOGO,
   LOGO_COLUMNS,
   WIDE_COLS,
-} from '../theme.js'
+} from '../theme/theme.js'
 import { workingDirectory } from '../working-directory.js'
 
 const MODEL = AGENT.model

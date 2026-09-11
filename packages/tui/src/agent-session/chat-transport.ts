@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { recordMcpWarning, startMcpFailureTurn } from './mcp-failure-record.js'
-import { currentAttempts, startRetryTurn } from './retry-record.js'
+import { currentAttempts, startRetryTurn } from './retry-record-holder.js'
 import { runEventSink } from './run-event-sink.js'
 import { recordWiring } from './wiring-record.js'
 

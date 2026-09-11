@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { citedPaths, danglingReferences } from './check-doc-references.mjs'
+import {
+  citedPaths,
+  citedSubpaths,
+  danglingReferences,
+  danglingSubpaths,
+} from './check-doc-references.mjs'
 
 describe('citedPaths', () => {
   it('test_it_finds_a_backticked_repository_path', () => {
@@ -97,5 +102,48 @@ describe('the two holes measured 2026-09-03', () => {
   it('test_a_tracked_file_that_exists_is_still_fine', () => {
     // Anti-vacuity: flagging everything would satisfy both assertions above.
     expect(danglingReferences(['README.md'], { exists: () => true, ignored: () => false })).toEqual([])
+  })
+})
+
+describe('citedSubpaths', () => {
+  it('test_it_finds_a_backticked_workspace_package_subpath', () => {
+    // The finding, as an assertion. `@theocode/shared/shutdown` is advertised by README.md:40 and
+    // resolves to nothing: the module was deleted in favour of the framework's and the row that
+    // advertises it never moved. A contributor who follows the README gets an unresolved specifier.
+    expect(citedSubpaths('reached as `@theocode/shared/shutdown`, `/agent`')).toEqual([
+      ['@theocode/shared', './shutdown'],
+    ])
+  })
+
+  it('test_it_ignores_a_bare_package_name_and_a_foreign_scope', () => {
+    // Anti-vacuity twice over. A matcher returning everything passes the case above; one that
+    // resolved foreign scopes would report every `@theokit/agents/persistence` in the docs as
+    // dangling, because those packages are not in this workspace and their exports are not ours
+    // to check.
+    expect(citedSubpaths('`@theocode/tui` and `@theokit/agents/persistence` and `npm test`')).toEqual(
+      [],
+    )
+  })
+})
+
+describe('danglingSubpaths', () => {
+  const exportsOf = (pkg) =>
+    pkg === '@theocode/shared' ? { './agent': 'x', './diagnostic-sink': 'x' } : undefined
+
+  it('test_a_subpath_absent_from_the_exports_map_is_dangling', () => {
+    expect(danglingSubpaths([['@theocode/shared', './shutdown']], { exportsOf })).toEqual([
+      '@theocode/shared/shutdown',
+    ])
+  })
+
+  it('test_a_declared_subpath_is_not_dangling', () => {
+    // Anti-vacuity: a checker that flagged every subpath would satisfy the case above.
+    expect(danglingSubpaths([['@theocode/shared', './agent']], { exportsOf })).toEqual([])
+  })
+
+  it('test_a_package_with_no_manifest_is_not_reported', () => {
+    // Absence of a manifest is not evidence of a missing export — it means this is not a workspace
+    // package, and asserting anything about its surface would be a claim nobody measured.
+    expect(danglingSubpaths([['@theocode/ghost', './thing']], { exportsOf })).toEqual([])
   })
 })

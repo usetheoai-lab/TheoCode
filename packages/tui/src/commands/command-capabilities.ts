@@ -56,6 +56,12 @@ export interface CommandCapabilities {
   readonly goalActive: boolean
   /** B-075 — the timeline, so /copy and /export read MESSAGES rather than the wrapped frame. */
   readonly events: readonly unknown[]
+  /**
+   * #58 — whether the last turn left usage to draw. The usage panel renders on
+   * `showUsage && lastUsage`, so `/usage` before the first turn used to flip a toggle with nothing
+   * behind it: no panel, and no word about why.
+   */
+  readonly hasLastUsage: boolean
   readonly currentSessionId: () => string
   readonly forkCurrentSession: () => { newId: string; copied: boolean }
   readonly resetSession: () => void
@@ -97,6 +103,8 @@ export type SessionAndScreenCapabilities = Pick<
   | 'setToast'
   | 'setShowHelp'
   | 'setShowUsage'
+  // #58 — `/usage` refuses instead of arming a panel that cannot render.
+  | 'hasLastUsage'
   | 'setClearEpoch'
   | 'setEffort'
   | 'setGoalRun'

@@ -6,13 +6,13 @@
  * "the root is not read" and "the fixture is malformed", and the second is the likelier mistake when
  * a loader is strict about frontmatter.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { userSkills } from '../../src/context/user-skills.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 let HOME: string
 
@@ -26,7 +26,7 @@ const skill = (root: string, dialect: string, name: string, body: string): void 
 }
 
 beforeAll(() => {
-  HOME = mkdtempSync(join(tmpdir(), 'user-skills-'))
+  HOME = tempRoot('user-skills-')
   skill(HOME, '.theokit', 'answer-in-portuguese', 'Reply in pt-BR.')
   skill(HOME, '.claude', 'foreign-kit-skill', 'Belongs to another kit.')
 })
@@ -60,7 +60,7 @@ describe('#65 — user-level skills', () => {
   it('test_an_operator_with_no_skills_directory_gets_an_empty_list_not_a_throw', async () => {
     // The ordinary case. `discoverSkills` documents a never-throw contract and this asserts we did
     // not add a throw on top of it — an operator who never created the directory must still boot.
-    const none = mkdtempSync(join(tmpdir(), 'user-skills-empty-'))
+    const none = tempRoot('user-skills-empty-')
     await expect(userSkills(none)).resolves.toEqual([])
   })
 })

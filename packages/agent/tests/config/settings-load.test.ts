@@ -189,6 +189,21 @@ describe('what the file carried and this product did not act on', () => {
     expect(report?.unrecognised).toEqual([])
   })
 
+  it('test_a_malformed_settings_json_ends_that_scope_without_a_report_or_a_throw', () => {
+    // The loader already refuses malformed JSON with the file named; the DIAGNOSTIC must survive
+    // the state it exists to describe. Malformed-in-scope means: no report for that scope, no
+    // fall-through to a lower-ranked candidate (the loader would not have fallen through either),
+    // and the other scopes still report.
+    mkdirSync(join(project, DEFAULT_HOME_DIR), { recursive: true })
+    writeFileSync(join(project, DEFAULT_HOME_DIR, 'settings.json'), '{ not json')
+    write(project, '.claude', 'settings.json', { alwaysThinkingEnabled: true })
+    write(home, DEFAULT_HOME_DIR, 'settings.json', { model: 'openai/x' })
+
+    const reports = settingsReport({ projectDir: project, userDir: home, env: { HOME: home } })
+
+    expect(reports.map((r) => r.path)).toEqual([join(home, DEFAULT_HOME_DIR, 'settings.json')])
+  })
+
   it('test_it_describes_the_file_the_loader_actually_read', () => {
     // Ours wins within a layer, so the report must be about ours — a diagnostic describing a file
     // the loader skipped is worse than no diagnostic.

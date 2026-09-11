@@ -26,8 +26,7 @@
  * reasonably try to "fix" it — in either direction. These arms make the decision fail loudly rather
  * than be re-litigated from scratch.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -35,6 +34,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { loadUserRules } from '../../src/context/rules.js'
 import { userSkills } from '../../src/context/user-skills.js'
 import { discoverRoles } from '../../src/delegation/role-discovery.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 let HOME: string
 
@@ -45,7 +45,7 @@ const put = (dialect: string, kind: string, name: string, body: string): void =>
 }
 
 beforeAll(() => {
-  HOME = mkdtempSync(join(tmpdir(), 'foreign-root-'))
+  HOME = tempRoot('foreign-root-')
   put('.claude', 'rules', 'house-style', '# house style\n\nAnswer tersely.\n')
   put('.claude', 'skills', 'foreign-skill', '---\nname: foreign-skill\ndescription: another kit\n---\n\nBody.\n')
   put('.claude', 'agents', 'foreign-role', '---\nname: foreign-role\ndescription: another kit\ntools: [read_file]\n---\n\nBody.\n')

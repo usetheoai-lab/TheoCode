@@ -1,8 +1,8 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import {
   BEHIND,
@@ -229,9 +229,22 @@ describe('reading the checker report', () => {
   })
 })
 
+/**
+ * Every temporary root this file makes, removed when it finishes — the pattern from
+ * `packages/agent/tests/aggregate-cut-wiring.test.ts:44-57`, inline because `tools/` is not a
+ * package and has no `src/` to hang a helper module off (`rules/testing.md` § 5).
+ */
+const made = []
+
+afterAll(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
 describe('the wiring between the checker and the decision', () => {
   const rootWith = (script) => {
     const root = mkdtempSync(join(tmpdir(), 'stale-'))
+    made.push(root)
     mkdirSync(join(root, 'tools'))
     writeFileSync(join(root, 'tools', 'check-theokit-updates.mjs'), script)
     return root

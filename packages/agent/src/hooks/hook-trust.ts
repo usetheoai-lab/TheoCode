@@ -90,13 +90,19 @@ export function loadApprovedHooks(dir: string, home?: string): Map<string, Appro
 /**
  * Classify each spec against what THIS project approved.
  *
- * The `approved` map is accepted and ignored for the decision: the store is the authority, and
- * treating a caller-supplied map as truth would let a stale copy answer a security question. It
- * stays in the signature so the consent screen keeps its call shape.
+ * The store is the authority, and it is read here: treating a caller-supplied map as truth would
+ * let a stale copy answer a security question. Until 2026-09-10 the signature ALSO demanded that
+ * map — `_approved`, bound to an underscore and never read — and the sole caller performed a real
+ * disk read to supply it, so `computePendingHooks` read like a function that classifies against
+ * what that read returned. On a surface where the difference between "the argument decides" and
+ * "the argument is ignored" is the whole security question, the signature has to say which. It
+ * now says it by not asking (finding #61).
+ *
+ * The precondition that actually governs the answer is `opts.dir` — WHICH project is being asked
+ * about — and it is the only one left.
  */
 export function classifyHooks(
   specs: readonly HookSpec[],
-  _approved: ReadonlyMap<string, ApprovedHook>,
   opts: { dir?: string; home?: string } = {},
 ): ClassifiedHook[] {
   const dir = opts.dir ?? process.cwd()

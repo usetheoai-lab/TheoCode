@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 
 import { Banner, fittedCwd } from '../../src/components/Banner.js'
 import { AGENT } from '@theocode/shared/agent'
-import { BANNER_TIPS, centred, LOGO, LOGO_COLUMNS, WIDE_COLS } from '../../src/theme.js'
+import { BANNER_TIPS, centred, LOGO, LOGO_COLUMNS, WIDE_COLS } from '../../src/theme/theme.js'
 
 /**
  * The state of `process.stdout.columns` BEFORE any test in this file touched it. Captured at module
@@ -29,7 +29,7 @@ import { BANNER_TIPS, centred, LOGO, LOGO_COLUMNS, WIDE_COLS } from '../../src/t
  */
 const PRISTINE_COLUMNS = Object.getOwnPropertyDescriptor(process.stdout, 'columns')
 
-// eslint-disable-next-line no-control-regex
+// eslint-disable-next-line no-control-regex -- the literal ESC below opens every ANSI sequence; matching it is the point
 const ANSI = /\[[0-9;]*m/g
 const strip = (s: string): string => s.replace(ANSI, '')
 

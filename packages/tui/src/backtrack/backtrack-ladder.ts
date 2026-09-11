@@ -1,4 +1,4 @@
-import { SENTINEL } from '../backtrack-select.js'
+import { SENTINEL } from './backtrack-select.js'
 
 export interface LadderState {
   readonly armed: boolean

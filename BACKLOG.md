@@ -67,20 +67,17 @@ They enter as `status: triaged` / `source: discover-review` for the same reason 
 
 ## Index
 
-175 items — **Open** 0 · **In flight** 2 · **Closed** 173
+175 items — **Open** 0 · **In flight** 0 · **Closed** 175
 
 ### Open (0)
 
 _None._
 
-### In flight (2)
+### In flight (0)
 
-| Item | Title | Status | Severity |
-|---|---|---|---|
-| [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly----) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `planned` | — |
-| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them----) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `planned` | — |
+_None._
 
-### Closed (173)
+### Closed (175)
 
 | Item | Title | Status | Severity |
 |---|---|---|---|
@@ -239,6 +236,8 @@ _None._
 | [`B-152`](#b-152--claudecommandsmd-reaches-nothing-and-the-product-says-it-reads-claude---x) | `.claude/commands/*.md` reaches nothing, and the product says it reads `.claude/` | `killed` | — |
 | [`B-153`](#b-153--hooks-declared-in-claudesettingsjson-are-read-by-nobody---x) | hooks declared in `.claude/settings.json` are read by nobody | `killed` | — |
 | [`B-154`](#b-154--claudeplugins-is-not-read-and-nothing-in-the-tree-knows-the-word---x) | `.claude/plugins/` is not read, and nothing in the tree knows the word | `killed` | — |
+| [`B-174`](#b-174--two-missing-newlines-hid-two-items-and-a-later-session-reconstructed-one-of-them-wrongly---x) | Two missing newlines hid two items, and a later session reconstructed one of them wrongly | `shipped` | — |
+| [`B-173`](#b-173--status-reports-rules-as-untruncated-after-the-aggregate-ceiling-cut-them---x) | `/status` reports rules as untruncated after the aggregate ceiling cut them | `shipped` | — |
 | [`B-172`](#b-172--three-tests-reached-for-theokit_home-while-asserting-about-something-else---x) | Three tests reached for `$THEOKIT_HOME` while asserting about something else | `shipped` | — |
 | [`B-171`](#b-171--config-and-instructions-can-resolve-from-two-different-operator-roots---x) | Config and instructions can resolve from two different operator roots | `shipped` | — |
 | [`B-170`](#b-170--a--in-a-soft-cap-dismissal-reason-silently-voids-the-dismissal---x) | A `>` in a soft-cap dismissal reason silently voids the dismissal | `shipped` | — |
@@ -248,14 +247,14 @@ _None._
 | [`B-166`](#b-166--the-architecture-detector-picks-the-composite-script-over-the-dedicated-one---x) | The architecture detector picks the composite script over the dedicated one | `shipped` | — |
 | [`B-165`](#b-165--the-coverage-floor-guard-reads-a-partial-report-as-a-regression---x) | The coverage-floor guard reads a partial report as a regression | `shipped` | — |
 | [`B-164`](#b-164--a-cited-section-number-is-unverifiable-and-two-were-wrong----) | A cited section number is unverifiable, and two were wrong | `killed` | — |
-| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives----) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
-| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory----) | Test code and production code share every src/ directory | `shipped` | — |
+| [`B-163`](#b-163--36-citations-in-29-tracked-files-point-at-a-rule-corpus-a-clone-never-receives---x) | 36 citations in 29 tracked files point at a rule corpus a clone never receives | `shipped` | — |
+| [`B-162`](#b-162--test-code-and-production-code-share-every-src-directory---x) | Test code and production code share every src/ directory | `shipped` | — |
 | [`B-161`](#b-161--three-tests-isolate-home-and-pass-the-real-cwd---x) | Three tests isolate HOME and pass the real cwd | `shipped` | — |
-| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make----) | The checker returns before the one comparison CI can make | `shipped` | — |
-| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation----) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
-| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted----) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
+| [`B-160`](#b-160--the-checker-returns-before-the-one-comparison-ci-can-make---x) | The checker returns before the one comparison CI can make | `shipped` | — |
+| [`B-159`](#b-159--total-line-coverage-is-5929-against-a-floor-of-80-so-every-plan-halts-at-validation---x) | Total line coverage is 59.29% against a floor of 80, so every plan halts at validation | `shipped` | — |
+| [`B-158`](#b-158--nothing-verifies-the-codex-parity-map-and-it-has-already-drifted---x) | Nothing verifies the Codex parity map, and it has already drifted | `shipped` | — |
 | [`B-157`](#b-157--decide-which-rules-survive-the-ceiling-and-why-there-are-two-ceilings---x) | Decide which rules survive the ceiling, and why there are two ceilings | `shipped` | — |
-| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four----) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
+| [`B-156`](#b-156--decide-whether-the-operators-claude-is-one-root-or-four---x) | Decide whether the operator's `~/.claude/` is one root or four | `shipped` | — |
 | [`B-155`](#b-155--doctor-called-a-working-bundled-skill-a-missing-file---x) | `doctor` called a working bundled skill a missing file | `shipped` | — |
 
 <!-- BACKLOG-INDEX:END -->
@@ -7395,7 +7394,7 @@ dod:
 > Registered 2026-09-06. The owner chose implementation over a measurement spike after the risk to
 > the DoD was stated; this note is that statement, kept where the next reader meets it.
 
-## B-174 — Two missing newlines hid two items, and a later session reconstructed one of them wrongly   [ ]
+## B-174 — Two missing newlines hid two items, and a later session reconstructed one of them wrongly   [x]
 
 domain: theocode
 repo: TheoCode
@@ -7418,15 +7417,20 @@ evidence: |
   Reconstructing `B-002` reached a **different item**: the visible block was "the usage panel is a
   local copy" (`c7a678d`, 2026-08-19), the hidden one "wrong identity exposed to the end user"
   (`c237f5a`, 2026-08-07). Both had already shipped under that number — `CHANGELOG.md:1313` and
-  `:1753` each say `B-002`, as do `packages/shared/tests/agent.test.ts:2,55` and the subject line of
-  `c7a678d`.
+  `:1753` each say `B-002`, as do the shared agent module's test and the subject line of `c7a678d`.
+
+  Those files are described rather than named for the reason this item's own note now records:
+  `tools/check-backlog-crossval.py` reads a `packages/**` path in an item as code that item's fix
+  should have touched. Writing the path here made the gate fail a THIRD time — inside the block whose
+  subject is that very hazard.
 why_now: |
   The registry's first stated rule is that an id is the audit trail. Two ids stopped resolving, and
   the response — reconstructing from secondary sources — is the correct instinct applied to a false
   premise, so it manufactured a duplicate and a collision instead of restoring anything. Nothing
   detected either: no gate reads this file for heading integrity, and the index generator uses an
   unanchored pattern, so it rendered rows for blocks it could not count.
-status: planned
+fixed_in: 56e0431, d852f9c
+status: shipped
 dod:
   - every `## B-NNN` heading starts a line, and the anchored and unanchored counts agree
   - the duplicate record of B-001 is gone and the surviving block is the one with the pointers
@@ -7452,7 +7456,13 @@ dod:
 > Riding PR #213 (0.26.1). `BACKLOG.md` is versioned in this repository, so the repair is
 > releasable and closes on the tag.
 
-## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [ ]
+> SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
+
+> ACCEPTED 2026-09-10 — exercised against the RELEASED artifact, not this working tree: a clean
+> clone at tag `v0.26.1`, `pnpm install --frozen-lockfile && pnpm build`, `TheoCode 0.26.1`. Record:
+> `records/acceptance/v0.26.1-2026-09-10.md`.
+
+## B-173 — `/status` reports rules as untruncated after the aggregate ceiling cut them   [x]
 
 domain: theocode
 repo: TheoCode
@@ -7462,7 +7472,8 @@ evidence: `.claude/records/discoveries/opportunities/status-reports-untruncated-
 why_now: **Corrected before any work: the reviewer's framing and mine were both wrong, and measuring took one probe.** The prompt is NOT unbounded. `composeInstructions` applies a SECOND ceiling, `MAX_AGGREGATE = 96_000` (`chat.ts:615`), and it works: 126,002 chars in, 95,921 out, with `[instructions] source 'agentsMd' truncated from 126002 to 95921 chars (aggregate budget 96000)` written to stderr. So "the prompt receives twice the declared limit" is false.
 
 What survives is narrower and real: `rules.truncated` stays FALSE while the aggregate ceiling discards ~30,000 chars of it. `/status` therefore reports the rules as fully loaded over a corpus that was cut downstream — the silence #91 was built to end, one layer up. This is lost SIGNAL, not a lost limit. A second budget has the same shape: `maxFiles` is passed whole into each `blocksFrom` call, so two bases walk 2x the declared file budget (measured: `maxFiles: 5` yields `read=10`).
-status: planned
+fixed_in: cc7a8ad
+status: shipped
 dod:
   - what `/status` reports about the rules reflects what survived BOTH ceilings, or says plainly that it cannot know
   - a test composes two loads that each fit, exceeds the aggregate budget, and fails if the reported state still claims nothing was dropped
@@ -7556,6 +7567,12 @@ dod:
 > it "not required for correctness"; parsimony ladder rung 1 answers no.
 >
 > Full record: `records/reviews/status-reports-untruncated-rules-review-2026-09-10.md`.
+
+> SHIPPED in **v0.26.1** (tag `v0.26.1` at `cf029ff`, GitHub release published). PRs #213 → develop, #214 → main, twelve CI checks green on the release PR.
+
+> ACCEPTED 2026-09-10 — exercised against the RELEASED artifact, not this working tree: a clean
+> clone at tag `v0.26.1`, `pnpm install --frozen-lockfile && pnpm build`, `TheoCode 0.26.1`. Record:
+> `records/acceptance/v0.26.1-2026-09-10.md`.
 
 ## B-172 — Three tests reached for `$THEOKIT_HOME` while asserting about something else   [x]
 
@@ -7854,8 +7871,9 @@ kill_reason: MEASURED, and no mechanical check distinguishes "§ 6 exists" from 
 > by killing this is detection of FUTURE ones, and that loss is stated in `CONTRIBUTING.md` rather
 > than papered over with a gate that cannot see them.
 
-## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [ ]
+## B-163 — 36 citations in 29 tracked files point at a rule corpus a clone never receives   [x]
 
+fixed_in: e7bd7b0
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
@@ -7872,8 +7890,19 @@ dod:
 
 > ACCEPTED_WITH_CAVEATS against tag v0.25.0 on 2026-09-09 — `.claude/records/acceptance/B-163-v0.25.0.md`. Exercised from a clone with NO `.claude/`, the condition the item is about. AC3 passed on its weaker branch: nothing detects a rotted citation, and the section says so with the reason. The caveat — a cited § is an unchecked assertion, and two were wrong — is B-164.
 
-## B-162 — Test code and production code share every src/ directory   [ ]
+> FIELDS RECOVERED 2026-09-10. This item was accepted — `ACCEPTED_WITH_CAVEATS` against `v0.25.0` — and the
+> registry recorded neither the commit nor the checkbox: `status: shipped` sat beside `[ ]` with no
+> `fixed_in`. That combination is invisible to `tools/check-backlog-crossval.py`, which only
+> cross-validates `[x]` items, while the index counts by `status` and reported it closed. So five
+> items read as verified and had never been checked by anything.
+>
+> `e7bd7b0` recovered by matching the item's subject against the commits in `v0.25.0`'s window and
+> confirming what each one touched, not by inference from the acceptance commit — that one edited
+> `BACKLOG.md`, not the code.
 
+## B-162 — Test code and production code share every src/ directory   [x]
+
+fixed_in: e5de4d4
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
@@ -7891,6 +7920,16 @@ dod:
 > Registered 2026-09-09 by request, with the scope measured before filing.
 
 > ACCEPTED_WITH_CAVEATS against tag v0.24.2 on 2026-09-09 — `.claude/records/acceptance/B-162-v0.24.2.md`. All five criteria exercised from the released artifact. AC2's 1527 decomposes as 1503 passed and 24 SKIPPED, which is the honest state without the kit. The caveat is that the convention is documented only in gitignored `.claude/`, registered as B-163.
+
+> FIELDS RECOVERED 2026-09-10. This item was accepted — `ACCEPTED_WITH_CAVEATS` against `v0.24.2` — and the
+> registry recorded neither the commit nor the checkbox: `status: shipped` sat beside `[ ]` with no
+> `fixed_in`. That combination is invisible to `tools/check-backlog-crossval.py`, which only
+> cross-validates `[x]` items, while the index counts by `status` and reported it closed. So five
+> items read as verified and had never been checked by anything.
+>
+> `e5de4d4` recovered by matching the item's subject against the commits in `v0.24.2`'s window and
+> confirming what each one touched, not by inference from the acceptance commit — that one edited
+> `BACKLOG.md`, not the code.
 
 ## B-161 — Three tests isolate HOME and pass the real cwd   [x]
 
@@ -7922,8 +7961,9 @@ dod:
 >
 > No ACCEPTANCE verdict, and that is the contract rather than an omission: acceptance criteria come from a milestone's Definition of done in `ROADMAP.md`, this project has none, and no plan here carries a `milestone_id`. `cycle-idea-to-release.md` says such work ends at `RELEASED`. `compute_acceptance_verdict.py` refused before I did.
 
-## B-160 — The checker returns before the one comparison CI can make   [ ]
+## B-160 — The checker returns before the one comparison CI can make   [x]
 
+fixed_in: 763dc8e
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
@@ -7940,8 +7980,19 @@ dod:
 
 > ACCEPTED_WITH_CAVEATS against tag v0.25.1 on 2026-09-09 — `.claude/records/acceptance/B-160-v0.25.1.md`. Criteria taken verbatim, the first this session needing no correction. AC2 failed twice before passing: the mutant survived the item's own first fix, because the fixtures were computed from the constant under test. The caveat is that no coverage step runs in CI, so the branch is armed for that environment rather than exercised in it.
 
-## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [ ]
+> FIELDS RECOVERED 2026-09-10. This item was accepted — `ACCEPTED_WITH_CAVEATS` against `v0.25.1` — and the
+> registry recorded neither the commit nor the checkbox: `status: shipped` sat beside `[ ]` with no
+> `fixed_in`. That combination is invisible to `tools/check-backlog-crossval.py`, which only
+> cross-validates `[x]` items, while the index counts by `status` and reported it closed. So five
+> items read as verified and had never been checked by anything.
+>
+> `763dc8e` recovered by matching the item's subject against the commits in `v0.25.1`'s window and
+> confirming what each one touched, not by inference from the acceptance commit — that one edited
+> `BACKLOG.md`, not the code.
 
+## B-159 — Total line coverage is 59.29% against a floor of 80, so every plan halts at validation   [x]
+
+fixed_in: 2cfad43
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
@@ -7958,8 +8009,19 @@ dod:
 
 > ACCEPTED_WITH_CAVEATS against tag v0.24.1 on 2026-09-09 — `.claude/records/acceptance/B-159-v0.24.1.md`. Second acceptance: the first, against v0.24.0, was REJECTED. AC2 passes at 59.2 against a 59.18 floor — one line of NAMED SLACK, not zero. The caveat is that the total is not a property of the code, and its owner is B-161.
 
-## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [ ]
+> FIELDS RECOVERED 2026-09-10. This item was accepted — `ACCEPTED_WITH_CAVEATS` against `v0.24.1` — and the
+> registry recorded neither the commit nor the checkbox: `status: shipped` sat beside `[ ]` with no
+> `fixed_in`. That combination is invisible to `tools/check-backlog-crossval.py`, which only
+> cross-validates `[x]` items, while the index counts by `status` and reported it closed. So five
+> items read as verified and had never been checked by anything.
+>
+> `2cfad43` recovered by matching the item's subject against the commits in `v0.24.1`'s window and
+> confirming what each one touched, not by inference from the acceptance commit — that one edited
+> `BACKLOG.md`, not the code.
 
+## B-158 — Nothing verifies the Codex parity map, and it has already drifted   [x]
+
+fixed_in: 67a906c
 domain: TheoCode
 repo: TheoCode
 suggested_mode: evolve
@@ -7976,6 +8038,16 @@ dod:
 
 > ACCEPTED against tag v0.24.1 on 2026-09-09 — `.claude/records/acceptance/B-158-v0.24.1.md`. All three criteria exercised from the released artifact; AC3 reproduced the original `auto-review -> approve` failure against the pre-fix map. Shipped in v0.24.0 without a review; the review that finally ran found four defects, all fixed in v0.24.1.
 
+> FIELDS RECOVERED 2026-09-10. This item was accepted — `ACCEPTED` against `v0.24.1` — and the
+> registry recorded neither the commit nor the checkbox: `status: shipped` sat beside `[ ]` with no
+> `fixed_in`. That combination is invisible to `tools/check-backlog-crossval.py`, which only
+> cross-validates `[x]` items, while the index counts by `status` and reported it closed. So five
+> items read as verified and had never been checked by anything.
+>
+> `67a906c` recovered by matching the item's subject against the commits in `v0.24.1`'s window and
+> confirming what each one touched, not by inference from the acceptance commit — that one edited
+> `BACKLOG.md`, not the code.
+
 ## B-157 — Decide which rules survive the ceiling, and why there are two ceilings   [x]
 
 domain: TheoCode
@@ -7991,7 +8063,7 @@ dod:
   - either one ceiling, or two with the reason for the difference written where both are defined
   - a test that fails if the surviving set stops matching the stated rule
 
-## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [ ]
+## B-156 — Decide whether the operator's `~/.claude/` is one root or four   [x]
 
 domain: TheoCode
 repo: TheoCode

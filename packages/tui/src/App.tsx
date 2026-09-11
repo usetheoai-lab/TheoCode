@@ -5,9 +5,9 @@ import { InkInputProvider, Stack } from '@theokit/tui'
 import { ConversationRegion } from './components/index.js'
 import { SessionFooter } from './components/index.js'
 import { InputSlot } from './components/index.js'
-import { ThemedSurface } from './theme-session.js'
-import { TerminalTitle } from './title-session.js'
-import { useTuiComposition } from './use-tui-composition.js'
+import { ThemedSurface } from './theme/theme-session.js'
+import { TerminalTitle } from './session-ui/title-session.js'
+import { useTuiComposition } from './composition/use-tui-composition.js'
 
 export function App(): ReactElement {
   const tui = useTuiComposition()

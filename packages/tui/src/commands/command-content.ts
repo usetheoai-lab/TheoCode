@@ -16,9 +16,9 @@ import type {
   SessionTheInterpreterUses,
 } from './command-capabilities.js'
 import { workingDirectory } from '../working-directory.js'
-import { THEME_RESOLUTION } from '../theme.js'
+import { THEME_RESOLUTION } from '../theme/theme.js'
 import { themeResolutionLine } from './theme-command.js'
-import { sessionThemeBase } from '../theme-session.js'
+import { sessionThemeLabel } from '../theme/theme-session.js'
 import { keybindingsNotApplied } from '../terminal-io/use-tui-keyboard.js'
 import type { WiredCapabilities } from '@theocode/agent'
 import { BASE_NAMES, agentsMdChain, loadRules, loadUserRules } from '@theocode/agent/context'
@@ -309,7 +309,10 @@ export function statusPanel(
     // can switch, "the frame is light" and "this terminal resolves dark" are different answers, and
     // a panel that reported only the active base would leave a user unable to tell a switch they
     // made from an environment they need to go and fix.
-    ['theme', themeResolutionLine(THEME_RESOLUTION, sessionThemeBase())],
+    // #14 — the LABEL, so `/theme custom:<slug>` is named here too. The narrower accessor this
+    // replaces answered "which built-in base", and returned `undefined` for a custom theme — so
+    // this row reported the environment while the frame was drawn in the operator's own file.
+    ['theme', themeResolutionLine(THEME_RESOLUTION, sessionThemeLabel())],
     // The keybindings file is silent by construction: a binding that was not applied is a key that
     // does nothing, which reads as a broken terminal rather than as an unsupported action. This row
     // is the only place that says otherwise, and it is here rather than in `theocode doctor`

@@ -25,26 +25,48 @@
  * has to be the same function the runtime calls, or it is a different question with a similar shape
  * — the failure this repository keeps paying for.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { compileAgentModule } from '@theokit/agents'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { composeRun } from '../src/run-composition.js'
+
+/**
+ * Every temporary root this file makes, removed when it finishes.
+ *
+ * The pattern is `packages/agent/tests/aggregate-cut-wiring.test.ts:44-57`'s, inline rather than
+ * imported because this package has exactly one file that needs it — a helper module with a single
+ * consumer is more machinery than the three lines it saves. Measured cost of skipping it, in this
+ * repository: 193 directories and 15 MB of generated corpora from one uncleaned file in an
+ * afternoon.
+ */
+const made: string[] = []
+
+afterAll(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
+function tempRoot(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  made.push(dir)
+  return dir
+}
 
 /**
  * B-167 — the operator root. `CompositionSeams` already carried it as `userDir`; it simply was not
  * forwarded to the build, so this test read whatever `~/.theokit/` the machine held.
  */
-const OPERATOR_HOME = mkdtempSync(join(tmpdir(), 'b167-cli-home-'))
+const OPERATOR_HOME = tempRoot('b167-cli-home-')
 
 describe('#96 — the composed module loads', () => {
   it('test_the_agent_module_compiles_the_way_the_runtime_compiles_it', async () => {
     // The injected trust store, same seam the sibling test uses: reading the real `~/.theokit`
     // one would make this depend on whichever machine runs it.
-    const cwd = mkdtempSync(join(tmpdir(), 'compose-smoke-'))
+    const cwd = tempRoot('compose-smoke-')
     const store = join(cwd, 'trusted-dirs.json')
     writeFileSync(store, JSON.stringify({ trusted: [cwd] }), { mode: 0o600 })
 

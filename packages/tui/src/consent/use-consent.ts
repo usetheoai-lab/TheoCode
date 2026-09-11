@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { resolveEffectiveConfig, resolveTrustPosture } from '@theocode/agent/config'
-import { approveHook, classifyHooks, loadApprovedHooks, parseHooks } from '@theocode/agent/hooks'
+import { approveHook, classifyHooks, parseHooks } from '@theocode/agent/hooks'
 
 import {
   persistedApproval,
@@ -46,7 +46,6 @@ export function useConsent(cwd: string = workingDirectory()): Consent {
       declined: declined,
       resolveEffectiveConfig,
       parseHooks,
-      loadApprovedHooks,
       classifyHooks,
       onError: (err) => process.stderr.write(`[hooks] consent check failed: ${String(err)}\n`),
     })

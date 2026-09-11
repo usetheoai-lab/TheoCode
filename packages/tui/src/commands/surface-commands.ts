@@ -21,9 +21,9 @@
  * at the next launch — so the success toast says it, every time, and not only the first.
  */
 import type { ContentPanel, ToastPayload } from '../screen-types.js'
-import { parseItems, type ItemSelection } from '../session-items.js'
-import { STATUSLINE_ITEM_DESCRIPTIONS, statuslineSelection } from '../statusline-session.js'
-import { TITLE_ITEM_DESCRIPTIONS, titleSelection } from '../title-session.js'
+import { parseItems, type ItemSelection } from '../session-ui/session-items.js'
+import { STATUSLINE_ITEM_DESCRIPTIONS, statuslineSelection } from '../session-ui/statusline-session.js'
+import { TITLE_ITEM_DESCRIPTIONS, titleSelection } from '../session-ui/title-session.js'
 
 /**
  * The two ways these commands answer.

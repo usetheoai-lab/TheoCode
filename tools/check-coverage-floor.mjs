@@ -130,6 +130,25 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  *   58.95  declared at B-161's close, and the first one measured with the CHECKOUT axis actually
  *          closed rather than assumed: 2646/4488, twice in a real `git clone` with its own install
  *          and twice here, compared per file — 239 files, four metrics, zero divergences.
+ * *   62.03  2814/4536, declared 2026-09-10 after a code review's 62 findings were fixed. The
+ *          numerator moved because four clusters gained tests where there had been none: the
+ *          all-projects session sweep's APPLY phase (entered by no test at all, with two
+ *          data-losing defects inside it), the three-state hook trust classification, the consent
+ *          state model at 0%, and credential provenance at 0%. Measured under the protocol below
+ *          rather than from the working tree — twice in a real `git clone` with its own install
+ *          and an empty `$HOME`, and once here; all three returned 2814/4536 exactly, which is the
+ *          agreement the CHECKOUT axis being closed predicts.
+ *
+ * VERIFIED — not re-declared — at `e06337c`, once the review batch was complete. A protocol run
+ * (real clone, own install, empty `$HOME`) reads 2799/4491 = 62.32%. Numerator AND denominator both
+ * moved from the 2814/4536 above: the command-dispatch restructure removed 131 code lines, so this
+ * is a different tree rather than drift within the same one.
+ *
+ * 62.32 against a floor of 62.03 is 0.29 of slack, inside `TOLERANCE`, so nothing was raised. That
+ * is the tolerance doing its job rather than an omission — the note on it below says a zero
+ * tolerance "would redden lint on every coverage-improving commit until someone edited a gitignored
+ * file, and a gate people bypass is the failure this ecosystem exists to prevent". Recorded so the
+ * next reader can tell a floor that was CHECKED from one that was merely left alone.
  *
  * The drop from 59.15 is the point, not a regression. Those ~9 lines were covered only because
  * tests read the ambient environment; the repository had them by accident of where the suite ran,
@@ -160,7 +179,7 @@ const GATE_DIRS = ['skills/implement/scripts', '.claude/skills/implement/scripts
  * Re-declare from a checkout with NO `.claude`, no ancestor context file and no transcript store —
  * and verify the three, rather than assuming a /tmp path is enough. It was not, twice.
  */
-export const DECLARED_FLOOR = 59.03
+export const DECLARED_FLOOR = 62.03
 
 /**
  * WHY NO COVERAGE STEP IN CI, recorded here because here is where the floor is declared.
@@ -344,53 +363,94 @@ function readOrNull(path) {
   }
 }
 
+/**
+ * The no-thresholds-file route: hold the TRACKED floor against the report, if one exists.
+ *
+ * B-160. This used to skip and say "nothing here to compare it against" — with a coverage report
+ * sitting in the directory beside it. There IS something: `DECLARED_FLOOR` is tracked and
+ * travels, so in a clone it is the ONLY half available, and comparing it to the measured total
+ * is the one check this environment supports. `evaluateFloor` already does it: a floor sitting
+ * further below the tree than TOLERANCE fails, which is exactly the mutant this was filed about
+ * — DECLARED_FLOOR lowered to 40 against a measured 59, surviving the whole suite until now.
+ *
+ * What this still cannot see is `coverage.min_percent`, which no clone has. The two halves
+ * agreeing stays a property of a machine that installed the kit.
+ */
+function checkTrackedFloorOnly(reportFile, say) {
+  const text = existsSync(reportFile) ? readOrNull(reportFile) : null
+  const measured = text === null ? null : readMeasured(text)
+  if (measured === null) {
+    say(
+      `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')} and no parseable ${REPORT_PATH}. ` +
+        `The tracked floor is ${DECLARED_FLOOR}%, and nothing here measures the tree to compare it to.`,
+    )
+    return 0
+  }
+  // B-165 — the same scope refusal as the main path. The partial-report false alarm fires on
+  // THIS route too: a checkout without the kit installed reaches here, and a single-file report is
+  // just as incomparable to a whole-tree floor with or without a thresholds file.
+  if (readFilesCovered(text) === 0) {
+    say(
+      '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
+        'measure the source tree. Run `pnpm test:coverage` — `pnpm test` writes no report.',
+    )
+    return 0
+  }
+
+  const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured })
+  // The age travels on this route too. The `readFilesCovered` note above says a number without its
+  // age is a claim about now, and the first version of this branch dropped it — including on the
+  // failing arm, which tells the reader to raise the floor to a figure it will not date.
+  const age = ageMinutes(reportFile)
+  const stamp = age === null ? '' : ` (report ${age}m old)`
+  say(`[coverage-floor] no thresholds file — checking the TRACKED floor only. ${trackedOnly.message}${stamp}`)
+  return trackedOnly.status === 'OK' ? 0 : 1
+}
+
+/** The measured-floor evaluation: the agreed value against the report on disk, scope-checked. */
+function checkAgainstReport(reportFile, floor, present, say) {
+  const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
+  const measured = reportText === null ? null : readMeasured(reportText)
+
+  // A report that covered no source file did not measure the tree, so its total is not comparable to
+  // a whole-tree floor. This is an exact test, not a fraction: ADR-1 rejected a coverage-fraction
+  // threshold by name, because any ratio is a number that silently accepts real regressions.
+  const covered = reportText === null ? null : readFilesCovered(reportText)
+  if (covered === 0) {
+    const fileCount = Object.keys(JSON.parse(reportText)).length - 1
+    say(
+      `[coverage-floor] SKIPPED — the report shows coverage for NO source file (0 of ${String(fileCount)} ` +
+        'entries), so it did not measure the source tree: a partial coverage run writes to the same ' +
+        'path. Run `pnpm test:coverage` to check the value — `pnpm test` writes no report.',
+    )
+    return 0
+  }
+
+  const result = evaluateFloor({ floor, measured })
+
+  if (result.status === 'UNMEASURED') {
+    // Not a failure. `pnpm lint` runs before the step that regenerates the report, so this is the
+    // ordinary case there — and the agreement check upstream already ran without needing one.
+    say(`[coverage-floor] floor ${floor}% agrees with DECLARED_FLOOR ${sourceNote(present)}; ${result.message}`)
+    return 0
+  }
+
+  const age = ageMinutes(reportFile)
+  // The OK path names its source too. A checker that only says where it read when it disagrees
+  // leaves the agreeing case unauditable, which is the half of F-guard-3 the first fix missed.
+  // A number without its age is a claim about now. This checker does not regenerate the report.
+  const stamp = age === null ? '' : ` (report ${age}m old)`
+  say(`[coverage-floor] ${result.message} ${sourceNote(present)}${stamp}`)
+  return result.status === 'OK' ? 0 : 1
+}
+
 function main() {
   const root = process.env['COVERAGE_FLOOR_ROOT'] ?? join(dirname(fileURLToPath(import.meta.url)), '..')
   const say = (line) => process.stdout.write(`${line}\n`)
 
-  const reportFileEarly = join(root, REPORT_PATH)
+  const reportFile = join(root, REPORT_PATH)
   const present = FLOOR_PATHS.map((relative) => join(root, relative)).filter((path) => existsSync(path))
-  if (present.length === 0) {
-    // B-160. This used to skip and say "nothing here to compare it against" — with a coverage report
-    // sitting in the directory beside it. There IS something: `DECLARED_FLOOR` is tracked and
-    // travels, so in a clone it is the ONLY half available, and comparing it to the measured total
-    // is the one check this environment supports. `evaluateFloor` already does it: a floor sitting
-    // further below the tree than TOLERANCE fails, which is exactly the mutant this was filed about
-    // — DECLARED_FLOOR lowered to 40 against a measured 59, surviving the whole suite until now.
-    //
-    // What this still cannot see is `coverage.min_percent`, which no clone has. The two halves
-    // agreeing stays a property of a machine that installed the kit.
-    const earlyText = existsSync(reportFileEarly) ? readOrNull(reportFileEarly) : null
-    const earlyMeasured = earlyText === null ? null : readMeasured(earlyText)
-    if (earlyMeasured === null) {
-      say(
-        `[coverage-floor] SKIPPED — no ${FLOOR_PATHS.join(' or ')} and no parseable ${REPORT_PATH}. ` +
-          `The tracked floor is ${DECLARED_FLOOR}%, and nothing here measures the tree to compare it to.`,
-      )
-      return 0
-    }
-    // B-165 — the same scope refusal as the main path below. The partial-report false alarm fires on
-    // THIS route too: a checkout without the kit installed reaches here, and a single-file report is
-    // just as incomparable to a whole-tree floor with or without a thresholds file.
-    if (readFilesCovered(earlyText) === 0) {
-      say(
-        '[coverage-floor] SKIPPED — the report shows coverage for NO source file, so it did not ' +
-          'measure the source tree. Run `pnpm test:coverage` — `pnpm test` writes no report.',
-      )
-      return 0
-    }
-
-    const trackedOnly = evaluateFloor({ floor: DECLARED_FLOOR, measured: earlyMeasured })
-    // The age travels on this route too. Line 250 of this file says a number without its age is a
-    // claim about now, and the first version of this branch dropped it — including on the failing
-    // arm, which tells the reader to raise the floor to a figure it will not date.
-    const earlyAge = ageMinutes(reportFileEarly)
-    const earlyStamp = earlyAge === null ? '' : ` (report ${earlyAge}m old)`
-    say(
-      `[coverage-floor] no thresholds file — checking the TRACKED floor only. ${trackedOnly.message}${earlyStamp}`,
-    )
-    return trackedOnly.status === 'OK' ? 0 : 1
-  }
+  if (present.length === 0) return checkTrackedFloorOnly(reportFile, say)
 
   const resolved = resolveViaGate(root)
   if (resolved.error !== undefined) {
@@ -419,40 +479,7 @@ function main() {
     return 1
   }
 
-  const reportFile = join(root, REPORT_PATH)
-  const reportText = existsSync(reportFile) ? readOrNull(reportFile) : null
-  const measured = reportText === null ? null : readMeasured(reportText)
-
-  // A report that covered no source file did not measure the tree, so its total is not comparable to
-  // a whole-tree floor. This is an exact test, not a fraction: ADR-1 rejected a coverage-fraction
-  // threshold by name, because any ratio is a number that silently accepts real regressions.
-  const covered = reportText === null ? null : readFilesCovered(reportText)
-  if (covered === 0) {
-    const fileCount = Object.keys(JSON.parse(reportText)).length - 1
-    say(
-      `[coverage-floor] SKIPPED — the report shows coverage for NO source file (0 of ${String(fileCount)} ` +
-        'entries), so it did not measure the source tree: a partial coverage run writes to the same ' +
-        'path. Run `pnpm test:coverage` to check the value — `pnpm test` writes no report.',
-    )
-    return 0
-  }
-
-  const result = evaluateFloor({ floor: resolved.value, measured })
-
-  if (result.status === 'UNMEASURED') {
-    // Not a failure. `pnpm lint` runs before the step that regenerates the report, so this is the
-    // ordinary case there — and the agreement check above already ran without needing one.
-    say(`[coverage-floor] floor ${resolved.value}% agrees with DECLARED_FLOOR ${sourceNote(present)}; ${result.message}`)
-    return 0
-  }
-
-  const age = ageMinutes(reportFile)
-  // The OK path names its source too. A checker that only says where it read when it disagrees
-  // leaves the agreeing case unauditable, which is the half of F-guard-3 the first fix missed.
-  // A number without its age is a claim about now. This checker does not regenerate the report.
-  const stamp = age === null ? '' : ` (report ${age}m old)`
-  say(`[coverage-floor] ${result.message} ${sourceNote(present)}${stamp}`)
-  return result.status === 'OK' ? 0 : 1
+  return checkAgainstReport(reportFile, resolved.value, present, say)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

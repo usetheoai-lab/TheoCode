@@ -155,6 +155,41 @@ export interface SettingsFileReport {
  * accepts anything teaches an operator that a setting is read when it is not, and the cost lands
  * later, on a behaviour they configured and never got.
  */
+/**
+ * One candidate's report, or the reason there is none.
+ *
+ * `'skip'` — the file does not exist; the next candidate in the scope may still be read.
+ * `'stop'` — the file exists and is malformed JSON; the scope ends with no report. The loader
+ * already refuses on malformed JSON with the file named, and a diagnostic that threw here would
+ * fail on exactly the input it exists to explain.
+ *
+ * Extracted so the loop below can state first-existing-wins ONCE: the previous shape expressed
+ * "malformed ends the scope" and "only the first is read" with the same `break` keyword in one
+ * body, which is where a future edit goes wrong.
+ */
+function reportOne(candidate: SettingsCandidate): SettingsFileReport | 'skip' | 'stop' {
+  const path = candidate.path
+  if (!existsSync(path)) return 'skip'
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    return 'stop'
+  }
+  try {
+    const read = translateSettings(parsed, {
+      ownKeys: CONFIG_SCHEMA_KEYS,
+      foreignRoot: candidate.foreignRoot,
+      hooksDelivery: candidate.hooksDelivery,
+    })
+    return { path, ignored: read.ignored, unrecognised: read.unrecognised, droppedHooks: read.droppedHooks }
+  } catch (err) {
+    // #151 — a refused `hooks` key throws. A DIAGNOSTIC must survive the state it exists to
+    // describe: reporting the refusal is more use than inheriting it.
+    return { path, ignored: [], unrecognised: [], droppedHooks: [(err as Error).message] }
+  }
+}
+
 export function settingsReport(opts: {
   projectDir?: string
   userDir?: string
@@ -169,41 +204,10 @@ export function settingsReport(opts: {
   const out: SettingsFileReport[] = []
   for (const list of [candidates.user, candidates.project, candidates.projectLocal]) {
     for (const candidate of list) {
-      const path = candidate.path
-      if (!existsSync(path)) continue
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(readFileSync(path, 'utf8'))
-      } catch {
-        // The loader already refuses on malformed JSON with the file named; a diagnostic that threw
-        // here would fail on exactly the input it exists to explain.
-        break
-      }
-      let read
-      try {
-        read = translateSettings(parsed, {
-          ownKeys: CONFIG_SCHEMA_KEYS,
-          foreignRoot: candidate.foreignRoot,
-          hooksDelivery: candidate.hooksDelivery,
-        })
-      } catch (err) {
-        // #151 — a refused `hooks` key throws. A DIAGNOSTIC must survive the state it exists to
-        // describe: reporting the refusal is more use than inheriting it.
-        out.push({
-          path,
-          ignored: [],
-          unrecognised: [],
-          droppedHooks: [(err as Error).message],
-        })
-        break
-      }
-      out.push({
-        path,
-        ignored: read.ignored,
-        unrecognised: read.unrecognised,
-        droppedHooks: read.droppedHooks,
-      })
-      break // only the first of each list is read — the report describes what the loader used
+      const result = reportOne(candidate)
+      if (result === 'skip') continue
+      if (result !== 'stop') out.push(result)
+      break // first existing candidate wins — the report describes what the loader used
     }
   }
   return out

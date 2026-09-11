@@ -1,27 +1,26 @@
 /**
- * B-116 slice 2 — `interpretCommand` dispatch: which capability group claims which action.
+ * B-116 slice 2 — `interpretCommand` dispatch: which handler claims which action.
  *
- * The router is a chain of responsibility over seven group functions, and the first that returns
- * true wins. The obvious thing to test is precedence — and MEASURED, precedence is not observable
- * here: the 38 actions partition cleanly across the seven switches, no action appears in two, so
- * reordering `GROUPS` changes nothing. Three mutations proved it (reordering the chain, removing
+ * The router used to be a chain of responsibility over eight group functions, and the first that
+ * returned true won. The obvious thing to test was precedence — and MEASURED, precedence was not
+ * observable here: the actions partitioned cleanly across the groups, no action appeared in two, so
+ * reordering the chain changed nothing. Three mutations proved it (reordering the chain, removing
  * the early return, making `noop` stop claiming) and none turned a case red.
  *
- * That is worth knowing rather than working around, because the disjointness is WHY order does not
- * matter — and it is not enforced anywhere. A second `case 'quit'` added to another group would
- * make behaviour order-dependent silently, and the first symptom would be a command that stopped
- * working after an unrelated reorder.
+ * #40 replaced the chain with one `Record<CommandAction['kind'], Handler>` and a single lookup, so
+ * the disjointness that made order inert is now the type's job: a kind with no entry does not
+ * compile, and a kind claimed twice cannot be written, because a repeated key is the same key. The
+ * two cases that asserted the partition by reading this file's sibling source with a regex went
+ * with the chain — there are no `case` labels left to parse, and nothing left for them to catch
+ * that the compiler does not catch first.
  *
- * So the cases below pin two different things. The structural one asserts the partition itself,
- * which is the invariant the chain rests on. The behavioural ones assert that each group's actions
- * reach it — including that an unclaimed action is inert, since a registry entry added without a
- * handler lands there.
+ * What remains is behavioural, and it is the half no type proves: that each action reaches the
+ * handler that does the work, and that an unclaimed action is inert — a registry entry added ahead
+ * of its handler lands there.
  *
- * The fake supplies every field of `CommandCapabilities` as a spy rather than a partial cast: a
- * missing field throws at destructuring time, and that failure reads as a dispatch bug.
+ * The fake supplies every field of `CommandCapabilities` as a spy rather than a partial cast, so a
+ * handler reaching for a field the fake forgot fails loudly instead of calling `undefined`.
  */
-import { readFileSync } from 'node:fs'
-
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -80,7 +79,7 @@ function stubSpies() {
   }
 }
 
-function harness() {
+function harness(over: { hasLastUsage?: boolean } = {}) {
   const { agent, SESSION, ptyOwner } = stubCollaborators()
   const spies = stubSpies()
 
@@ -102,6 +101,9 @@ function harness() {
     goalActive: false,
     events: [],
     streaming: false,
+    // #58 — whether the last turn left usage to draw. Default `false`: a fresh session, which is
+    // the state `/usage` used to arm an invisible panel from.
+    hasLastUsage: over.hasLastUsage ?? false,
   } as unknown as CommandCapabilities
 
   return { cap, agent, SESSION, ptyOwner, ...spies }
@@ -136,6 +138,27 @@ describe('interpretCommand — the session-and-screen group claims its actions',
     expect(h.resetSession).not.toHaveBeenCalled()
     expect(h.setToast).not.toHaveBeenCalled()
     expect(h.agent.send).not.toHaveBeenCalled()
+  })
+
+  it('test_usage_before_the_first_turn_says_so_instead_of_toggling_nothing', () => {
+    // #58 — the panel renders on `showUsage && lastUsage`, so before any turn the toggle armed a
+    // flag with nothing behind it: `/usage` rendered nothing and said nothing. `/copy` answers
+    // "nothing to copy — the agent has not replied yet" in the same situation, and that is the
+    // shape this follows.
+    const h = run({ kind: 'toggleUsage' } as CommandAction, '', harness({ hasLastUsage: false }))
+
+    expect(h.setShowUsage, 'the toggle armed a panel that cannot render').not.toHaveBeenCalled()
+    expect(h.setToast).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('no usage') }),
+    )
+  })
+
+  it('test_usage_toggles_the_panel_once_a_turn_has_reported_usage', () => {
+    // Anti-vacuity floor: refusing unconditionally would satisfy the assertion above.
+    const h = run({ kind: 'toggleUsage' } as CommandAction, '', harness({ hasLastUsage: true }))
+
+    expect(h.setShowUsage).toHaveBeenCalled()
+    expect(h.setToast).not.toHaveBeenCalled()
   })
 
   it('test_toggleHelp_reaches_the_help_setter_and_not_the_panel', () => {
@@ -307,56 +330,6 @@ describe('interpretCommand — an unclaimed action falls through without effect'
     expect(h.agent.send).not.toHaveBeenCalled()
     expect(h.setPanel).not.toHaveBeenCalled()
   })
-})
-
-describe('interpretCommand — the partition the chain rests on', () => {
-  // Read from the source rather than from a hand-kept list: a list would have to be updated by the
-  // same person who broke the invariant, at the same moment, which is when they are least likely to.
-  const source = readFileSync(new URL('../../src/commands/interpret-command.ts', import.meta.url), 'utf8')
-
-  const GROUPS = [
-    'sessionAndScreen',
-    'identity',
-    'turn',
-    'inspection',
-    'transcriptOut',
-    'settings',
-    'shells',
-    'conduct',
-  ] as const
-
-  function claimsByGroup(): Map<string, string[]> {
-    const bounds = GROUPS.map((n) => [n, source.indexOf(`function ${n}(`)] as const)
-      .filter(([, i]) => i >= 0)
-      .sort((a, b) => a[1] - b[1])
-    const claims = new Map<string, string[]>()
-    bounds.forEach(([name, start], i) => {
-      const end = i + 1 < bounds.length ? bounds[i + 1]![1] : source.length
-      for (const m of source.slice(start, end).matchAll(/case '([a-zA-Z]+)'/g)) {
-        const action = m[1] as string
-        claims.set(action, [...(claims.get(action) ?? []), name])
-      }
-    })
-    return claims
-  }
-
-  it('test_no_action_is_claimed_by_two_groups', () => {
-    // The invariant. While it holds, the order of `GROUPS` is free; the moment it breaks, order
-    // becomes behaviour and nothing else in the suite would notice.
-    const duplicated = [...claimsByGroup().entries()]
-      .filter(([, groups]) => new Set(groups).size > 1)
-      .map(([action, groups]) => `${action} -> ${[...new Set(groups)].join(', ')}`)
-
-    expect(duplicated).toEqual([])
-  })
-
-  it('test_every_group_claims_something', () => {
-    // Anti-vacuity for the case above: an empty parse would make it pass while asserting nothing,
-    // and a group that claims nothing is dead code in the chain.
-    const claimed = new Set([...claimsByGroup().values()].flat())
-    expect([...claimed].sort()).toEqual([...GROUPS].sort())
-  })
-
 })
 
 describe('B-168 — a published record does not decide what the next test sees', () => {

@@ -19,8 +19,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { CLIPBOARD_TIMEOUT_MS, clipboardSpawnOptions, copyToClipboard } from '../src/clipboard.js'
-import { ClipboardWriteError } from '../src/clipboard-write-error.js'
+import { CLIPBOARD_TIMEOUT_MS, clipboardSpawnOptions, copyToClipboard } from '../src/clipboard/clipboard.js'
+import { ClipboardWriteError } from '../src/clipboard/clipboard-write-error.js'
 import { DIFF_TIMEOUT_MS, diffSpawnOptions } from '../src/commands/command-content.js'
 
 describe('the clipboard write is bounded', () => {

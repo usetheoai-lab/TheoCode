@@ -13,7 +13,7 @@ import { abandonQuestion, answerQuestion } from '@theocode/agent/ask'
 import { login } from '@theocode/agent/auth'
 import { BUILTIN_COMMANDS } from '../commands/index.js'
 import { submittableSecret } from './secret-buffer.js'
-import { PLACEHOLDER } from '../theme.js'
+import { PLACEHOLDER } from '../theme/theme.js'
 import { DemoSurface } from './Demos.js'
 import type { Mode, ToastPayload } from '../screen-types.js'
 

@@ -44,6 +44,7 @@ specs
 .claude/knowledge-base/discoveries/snapshots/**
 .claude/agents/**
 bench/reports/run.log
+architecture-output/
 
 # MCP servers config (user/local, like Codex config) — copy .mcp.json.example to enable
 .mcp.json

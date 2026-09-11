@@ -14,17 +14,39 @@
  * `ok` still reports the exit status, unchanged, so no existing caller changes behaviour. What
  * changes is that the output is no longer discarded on the way past.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { createGitRunner } from '../src/git-runner.js'
 
+/**
+ * Every temporary root this file makes, removed when it finishes.
+ *
+ * The pattern is `packages/agent/tests/aggregate-cut-wiring.test.ts:44-57`'s, inline rather than
+ * imported because this package has exactly one file that needs it — a helper module with a single
+ * consumer is more machinery than the three lines it saves. Measured cost of skipping it, in this
+ * repository: 193 directories and 15 MB of generated corpora from one uncleaned file in an
+ * afternoon.
+ */
+const made: string[] = []
+
+afterAll(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
+function tempRoot(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  made.push(dir)
+  return dir
+}
+
 describe('#105 — git output survives a non-zero exit', () => {
   it('test_a_no_index_diff_returns_its_body_even_though_it_exits_one', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'git-exit-'))
+    const dir = tempRoot('git-exit-')
     const file = join(dir, 'a.txt')
     writeFileSync(file, 'hello\n')
 
