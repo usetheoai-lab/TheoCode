@@ -16,6 +16,9 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+- **The framework dependency moved off the pre-release line onto the published stable one.** `@theokit/agents` goes from `13.0.0-next.11` to `13.0.0` and `@theokit/presenter` from `^0.8.0` to `^0.9.0` — both resolved from the registry, with no local link or overlay. Validated against what a fresh consumer installs rather than against a working copy: typecheck clean, 225 test files and 1732 tests green, build green, and the full `lint` chain — eslint, knip and the ten project gates — green. (upstream `theokit`)
+
 ### Fixed
 - **A hook declared in `.theokit/hooks.json` never ran, and nothing said why.** The framework's compatibility loader reads that file itself and spawns what it finds, bypassing this product's per-hook approval — so the gate refuses it, and a refused hook is treated as one that was never configured: the operation proceeds and there is no signal at all. The module had written the sentence that would explain it and nothing ever emitted it; `refusalNotice` had no production caller in any package. `theocode doctor` now names the file and the commands in it, beside the row where the equivalent `.claude/settings.json` refusal already lands. Answered from disk at diagnosis rather than at the spawn, deliberately: a spawn-time message can only arrive after the hook has already failed to fire, while "will my hook run?" is answerable before the turn starts. (#9)
 
