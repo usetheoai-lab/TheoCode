@@ -14,9 +14,9 @@ import { sessionHasWriter } from '@theokit/agents/persistence'
 import { classifyProjects, projectsRoot, type FsSeam } from '@theokit/agents/session'
 
 import { listAgents } from '../agent-list.js'
+import { runSessionGCAllProjects } from './all-sessions-apply.js'
 import {
   planSessionGCAllProjects,
-  runSessionGCAllProjects,
   type Liveness,
   type ProjectEntry,
   type CollectableKind,

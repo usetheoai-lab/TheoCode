@@ -19,8 +19,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ContentPanel, ToastPayload } from '../../src/screen-types.js'
-import { statuslineSelection } from '../../src/statusline-session.js'
-import { titleSelection } from '../../src/title-session.js'
+import { statuslineSelection } from '../../src/session-ui/statusline-session.js'
+import { titleSelection } from '../../src/session-ui/title-session.js'
 import { handleStatusline, handleTitle } from '../../src/commands/surface-commands.js'
 
 /** Both answer channels, spied, so a case can assert which one was used and which was not. */

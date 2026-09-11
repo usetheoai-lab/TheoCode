@@ -13,13 +13,13 @@
  * `~/.claude/skills/`, says so, and is backed by two sibling files; routing it through the state dir
  * imported another kit's corpus and dropped the operator's own.
  */
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { loadUserRules } from '../../src/context/rules.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 const realStateDir = process.env.THEOKIT_HOME
 
@@ -37,8 +37,8 @@ function ruleAt(root: string, name: string, body: string): void {
 
 describe('the rules follow the state directory the operator configured', () => {
   it('test_rules_follow_a_state_dir_outside_the_home', () => {
-    const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
-    const outside = mkdtempSync(join(tmpdir(), 'b171-state-'))
+    const home = tempRoot('b171-home-')
+    const outside = tempRoot('b171-state-')
     ruleAt(outside, 'r.md', 'MARKER-FROM-THE-CONFIGURED-STATE-DIR')
     process.env.THEOKIT_HOME = outside
 
@@ -51,8 +51,8 @@ describe('the rules follow the state directory the operator configured', () => {
   it('test_the_default_root_is_still_read_when_a_state_dir_is_configured', () => {
     // The first attempt could have returned ONLY the configured root and passed the test above.
     // This is what makes following the configured root additive rather than a replacement.
-    const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
-    const outside = mkdtempSync(join(tmpdir(), 'b171-state-'))
+    const home = tempRoot('b171-home-')
+    const outside = tempRoot('b171-state-')
     ruleAt(join(home, '.theokit'), 'a.md', 'MARKER-FROM-THE-DEFAULT-ROOT')
     ruleAt(join(home, '.theokit'), 'b.md', 'MARKER-ALSO-DEFAULT')
     ruleAt(outside, 'c.md', 'MARKER-FROM-THE-CONFIGURED-STATE-DIR')
@@ -72,8 +72,8 @@ describe('the rules follow the state directory the operator configured', () => {
     // The BLOCKER that reversed the first attempt. Each root fits alone; together they must not
     // exceed the ceiling silently. `truncated` is what `/status` reports, so a merge that loses it
     // reports "N loaded" while a rule file was dropped.
-    const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
-    const outside = mkdtempSync(join(tmpdir(), 'b171-state-'))
+    const home = tempRoot('b171-home-')
+    const outside = tempRoot('b171-state-')
     const big = 'x'.repeat(40_000)
     ruleAt(join(home, '.theokit'), 'a.md', `MARKER-KEPT\n${big}`)
     ruleAt(outside, 'b.md', `MARKER-DROPPED\n${big}`)
@@ -100,7 +100,7 @@ describe('the rules follow the state directory the operator configured', () => {
     // `/home -> /var/home` on Fedora Silverblue, systemd-homed, any symlinked `$HOME`. Measured
     // before the fix: two rule files came back as `read: 4`, and a corpus that fit began truncating,
     // dropping one of the operator's own files.
-    const base = mkdtempSync(join(tmpdir(), 'b171-two-paths-'))
+    const base = tempRoot('b171-two-paths-')
     const real = join(base, 'real')
     ruleAt(join(real, '.theokit'), 'a.md', 'MARKER-ONE')
     ruleAt(join(real, '.theokit'), 'b.md', 'MARKER-TWO')
@@ -115,7 +115,7 @@ describe('the rules follow the state directory the operator configured', () => {
 
   it('test_with_no_state_dir_configured_the_home_roots_still_load', () => {
     delete process.env.THEOKIT_HOME
-    const home = mkdtempSync(join(tmpdir(), 'b171-home-'))
+    const home = tempRoot('b171-home-')
     ruleAt(join(home, '.theokit'), 'r.md', 'MARKER-FROM-THE-DEFAULT-ROOT')
 
     expect(loadUserRules(home, silent).text).toContain('MARKER-FROM-THE-DEFAULT-ROOT')

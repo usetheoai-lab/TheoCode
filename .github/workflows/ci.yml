@@ -75,8 +75,21 @@
 # nobody re-ran the check after the fact that made the fix free. Protection was configured on both
 # release branches:
 #
-#   main, develop    required checks: test, typecheck, lint, depcruise, crossval
+#   main, develop    required checks: test, typecheck, lint, depcruise, crossval, build
 #                    enforce_admins: true, force pushes: disabled
+#
+# `build` was added to BOTH lists on 2026-09-10, and the six-day gap between the job existing and
+# the job blocking is the finding worth keeping rather than the fix. B-136 added the job on
+# 2026-09-03 because the bundle `package.json:bin` points at had been broken with nothing noticing —
+# `npm run build` could not resolve @theokit/sdk. The header above was updated to say six; the
+# protection was not. So the gate ran, reported, and could not refuse a merge: a PR breaking the
+# bundle went red on `build` and stayed mergeable, which is the precise hole B-136 closed one layer
+# down and left open here.
+#
+# The falsifier is one line, and running it is the only thing that separates this stanza from a
+# claim about a configuration nobody re-read:
+#
+#   gh api repos/usetheoai-lab/TheoCode/branches/develop/protection/required_status_checks --jq .contexts
 #
 # THE MERGE GUARD IS NO LONGER THE CONTROL, and that is the point rather than a side effect. B-070
 # is about a guard that read an empty `statusCheckRollup` as nothing-to-wait-for and merged PR #33

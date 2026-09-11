@@ -25,15 +25,29 @@ export interface KeyboardDeps {
   readonly trusted: boolean
   readonly streaming: boolean
   readonly goalActive: boolean
+  /**
+   * #58 — whether the last turn left usage to draw. NOT a preference: it is the other half of the
+   * condition `ConversationRegion.tsx` renders the panel on (`showUsage && lastUsage`), and the
+   * Escape ladder needs the conjunction rather than the toggle. See `showingUsage` below.
+   */
+  readonly hasLastUsage: boolean
   readonly currentSessionId: () => string
   readonly setPendingQuestion: (q: string | undefined) => void
   readonly interruptTurn: () => void
   readonly exit: () => void
 }
 
-function keyboardState(deps: KeyboardDeps): KeyboardState {
-  const { screen, backtrack, pendingQuestion, pendingApproval, trusted, streaming, goalActive } =
-    deps
+export function keyboardState(deps: KeyboardDeps): KeyboardState {
+  const {
+    screen,
+    backtrack,
+    pendingQuestion,
+    pendingApproval,
+    trusted,
+    streaming,
+    goalActive,
+    hasLastUsage,
+  } = deps
   const inDemoInput = screen.mode === 'plan' || screen.mode === 'ask' || screen.mode === 'select'
   return {
     hasOpenQuestion: pendingQuestion !== undefined,
@@ -43,7 +57,11 @@ function keyboardState(deps: KeyboardDeps): KeyboardState {
     inLogin: screen.loginProvider !== undefined,
     rotating: backtrack.rotating,
     mode: screen.mode,
-    showingUsage: screen.showUsage,
+    // #58 — the CONJUNCTION, because `routeEscape` reads this as "a usage panel is on screen" and
+    // sits above `streaming`. Fed the raw toggle, `/usage` before the first turn rendered nothing,
+    // said nothing, and then ate the first Escape of the next stream — on the gesture whose whole
+    // purpose is stopping a runaway turn promptly.
+    showingUsage: screen.showUsage && hasLastUsage,
     showingDiff: screen.panel !== undefined,
     showingHelp: screen.showHelp,
     goalActive: goalActive,

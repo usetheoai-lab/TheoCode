@@ -24,6 +24,15 @@ import { resolveRunTarget } from '../../src/commands/run.js'
 
 const args = { model: 'openai/gpt-5.6-terra' } as never
 
+/**
+ * The half of a `RunComposition` these cases do not vary.
+ *
+ * `cfg` is here because #29 made the composition's `shell_timeout_ms` reach the diff runner: the
+ * stub used to omit it, and `resolveRunTarget` now reads it. The value is the shape, not a
+ * decision — every case below is about the ORDER of the two credential resolutions.
+ */
+const COMPOSED = { cfg: { shell_timeout_ms: 10_000 }, policy: 'p', mod: 'm' }
+
 describe('resolveRunTarget', () => {
   it('test_the_probe_resolves_before_the_route_is_decided', async () => {
     // `routeToCredential` cannot decide without knowing whether the credential is an OAuth one, and
@@ -40,7 +49,7 @@ describe('resolveRunTarget', () => {
         return `openai-chatgpt/${id}`
       },
       composeRun: ((o: { routeModel: (id: string) => string }) =>
-        ({ policy: 'p', mod: 'm', model: o.routeModel('gpt-5.6-terra') }) as never) as never,
+        ({ ...COMPOSED, model: o.routeModel('gpt-5.6-terra') }) as never) as never,
     })
 
     expect(order[0]).toBe('resolve:openai/gpt-5.6-terra')
@@ -59,7 +68,7 @@ describe('resolveRunTarget', () => {
       },
       routeToCredential: (_cred, id) => `openai-chatgpt/${id}`,
       composeRun: ((o: { routeModel: (id: string) => string }) =>
-        ({ policy: 'p', mod: 'm', model: o.routeModel('gpt-5.6-terra') }) as never) as never,
+        ({ ...COMPOSED, model: o.routeModel('gpt-5.6-terra') }) as never) as never,
     })
 
     expect(resolvedWith).toHaveLength(2)
@@ -83,7 +92,7 @@ describe('resolveRunTarget', () => {
         return id
       },
       composeRun: ((o: { routeModel: (id: string) => string }) =>
-        ({ policy: 'p', mod: 'm', model: o.routeModel('x') }) as never) as never,
+        ({ ...COMPOSED, model: o.routeModel('x') }) as never) as never,
     })
 
     expect(sawCredential).toBe(probe)
@@ -98,7 +107,7 @@ describe('resolveRunTarget', () => {
       },
       routeToCredential: (_c, id) => id,
       composeRun: ((o: { routeModel: (id: string) => string }) =>
-        ({ policy: 'p', mod: 'm', model: o.routeModel('x') }) as never) as never,
+        ({ ...COMPOSED, model: o.routeModel('x') }) as never) as never,
     })
 
     // The probe's key is a by-product; the turn must run on the credential resolved for the id it

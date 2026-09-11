@@ -17,7 +17,7 @@ import { KeyboardHelp } from '@theokit/tui'
 import { THIS_BUILD } from './composer-capabilities.js'
 
 import { formatTurnError } from '../formatting/index.js'
-import { THINKING_PHRASES } from '../theme.js'
+import { THINKING_PHRASES } from '../theme/theme.js'
 import { Banner } from './Banner.js'
 import type { ContentPanel } from '../rendering/index.js'
 import type { ToastPayload } from '../screen-types.js'

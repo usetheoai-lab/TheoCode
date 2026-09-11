@@ -42,24 +42,28 @@ export function gitGate(skip: boolean, deps: GitGateDeps = { onWarn: defaultWarn
   if (skip) return
 
   let reason = deps.reason ?? ''
-  const run =
-    deps.run ??
-    ((timeoutMs: number) =>
-      createGitRunner({
-        timeoutMs,
-        onWarn: (m) => {
-          reason = m
-        },
-      })(['rev-parse', '--is-inside-work-tree']))
+  const run = deps.run ?? ((timeoutMs: number) => defaultGitRun(timeoutMs, (m) => (reason = m)))
 
   const result = run(DEFAULT_SHELL_TIMEOUT_MS)
   if (result.ok) return
 
+  const suffix = reason === '' ? '' : ` — ${reason}`
   deps.onWarn(
-    `Not inside a git repository, or git could not answer (use --skip-git-repo-check to override)` +
-      `${reason === '' ? '' : ` — ${reason}`}\n`,
+    `Not inside a git repository, or git could not answer (use --skip-git-repo-check to override)${suffix}\n`,
   )
-  ;(deps.onRefuse ?? ((code: number) => process.exit(code)))(1)
+  ;(deps.onRefuse ?? defaultRefuse)(1)
+}
+
+/** The real runner behind the seam — hoisted so the gate's body keeps only the decision. */
+function defaultGitRun(
+  timeoutMs: number,
+  onReason: (message: string) => void,
+): { ok: boolean; stdout: string } {
+  return createGitRunner({ timeoutMs, onWarn: onReason })(['rev-parse', '--is-inside-work-tree'])
+}
+
+function defaultRefuse(code: number): void {
+  process.exit(code)
 }
 
 function defaultWarn(message: string): void {

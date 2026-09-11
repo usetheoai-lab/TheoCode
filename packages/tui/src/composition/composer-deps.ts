@@ -25,6 +25,8 @@ export function composerDeps(
     approvalMode: ApprovalMode
     goalRun: ReturnType<typeof useGoalRun>['goalRun']
     goalActive: boolean
+    /** #58 — read once by the composition root; `/usage` and the Escape ladder both consume it. */
+    hasLastUsage: boolean
     setGoalRun: ReturnType<typeof useGoalRun>['setGoalRun']
     credential: Parameters<typeof useComposerCommands>[0]['credential']
     setApprovalMode: Dispatch<SetStateAction<ApprovalMode>>
@@ -39,6 +41,7 @@ export function composerDeps(
     approvalMode,
     goalRun,
     goalActive,
+    hasLastUsage,
     setGoalRun,
     setApprovalMode,
     credential,
@@ -59,6 +62,7 @@ export function composerDeps(
     approvalMode,
     goalRun,
     goalActive,
+    hasLastUsage,
     currentSessionId: s.currentSessionId,
     forkCurrentSession: s.forkCurrentSession,
     resetSession: s.resetSession,

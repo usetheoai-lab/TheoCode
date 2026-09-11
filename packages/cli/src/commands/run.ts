@@ -17,7 +17,7 @@ import type { Shutdown } from '@theokit/agents/commands'
 import { resolveSession } from '../runtime/index.js'
 import { fireSessionStart } from '../runtime/session-start.js'
 import { diagnosticsEnabled } from '@theocode/shared/diagnostic-sink'
-import { turnFailureReporting } from '@theocode/shared/turn-failure-reporting'
+import { turnFailureReporting, type TurnFailureHooks } from '@theocode/shared/turn-failure-reporting'
 
 function readPrompt(args: ExecRun): string {
   if (args.stdinBehavior === 'required' || args.stdinBehavior === 'forced') {
@@ -34,7 +34,64 @@ function readPrompt(args: ExecRun): string {
   return stdin.length > 0 ? `${base}\n\n<stdin>\n${stdin}\n</stdin>` : base
 }
 
-function createProcessor(json: boolean, sessionId: string): ExecProcessor {
+/**
+ * #29 — the git seam behind the end-of-turn diff, with the reason ROUTED rather than dropped.
+ *
+ * `git-runner.ts` made `onWarn` required and said why: "making the callback mandatory means a
+ * future caller cannot rebuild the silence by omitting an optional argument". This call site
+ * rebuilt it anyway, by supplying `() => {}`. It is the one of four in `packages/` that did.
+ *
+ * The cost was visible in the output, not only in principle: `turn-diff.ts` renders a failed call
+ * as "the changes to N file(s) could not be shown: " plus a detail git writes to STDERR — which
+ * this seam is the only thing that sees. So the sentence ended on a colon, and the operator was
+ * told the diff was unavailable and never why.
+ *
+ * `timeoutMs` stays a parameter for the reason `git-runner.ts` gives for not making it a constant:
+ * the duplicated `10_000` literal was the original finding, and a shared constant would have moved
+ * it rather than removed it. The caller passes the project's own `shell_timeout_ms`, as
+ * `commands/review.ts` already did.
+ */
+export function createDiffGit(
+  timeoutMs: number,
+  err: (line: string) => void,
+): ReturnType<typeof createGitRunner> {
+  return createGitRunner({
+    timeoutMs,
+    onWarn: (m) => {
+      err(`[diff] ${m}`)
+    },
+  })
+}
+
+/**
+ * #30 — one stream OPEN is one turn, so the retry count starts at zero on each.
+ *
+ * `turnFailureReporting` bundles three members so that none can be wired without the others, and
+ * the sole production consumer wired two: `startTurn` had a test and no caller. That is not inert
+ * here — `session-busy.ts` opens a SECOND stream on the same hooks when the session is contended,
+ * so a `rate_limit` spent on the first pass was still being counted into the second turn's error
+ * text. "After 3 attempts" on a turn that made one is the false attribution `RetryRecord.startTurn`
+ * exists to prevent.
+ *
+ * Wrapping the opener rather than calling `startTurn()` once before the consume: the fork is opened
+ * inside `consumeWithForkIfBusy`, where this caller has no line to put it on, and a reset that only
+ * covers the first attempt would leave exactly the case that was wrong.
+ */
+export function perTurnStream(
+  failure: TurnFailureHooks,
+  open: (sessionId: string) => AsyncIterable<unknown>,
+): (sessionId: string) => AsyncIterable<unknown> {
+  return (sessionId) => {
+    failure.startTurn()
+    return open(sessionId)
+  }
+}
+
+function createProcessor(
+  json: boolean,
+  sessionId: string,
+  shellTimeoutMs: number,
+): ExecProcessor {
   const io = {
     out: (l: string) => process.stdout.write(`${l}\n`),
     err: (l: string) => process.stderr.write(`${l}\n`),
@@ -45,7 +102,7 @@ function createProcessor(json: boolean, sessionId: string): ExecProcessor {
   // the repository in front of it.
   return json
     ? createJsonlProcessor(io, sessionId)
-    : createHumanProcessor(io, sessionId, createGitRunner({ timeoutMs: 10_000, onWarn: () => {} }))
+    : createHumanProcessor(io, sessionId, createDiffGit(shellTimeoutMs, io.err))
 }
 
 /**
@@ -97,6 +154,7 @@ export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) 
   // read plus, at most, a token refresh) and the second call reuses the refreshed token.
   const probe = await resolveCredentialForModel(args.model, { env: process.env, home: homedir() })
   const {
+    cfg,
     policy: headlessPolicy,
     mod,
     model,
@@ -107,7 +165,11 @@ export async function resolveRunTarget(args: ExecRun, injected?: RunTargetDeps) 
   const cred = await resolveCredentialForModel(model, { env: process.env, home: homedir() })
   // `model` is deliberately not returned: it is consumed here and nowhere else, and a value
   // nobody reads is the dead surface the audit that produced B-128..B-134 exists to find.
-  return { headlessPolicy, mod, apiKey: cred.apiKey }
+  //
+  // #29 — `shellTimeoutMs` IS read, by the diff runner below. Taken from the composition rather
+  // than resolved again: the config was already read to build the agent, and a second read could
+  // legitimately answer differently.
+  return { headlessPolicy, mod, apiKey: cred.apiKey, shellTimeoutMs: cfg.shell_timeout_ms }
 }
 
 /**
@@ -128,10 +190,10 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
   const prompt = readPrompt(args)
 
   const { streamAgentTurnInProcess } = await import('@theokit/agents')
-  const { headlessPolicy, mod, apiKey } = await resolveRunTarget(args)
+  const { headlessPolicy, mod, apiKey, shellTimeoutMs } = await resolveRunTarget(args)
 
   const sessionId = await openSession(args)
-  const processor = createProcessor(args.json === true, sessionId)
+  const processor = createProcessor(args.json === true, sessionId, shellTimeoutMs)
 
   let status: 'finished' | 'error' = 'finished'
   let errorMsg: string | undefined
@@ -147,7 +209,7 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
     // the user as `rate_limit (HTTP 429)` (see the ORDER note above, which fixed that specific
     // case). The count comes from the SDK's own `rate_limit` event, not from anything invented here.
     const failure = turnFailureReporting({ diagnosticsEnabled })
-    const openStream = (sessionId: string): AsyncIterable<unknown> =>
+    const openStream = perTurnStream(failure, (sessionId) =>
       streamAgentTurnInProcess(mod, apiKey, {
         message: prompt,
         sessionId: sessionId,
@@ -159,7 +221,8 @@ export async function runCommand(args: ExecRun, shutdown: Shutdown): Promise<voi
         // The only member read is `rate_limit`; every other event is ignored, the same discipline
         // the TUI's MCP sink applies to the same stream.
         onRunEvent: failure.onRunEvent,
-      }) as AsyncIterable<unknown>
+      }) as AsyncIterable<unknown>,
+    )
     await consumeWithForkIfBusy(
       sessionId,
       openStream,

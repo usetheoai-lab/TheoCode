@@ -13,14 +13,18 @@
  * reaches the RENDERED provider is a separate proof and lives in `theme-session.test.tsx` — a test
  * that only watched this module's state would pass against a base the frame never reads.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { statusPanel } from '../../src/commands/command-content.js'
 import type { PtysTheInterpreterUses, SessionTheInterpreterUses } from '../../src/commands/command-capabilities.js'
 import type { ToastPayload } from '../../src/screen-types.js'
-import { THEME_BASES } from '../../src/theme-base.js'
-import { resetSessionThemeForTest, sessionThemeBase } from '../../src/theme-session.js'
-import { THEME_RESOLUTION } from '../../src/theme.js'
+import { THEME_BASES } from '../../src/theme/theme-base.js'
+import { resetSessionThemeForTest, sessionThemeLabel } from '../../src/theme/theme-session.js'
+import { THEME_RESOLUTION } from '../../src/theme/theme.js'
 import { handleTheme, themeResolutionLine } from '../../src/commands/theme-command.js'
 
 /** The one toast a call produces, or a failure that says the command was silent. */
@@ -138,10 +142,10 @@ describe('the active theme is reported with the input that decided it', () => {
     const themeRow = statusThemeRow()
 
     expect(themeRow, 'the theme row vanished from /status').toBeDefined()
-    expect(themeRow).toContain(themeResolutionLine(THEME_RESOLUTION, sessionThemeBase()))
+    expect(themeRow).toContain(themeResolutionLine(THEME_RESOLUTION, sessionThemeLabel()))
     expect(toastOf('')).toMatchObject({
       message: expect.stringContaining(
-        themeResolutionLine(THEME_RESOLUTION, sessionThemeBase()),
+        themeResolutionLine(THEME_RESOLUTION, sessionThemeLabel()),
       ) as unknown as string,
     })
   })
@@ -179,13 +183,13 @@ describe('a theme this build can switch to is applied rather than explained away
     // would pass them and would also repaint the frame for someone who only asked a question.
     toastOf('')
 
-    expect(sessionThemeBase(), '/theme with no argument switched the theme').toBeUndefined()
+    expect(sessionThemeLabel(), '/theme with no argument switched the theme').toBeUndefined()
   })
 
   it('test_a_valid_theme_is_applied_to_the_session', () => {
     toastOf('light')
 
-    expect(sessionThemeBase(), '/theme light did not switch the base').toBe('light')
+    expect(sessionThemeLabel(), '/theme light did not switch the base').toBe('light')
   })
 
   it('test_the_switch_is_reported_as_performed_and_as_remembered', () => {
@@ -220,7 +224,7 @@ describe('a theme this build can switch to is applied rather than explained away
     const toast = toastOf('LIGHT')
 
     expect(toast.variant).toBe('success')
-    expect(sessionThemeBase(), 'an upper-case base was not applied').toBe('light')
+    expect(sessionThemeLabel(), 'an upper-case base was not applied').toBe('light')
   })
 
   it('test_an_unrecognised_theme_is_refused_by_naming_the_vocabulary', () => {
@@ -237,6 +241,81 @@ describe('a theme this build can switch to is applied rather than explained away
     handleTheme('light', vi.fn(), () => true, () => '<store>')
     handleTheme('drak', vi.fn(), () => true, () => '<store>')
 
-    expect(sessionThemeBase(), 'a rejected word replaced the base that was working').toBe('light')
+    expect(sessionThemeLabel(), 'a rejected word replaced the base that was working').toBe('light')
+  })
+})
+
+/**
+ * #14 — `/theme custom:<slug>` repaints the frame, and both reports used to look straight past it.
+ *
+ * `sessionThemeBase()` answered "which of the three BUILT-IN bases did `/theme` pick", and returned
+ * `undefined` after a custom selection — so `/status` and `/theme` were handed no override at all
+ * and reported the environment's answer while the terminal was drawn in the operator's own file.
+ * The worst of the three outputs was `/theme` listing that very file under "also", i.e. as one
+ * still available to switch to.
+ *
+ * `sessionThemeLabel()` is the fact both reports actually want, and its own docblock said so; it
+ * had no production caller.
+ */
+describe('#14 — the custom theme in force is what the reports name', () => {
+  let home: string
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'theocode-theme-report-'))
+    mkdirSync(join(home, '.claude', 'themes'), { recursive: true })
+    writeFileSync(
+      join(home, '.claude', 'themes', 'midnight.json'),
+      JSON.stringify({ name: 'Midnight', base: 'dark' }),
+    )
+  })
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  const NEVER_PERSISTED = (): boolean => false
+  const STORE = (): string => '<store>'
+
+  const select = (): void => {
+    handleTheme('custom:midnight', vi.fn(), NEVER_PERSISTED, STORE, home)
+  }
+  const bareReport = (): string => {
+    const setToast = vi.fn()
+    handleTheme('', setToast, NEVER_PERSISTED, STORE, home)
+    return (setToast.mock.calls[0]?.[0] as ToastPayload).message
+  }
+
+  it('test_status_names_the_custom_theme_rather_than_the_environment_base', () => {
+    select()
+
+    expect(statusThemeRow(), 'the /status theme row never names the theme being drawn').toContain(
+      'custom:midnight',
+    )
+  })
+
+  it('test_the_bare_report_attributes_the_custom_theme_to_the_session', () => {
+    select()
+
+    expect(bareReport()).toContain('custom:midnight (/theme, this session)')
+  })
+
+  it('test_the_theme_in_force_is_not_offered_as_one_still_available', () => {
+    select()
+
+    expect(
+      bareReport(),
+      'the theme being drawn was listed under "also", as one still available',
+    ).not.toMatch(/also[^\n]*custom:midnight/)
+  })
+
+  it('test_a_custom_theme_that_is_not_in_force_is_still_offered', () => {
+    // Anti-vacuity floor: dropping the whole "also" clause would satisfy the case above while
+    // making the feature undiscoverable again.
+    writeFileSync(
+      join(home, '.claude', 'themes', 'solar.json'),
+      JSON.stringify({ name: 'Solar', base: 'light' }),
+    )
+    select()
+
+    expect(bareReport()).toMatch(/also[^\n]*custom:solar/)
   })
 })

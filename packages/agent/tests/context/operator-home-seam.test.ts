@@ -12,11 +12,12 @@
  * an empty home and 2648/4488 with a home holding a 163,836-char `~/.theokit/rules` — so total
  * coverage was a property of the machine, on the axis B-161 did not close.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+import { tempRoot } from '../helpers/temp-root.js'
 
 const realHome = process.env.HOME
 
@@ -38,7 +39,7 @@ afterEach(() => {
 })
 
 function operatorRootWithAgentsMd(marker: string): string {
-  const home = mkdtempSync(join(tmpdir(), 'b167-agentsmd-'))
+  const home = tempRoot('b167-agentsmd-')
   // `.theokit/`, not the home root: #72 put the operator's instructions in the same directory as the
   // rest of their state. Writing it at the root made this test fail for a reason that had nothing to
   // do with the seam — worth the comment, because the wrong-fixture failure reads exactly like a
@@ -49,7 +50,7 @@ function operatorRootWithAgentsMd(marker: string): string {
 }
 
 function operatorRoot(skill: string): string {
-  const home = mkdtempSync(join(tmpdir(), 'b167-home-'))
+  const home = tempRoot('b167-home-')
   const dir = join(home, '.theokit', 'skills', skill)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), `---\nname: ${skill}\ndescription: operator skill\n---\n\nBody.\n`)
@@ -61,12 +62,12 @@ describe('the operator root is a parameter of the build', () => {
     // The assertion that makes the seam real: HOME points at a root with NOTHING in it, the
     // parameter points at one with a skill, and the record must follow the parameter.
     const injected = operatorRoot('from-the-parameter')
-    process.env.HOME = mkdtempSync(join(tmpdir(), 'b167-env-empty-'))
+    process.env.HOME = tempRoot('b167-env-empty-')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
-      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      cwd: tempRoot('b167-project-'),
       home: injected,
       onWired: (w: { skills: { active: readonly string[] } }) => {
         wired = w
@@ -90,9 +91,9 @@ describe('the operator root is a parameter of the build', () => {
     const injected = operatorRootWithAgentsMd('MARKER-FROM-THE-PARAMETER')
     process.env.HOME = operatorRootWithAgentsMd('MARKER-FROM-THE-ENVIRONMENT')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     const agent = await buildChatAgent({
-      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      cwd: tempRoot('b167-project-'),
       home: injected,
     } as never)
     // Serialised rather than reaching for a field: the composed persona lands in `system`, whose
@@ -111,18 +112,18 @@ describe('the operator root is a parameter of the build', () => {
     // measured it: two mutants stayed green — dropping `operatorHome` from `bothRuleRoots`, and
     // pointing `loadUserRules` back at `homedir()`. The 163,836-char corpus in B-167's own evidence
     // is this surface, so the gap was exactly where the attention had been.
-    const injected = mkdtempSync(join(tmpdir(), 'b167-rules-param-'))
+    const injected = tempRoot('b167-rules-param-')
     mkdirSync(join(injected, '.theokit', 'rules'), { recursive: true })
     writeFileSync(join(injected, '.theokit', 'rules', 'r.md'), '# R\n\nMARKER-RULES-FROM-PARAMETER\n')
 
-    const ambient = mkdtempSync(join(tmpdir(), 'b167-rules-env-'))
+    const ambient = tempRoot('b167-rules-env-')
     mkdirSync(join(ambient, '.theokit', 'rules'), { recursive: true })
     writeFileSync(join(ambient, '.theokit', 'rules', 'r.md'), '# R\n\nMARKER-RULES-FROM-ENVIRONMENT\n')
     process.env.HOME = ambient
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     const agent = await buildChatAgent({
-      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      cwd: tempRoot('b167-project-'),
       home: injected,
     } as never)
     const text = JSON.stringify(agent)
@@ -139,10 +140,10 @@ describe('the operator root is a parameter of the build', () => {
     // behaviour for every surface while claiming to be a test affordance.
     process.env.HOME = operatorRoot('from-the-environment')
 
-    const { buildChatAgent } = await import('../../src/chat.js')
+    const { buildChatAgent } = await import('../../src/chat/chat.js')
     let wired: { skills: { active: readonly string[] } } | undefined
     await buildChatAgent({
-      cwd: mkdtempSync(join(tmpdir(), 'b167-project-')),
+      cwd: tempRoot('b167-project-'),
       onWired: (w: { skills: { active: readonly string[] } }) => {
         wired = w
       },

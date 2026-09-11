@@ -18,9 +18,40 @@ export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**', 'codex/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  // `tools/` and the dependency-cruiser config are Node CommonJS/ESM build scripts, not app source:
-  // they run under Node with `module`/`require` in scope, which the app's browser-ish globals exclude.
-  { ignores: ['tools/**', '.dependency-cruiser.cjs'] },
+  // #39 — `tools/` used to be ignored here, together with the dependency-cruiser config, on the
+  // grounds that both are "Node CommonJS/ESM build scripts … with `module`/`require` in scope,
+  // which the app's browser-ish globals exclude". Measured 2026-09-10, that reason is true of
+  // exactly one of them:
+  //
+  //   npx eslint tools/ --no-ignore                 -> 0 problems
+  //   npx eslint .dependency-cruiser.cjs --no-ignore -> 1 error, `'module' is not defined`
+  //
+  // The 25 ESM scripts under `tools/` never touch `module` or `require`, and the globals block
+  // below already gives them `process`, `console`, `Buffer`, `URL` and `fetch` — so the exemption
+  // bought nothing and cost the lint chain its own toolchain. That is what makes it worth removing
+  // rather than leaving as a harmless line: `tools/build-cli.mjs` produces the `dist/theocode.mjs`
+  // that `package.json:bin` points at, and every checker in the `lint` job lives here. The code
+  // deciding whether other code may ship was the one part of the tree no linter read.
+  //
+  // "Zero problems" and "nothing was checked" print identically, so the removal was verified by
+  // introducing a defect rather than by trusting the clean run: appending an empty `if` block to
+  // `tools/check-sdk-pin.mjs` produced `203:23 error Empty block statement no-empty`, and removing
+  // it returned the run to clean. ESLint reads these files.
+  //
+  // `.dependency-cruiser.cjs` is the genuine case, and it is answered rather than excused. It is
+  // CommonJS — `module.exports` at line 12 — so `module` is declared for `**/*.cjs` instead of the
+  // file being dropped from the run. It is gate configuration, and a gate config nothing lints is
+  // the same gap this finding is about, one file smaller.
+  //
+  // What this buys, stated precisely so nobody "finishes the job" by accident: `tools/` now gets
+  // `js.configs.recommended` and the fail-fast rule below. It does NOT get the complexity caps in
+  // the `**/*.{ts,tsx}` block, and that is deliberate. Running them over `tools/` reports 20
+  // pre-existing violations (`check-sdk-pin.mjs` `disagreement` at complexity 20,
+  // `report-theokit-staleness.mjs` `main` at 17, four files past `max-lines-per-function`). The
+  // header of this file states the bar every cap here was set to meet: measured zero on this tree,
+  // so it freezes a good state instead of announcing debt. Widening those caps to `tools/` would
+  // announce debt, which is a refactor decision and not a lint decision.
+  { files: ['**/*.cjs'], languageOptions: { globals: { module: 'readonly' } } },
   {
     languageOptions: {
       globals: {
@@ -31,6 +62,20 @@ export default tseslint.config(
         fetch: 'readonly',
       },
     },
+  },
+  {
+    // A suppression that stopped being needed must fail, not whisper.
+    //
+    // ESLint 10 does not ignore an unused directive — measured here, `eslint --stdin` on a file
+    // carrying a spurious `eslint-disable-next-line no-console` reports it. It reports it as a
+    // WARNING, and `npm run lint` runs bare `eslint .` with no `--max-warnings`, so the run exits 0
+    // and the chain moves on. A finding that cannot turn a build red is one nobody acts on, which
+    // is how a suppression set only ever grows.
+    //
+    // `error` is what makes the set shrinkable. It is the other half of the `--` reason convention
+    // the two directives in this tree now follow: the reason lets a human re-judge a suppression,
+    // and this lets the linter retire one nobody re-judged.
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -62,7 +107,15 @@ export default tseslint.config(
     // Best-effort cleanup opts out per line with a written rationale.
     // `tests/**` is in scope since B-162 moved the tests out of `src/`: a swallowed rejection in a
     // test is the same silence, and scoping this to `src/` alone quietly dropped 191 files.
-    files: ['packages/*/src/**/*.{ts,tsx}', 'packages/*/tests/**/*.{ts,tsx}'],
+    // `tools/` is in scope since #39 un-ignored it, by the same argument one directory over: a
+    // build script that swallows a rejection produces a green `npm run lint` over work that did not
+    // happen, which is the failure mode those scripts exist to prevent. Free at the moment it was
+    // added — measured 2026-09-10, both selectors report zero over `tools/`.
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'packages/*/tests/**/*.{ts,tsx}',
+      'tools/**/*.mjs',
+    ],
     rules: {
       'no-restricted-syntax': [
         'error',

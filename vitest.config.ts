@@ -87,15 +87,31 @@ export default defineConfig({
      *   `context/rules.ts` (route)  `showStatus` reaches the same fallback through `currentWiring()`,
      *                               which is undefined until a build publishes a record.
      *
-     * THE HOME AXIS IS NOT CLOSED, and this is B-167. Same tree, same commit, varying only $HOME:
-     * an empty home measures 2646/4488, a home with a 163,836-char `~/.theokit/rules` measures
-     * 2648/4488. `ChatOverrides` has `cwd` and no `home`, so `homedir()` is called at three sites in
-     * one build and no caller can redirect it. The convergence experiment above cannot see this —
-     * it varies the checkout and holds $HOME fixed, so every home-keyed read is equal by
-     * construction. An experiment is blind to the variable it does not vary, and saying which
-     * variable that was is the difference between a measurement and a slogan.
+     * THE HOME AXIS IS CLOSED AS OF 2026-09-10, and the two halves of that took different work.
+     * B-167 landed the seam — `ChatOverrides.home`, threaded to the sites that used to call
+     * `homedir()` with no way for a caller to redirect them. What the seam did not do is prove the
+     * axis shut, and this block went on claiming the opposite with the pre-seam numbers under it.
      *
-     * The declared floor is 59.03 — the MINIMUM over the space, not "the clean number". Three
+     * Re-measured at `e25f5b9`, same tree, varying only $HOME: an empty home and a home holding
+     * 189,660 chars of `~/.theokit/rules` + `AGENTS.md` + a skill BOTH measure 2799/4491 (62.32%).
+     * Compared per file rather than on the totals — 242 files, four metrics, zero divergences.
+     *
+     * That result was NOT taken at face value, because "no divergence" and "the instrument is
+     * blind" print the same thing. A throwaway probe read the ambient root through production
+     * (`userSkills()`, `loadUserRules(homedir())`) with coverage scoped to `context/`, under the
+     * same two homes: 29/187 lines empty against 46/187 full, with `rules.ts` going 26/50 -> 42/50.
+     * A home that IS read moves the number by seventeen lines, so the suite's zero is a measurement
+     * and not a blind spot. The probe was deleted; none of it is in the tree.
+     *
+     * WHAT "CLOSED" DOES NOT CLAIM, so it is not over-read. It says no test in the CURRENT suite
+     * reads the ambient home in a way that changes coverage. Production still calls `homedir()`
+     * where `buildChatAgent` cannot redirect it — the B-171 set (trust store, config, hook trust,
+     * MCP scopes) and `commands/command-content.ts:63,128`, where the seam injects the chain
+     * FUNCTION and leaves the home ambient. No test exercises those against a populated home today,
+     * which is exactly why the number does not move. A future test that does, without isolating
+     * $HOME, reopens the axis with nothing here to catch it.
+     *
+     * The declared floor is 62.03 — the MINIMUM over the space, not "the clean number". Three
      * earlier attempts got it wrong and each failure is worth keeping: 59.29 came from this tree
      * and the v0.24.0 tag failed against it; 59.2 came from a worktree with `.claude` linked in;
      * 59.18 and 59.15 were each correct when written and were left standing here after the floor
@@ -122,7 +138,27 @@ export default defineConfig({
      * What makes a floor MEANINGFUL is still the decision B-063 named and nobody has made: WHICH
      * of the zero-coverage files are meant to stay that way — `main.ts` and command entry points
      * are arguably composition, and `use-tui-composition.ts` is arguably not. That triage remains
-     * the next item, and 59.03% is a ratchet against the clean reading, never a target.
+     * the next item, and 62.03% is a ratchet against the clean reading, never a target.
+     *
+     * WHAT `include` LEAVES OUT, AND WHY IT IS A DECISION RATHER THAN AN OVERSIGHT. The glob is
+     * `packages/*\/src`, so the twelve checkers under `tools/` — the `npm run lint` chain and two of
+     * the six required status checks — contribute nothing to this number. That includes
+     * `check-coverage-floor.mjs` itself: the gate guarding coverage sits outside the thing it
+     * guards.
+     *
+     * They ARE tested — eleven `.mjs` test files run in this suite and pass. What did not exist was
+     * a number. Measured 2026-09-10 over `tools/**\/*.mjs` with the same provider: lines 43.72%
+     * (331/757), statements 43.95%, functions 52%.
+     *
+     * That number is why they stay out rather than an argument for folding them in. At 43.72% they
+     * sit twenty points under this floor, so a single `include` covering both would drop the total
+     * and force the ratchet DOWN — a gate weakened by the act of widening its scope. Two populations
+     * with different coverage expectations averaged into one figure also make the figure answer
+     * neither question: a regression in app source could be masked by a checker gaining a test.
+     *
+     * The honest fix, if one is wanted, is a SEPARATE floor for `tools/`, not a shared one. It is
+     * deliberately not built here: nothing has yet needed it, and this comment turns "nobody knows
+     * how much of the build chain is reached" into a measured 43.72% that anyone can re-run.
      */
     coverage: {
       provider: 'v8',

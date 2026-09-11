@@ -10,13 +10,35 @@
  * same fixture, an empty result cannot distinguish "the compat dir is not read" from "this loader
  * found nothing at all".
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { loadCustomCommands } from '../../src/commands/custom-commands.js'
+
+/**
+ * Every temporary root this file makes, removed when it finishes.
+ *
+ * The pattern is `packages/agent/tests/aggregate-cut-wiring.test.ts:44-57`'s, inline rather than
+ * imported because this package has exactly one file that needs it — a helper module with a single
+ * consumer is more machinery than the three lines it saves. Measured cost of skipping it, in this
+ * repository: 193 directories and 15 MB of generated corpora from one uncleaned file in an
+ * afternoon.
+ */
+const made: string[] = []
+
+afterAll(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
+function tempRoot(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  made.push(dir)
+  return dir
+}
 
 let PROJ: string
 let HOME: string
@@ -28,7 +50,7 @@ const command = (root: string, dialect: string, name: string): void => {
 }
 
 beforeAll(() => {
-  const base = mkdtempSync(join(tmpdir(), 'cmd-compat-'))
+  const base = tempRoot('cmd-compat-')
   PROJ = join(base, 'proj')
   HOME = join(base, 'home')
   mkdirSync(HOME, { recursive: true })

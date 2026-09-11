@@ -17,16 +17,16 @@
  * The order is fixed too. It was `readdir` order — so which rules survive was an accident of the
  * filesystem, and could differ between two machines with identical checkouts.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { loadRules } from '../../src/context/rules.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 const project = (blocks: readonly [string, string][]): string => {
-  const cwd = mkdtempSync(join(tmpdir(), 'rules-shape-'))
+  const cwd = tempRoot('rules-shape-')
   const dir = join(cwd, '.theokit', 'rules')
   mkdirSync(dir, { recursive: true })
   for (const [name, body] of blocks) writeFileSync(join(dir, name), body)

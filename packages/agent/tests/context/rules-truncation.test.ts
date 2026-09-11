@@ -13,16 +13,16 @@
  * was report the OTHER half — how much was read — and a contributing count with nothing to compare
  * it against cannot distinguish a complete load from a quarter of one.
  */
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { loadRules } from '../../src/context/rules.js'
+import { tempRoot } from '../helpers/temp-root.js'
 
 const project = (blocks: readonly string[]): string => {
-  const cwd = mkdtempSync(join(tmpdir(), 'rules-trunc-'))
+  const cwd = tempRoot('rules-trunc-')
   const dir = join(cwd, '.theokit', 'rules')
   mkdirSync(dir, { recursive: true })
   blocks.forEach((body, i) => writeFileSync(join(dir, `r${String(i).padStart(3, '0')}.md`), body))

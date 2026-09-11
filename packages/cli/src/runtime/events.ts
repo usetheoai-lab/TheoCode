@@ -136,34 +136,36 @@ export function createHumanProcessor(
   // #105 — collected as they go past, so the diff at the end is scoped to what THIS turn wrote
   // rather than to whatever the working tree happens to hold.
   const writes: ToolChunk[] = []
+  // Per-chunk handling as a table, mirroring the JSONL twin's `toContentChunk` extraction — the
+  // same chunk vocabulary, dispatched instead of switched, which is what keeps `process` under the
+  // complexity gate here too. A chunk type without a row carries nothing for this surface.
+  const onChunk: Record<string, (chunk: ChunkLike) => void> = {
+    finish: (chunk) => {
+      usage = chunk.messageMetadata?.usage
+    },
+    'text-delta': (chunk) => {
+      message.delta(chunk.delta ?? '')
+    },
+    'tool-input-available': (chunk) => {
+      // The preamble goes out BEFORE the call it announces, which is the order it was written
+      // to be read in — and to stderr, where the rest of the progress already goes.
+      const preamble = message.cut()
+      if (preamble !== undefined) io.err(preamble)
+      io.err(toolLine(chunk))
+      writes.push(chunk)
+    },
+    'tool-output-available': () => {
+      io.err(`  done`)
+    },
+    error: (chunk) => {
+      errorSeen = true
+      io.err(`ERROR: ${chunk.errorText ?? 'unknown'}`)
+    },
+  }
+
   return {
     process(chunk) {
-      switch (chunk.type) {
-        case 'finish':
-          usage = chunk.messageMetadata?.usage
-          break
-        case 'text-delta':
-          message.delta(chunk.delta ?? '')
-          break
-        case 'tool-input-available': {
-          // The preamble goes out BEFORE the call it announces, which is the order it was written
-          // to be read in — and to stderr, where the rest of the progress already goes.
-          const preamble = message.cut()
-          if (preamble !== undefined) io.err(preamble)
-          io.err(toolLine(chunk))
-          writes.push(chunk)
-          break
-        }
-        case 'tool-output-available':
-          io.err(`  done`)
-          break
-        case 'error':
-          errorSeen = true
-          io.err(`ERROR: ${chunk.errorText ?? 'unknown'}`)
-          break
-        default:
-          break
-      }
+      onChunk[chunk.type]?.(chunk)
     },
     finish(status, extra) {
       if (status === 'error') {
@@ -200,18 +202,8 @@ function commandEvent(
 }
 
 /**
- * The Codex JSONL dialect, as a projection of the framework's lifecycle fold.
- *
- * B-123 — `foldTurnLifecycle` carries the invariant this used to hold by hand: a turn opens exactly
- * once and closes exactly once, never both completed and failed, never left open. Here the error
- * path and the finish path each closed the turn, and only an `errorSeen` flag threaded through both
- * kept them from doing it twice — right until someone edited one path.
- *
- * What stays is this product's VOCABULARY, which is the whole reason the framework does not ship it:
- * `thread.started`, the item shapes, the Codex usage block. ADR 0007 records why.
- */
-/**
  * Translate one SDK chunk into the fold's vocabulary, or `null` when it carries no lifecycle.
+ * Part of the Codex JSONL projection — the B-123 rationale lives on `createJsonlProcessor`.
  *
  * Its own function because it answers a different question from the processor: this is where the
  * SDK's words become the fold's, and the processor is where the fold's become Codex's. Keeping the

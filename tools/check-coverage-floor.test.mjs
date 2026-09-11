@@ -12,10 +12,10 @@
  * passes against a parser that rejects everything.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import {
   DECLARED_FLOOR,
@@ -39,6 +39,30 @@ import {
  * report SKIPPED, which is the honest state: **CI verifies nothing about this checker**, and that is
  * the second face of B-160 rather than a gap to paper over.
  */
+/**
+ * Every temporary root this file makes, removed when it finishes.
+ *
+ * This file was the largest single leak in the tree: seventeen directories per run, each holding a
+ * `.claude` tree and two symlinks, none of them ever removed. The pattern is
+ * `packages/agent/tests/aggregate-cut-wiring.test.ts:44-57`'s, written inline because `tools/` is
+ * not a package and has no `src/` to hang a helper module off (`rules/testing.md` § 5).
+ *
+ * `force: true` matters here rather than being defensive noise: several roots contain symlinks into
+ * `.claude/skills/implement/scripts`, and a run that failed part-way leaves a half-built tree.
+ */
+const made = []
+
+afterAll(() => {
+  for (const dir of made) rmSync(dir, { recursive: true, force: true })
+  made.length = 0
+})
+
+function tempRoot(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix))
+  made.push(dir)
+  return dir
+}
+
 const GATE_DIR = resolve('.claude/skills/implement/scripts')
 const GATE_INSTALLED = existsSync(join(GATE_DIR, 'coverage_gate.py'))
 
@@ -50,7 +74,7 @@ describe.skipIf(!GATE_INSTALLED)('asking the gate what floor it resolves', () =>
   const gateDir = GATE_DIR
 
   function withThresholds(body) {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-gate-'))
+    const root = tempRoot('coverage-floor-gate-')
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), body)
     symlinkSync(gateDir, join(root, '.claude', 'skills-link'))
@@ -300,7 +324,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   }
 
   function scaffold({ floor, pct, files }) {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     if (floor !== undefined) {
       mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
       writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${floor}\n`)
@@ -347,7 +371,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   })
 
   it('test_a_trailing_comment_exits_nonzero', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), 'coverage.min_percent = 59.29  # ratchet\n')
     linkGate(root, ['.claude'])
@@ -363,7 +387,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // by two reviewers. The bug was OBSERVED on this route (`pnpm lint` in a kit-installed checkout)
     // and only the tracked-only route had a test for the fix. The one fixture with per-file entries
     // lived in the other describe, so this branch was unreachable from here.
-    const result = run(scaffold({ floor: 59.03, pct: 0, files: { total: 3, covered: 0 } }))
+    const result = run(scaffold({ floor: DECLARED_FLOOR, pct: 0, files: { total: 3, covered: 0 } }))
 
     expect(result.code, 'the main route reported a scope mismatch as a regression').toBe(0)
     expect(result.stdout).toContain('NO source file')
@@ -376,7 +400,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   it('test_the_main_route_still_fails_when_the_tree_really_is_below_the_floor', () => {
     // Anti-vacuity for the test above, on this route: files ARE covered and the total is genuinely
     // below the floor, so the guard must still refuse.
-    const result = run(scaffold({ floor: 59.03, pct: 40, files: { total: 3, covered: 3 } }))
+    const result = run(scaffold({ floor: DECLARED_FLOOR, pct: 40, files: { total: 3, covered: 3 } }))
 
     expect(result.code).toBe(1)
   })
@@ -404,7 +428,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // `resolve_threshold` returns a value and a source KIND, not a path. With both files present
     // the gate's precedence decides, and this checker does not know which one won — so it says so
     // instead of printing one, which would be a guess dressed as a reading.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, 'rules'), { recursive: true })
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
@@ -419,7 +443,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // F-guard-22-r5: "the declaration is present but unreadable" was byte-identical for a file
     // that declares nothing at all — which is the shipped state of the thresholds file — so the
     // cause was asserted without being observed.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), '# nothing declared\n')
     linkGate(root, ['.claude'])
@@ -433,7 +457,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // Mutation-tested: neutering the error branch survived the suite, because the only test of it
     // called resolveViaGate directly and never went through main(). A thresholds file the checker
     // cannot ask about is the realistic case — the kit is not installed in this root.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, '.claude/rules/code-quality-thresholds.txt'), `coverage.min_percent = ${DECLARED_FLOOR}\n`)
     const result = run(root)
@@ -442,7 +466,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   })
 
   it('test_an_absent_thresholds_file_skips_loudly_and_exits_zero', () => {
-    const result = run(mkdtempSync(join(tmpdir(), 'coverage-floor-')))
+    const result = run(tempRoot('coverage-floor-'))
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('SKIPPED')
   })
@@ -451,12 +475,12 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // F-guard-3: the old message said "gitignored, so this is expected in CI" — a claim about WHY
     // the file was missing, made without looking, and false in the kit's standalone layout where
     // `rules/` sits at the root and a different floor is in force.
-    expect(run(mkdtempSync(join(tmpdir(), 'coverage-floor-'))).stdout).not.toMatch(/expected in CI/)
+    expect(run(tempRoot('coverage-floor-')).stdout).not.toMatch(/expected in CI/)
   })
 
   it('test_it_reads_the_standalone_layout_the_python_gate_tries_first', () => {
     // F-guard-3. `coverage_gate.py::_THRESHOLD_FILES` tries `rules/` before `.claude/rules/`.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
     linkGate(root, [])
@@ -469,7 +493,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // F-guard-12-r3: with only one file present, reversing FLOOR_PATHS kept the suite green — the
     // precedence was pinned by nothing. Both present, disagreeing, is the case that pins it.
     // `toContain('5')` also matched "59.29", so the assertion above is now on 'says 5%'.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, 'rules'), { recursive: true })
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), 'coverage.min_percent = 5\n')
@@ -484,7 +508,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
     // F-guard-11-r3: the gate stops at the first file that yields a VALUE, not the first that
     // exists. Stopping earlier reported "the gate will use its default of 80" about a
     // configuration the gate reads correctly.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, 'rules'), { recursive: true })
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(join(root, 'rules/code-quality-thresholds.txt'), '# nothing declared here\n')
@@ -496,7 +520,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   it('test_a_declaration_hidden_behind_a_bare_cr_is_caught_end_to_end', () => {
     // F-guard-10-r3 through the real binary, not just the parser. This is the shape that reported
     // agreement at 59.29 while the gate resolved 5.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, '.claude', 'rules'), { recursive: true })
     writeFileSync(
       join(root, '.claude/rules/code-quality-thresholds.txt'),
@@ -519,7 +543,7 @@ describe.skipIf(!GATE_INSTALLED)('the CLI contract', () => {
   it('test_an_unreadable_thresholds_path_does_not_crash_the_lint_chain', () => {
     // A directory where the file should be: EISDIR. The first version let it throw a raw stack
     // trace out of `pnpm lint`.
-    const root = mkdtempSync(join(tmpdir(), 'coverage-floor-'))
+    const root = tempRoot('coverage-floor-')
     mkdirSync(join(root, '.claude/rules/code-quality-thresholds.txt'), { recursive: true })
     linkGate(root, ['.claude'])
     const result = run(root)
@@ -536,7 +560,7 @@ describe('the tracked floor is checkable without the kit', () => {
   const CLI = new URL('./check-coverage-floor.mjs', import.meta.url).pathname
 
   function reportOnly(pct) {
-    const root = mkdtempSync(join(tmpdir(), 'floor-noKit-'))
+    const root = tempRoot('floor-noKit-')
     mkdirSync(join(root, 'coverage'), { recursive: true })
     writeFileSync(join(root, 'coverage/coverage-summary.json'), JSON.stringify({ total: { lines: { pct } } }))
     return root
@@ -565,7 +589,7 @@ describe('the tracked floor is checkable without the kit', () => {
     // The other half of the same trap: pin the constant itself against a literal, so a mutant that
     // moves it is caught where `test_the_two_declarations_agree` cannot run — that one is
     // skipIf(!GATE_INSTALLED) and is skipped in exactly this environment.
-    expect(DECLARED_FLOOR).toBe(59.03)
+    expect(DECLARED_FLOOR).toBe(62.03)
   })
 
   it('test_the_tolerance_boundary_is_pinned_on_this_route_too', () => {
@@ -577,11 +601,12 @@ describe('the tracked floor is checkable without the kit', () => {
     // from 1 to 2 passed all 48 tests. Measured on this file, before and after that move.
     //
     // So the numbers below are literal AND adjacent: floor+1.00 must pass, floor+1.01 must fail.
-    // `59.96 - 58.96` is exactly 1 in IEEE 754 (checked, not assumed), so the passing side is not
-    // float-fragile. Moving the floor again without moving these two turns this test red, which is
-    // the property the old pair lacked.
-    expect(run(reportOnly(60.03)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
-    expect(run(reportOnly(60.04)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
+    // `63.03 - 62.03` is exactly 1 in IEEE 754 — checked when the floor moved to 62.03, not assumed
+    // and not inherited from the previous pair — so the passing side is not float-fragile. Moving
+    // the floor again without moving these two turns this test red, which is the property the old
+    // pair lacked, and which is what caught the 2026-09-10 re-declaration.
+    expect(run(reportOnly(63.03)).code, 'exactly TOLERANCE above the floor must pass').toBe(0)
+    expect(run(reportOnly(63.04)).code, 'one hundredth beyond TOLERANCE must fail').toBe(1)
   })
 
   // B-165 — `vitest run --coverage <one-file>` overwrites the same path with a report from a
@@ -594,7 +619,7 @@ describe('the tracked floor is checkable without the kit', () => {
   // WITH coverage is 181 whole-tree against 0 for a run that touches no source file. So the check
   // settles the extreme and nothing else, which is what these two tests pin.
   function report({ pct, filesCovered, filesTotal = 3 }) {
-    const root = mkdtempSync(join(tmpdir(), 'floor-scope-'))
+    const root = tempRoot('floor-scope-')
     mkdirSync(join(root, 'coverage'), { recursive: true })
     const json = { total: { lines: { pct, total: 4488, covered: Math.round((pct / 100) * 4488) } } }
     for (let i = 0; i < filesTotal; i += 1) {
@@ -656,7 +681,7 @@ describe('the tracked floor is checkable without the kit', () => {
   })
 
   it('test_neither_thresholds_file_nor_report_still_skips', () => {
-    const result = run(mkdtempSync(join(tmpdir(), 'floor-empty-')))
+    const result = run(tempRoot('floor-empty-'))
     expect(result.code).toBe(0)
     expect(result.stdout).toContain('SKIPPED')
   })

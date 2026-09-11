@@ -10,6 +10,18 @@
  *
  * Never throws and never blocks the frame: a hook failing must not refuse a session the operator
  * just asked for.
+ *
+ * #57 — that sentence used to be false, and the two call sites in `composition-root.ts` believed
+ * it: both fired this with a bare `void`. `runSessionStartHooks` catches per hook into `onWarn`,
+ * but the two statements BEFORE it do not — and `resolveEffectiveConfig` throws `ConfigError` on a
+ * malformed `settings.json`. Because this function is `async`, that became a rejection with no
+ * handler, under `node >=22`, where the default is `--unhandled-rejections=throw`. Reachable after
+ * startup: `/new` re-reads the config, so editing the file mid-session and typing `/new` took the
+ * terminal down over a typo.
+ *
+ * The guarantee lives HERE rather than at the call sites, following B-031 in
+ * `persistence/session-store.ts`: wrapping the two known voids would leave a third to be found
+ * later. There is no longer a way to call this and get it wrong.
  */
 import process from 'node:process'
 
@@ -23,7 +35,30 @@ import {
   sessionStartSpecs,
 } from '@theocode/agent/hooks'
 
-export async function fireSessionStart(sessionId: string, cwd: string): Promise<void> {
+import { fireAndForget } from '../persistence/fire-and-forget.js'
+
+/**
+ * Under the TUI stderr is a log file nobody has open, so this is the honest limit of the report
+ * rather than the ideal one — `/hooks` is where a wired hook is visible.
+ */
+const toStderr = (message: string): void => {
+  process.stderr.write(`${message}\n`)
+}
+
+export function fireSessionStart(
+  sessionId: string,
+  cwd: string,
+  report: (message: string) => void = toStderr,
+): Promise<void> {
+  return fireAndForget(runSessionStart(sessionId, cwd, report), 'the session-start hooks', report)
+}
+
+/** The raw run. Private: it rejects, and the whole point of #57 is that the export does not. */
+async function runSessionStart(
+  sessionId: string,
+  cwd: string,
+  report: (message: string) => void,
+): Promise<void> {
   const posture = resolveTrustPosture(cwd, undefined, process.env)
   const specs = sessionStartSpecs({
     trusted: posture.allows.hooks,
@@ -37,8 +72,6 @@ export async function fireSessionStart(sessionId: string, cwd: string): Promise<
     cwd,
     sessionId,
     approved: (spec) => approved.has(hookFingerprint(spec)),
-    // Under the TUI stderr is a log file nobody has open, so this is the honest limit of the report
-    // rather than the ideal one — `/hooks` is where a wired hook is visible.
-    onWarn: (m) => process.stderr.write(`[hooks] ${m}\n`),
+    onWarn: (m) => report(`[hooks] ${m}`),
   })
 }

@@ -18,7 +18,7 @@ import {
   resetMcpFailures,
   startMcpFailureTurn,
 } from '../../src/agent-session/mcp-failure-record.js'
-import { currentAttempts, resetRetryRecord, startRetryTurn } from '../../src/agent-session/retry-record.js'
+import { currentAttempts, resetRetryRecord, startRetryTurn } from '../../src/agent-session/retry-record-holder.js'
 import { runEventSink } from '../../src/agent-session/run-event-sink.js'
 
 beforeEach(() => {

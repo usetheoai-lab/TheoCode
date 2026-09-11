@@ -45,7 +45,7 @@ export function credentialState(path: string, now: number = Date.now()): Credent
 export async function doctorCommand(opts: { json: boolean; cd?: string }): Promise<void> {
   const agent = await import('@theocode/agent')
   const { authFilePath, strayCredentialFiles } = await import('@theocode/agent/auth')
-  const { skillsOnDisk, loadOutputStyle } = await import('@theocode/agent')
+  const { skillsOnDisk, loadOutputStyle, foreignHookRefusals } = await import('@theocode/agent')
   const { resolveEffectiveConfig, resolveTrustPosture, settingsReport } = await import(
     '@theocode/agent/config'
   )
@@ -91,6 +91,13 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // #67 — the skills row is the DECLARED list, so it ticked green for a name with no SKILL.md and
     // said nothing about a file no configuration named. This holds the two against each other.
     skillsOnDisk: skillsOnDisk(cwd, cfg.skills),
+    // #130 — read here rather than inside `collectChecks`, which does no I/O by design. The
+    // framework loads these files itself and spawns what it finds; this product refuses, and until
+    // now said so nowhere for `.theokit/hooks.json`.
+    foreignHooks: foreignHookRefusals(cwd, {
+      exists: existsSync,
+      read: (p) => readFileSync(p, 'utf8'),
+    }),
     // `settings.json` wears Claude Code's filename, so the file often carries their settings. The
     // loader tolerates them — a real one must not stop the product from starting — and this row is
     // the other half of that trade: a key we ignore has to be nameable somewhere.

@@ -107,6 +107,49 @@ describe('B-023 — a flag either changes behaviour or is rejected', () => {
     expect(parsed.mode, '`--last` was accepted outside resume and silently ignored').toBe('error')
   })
 
+  /**
+   * #24 — `usage.ts` scopes twelve flags to a subcommand; the parser enforced THREE.
+   *
+   * The other nine parsed on every mode and were dropped by the mode that never reads them, which
+   * is the exact failure the enforcement's own docblock names: "a flag that parses and does
+   * nothing is worse than an unknown flag, which at least errors." Measured before the fix by
+   * running `parseExecArgs`: `theocode hello --max-turns 3` parsed to a plain `{mode:"run"}`
+   * carrying no `maxTurns`, and `sessions delete abc --keep 5` dropped `keepLast`.
+   *
+   * Each row is the flag under a mode `usage.ts` does NOT scope it to. The positive direction —
+   * every flag accepted under its own subcommand — is the `B-025` table below, and the two
+   * together are what make this a scoping rather than a ban.
+   */
+  const MISAPPLIED: [string, string[]][] = [
+    ['--max-turns outside goal', ['hello', '--max-turns', '3']],
+    ['--token-budget outside goal', ['review', '--token-budget', '1000']],
+    ['--uncommitted outside review', ['hello', '--uncommitted']],
+    ['--base outside review', ['hello', '--base', 'main']],
+    ['--commit outside review', ['goal', 'ship it', '--commit', 'abc1234']],
+    ['--apply outside sessions gc', ['sessions', 'delete', 'abc', '--apply']],
+    ['--all-projects outside sessions gc', ['hello', '--all-projects']],
+    ['--keep outside sessions gc', ['sessions', 'delete', 'abc', '--keep', '5']],
+    ['--max-age-days outside sessions gc', ['sessions', 'list', '--max-age-days', '9']],
+  ]
+
+  it.each(MISAPPLIED)('test_%s_is_rejected_not_ignored', (_name, argv) => {
+    const parsed = parseExecArgs(argv, false)
+
+    expect(
+      parsed.mode,
+      'the flag parsed and was silently discarded by a mode that never reads it',
+    ).toBe('error')
+  })
+
+  it('test_the_refusal_names_the_flag_and_the_command_that_honours_it', () => {
+    // A refusal that does not say where the flag DOES apply sends the user to the usage text to
+    // work it out, which is the same trip the flag being ignored would have caused.
+    const parsed = parseExecArgs(['hello', '--keep', '5'], false)
+
+    expect(parsed.mode === 'error' ? parsed.message : '').toContain('--keep')
+    expect(parsed.mode === 'error' ? parsed.message : '').toContain('sessions gc')
+  })
+
   it('test_model_override_outside_run_is_rejected_not_ignored', () => {
     // `-m/--model` is documented globally in the Options line but only `run`/`resume` build an
     // agent from it. `sessions gc` deletes files; there is no model to override.

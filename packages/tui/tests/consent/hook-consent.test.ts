@@ -20,7 +20,6 @@ function deps(over: Partial<Parameters<typeof computePendingHooks>[0]> = {}) {
     declined: new Set<string>(),
     resolveEffectiveConfig: () => ({ hooks: [] }),
     parseHooks: (() => []) as never,
-    loadApprovedHooks: (() => new Map()) as never,
     classifyHooks: (() => []) as never,
     onError: vi.fn(),
     ...over,
@@ -58,13 +57,17 @@ describe('B-039 — a broken hooks config is reported, not swallowed', () => {
   })
 
   it('test_an_internal_failure_is_still_reported', () => {
+    // The non-`HookError` arm. This used to be driven through `loadApprovedHooks`, which
+    // `computePendingHooks` no longer calls (finding #61 — the read existed only to feed an
+    // argument `classifyHooks` ignored). Driven through config resolution instead: the arm being
+    // asserted is the classification of the error, not which dependency raised it.
     const onError = vi.fn()
     computePendingHooks(
       deps({
         onError,
-        loadApprovedHooks: (() => {
-          throw new Error('store unreadable')
-        }) as never,
+        resolveEffectiveConfig: () => {
+          throw new Error('config.toml unreadable')
+        },
       }),
     )
 

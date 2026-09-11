@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { handleTheme } from '../../src/commands/theme-command.js'
-import { resetSessionThemeForTest, sessionThemeLabel } from '../../src/theme-session.js'
+import { resetSessionThemeForTest, sessionThemeLabel } from '../../src/theme/theme-session.js'
 import type { ToastPayload } from '../../src/screen-types.js'
 
 let home: string

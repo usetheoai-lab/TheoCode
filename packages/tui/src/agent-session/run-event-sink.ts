@@ -1,5 +1,5 @@
 import { mcpFailureSink } from './mcp-failure-sink.js'
-import { sinkRetryEvent } from './retry-record.js'
+import { sinkRetryEvent } from './retry-record-holder.js'
 
 /**
  * The single subscription to the SDK's run events, fanned out to the two holders that read it.
