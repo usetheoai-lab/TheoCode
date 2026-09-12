@@ -76,20 +76,38 @@ describe('a file only this product reads', () => {
 })
 
 describe('a project file the SDK owns', () => {
-  it('test_hooks_are_left_to_the_loader_that_already_runs_them', () => {
+  it('test_it_says_nobody_runs_them_because_the_hooks_surface_is_withheld', () => {
+    // The THIRD false statement of this shape, and the same direction as the other two: it reassured.
+    // This said the compatibility loader runs them, and it does not — measured 2026-09-12 down the
+    // whole chain. `FOREIGN_SURFACES` is `['skills','subagents','plugins','commands']` with no
+    // `hooks`, and `@theokit/sdk@5.5.0`'s `adaptersForSurface` admits a narrowed source only when
+    // `wanted.some((s) => s === surface)`. So `.claude/` never enters `projectConfigRoots(cwd, …,
+    // 'hooks')`, and a hook written there is loaded by nobody.
+    //
+    // Telling an operator their shell runs WITHOUT the approval gate, when it does not run at all,
+    // is worse than either truth: they go looking for a gate to tighten instead of for the reason
+    // their hook is silent.
     const read = translateSettings({ hooks: FLAT_HOOK }, opts('sdk'))
     expect(read.values['hooks']).toBeUndefined()
-    expect(read.droppedHooks.join(' ')).toContain('compatibility loader')
+    expect(read.droppedHooks.join(' ')).toContain('nothing runs')
+    expect(read.droppedHooks.join(' ')).not.toContain('compatibility loader')
   })
 
-  it('test_it_says_the_loader_that_runs_them_does_not_gate_them', () => {
-    // Naming the loader is not enough. A reader who learns "they run" concludes the product is
-    // fine with them, when the fact that matters is that they run with NO approval — the half of
-    // #130 this product cannot close on its own (`claudeCode` is granted per source, not per
-    // surface, so opting hooks out of the foreign root needs theokit-sdk#631).
+  it('test_it_names_the_withheld_surface_and_where_a_gated_hook_goes', () => {
+    // This asserted the message contained "WITHOUT", from when the half of #130 this product could
+    // not close on its own was open: `claudeCode` was granted per SOURCE, so opting hooks out of the
+    // foreign root needed `theokit-sdk#631`.
+    //
+    // That landed. The SDK takes a narrowed `import` list, this product adopted it in
+    // `FOREIGN_SURFACES`, and `hooks` is absent from it — so the hooks no longer run ungated, they
+    // do not run at all. The message and these assertions were the last two things still describing
+    // the world before the fix.
     const read = translateSettings({ hooks: FLAT_HOOK }, opts('sdk'))
-    expect(read.droppedHooks.join(' ')).toContain('WITHOUT')
+    expect(read.droppedHooks.join(' ')).toContain('withholds the `hooks` surface')
     expect(read.droppedHooks.join(' ')).toContain('.theocode/settings.json')
+    expect(read.droppedHooks.join(' '), 'they do not run ungated — they do not run').not.toContain(
+      'WITHOUT',
+    )
   })
 })
 
