@@ -258,13 +258,24 @@ function normaliseHooks(
   }
 
   if (delivery === 'sdk') {
+    // Measured 2026-09-12 down the whole chain: `FOREIGN_SURFACES` is
+    // `['skills','subagents','plugins','commands']` with no `hooks`, and `@theokit/sdk@5.5.0`'s
+    // `adaptersForSurface` admits a narrowed compat source only when `wanted.some((s) => s ===
+    // surface)`. So `.claude/` never enters `projectConfigRoots(cwd, …, 'hooks')` and a hook written
+    // there is loaded by nobody.
+    //
+    // This said "run by the compatibility loader … WITHOUT this product's per-hook approval" — the
+    // third false statement of this shape in this function, and the same direction as the other two:
+    // it reassured. Worse than either truth, because an operator told their shell runs ungated goes
+    // looking for a gate to tighten, not for the reason their hook is silent.
     const { dropped } = translateForeignHooks(declared)
     delete values['hooks']
     return [
       ...dropped,
-      'hooks in this file are run by the compatibility loader, not by this product — translating ' +
-        'them here would execute each one twice. They therefore run WITHOUT this product\'s ' +
-        'per-hook approval; move them to .theocode/settings.json to have them gated (#130)',
+      'hooks in a project .claude/settings.json: nothing runs them. This product withholds the ' +
+        '`hooks` surface from the foreign root (it is absent from FOREIGN_SURFACES), so the SDK ' +
+        'never lists that root among its hook candidates. Move them to .theocode/settings.json, ' +
+        'which this product reads and gates behind the per-hook approval (#130)',
     ]
   }
 
