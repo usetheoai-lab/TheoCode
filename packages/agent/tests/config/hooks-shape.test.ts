@@ -59,9 +59,14 @@ describe('the hooks shape a settings.json may carry', () => {
   })
 
   it('test_a_foreign_root_never_refuses_and_never_keeps', () => {
-    // Under `.claude/` the hooks belong to the loader that already runs them (#130), so shape is not
-    // ours to police: any shape is dropped and REPORTED, never refused. Refusing there would fail a
-    // file this product does not own, over a key it does not run.
+    // Under `.claude/` the hooks are not this product's to police: any shape is dropped and
+    // REPORTED, never refused. Refusing there would fail a file this product does not own, over a
+    // key it does not run.
+    //
+    // The comment used to say they "belong to the loader that already runs them (#130)". Measured
+    // 2026-09-12, nothing runs them: `hooks` is absent from `FOREIGN_SURFACES`, so the SDK never
+    // lists `.claude/` among its hook candidates. The conclusion — do not police the shape — is
+    // unchanged; the reason was wrong.
     const read = translateSettings({ hooks: [{ event: 'Stop', command: 'x' }] }, {
       ownKeys: CONFIG_SCHEMA_KEYS,
       foreignRoot: true,
@@ -69,6 +74,6 @@ describe('the hooks shape a settings.json may carry', () => {
     })
 
     expect(read.values['hooks']).toBeUndefined()
-    expect(read.droppedHooks.join(' ')).toContain('compatibility loader')
+    expect(read.droppedHooks.join(' ')).toContain('nothing runs')
   })
 })

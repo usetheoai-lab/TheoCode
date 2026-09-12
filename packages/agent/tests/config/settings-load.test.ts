@@ -232,7 +232,10 @@ describe('hooks under the foreign root are left to the loader that already runs 
     })
     const [report] = settingsReport({ projectDir: project, userDir: home, env: { HOME: home } })
 
-    expect(report?.droppedHooks.join(' ')).toContain('twice')
+    // Was `toContain('twice')`, from the message that said running them here would fire each hook
+    // twice. They fire zero times: `hooks` is withheld from the foreign root, so the SDK never reads
+    // that file for them. What must still be REPORTED is the reason, which is what this asserts.
+    expect(report?.droppedHooks.join(' ')).toContain('nothing runs')
   })
 
   it('test_the_same_hooks_under_OUR_root_are_translated', () => {
