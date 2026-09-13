@@ -90,24 +90,49 @@ type ForeignGrant = Grant & { import: typeof FOREIGN_SURFACES }
  * comment is the only thing that says so, and `setting-sources.test.ts` pins the divergence so it is
  * discovered rather than believed.
  */
-export const FOREIGN_SURFACES = ['skills', 'subagents', 'plugins', 'commands'] as const
+export const FOREIGN_SURFACES = [
+  'skills',
+  'subagents',
+  'plugins',
+  'commands',
+  // B-011 — the foreign root's INSTRUCTIONS (`.claude/rules/*.md`). Added because the SDK gained a
+  // gate for them: `FileContextManager` used to consult no foreign-dialect grant at all, so this
+  // repository's rules reached the system prompt through a door the other four surfaces were
+  // correctly refused at. Once that gate ships, a narrowed `import` list without this name loses
+  // them — silently, which is the failure the gate exists to prevent, arriving from the other side.
+  //
+  // Not a widening: this product already received those rules on every run. The name is what keeps
+  // that true once the grant is enforced.
+  'context',
+] as const
 
 /**
  * The same list, minus what the SDK's vocabulary does not have.
  *
- * `@theokit/agents@13.0.0-next.10` added `'commands'` to its `CompatSurface`; `@theokit/sdk@5.4.0`
- * still has four names, because custom commands are loaded by the layer and never by the SDK. So a
- * call that builds SDK `local` options directly — `delegation/roles.ts`, for a delegated child —
- * cannot carry the fifth name, and the compiler says so rather than the value being dropped at
- * runtime.
+ * `@theokit/agents@13.0.0-next.10` added `'commands'` to its `CompatSurface`; the published
+ * `@theokit/sdk@5.5.0` still has four names, because custom commands are loaded by the layer and
+ * never by the SDK. So a call that builds SDK `local` options directly — `delegation/roles.ts`, for
+ * a delegated child — cannot carry that name, and the compiler says so rather than the value being
+ * dropped at runtime.
  *
- * DERIVED, never written out a second time. A hand-copied four-name list beside the five-name one is
- * the divergence this whole constant exists to remove, and it would go stale the moment a surface is
- * added. What this expresses is one decision projected onto a narrower vocabulary, not two decisions.
+ * `'context'` is excluded for the same reason and, unlike `'commands'`, TEMPORARILY. The SDK gained
+ * a grant for the foreign root's instructions in usetheokit/theokit-sdk#652, which is merged and not
+ * yet published: `@theokit/sdk@5.5.0`'s `CompatSurface` is
+ * `"hooks" | "plugins" | "skills" | "subagents"`, measured against the resolved copy. Passing the
+ * name to that SDK is a type error, which is how this was found — the compiler refused it before any
+ * release could.
+ *
+ * WHEN THE SDK PUBLISHES IT, DELETE THE `'context'` CLAUSE. Leaving it would keep withholding the
+ * rules from a runtime that had just learned to honour them, and the symptom would be the same
+ * silence the grant exists to remove, produced from this side instead.
+ *
+ * DERIVED, never written out a second time. A hand-copied list beside the full one is the divergence
+ * this whole constant exists to remove, and it would go stale the moment a surface is added. What
+ * this expresses is one decision projected onto a narrower vocabulary, not two decisions.
  */
 export const SDK_FOREIGN_SURFACES = FOREIGN_SURFACES.filter(
-  (surface): surface is Exclude<(typeof FOREIGN_SURFACES)[number], 'commands'> =>
-    surface !== 'commands',
+  (surface): surface is Exclude<(typeof FOREIGN_SURFACES)[number], 'commands' | 'context'> =>
+    surface !== 'commands' && surface !== 'context',
 )
 
 export function settingSourcesFor(posture: TrustPosture): {
