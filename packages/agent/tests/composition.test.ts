@@ -406,10 +406,17 @@ describe('path 1 — buildChatAgent gates what the directory is trusted with', (
     // evidence, narrower import. Asserted whole rather than by field, because this is the drift
     // guard for what reaches the framework, and a per-field check would pass a build that lost the
     // list entirely.
+    //
+    // `'context'` joined the list for B-011: the SDK gained a grant for the foreign root's
+    // INSTRUCTIONS (`.claude/rules/*.md`), which until then reached the system prompt through a door
+    // the other four surfaces were correctly refused at. A narrowed `import` without that name loses
+    // them once the grant is enforced — silently, which is the failure the grant exists to prevent,
+    // arriving from this side. Not a widening: this product already received those rules on every
+    // run, and the name is what keeps that true.
     expect(agent.settingSources).toEqual({
       user: true,
       project: grant,
-      claudeCode: { ...grant, import: ['skills', 'subagents', 'plugins', 'commands'] },
+      claudeCode: { ...grant, import: ['skills', 'subagents', 'plugins', 'commands', 'context'] },
     })
     // Trust is necessary and no longer sufficient: memory is off unless the config asks for it, so
     // a trusted directory alone leaves it off. The two halves are asserted apart, below, because
