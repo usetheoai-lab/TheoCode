@@ -34,7 +34,7 @@ allowBuilds:
   node-pty: true
 
 minimumReleaseAgeExclude:
-  - '@theokit/agents@11.0.0 || 13.0.0-next.3 || 13.0.0-next.5 || 13.0.0-next.7 || 13.0.0-next.8 || 13.0.0-next.9 || 13.0.0-next.10 || 13.0.0-next.11 || 13.0.0 || 13.1.0 || 13.2.0 || 13.3.0 || 13.4.0'
+  - '@theokit/agents@11.0.0 || 13.0.0-next.3 || 13.0.0-next.5 || 13.0.0-next.7 || 13.0.0-next.8 || 13.0.0-next.9 || 13.0.0-next.10 || 13.0.0-next.11 || 13.0.0 || 13.1.0 || 13.2.0 || 13.3.0 || 13.4.0 || 14.0.0'
   - '@theokit/presenter@0.8.0 || 0.9.0-next.0 || 0.9.0'
   - '@typescript-eslint/eslint-plugin@8.68.0'
   - '@typescript-eslint/parser@8.68.0'
@@ -48,7 +48,7 @@ minimumReleaseAgeExclude:
   - '@typescript-eslint/visitor-keys@8.68.0'
   - typescript-eslint@8.68.0
   - '@theokit/tui@0.78.0 || 0.80.0'
-  - '@theokit/sdk@5.0.0 || 5.0.1 || 5.1.0 || 5.2.0 || 5.2.1 || 5.3.0 || 5.3.1 || 5.3.2 || 5.4.0 || 5.5.0'
+  - '@theokit/sdk@5.0.0 || 5.0.1 || 5.1.0 || 5.2.0 || 5.2.1 || 5.3.0 || 5.3.1 || 5.3.2 || 5.4.0 || 5.5.0 || 5.6.0'
   - '@theokit/http@2.1.0-next.0'
 
 # The transitive `@theokit/sdk` is what carries `prompt_cache_key` and the cached-token read
@@ -67,5 +67,15 @@ minimumReleaseAgeExclude:
 # raise that floor while only a prerelease exists (usetheokit/theokit#634), and overriding it here
 # is what lets agents resolve the newer SDK. Verified in the installed tree, not on paper: agents
 # resolves to `@theokit+sdk@5.0.0-next.1`, typecheck clean, 776 tests green.
+#
+# THE JUSTIFICATION ABOVE EXPIRED ON 2026-09-13, and the note stays so the next reader knows the
+# override is no longer load-bearing for the reason it was created. It says "upstream will not raise
+# that floor while only a prerelease exists (usetheokit/theokit#634)". Upstream did:
+# `@theokit/agents@14.0.0` declares `@theokit/sdk: ^5.3.0`, and stable 5.x has existed since 5.3.0.
+# So the override is no longer the ONLY route — agents' own floor now resolves a 5.x on its own.
+#
+# It is raised rather than removed, deliberately. Removing it is a different claim — that nothing
+# else depends on the exact pin — and that needs its own verification rather than riding along with
+# a version bump. Recorded here so the decision is visible instead of inherited.
 overrides:
-  '@theokit/sdk': '5.5.0'
+  '@theokit/sdk': '5.6.0'

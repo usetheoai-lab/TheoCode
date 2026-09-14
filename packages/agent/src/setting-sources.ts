@@ -115,24 +115,20 @@ export const FOREIGN_SURFACES = [
  * a delegated child — cannot carry that name, and the compiler says so rather than the value being
  * dropped at runtime.
  *
- * `'context'` is excluded for the same reason and, unlike `'commands'`, TEMPORARILY. The SDK gained
- * a grant for the foreign root's instructions in usetheokit/theokit-sdk#652, which is merged and not
- * yet published: `@theokit/sdk@5.5.0`'s `CompatSurface` is
- * `"hooks" | "plugins" | "skills" | "subagents"`, measured against the resolved copy. Passing the
- * name to that SDK is a type error, which is how this was found — the compiler refused it before any
- * release could.
- *
- * WHEN THE SDK PUBLISHES IT, DELETE THE `'context'` CLAUSE. Leaving it would keep withholding the
- * rules from a runtime that had just learned to honour them, and the symptom would be the same
- * silence the grant exists to remove, produced from this side instead.
+ * `'context'` was excluded here TEMPORARILY while usetheokit/theokit-sdk#652 was merged and
+ * unpublished, and that clause is gone: `@theokit/sdk@5.6.0` declares
+ * `"context" | "hooks" | "plugins" | "skills" | "subagents"`, measured against the resolved copy.
+ * The name crosses now. Leaving the exclusion would have kept withholding the rules from a runtime
+ * that had just learned to honour them — the same silence the grant exists to remove, produced from
+ * this side instead.
  *
  * DERIVED, never written out a second time. A hand-copied list beside the full one is the divergence
  * this whole constant exists to remove, and it would go stale the moment a surface is added. What
  * this expresses is one decision projected onto a narrower vocabulary, not two decisions.
  */
 export const SDK_FOREIGN_SURFACES = FOREIGN_SURFACES.filter(
-  (surface): surface is Exclude<(typeof FOREIGN_SURFACES)[number], 'commands' | 'context'> =>
-    surface !== 'commands' && surface !== 'context',
+  (surface): surface is Exclude<(typeof FOREIGN_SURFACES)[number], 'commands'> =>
+    surface !== 'commands',
 )
 
 export function settingSourcesFor(posture: TrustPosture): {
