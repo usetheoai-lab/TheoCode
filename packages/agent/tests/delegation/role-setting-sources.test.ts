@@ -73,10 +73,16 @@ describe('#74 — what a delegated role is allowed to read', () => {
     // absent because the SDK's `CompatSurface` does not have it: custom commands are the layer's
     // surface, never the SDK's, and `SDK_FOREIGN_SURFACES` is that one list projected onto the
     // narrower vocabulary rather than a second list written by hand.
+    //
+    // `context` joined the list when `@theokit/sdk@5.6.0` published the grant for the foreign root's
+    // instructions (upstream `theokit-sdk#652`). It belongs HERE and not only on the parent for the
+    // reason this assertion's own message states: a child that read a narrower view of the directory
+    // than the agent that spawned it would silently lose `.claude/rules` at exactly the delegation
+    // boundary — the failure the grant exists to prevent, one level down.
     expect(
       local.compatSources,
       'the child reads a narrower view of the directory than the agent that spawned it',
-    ).toEqual([{ kind: 'claude-code', import: ['skills', 'subagents', 'plugins'] }])
+    ).toEqual([{ kind: 'claude-code', import: ['skills', 'subagents', 'plugins', 'context'] }])
   })
 
   it('test_an_untrusted_role_declares_neither', async () => {
@@ -101,7 +107,7 @@ describe('#74 — what a delegated role is allowed to read', () => {
     const local = await localOf({ subagents: true, hooks: true })
 
     expect(local.compatSources, 'precondition: the roots are the thing being inherited').toEqual([
-      { kind: 'claude-code', import: ['skills', 'subagents', 'plugins'] },
+      { kind: 'claude-code', import: ['skills', 'subagents', 'plugins', 'context'] },
     ])
     expect(
       local.sandboxOptions,
