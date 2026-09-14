@@ -67,6 +67,9 @@
  * HOME produced 0 fires and 0 prompts, which three different explanations fit equally well.
  */
 import { TheokitAgentError } from '@theokit/agents'
+// Both from `/config`: `PermissionRule` is re-exported there and NOT from the root barrel, which
+// the framework's own `names nothing a consumer cannot import` gate measured on 2026-09-12.
+import { permissionRulesFromSettings, type PermissionRule } from '@theokit/agents/config'
 
 import { HOOK_EVENTS } from '../hooks/hooks-spec.js'
 import { FOREIGN_SETTINGS_KEYS } from './foreign-keys.js'
@@ -127,6 +130,52 @@ export interface SettingsRead {
    */
   readonly unrecognised: readonly string[]
   readonly droppedHooks: readonly string[]
+  /**
+   * The `permissions` block, rendered into rules the engine evaluates.
+   *
+   * Empty when the file declares none, which is most files.
+   */
+  readonly permissionRules: readonly PermissionRule[]
+  /**
+   * Permission entries this runtime could not render, each with the reason.
+   *
+   * Reported rather than thrown, and that asymmetry is the whole reason this goes through
+   * `permissionRulesFromSettings` instead of the SDK's raw block. The SDK's `parsePermissionRules`
+   * THROWS on a line it cannot read — correct for our own `.theokit/settings.json`, where a bad
+   * entry is our bug and should fail loud. `.claude/settings.json` is somebody else's file in
+   * somebody else's dialect, and crashing the agent over a line written for another runtime would
+   * make their config file able to break ours.
+   *
+   * Silently dropping it is the opposite failure and the one this product exists to refuse: an
+   * operator who wrote a `deny` entry would believe a protection was in place. So: honoured where it
+   * can be, named where it cannot.
+   */
+  readonly unsupportedPermissions: readonly { readonly entry: string; readonly reason: string }[]
+}
+
+/**
+ * The `permissions` value as a block, or `undefined` when it is not one.
+ *
+ * Narrowed rather than cast. This is a foreign file: the value can be anything its author typed, and
+ * a cast would hand a non-object to the translator and turn a typo in somebody else's config into a
+ * crash in ours. A shape we cannot read yields `undefined`, which the translator reads as "no block"
+ * — and the key still leaves a trace, because an unreadable block produces no rules and the operator
+ * sees no permissions take effect.
+ */
+function asPermissionsBlock(
+  value: unknown,
+): { allow?: string[]; deny?: string[]; ask?: string[] } | undefined {
+  if (!isRecord(value)) return undefined
+  const strings = (v: unknown): string[] | undefined =>
+    Array.isArray(v) && v.every((e) => typeof e === 'string') ? [...(v as string[])] : undefined
+  const allow = strings(value['allow'])
+  const deny = strings(value['deny'])
+  const ask = strings(value['ask'])
+  return {
+    ...(allow === undefined ? {} : { allow }),
+    ...(deny === undefined ? {} : { deny }),
+    ...(ask === undefined ? {} : { ask }),
+  }
 }
 
 /** `matcher: "*"` means every tool. It is not a regex, so it is dropped rather than forwarded. */
@@ -306,14 +355,50 @@ function normaliseHooks(
 }
 
 export function translateSettings(raw: unknown, opts: TranslateOptions): SettingsRead {
-  if (!isRecord(raw)) return { values: {}, ignored: [], unrecognised: [], droppedHooks: [] }
+  if (!isRecord(raw))
+    return {
+      values: {},
+      ignored: [],
+      unrecognised: [],
+      droppedHooks: [],
+      permissionRules: [],
+      unsupportedPermissions: [],
+    }
 
   const ours = new Set(opts.ownKeys)
   const values: Record<string, unknown> = {}
   const ignored: string[] = []
   const unrecognised: string[] = []
+  let permissionRules: readonly PermissionRule[] = []
+  let unsupportedPermissions: readonly { entry: string; reason: string }[] = []
   for (const [rawKey, value] of Object.entries(raw)) {
     const key = SAME_SETTING_DIFFERENT_SPELLING[rawKey] ?? rawKey
+    if (key === 'permissions') {
+      // TRANSLATED AND STILL REPORTED AS NOT IMPLEMENTED, which looks contradictory and is the only
+      // honest state available today.
+      //
+      // `@theokit/agents@14.0.0` renders the block into `PermissionRule[]` — that half works, and
+      // the translation is what produces `unsupportedPermissions` below, which is real information
+      // an operator cannot get any other way. What does NOT exist is a path from those rules to the
+      // engine: `AgentBuilder` exposes `approval`, `approvals`, `guardrails`, `hooks`,
+      // `settingSources` and no `permissions`, and `approval` is a HITL prompt rather than a policy
+      // evaluator. Measured 2026-09-13 against the published `.d.ts`.
+      //
+      // So the key stays in `ignored`. An earlier version of this block removed it, and the effect
+      // was that `doctor` stopped printing "not implemented here: permissions" while a `deny` an
+      // operator wrote still gated nothing — a diagnostic that had become false, which is strictly
+      // worse than the gap it was describing. Closing this needs a seam in `@theokit/agents`; until
+      // that ships, the operator is told the truth twice: the block does not take effect, AND which
+      // of its entries could not even be rendered.
+      const translated = permissionRulesFromSettings(asPermissionsBlock(value))
+      permissionRules = translated.rules
+      unsupportedPermissions = translated.unsupported.map((u) => ({
+        entry: u.entry,
+        reason: u.reason,
+      }))
+      ignored.push(key)
+      continue
+    }
     if (ours.has(key)) {
       values[key] = value
     } else if (FOREIGN_SETTINGS_KEYS.has(key) || isNonSettingConvention(key)) {
@@ -332,5 +417,5 @@ export function translateSettings(raw: unknown, opts: TranslateOptions): Setting
   // be written either way, which is what "the same filename" has to mean to be worth anything.
   const droppedHooks = normaliseHooks(values, opts.hooksDelivery)
 
-  return { values, ignored, unrecognised, droppedHooks }
+  return { values, ignored, unrecognised, droppedHooks, permissionRules, unsupportedPermissions }
 }
