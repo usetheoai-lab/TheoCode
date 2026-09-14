@@ -34,6 +34,7 @@ const REPORT = [
     ignored: ['alwaysThinkingEnabled'],
     unrecognised: ['voiceEnabled'],
     droppedHooks: ['UserPromptSubmit: this product has no such hook event'],
+    unsupportedPermissions: [],
   },
 ]
 
@@ -67,7 +68,7 @@ describe('the settings row', () => {
     const rows = collectChecks({
       ...base,
       settingsIgnored: [
-        { path: '/tmp/p/.theokit/settings.json', ignored: [], unrecognised: [], droppedHooks: [] },
+        { path: '/tmp/p/.theokit/settings.json', ignored: [], unrecognised: [], droppedHooks: [], unsupportedPermissions: [] },
       ],
     })
     expect(rows.find((c) => c.name === 'settings')).toBeUndefined()

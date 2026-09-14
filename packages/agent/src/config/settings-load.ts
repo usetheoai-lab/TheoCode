@@ -146,6 +146,14 @@ export interface SettingsFileReport {
   readonly unrecognised: readonly string[]
   /** Hooks that could not be translated, each with its reason. */
   readonly droppedHooks: readonly string[]
+  /**
+   * Permission entries this runtime could not render, each with its reason.
+   *
+   * Separate from `ignored`, and the distinction is the operator's: `ignored` names a setting this
+   * product chose not to implement, this names one it implements and could not express. An operator
+   * reading the first goes looking for a feature; one reading the second goes looking at their line.
+   */
+  readonly unsupportedPermissions: readonly string[]
 }
 
 /**
@@ -182,11 +190,23 @@ function reportOne(candidate: SettingsCandidate): SettingsFileReport | 'skip' | 
       foreignRoot: candidate.foreignRoot,
       hooksDelivery: candidate.hooksDelivery,
     })
-    return { path, ignored: read.ignored, unrecognised: read.unrecognised, droppedHooks: read.droppedHooks }
+    return {
+      path,
+      ignored: read.ignored,
+      unrecognised: read.unrecognised,
+      droppedHooks: read.droppedHooks,
+      unsupportedPermissions: read.unsupportedPermissions.map((u) => `${u.entry} — ${u.reason}`),
+    }
   } catch (err) {
     // #151 — a refused `hooks` key throws. A DIAGNOSTIC must survive the state it exists to
     // describe: reporting the refusal is more use than inheriting it.
-    return { path, ignored: [], unrecognised: [], droppedHooks: [(err as Error).message] }
+    return {
+      path,
+      ignored: [],
+      unrecognised: [],
+      droppedHooks: [(err as Error).message],
+      unsupportedPermissions: [],
+    }
   }
 }
 

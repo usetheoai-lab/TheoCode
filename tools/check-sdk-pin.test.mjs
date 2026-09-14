@@ -176,4 +176,39 @@ describe('#120 — the declared pin and the resolved tree', () => {
     )
     expect(found).toMatch(/not installed|no resolved copy/i)
   })
+
+  it('test_a_version_inside_a_yaml_comment_is_not_read_as_the_override', () => {
+    // The regex scanned the whole file and took the FIRST match, so a comment mentioning the package
+    // with a version outranked the override twenty lines below it. Measured in CI on 2026-09-13: a
+    // comment recording WHY the override exists — `@theokit/agents@14.0.0` declares
+    // `@theokit/sdk: ^5.3.0` — made the gate report a disagreement between 5.6.0 and a string it had
+    // read out of prose, complete with the trailing backtick and comma.
+    //
+    // The failure direction is what makes it worth a test rather than a reworded comment: the gate
+    // exists to catch a real pin drift, and a parser this easy to distract fails on the commit that
+    // documents the override and passes on the one that breaks it.
+    const yaml = [
+      '# `@theokit/agents@14.0.0` declares `@theokit/sdk: ^5.3.0`, and stable 5.x exists since 5.3.0.',
+      'overrides:',
+      "  '@theokit/sdk': '5.6.0'",
+    ].join('\n')
+
+    expect(
+      disagreement(JSON.stringify({ dependencies: { '@theokit/sdk': '5.6.0' } }), yaml),
+    ).toBeUndefined()
+  })
+
+  it('test_a_real_disagreement_is_still_caught_when_a_comment_is_present', () => {
+    // The control. Ignoring comments must not turn the gate off — a genuine drift beneath the same
+    // comment still has to fail, or the fix would have removed the check instead of repairing it.
+    const yaml = [
+      '# `@theokit/agents@14.0.0` declares `@theokit/sdk: ^5.3.0`.',
+      'overrides:',
+      "  '@theokit/sdk': '5.4.0'",
+    ].join('\n')
+
+    expect(
+      disagreement(JSON.stringify({ dependencies: { '@theokit/sdk': '5.6.0' } }), yaml),
+    ).toMatch(/5\.4\.0/)
+  })
 })

@@ -43,7 +43,16 @@ export function disagreement(pkgJson, workspaceYaml, workspaceManifests = []) {
   // `5.0.0-next.1` as the same string, and comparing the raw capture to the JSON value reported a
   // disagreement between a version and itself — caught by running the guard rather than by reading
   // it, on the very commit that introduced it.
-  const raw = new RegExp(`'?${NAME.replace('/', '\\/')}'?:\\s*(\\S+)`).exec(workspaceYaml)?.[1]
+  // Comment lines are dropped BEFORE the scan. The regex takes the first match in the file, and a
+  // comment recording why the override exists routinely names the package with a version — so prose
+  // twenty lines above outranked the override itself. Measured in CI 2026-09-13: the gate compared
+  // 5.6.0 against a string captured out of a sentence, trailing backtick included. Dropping comments
+  // rather than tightening the pattern, because the defect is WHERE it looked, not what it matched.
+  const yamlBody = workspaceYaml
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('#'))
+    .join('\n')
+  const raw = new RegExp(`'?${NAME.replace('/', '\\/')}'?:\\s*(\\S+)`).exec(yamlBody)?.[1]
   const wsOverride = raw?.replace(/^['"]|['"]$/g, '')
 
   // ANY npm `overrides` block, not only this package's.

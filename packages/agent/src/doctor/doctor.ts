@@ -177,6 +177,15 @@ function settingsCheck(reports: readonly SettingsFileReport[] = []): Check[] {
         r.ignored.length > 0 ? `not implemented here: ${r.ignored.join(', ')}` : '',
         r.unrecognised.length > 0 ? `unrecognised: ${r.unrecognised.join(', ')}` : '',
         r.droppedHooks.length > 0 ? `hooks not translated: ${r.droppedHooks.join('; ')}` : '',
+        // Named apart from `ignored` on purpose, and the two say different things about the same
+        // block. `permissions` stays in `ignored` because ENFORCEMENT is still missing — the
+        // translated rules reach no engine, since `AgentBuilder` has no seam to take them. This
+        // second line is about TRANSLATION: an entry listed here did not even render, so its
+        // problem is that LINE rather than the absent seam. An operator needs both, and neither
+        // alone would let them believe a `deny` they wrote is in force.
+        r.unsupportedPermissions.length > 0
+          ? `permission entries not honoured: ${r.unsupportedPermissions.join('; ')}`
+          : '',
       ].filter((p) => p !== '')
       return parts.length > 0 ? `${r.path} — ${parts.join('; ')}` : ''
     })
