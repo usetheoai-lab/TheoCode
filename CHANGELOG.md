@@ -16,6 +16,9 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Changed
+- **`@theokit/agents` moves to 14.1.0, which carries a seam for running work before a transcript is compacted.** `withPreCompaction` decorates a compaction strategy so a registered handler runs — and is awaited — before the rewrite; a failing or hanging handler is reported and compaction proceeds anyway. Verified against the PUBLISHED package from inside this repository rather than on paper: the three symbols resolve through the package entry (control: an invented export resolves `undefined`), and exercising the seam records the ordering `["handler","compact"]`, which is the entire guarantee. All four manifests moved together and the installed tree was checked per package, because a bump that moves one manifest exits 0 and leaves resolution where it was. **It does not reach this product's own `/compact`**: that command goes through `Agent.compact(sessionId, …)`, a path the seam does not touch — measured, and tracked upstream. (upstream `theokit`)
+
 ## [0.27.0] - 2026-09-13
 
 ### Changed
