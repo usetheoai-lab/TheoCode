@@ -99,6 +99,45 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(chunks).toBeGreaterThan(1)
   }, 180_000)
 
+  it('calls a tool it was given, with the argument the prompt implies', async () => {
+    if (!(await serverIsUp())) return
+
+    const res = await fetch(`${OLLAMA}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer local' },
+      body: JSON.stringify({
+        model: 'qwen2.5:3b',
+        messages: [{ role: 'user', content: 'What is the weather in Lisbon? Use the tool.' }],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'get_weather',
+              description: 'Current weather for a city',
+              parameters: {
+                type: 'object',
+                properties: { city: { type: 'string' } },
+                required: ['city'],
+              },
+            },
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(180_000),
+    })
+
+    expect(res.ok).toBe(true)
+    const body = (await res.json()) as {
+      choices?: { message?: { tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[]
+    }
+    const call = body.choices?.[0]?.message?.tool_calls?.[0]?.function
+
+    // The NAME alone would pass for a model that calls every tool it is shown. The argument is what
+    // proves it read the prompt: `Lisbon` appears nowhere in the schema, only in the question.
+    expect(call?.name).toBe('get_weather')
+    expect(String(call?.arguments ?? '')).toContain('Lisbon')
+  }, 240_000)
+
   it('surfaces a provider error instead of hanging or inventing an answer', async () => {
     if (!(await serverIsUp())) return
 
