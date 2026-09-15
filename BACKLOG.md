@@ -8177,6 +8177,13 @@ evidence: |
 
   Three gates were switched off by a fourth that could never go green, and nothing said so: the
   output ended at the ESLint summary, which reads like the whole chain reporting.
+
+  CORRECTION to the first reading, measured rather than assumed: **CI was never affected.**
+  `git ls-files .claude` returns 0 and no CI step installs the kit, so the directory does not
+  exist there, ESLint never saw it, and the chain ran whole. The breakage was LOCAL and total —
+  every machine with the kit installed. That is smaller than "CI was green while three gates
+  never ran" and still worth fixing: the local gate is the one a person runs before pushing, so
+  the cost fell entirely on whoever was trying to check their own work.
 why_now: found because a red gate on my own change turned out not to be about my change. A gate that is permanently red is a gate nobody reads, and this one took three others down with it
 status: shipped
 shipped_in: `.claude/**` added to the ESLint ignore list, with the measurement written beside it in the config — the convention the `#39` note in that file already set. `npm run lint` exits 0, verified by the real exit code rather than through a pipe

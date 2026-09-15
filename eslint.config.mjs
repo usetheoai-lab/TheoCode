@@ -27,6 +27,14 @@ export default tseslint.config(
   // 45 unfixable errors are not neutral: they made `npm run lint` exit 1 permanently, and a gate
   // that is always red is a gate nobody reads. That is how a real finding in this project's own
   // source hides — which is exactly what happened, twice, in the run that produced this line.
+  //
+  // WHERE it was broken, stated because the first version of this note did not say and the two
+  // cases are worth very different amounts. `.claude/` is gitignored and CI does not install it
+  // (`git ls-files .claude` -> 0), so in CI the directory does not exist, ESLint never saw it, and
+  // the chain ran whole. The breakage was LOCAL and total: every machine with the kit installed got
+  // a permanently red `npm run lint`, and `knip` and `check-english-only` never ran there — `&&`
+  // short-circuits. That is the gate a person runs before pushing, so the cost was paid by whoever
+  // was trying to check their work, and never by CI.
   { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**', 'codex/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
