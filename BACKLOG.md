@@ -8147,3 +8147,39 @@ dod:
   - `doctor` names each of the four surfaces with what it found, in the shape `skills-on-disk` already uses
   - a surface that is present and NOT read is distinguishable in the report from one that is present and read
   - the check counts files rather than asserting presence, so an empty directory and a loaded one do not read alike
+
+## B-176 — 45 unfixable errors from an installed dependency disabled three other gates   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-15 while adding a row to `doctor`, when `npm run lint` came back red and the
+  errors were not in the code I had touched.
+
+  `eslint.config.mjs` ignored `dist`, `node_modules`, `deadcode-output` and `codex` — not
+  `.claude/`. So ESLint linted the INSTALLED KIT: `npx eslint .claude --no-ignore` reports **45
+  errors**, every one `no-undef` on `args`, `log`, `agent`, `pipeline` or `parallel` inside
+  `mechanisms/fleet/*.js`. Those are globals the Workflow runtime supplies and no file declares —
+  ESLint is correct about the text and wrong about the program — and the files are gitignored
+  (`.gitignore:23`), so no fix could be committed from this repository anyway.
+
+  The cost was not noise. The script is `eslint . && knip --no-progress && node
+  tools/check-english-only.mjs --quiet && npm run depcruise`, and `&&` short-circuits:
+
+  | stage                  | before        | after                              |
+  |------------------------|---------------|------------------------------------|
+  | `eslint .`             | failed        | passes                             |
+  | `knip`                 | **never ran** | passes                             |
+  | `check-english-only`   | **never ran** | passes                             |
+  | `depcruise`            | **never ran** | 291 modules, 782 deps, 0 violations |
+
+  Three gates were switched off by a fourth that could never go green, and nothing said so: the
+  output ended at the ESLint summary, which reads like the whole chain reporting.
+why_now: found because a red gate on my own change turned out not to be about my change. A gate that is permanently red is a gate nobody reads, and this one took three others down with it
+status: shipped
+shipped_in: `.claude/**` added to the ESLint ignore list, with the measurement written beside it in the config — the convention the `#39` note in that file already set. `npm run lint` exits 0, verified by the real exit code rather than through a pipe
+dod:
+  - `npm run lint` exits 0 on a clean tree, and every stage of the chain executes
+  - the ignore entry states what was measured and why the project cannot fix what it stops linting

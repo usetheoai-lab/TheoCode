@@ -15,7 +15,19 @@ export default tseslint.config(
   // read `.gitignore`, and from v10 it descends here and tries to LOAD `codex/sdk/typescript/
   // eslint.config.js` — a foreign config with plugins this repository does not install, which
   // aborted the whole lint run with ERR_MODULE_NOT_FOUND before a single file of ours was checked.
-  { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**', 'codex/**'] },
+  // `.claude/**` joins the list for the same reason `node_modules/**` is on it: it is an INSTALLED
+  // DEPENDENCY, not this project's source. It is gitignored (`.gitignore:23`), so nothing found in
+  // it can be committed here — a fix belongs in the kit's own repository.
+  //
+  // Measured 2026-09-15, in the spirit of #39 below rather than assumed: `npx eslint .claude
+  // --no-ignore` reports 45 errors, and every one is `no-undef` on `args`, `log`, `agent`,
+  // `pipeline` or `parallel` inside `mechanisms/fleet/*.js`. Those are globals the Workflow runtime
+  // supplies and no file declares, so ESLint is correct about the text and wrong about the program.
+  //
+  // 45 unfixable errors are not neutral: they made `npm run lint` exit 1 permanently, and a gate
+  // that is always red is a gate nobody reads. That is how a real finding in this project's own
+  // source hides — which is exactly what happened, twice, in the run that produced this line.
+  { ignores: ['dist/**', 'node_modules/**', 'deadcode-output/**', 'codex/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // #39 — `tools/` used to be ignored here, together with the dependency-cruiser config, on the
