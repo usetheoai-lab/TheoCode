@@ -64,7 +64,17 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(res.ok).toBe(true)
     const body = (await res.json()) as { choices?: { message?: { content?: string } }[] }
     const content = body.choices?.[0]?.message?.content ?? ''
-    expect(content.length).toBeGreaterThan(0)
+
+    // `length > 0` was the assertion here, and it was the weakest one in this file: the prompt asks
+    // for READY and any non-empty text satisfied it — an error string, a greeting, the answer to a
+    // different prompt. Found by TheoCode itself, reviewing this file through a frontier model, and
+    // it named the line.
+    //
+    // Its proposed fix was `toBe('READY')`. That is right in principle and too strict for a 1.5B,
+    // which returns `READY.` or `Ready` often enough to make this flaky — trading a weak assertion
+    // for an intermittent one, which rules/testing.md calls a bug. Containment keeps the claim
+    // (the instruction was followed) without demanding perfect formatting from a small model.
+    expect(content.toUpperCase()).toContain('READY')
   }, 180_000)
 
   it('streams a turn rather than returning it whole', async () => {
