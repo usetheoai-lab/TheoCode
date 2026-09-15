@@ -49,6 +49,31 @@ describe('formatApproval — apply_patch', () => {
     expect(del).toContain('Delete a/c.ts')
   })
 
+  it('heads every file in a multi-file patch, in order, keeping each hunk', () => {
+    // The single-file cases above never exercise the separator between blocks, and a patch that
+    // touches three files is the ordinary shape of a real edit — the one an operator most needs to
+    // read before approving.
+    const multi = [
+      '*** Begin Patch',
+      '*** Update File: a/one.ts',
+      '@@ ctx1',
+      '-old1',
+      '+new1',
+      '*** Add File: b/two.ts',
+      '+created',
+      '*** Delete File: c/three.ts',
+      '*** End Patch',
+    ].join('\n')
+    const d = describePatch(multi)
+    expect(d).toContain('Update a/one.ts')
+    expect(d).toContain('Add b/two.ts')
+    expect(d).toContain('Delete c/three.ts')
+    expect(d.indexOf('Update a/one.ts')).toBeLessThan(d.indexOf('Add b/two.ts'))
+    expect(d.indexOf('Add b/two.ts')).toBeLessThan(d.indexOf('Delete c/three.ts'))
+    expect(d).toContain('-old1')
+    expect(d).toContain('+created')
+  })
+
   it('leaves a patch it cannot parse alone rather than showing the operator nothing', () => {
     // A body with no file marker is not V4A. Returning an empty description would hide the change
     // being approved, which is worse than the envelope this test exists to remove.
