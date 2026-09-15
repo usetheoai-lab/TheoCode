@@ -1,3 +1,4 @@
+import { basename } from 'node:path'
 import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 
@@ -23,7 +24,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from '../context/index.js'
+import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd, loadUserAgentsMd } from '../context/index.js'
 import type { RulesLoad } from '../context/rules.js'
 import { userSkills } from '../context/user-skills.js'
 import type { InlineSkill } from '@theokit/sdk'
@@ -655,6 +656,11 @@ function baseAgent(ctx: {
     projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
     overrides?.appendInstructions ?? '',
     { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
+    // The header names the files the document was actually read from. It used to say "from
+    // AGENTS.md" unconditionally while the loader accepts THEO.md, AGENTS.md and CLAUDE.md, so a
+    // project holding only one of the others was told about a file it does not have — and the
+    // agent, asked where a rule came from, answered with a path nobody could open.
+    agentsMdChain(ctx.cwd).map((f) => basename(f)),
   )
 
   const agent =

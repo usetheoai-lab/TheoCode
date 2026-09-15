@@ -180,12 +180,14 @@ export function composeInstructions(
   projectDoc: string,
   surfaceDoc = '',
   opts?: AggregateBudget,
+  /** Basenames the project document was read from, so the header can name them honestly. */
+  sources?: readonly string[],
 ): ComposedInstructions {
-  if (opts === undefined) return { text: build(base, projectDoc, surfaceDoc), cuts: [] }
+  if (opts === undefined) return { text: build(base, projectDoc, surfaceDoc, sources), cuts: [] }
   if (opts.maxChars <= 0) {
     throw new RangeError(`maxChars=${String(opts.maxChars)} — the aggregate budget must be > 0`)
   }
-  return withinBudget(base, projectDoc, surfaceDoc, opts)
+  return withinBudget(base, projectDoc, surfaceDoc, opts, sources)
 }
 
 function withinBudget(
@@ -193,11 +195,12 @@ function withinBudget(
   projectDoc: string,
   surfaceDoc: string,
   opts: AggregateBudget,
+  sources?: readonly string[],
 ): ComposedInstructions {
   let doc = projectDoc
   let surface = surfaceDoc
   const cuts: InstructionCut[] = []
-  const total = (): number => build(base, doc, surface).length
+  const total = (): number => build(base, doc, surface, sources).length
 
   if (total() > opts.maxChars) {
     const { rules, agentsMd } = splitProjectDoc(doc)
@@ -247,14 +250,36 @@ function withinBudget(
         `(${String(total())} > ${String(opts.maxChars)}) — nothing was truncated`,
     )
   }
-  return { text: build(base, doc, surface), cuts }
+  return { text: build(base, doc, surface, sources), cuts }
 }
 
-function build(base: string, projectDoc: string, surfaceDoc: string): string {
+/**
+ * How the project-instruction header names its own source.
+ *
+ * It used to say "from AGENTS.md" unconditionally, while `BASE_NAMES` accepts THEO.md, AGENTS.md
+ * and CLAUDE.md, and `LOCAL_NAMES` adds more. A project carrying only `CLAUDE.md` was told its
+ * instructions came from a file it does not have — measured 2026-09-15, when a canary appended to
+ * `CLAUDE.md` was reported back as coming from `AGENTS.md`.
+ *
+ * With no sources the header names none. An unqualified header is weaker than a precise one and
+ * far better than one pointing at a path the reader cannot open: a reader who opens the named file
+ * and finds nothing learns that the attribution cannot be trusted, which costs more than it saves.
+ */
+function sourceClause(sources: readonly string[] | undefined): string {
+  const named = (sources ?? []).filter((s) => s.trim().length > 0)
+  return named.length > 0 ? `from ${named.join(', ')} — ` : ''
+}
+
+function build(
+  base: string,
+  projectDoc: string,
+  surfaceDoc: string,
+  sources?: readonly string[],
+): string {
   const parts = [base]
   if (projectDoc.trim()) {
     parts.push(
-      `## Project instructions (from AGENTS.md — follow these for THIS project)\n${projectDoc}`,
+      `## Project instructions (${sourceClause(sources)}follow these for THIS project)\n${projectDoc}`,
     )
   }
   if (surfaceDoc.trim()) {

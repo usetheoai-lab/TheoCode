@@ -78,4 +78,8 @@ minimumReleaseAgeExclude:
 # else depends on the exact pin — and that needs its own verification rather than riding along with
 # a version bump. Recorded here so the decision is visible instead of inherited.
 overrides:
-  '@theokit/sdk': '5.8.0'
+  # LOCAL VALIDATION — pinned to the working tree next door so a fix can be exercised in this
+  # TUI before any version is published. Restore the exact pin ('5.8.0' or its successor)
+  # and reinstall before cutting a release; a link here would publish against source nobody
+  # can install.
+  '@theokit/sdk': link:../../theokit-sdk/packages/sdk
