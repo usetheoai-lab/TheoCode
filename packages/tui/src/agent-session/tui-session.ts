@@ -29,6 +29,11 @@ export interface TuiSession {
 export interface SessionOptions {
   readonly cwd?: string
   readonly sessionPointer: string
+  /**
+   * Whether to READ the pointer. It is written either way, so a later `--continue` can find the
+   * session; reading it is what makes this launch inherit the previous conversation.
+   */
+  readonly resume?: boolean
   readonly loadSession?: (pointer: string, fresh: () => string) => string
   readonly loadConfig?: typeof resolveEffectiveConfig
 }
@@ -40,7 +45,8 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
 
   let cfg = loadConfig({ cwd })
   let effort: ReasoningEffort = cfg.reasoning_effort
-  let session = loadSession(opts.sessionPointer, () => `tui-${randomUUID()}`)
+  const freshSession = () => `tui-${randomUUID()}`
+  let session = opts.resume === true ? loadSession(opts.sessionPointer, freshSession) : freshSession()
   let images: AttachedImage[] | undefined
   let model: string | undefined
   let fixedModel: string | undefined

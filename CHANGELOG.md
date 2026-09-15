@@ -16,6 +16,9 @@ for `release.yml` in this repository will not find it, and should not have been 
 
 ## [Unreleased]
 
+### Fixed
+- **A launch starts a fresh session; `--continue` (or `-c`) resumes the last one.** Resuming was decided by the mere presence of `.theokit/tui-session`, and nothing ever removes that file — so a directory used once resumed on every later launch, forever, with no flag to opt out. The only escape, `/new`, exists after the old context is already loaded. Measured on a restart whose purpose was to clear a session 46k tokens over its context window: it came back carrying it, announced by one parenthetical in the greeting. (#B-092)
+
 ### Added
 - **One turn against a LIVE model is now exercised — the first test here that leaves the process.** Measured 2026-09-15 before writing it: of 216 test files, 45 mock the provider and exactly ONE attempted a real call, and that one skips without a paid credential nobody has set. So 1806 green tests said nothing about the half that makes this a coding agent. `packages/agent/tests/live/` asks the three questions no mock answers: does a turn complete with non-empty content, does the response arrive in MORE THAN ONE chunk (a single chunk is a whole response wearing a streaming content-type, which is exactly what a mock produces), and is a provider error surfaced rather than hung on or answered around. The third is what keeps the other two from being theatre. It runs against `ollama` on `localhost:11434/v1` — OpenAI-compatible, accepts any key — so it costs nothing and needs no secret, which is why it can run where a paid credential cannot. It SKIPS loudly, never fails, when no server answers: a machine without one is not a machine with a defect. What it does not claim is written in the file: a 1.5B model is not evidence the product is good, only that the path works.
 

@@ -1,3 +1,4 @@
+import { resumeRequested } from './resume-request.js'
 import { fireSessionStart } from './session-start.js'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -62,9 +63,12 @@ function createVetoRelay(): {
 function build(): TuiRoot {
   const cwd = workingDirectory()
   const sessionPointer = join(cwd, '.theokit', 'tui-session')
-  const resumeOnStartup = existsSync(sessionPointer)
+  // Both halves must hold. `existsSync` answers "is there something to continue"; `resumeRequested`
+  // answers "was continuing asked for". Presence alone used to decide it, and since nothing removes
+  // the pointer, a directory used once resumed on every later launch with no way to opt out.
+  const resumeOnStartup = resumeRequested() && existsSync(sessionPointer)
 
-  const session = createTuiSession({ cwd, sessionPointer })
+  const session = createTuiSession({ cwd, sessionPointer, resume: resumeOnStartup })
 
   // #132 — a launch that does NOT resume is a session starting. Resuming is not: a hook that ran on
   // every resume would be announcing an event that did not happen.
