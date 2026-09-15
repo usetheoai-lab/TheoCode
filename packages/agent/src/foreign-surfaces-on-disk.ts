@@ -12,7 +12,7 @@
  * Counting rather than asserting presence, because a directory somebody created and a tree of 139
  * definitions must not read alike to an operator deciding whether their configuration took effect.
  */
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { ForeignSurface } from './doctor/doctor.js'
@@ -40,8 +40,8 @@ const SURFACES: readonly {
   // says belong under `records/` precisely because "mixing the two put a run's trail where a reader
   // looks for a roster". A row reporting 139 agents would have repeated that mistake in the
   // diagnostic, and an operator reading it would believe their roster was eight times its size.
-  { dir: 'agents', state: 'read', count: (d) => topLevel(d, '.md') },
-  { dir: 'commands', state: 'read', count: (d) => topLevel(d, '.md') },
+  { dir: 'agents', state: 'read', count: (d) => definitions(d) },
+  { dir: 'commands', state: 'read', count: (d) => definitions(d) },
   // One per agent, at `<agent>/MEMORY.md` — the layout the reference prescribes, so a top-level
   // count would report every configured memory as absent.
   { dir: 'agent-memory', state: 'read', count: (d) => memories(d) },
@@ -53,6 +53,30 @@ const SURFACES: readonly {
 function topLevel(dir: string, ext: string): number {
   return readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith(ext))
     .length
+}
+
+/**
+ * Top-level `.md` files that OPEN WITH FRONTMATTER, which is what makes one loadable.
+ *
+ * MEASURED 2026-09-15 against the real directory, one layer finer than the `review-*` subdirectory
+ * finding: 17 `.md` at the top level, 16 that the loader returns. The odd one is `README.md` —
+ * documentation somebody left beside the roster, with no frontmatter, so nothing loads it.
+ *
+ * Counting it would have the row claim one agent that does not exist. That is the same defect as
+ * claiming 122, differing only in being small enough to survive a glance — which makes it the more
+ * durable of the two.
+ *
+ * Reading the first line rather than parsing the frontmatter: the question here is how many the
+ * loader would take, and a file without the opening fence is not one of them. A full parse would
+ * cost more and answer no better for a count.
+ */
+function definitions(dir: string): number {
+  let n = 0
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+    if (readFileSync(join(dir, entry.name), 'utf8').startsWith('---')) n += 1
+  }
+  return n
 }
 
 /** One per `<agent>/MEMORY.md`. */

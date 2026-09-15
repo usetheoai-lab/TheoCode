@@ -36,10 +36,19 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
+/**
+ * A surface with files in it. `.md` entries get real frontmatter, because that is what makes one
+ * loadable — a fixture writing `x` asserts a count over content the loader would never take, which
+ * is how the earlier version of these tests agreed with a counter that was over-reporting.
+ */
 const surface = (dir: string, names: readonly string[]): void => {
   const d = join(root, '.claude', dir)
   mkdirSync(d, { recursive: true })
-  for (const n of names) writeFileSync(join(d, n), 'x')
+  for (const n of names)
+    writeFileSync(
+      join(d, n),
+      n.endsWith('.md') ? `---\nname: ${n.slice(0, -3)}\ndescription: fixture\n---\nBody.\n` : 'x',
+    )
 }
 
 describe('counting what the foreign root holds', () => {
@@ -118,5 +127,19 @@ describe('counting what the foreign root holds', () => {
     // an ordinary first run and not a configured memory.
     mkdirSync(join(root, '.claude', 'agent-memory', 'silent'), { recursive: true })
     expect(foreignSurfacesOnDisk(root)).toEqual([])
+  })
+  it('test_a_readme_beside_the_definitions_is_not_counted', () => {
+    // MEASURED 2026-09-15 against the real directory, one layer finer than the `review-*` finding:
+    // 17 `.md` files at the top level and 16 that the loader returns. The odd one is `README.md`,
+    // documentation somebody put beside the roster — it has no frontmatter, so nothing loads it.
+    //
+    // Counting it would have the row claim one agent that does not exist, which is the same defect
+    // as claiming 122, just small enough to survive a glance. Frontmatter is the distinguishing
+    // fact and it costs one line per file to read: 16 of the 17 open with `---`.
+    surface('agents', [])
+    const dir = join(root, '.claude', 'agents')
+    writeFileSync(join(dir, 'real.md'), '---\nname: real\ndescription: d\n---\nBody.\n')
+    writeFileSync(join(dir, 'README.md'), '# Notes about this directory\n\nProse, not an agent.\n')
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agents', files: 1, state: 'read' }])
   })
 })
