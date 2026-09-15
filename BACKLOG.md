@@ -8114,3 +8114,36 @@ shipped: |
 
   Verified on the built binary in both directions: the bundled skill no longer appears in the row,
   and a skill declared nowhere on disk still does.
+
+## B-175 — `doctor` is silent about four surfaces the operator configured   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-15 by running `node dist/theocode.mjs doctor` in this repository and counting
+  what is on disk against what the report names.
+
+  | surface                   | files on disk | named by `doctor` |
+  |---------------------------|---------------|-------------------|
+  | `.claude/agents/`         | **139**       | no                |
+  | `.claude/commands/`       | 5             | no                |
+  | `.claude/agent-memory/`   | 1             | no                |
+  | `.claude/workflows/`      | 1             | no                |
+
+  The positive control is what makes this interpretable: `skills-on-disk` IS reported — "91 under
+  `.claude/skills/`, loaded by the compatibility dialect without a config line". So the report can
+  speak about a foreign-root surface and does; these four are four missing checks rather than a
+  design principle that diagnostics stay inside the native root.
+
+  A grep of the whole report for `agent-memory`, `workflow`, `subagent` and `command` returns
+  nothing. 14 checks run and none of them is about the 139 agent definitions this product loads.
+why_now: found while assembling per-surface evidence after the suites went green. `rules/foreign-config-surfaces.md` states the principle this violates in its own anti-pattern list — "Reporting a refusal in a docblock and nowhere a consumer reads. A control that cannot be observed produces the same silence as one that does not work." The same applies to a control that IS working: an operator cannot tell 139 loaded agents from zero
+related: B-152 established "no row in `doctor`" as a real symptom worth naming, for `commands` specifically. That item is closed and this one is about the REPORT's coverage rather than about any one surface reaching nothing
+shipped_in: the `foreign-surfaces` row, wired through `foreignSurfacesOnDisk` in the agent package and measured by the CLI like `skillsOnDisk` beside it. VERIFIED in the real report, not by test alone: `! foreign-surfaces: under .claude/ — agents: 139 read · commands: 5 read · agent-memory: 1 read · workflows: 1 refused`, and the check count went 14 -> 15.
+status: shipped
+dod:
+  - `doctor` names each of the four surfaces with what it found, in the shape `skills-on-disk` already uses
+  - a surface that is present and NOT read is distinguishable in the report from one that is present and read
+  - the check counts files rather than asserting presence, so an empty directory and a loaded one do not read alike

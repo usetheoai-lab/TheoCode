@@ -156,6 +156,53 @@ function skillsOnDiskParts(found: SkillsOnDiskFindings): string[] {
   return parts
 }
 
+/**
+ * A surface under the foreign root, with how many files it holds and whether this product acts on
+ * them. Supplied by the caller rather than read here, like `skillsOnDisk` and `foreignHooks`: this
+ * module turns findings into rows and does not go to disk.
+ */
+export interface ForeignSurface {
+  /** The directory under `.claude/`, e.g. `agents`. */
+  readonly dir: string
+  /** How many files it holds. A count, because presence and a loaded tree must not read alike. */
+  readonly files: number
+  /** Whether this product acts on them. `refused` is a real state and not a failure. */
+  readonly state: 'read' | 'refused'
+}
+
+/**
+ * The foreign-root surfaces this product loads, or no row when the caller found none.
+ *
+ * MEASURED 2026-09-15 in a consumer: `.claude/agents/` held 139 files, `commands/` 5,
+ * `agent-memory/` 1 and `workflows/` 1, and the whole report named none of them. Fourteen checks
+ * ran and not one was about the 139 agent definitions being loaded.
+ *
+ * The positive control that made it a gap rather than a guess about intent: `skillsOnDiskCheck`
+ * above already reports the foreign root. The report can speak about these surfaces and did not.
+ *
+ * ## One row, and the state travelling with each count
+ *
+ * The operator's question is one question — what under `.claude/` does this product act on — so
+ * four rows would answer it four times and leave the reader to add up. But `workflows` is REFUSED
+ * where the others are READ, and a row printing four bare counts would present a refusal as a
+ * capability. That is the accepted-and-ignored failure the surfaces rule exists to prevent,
+ * arriving through the diagnostic instead of through the loader.
+ */
+function foreignSurfacesCheck(found: readonly ForeignSurface[] | undefined): Check[] {
+  if (found === undefined || found.length === 0) return []
+  const parts = found.map((s) => `${s.dir}: ${String(s.files)} ${s.state}`)
+  return [
+    {
+      name: 'foreign-surfaces',
+      // A warning, never a failure — the reasoning `skillsOnDiskCheck` and `foreignHookCheck`
+      // follow. A surface being present breaks nothing, and exiting non-zero over it would report
+      // a working install as broken.
+      status: 'warn',
+      detail: `under .claude/ — ${parts.join(' · ')}`,
+    },
+  ]
+}
+
 /** The disagreement between the declared skills and the disk, or no row when there is none. */
 function skillsOnDiskCheck(found: SkillsOnDiskFindings | undefined): Check[] {
   if (found === undefined) return []
@@ -164,6 +211,27 @@ function skillsOnDiskCheck(found: SkillsOnDiskFindings | undefined): Check[] {
   // A warning, never a failure: neither direction breaks a working install, and exiting non-zero
   // over a skill someone is midway through writing would report work-in-progress as broken.
   return [{ name: 'skills-on-disk', status: 'warn', detail: parts.join(' · ') }]
+}
+
+/**
+ * The credential left in a directory this product does not read (#72), or no row when there is none.
+ *
+ * Extracted from `collectChecks` rather than suppressed when the length gate fired on it: every
+ * other row in this module is already a named function, so the inline form was the outlier, and
+ * lifting it makes the file more consistent instead of less.
+ */
+function strayCredentialCheck(strays: readonly string[] | undefined): Check[] {
+  const found = strays ?? []
+  if (found.length === 0) return []
+  return [
+    {
+      name: 'credential-strays',
+      // A warning, never a failure: nothing is broken. It is a leftover to remove, and exiting
+      // non-zero over one would report a working install as broken.
+      status: 'warn',
+      detail: `not read by this product — remove if you no longer need it: ${found.join(', ')}`,
+    },
+  ]
 }
 
 /**
@@ -270,6 +338,11 @@ export function collectChecks(input: {
    */
   readonly settingsIgnored?: readonly SettingsFileReport[]
   /**
+   * Surfaces under the foreign root and what this product does with them. Optional: a caller that
+   * did not look says nothing, rather than asserting there are none.
+   */
+  readonly foreignSurfaces?: readonly ForeignSurface[]
+  /**
    * Hook files the framework loads directly, which this product refuses to let it spawn (#130).
    *
    * Supplied by the caller rather than read here, like `skillsOnDisk` beside it: this module turns
@@ -318,6 +391,7 @@ export function collectChecks(input: {
     // them is what lets the product start; naming them is what stops the tolerance from teaching an
     // operator that a key is read when it is not.
     ...settingsCheck(input.settingsIgnored),
+    ...foreignSurfacesCheck(input.foreignSurfaces),
     // #130 — the hooks the framework would spawn without this product's approval, and therefore does
     // not spawn at all. Answered from disk at diagnosis rather than at the spawn: the spawn-time
     // notice can only arrive after the hook has already failed to fire, and "will my hook run?" is
@@ -328,16 +402,6 @@ export function collectChecks(input: {
     ...outputStyleCheck(input.outputStyle),
     // Appended only when there is something to say. A row that permanently reads "none" is noise in
     // a nine-row diagnostic, and noise is what makes a diagnostic stop being read.
-    ...((input.strayCredentials ?? []).length > 0
-      ? [
-          {
-            name: 'credential-strays',
-            // A warning, never a failure: nothing is broken. It is a leftover to remove, and exiting
-            // non-zero over one would report a working install as broken.
-            status: 'warn' as const,
-            detail: `not read by this product — remove if you no longer need it: ${(input.strayCredentials ?? []).join(', ')}`,
-          },
-        ]
-      : []),
+    ...strayCredentialCheck(input.strayCredentials),
   ]
 }

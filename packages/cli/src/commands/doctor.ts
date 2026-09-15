@@ -91,6 +91,9 @@ export async function doctorCommand(opts: { json: boolean; cd?: string }): Promi
     // #67 — the skills row is the DECLARED list, so it ticked green for a name with no SKILL.md and
     // said nothing about a file no configuration named. This holds the two against each other.
     skillsOnDisk: skillsOnDisk(cwd, cfg.skills),
+    // B-175 — the four foreign surfaces no check named. Measured here rather than inside
+    // `collectChecks`, which does no I/O by design, exactly like `skillsOnDisk` above it.
+    foreignSurfaces: agent.foreignSurfacesOnDisk(cwd),
     // #130 — read here rather than inside `collectChecks`, which does no I/O by design. The
     // framework loads these files itself and spawns what it finds; this product refuses, and until
     // now said so nowhere for `.theokit/hooks.json`.
