@@ -19,7 +19,8 @@ import { render } from 'ink-testing-library'
 import { App } from '../../src/App.js'
 
 /** Strip ANSI so an assertion is about the text, never about the styling around it. */
-export const plain = (s: string | undefined): string =>
+const plain = (s: string | undefined): string =>
+  // eslint-disable-next-line no-control-regex -- stripping ANSI is matching a control character; that IS the job
   (s ?? '').replace(/\u001B\[[0-9;]*[A-Za-z]/g, '')
 
 export interface Driver {

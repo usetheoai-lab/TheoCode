@@ -89,7 +89,11 @@ describe("the published @theokit surface, from a project that installed it", () 
         ["--input-type=module", "-e", importExpression(`${victim.name}/there-is-no-such-subpath`)],
         { cwd: victim.from, stdio: "pipe", timeout: 30_000 },
       ),
-    ).toThrow();
+      // MEASURED, not inferred: an unexported subpath raises ERR_PACKAGE_PATH_NOT_EXPORTED.
+      // A bare `toThrow()` would also be satisfied by a crash for an unrelated reason — a missing
+      // binary, a timeout — and would keep passing after the refusal it guards had decayed into
+      // one of those.
+    ).toThrow(/ERR_PACKAGE_PATH_NOT_EXPORTED/);
   });
 
   for (const pkg of packages) {

@@ -376,7 +376,11 @@ const APPROVAL_LABELS: ReadonlyMap<string, (input: Record<string, unknown>) => A
       'apply_patch',
       (input) => {
         const patch = typeof input.patch === 'string' ? input.patch : ''
-        return { toolType: 'Apply patch', command: filesFromV4APatch(patch), description: patch }
+        return {
+          toolType: 'Apply patch',
+          command: filesFromV4APatch(patch),
+          description: readablePatch(patch),
+        }
       },
     ],
     [
@@ -406,6 +410,45 @@ function parseJsonObject(raw: unknown): Record<string, unknown> | undefined {
 
 function errorText(p: Record<string, unknown>): string {
   return typeof p.error === 'string' ? p.error : 'failed'
+}
+
+/**
+ * The patch body as the person approving it needs to read it.
+ *
+ * `description` used to be the raw V4A text, so the prompt led with `*** Begin Patch` and closed
+ * with `*** End Patch` — envelope markers that carry nothing for the decision — while the changed
+ * lines had no per-file heading. Observed 2026-09-15 beside two other agents rendering the same
+ * change with a file heading and its context.
+ *
+ * The envelope goes; the content does not. Every line that is not a marker survives verbatim and in
+ * order, because the question being answered is "do I want exactly this edit", and any summarising
+ * here would answer a different one.
+ *
+ * A body with no file marker is returned UNCHANGED. It is not V4A, and showing the operator nothing
+ * would be worse than showing them the envelope this function exists to remove.
+ */
+function readablePatch(patch: string): string {
+  const VERBS: ReadonlyArray<readonly [string, string]> = [
+    ['*** Add File: ', 'Add'],
+    ['*** Delete File: ', 'Delete'],
+    ['*** Update File: ', 'Update'],
+    ['*** Move to: ', 'Move to'],
+  ]
+  const out: string[] = []
+  let sawFile = false
+  for (const raw of patch.split('\n')) {
+    const line = raw.trim()
+    if (line === '*** Begin Patch' || line === '*** End Patch') continue
+    const verb = VERBS.find(([marker]) => line.startsWith(marker))
+    if (verb) {
+      sawFile = true
+      if (out.length > 0) out.push('')
+      out.push(`${verb[1]} ${line.slice(verb[0].length).trim()}`)
+      continue
+    }
+    out.push(raw)
+  }
+  return sawFile ? out.join('\n').trim() : patch
 }
 
 function filesFromV4APatch(patch: string): string {
