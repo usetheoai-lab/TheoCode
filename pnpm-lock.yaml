@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@theokit/sdk': link:../../theokit-sdk/packages/sdk
+  '@theokit/sdk': 5.8.0
 
 importers:
 
@@ -15,8 +15,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.9.0(jiti@2.7.0)(supports-color@7.2.0))
       '@theokit/sdk':
-        specifier: link:../../theokit-sdk/packages/sdk
-        version: link:../../theokit-sdk/packages/sdk
+        specifier: 5.8.0
+        version: 5.8.0(ws@8.21.3)
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.1
@@ -67,13 +67,13 @@ importers:
         version: link:../shared
       '@theokit/agents':
         specifier: 14.4.0
-        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(zod@4.4.3)
+        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/agents-pty':
         specifier: ^0.2.1
-        version: 0.2.1(@theokit/sdk@..+theokit-sdk+packages+sdk)
+        version: 0.2.1(@theokit/sdk@5.8.0(ws@8.21.3))
       '@theokit/sdk':
-        specifier: link:../../../../theokit-sdk/packages/sdk
-        version: link:../../../../theokit-sdk/packages/sdk
+        specifier: 5.8.0
+        version: 5.8.0(ws@8.21.3)
       smol-toml:
         specifier: ^1.7.0
         version: 1.8.0
@@ -91,16 +91,16 @@ importers:
         version: link:../shared
       '@theokit/agents':
         specifier: 14.4.0
-        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(zod@4.4.3)
+        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/presenter':
         specifier: ^0.9.0
-        version: 0.9.0(@theokit/sdk@..+theokit-sdk+packages+sdk)(zod@4.4.3)
+        version: 0.9.0(@theokit/sdk@5.8.0(ws@8.21.3))(zod@4.4.3)
 
   packages/shared:
     dependencies:
       '@theokit/agents':
         specifier: 14.4.0
-        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(zod@4.4.3)
+        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
 
   packages/tui:
     dependencies:
@@ -112,7 +112,7 @@ importers:
         version: link:../shared
       '@theokit/agents':
         specifier: 14.4.0
-        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(zod@4.4.3)
+        version: 14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)
       '@theokit/tui':
         specifier: ^0.80.0
         version: 0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)
@@ -869,19 +869,19 @@ packages:
     resolution: {integrity: sha512-8olzCZVg6QEw1Eb/tw4s1glqJ05OWsCTA2qUu3cUYVgL90IY0/bCJ88P0UZLip55qwB8xUxN7R6fAa44VO6D3A==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
-      '@theokit/sdk': ^4.49.0 || ^5.0.0
+      '@theokit/sdk': 5.8.0
       zod: ^4.0.0
 
   '@theokit/sdk-pty@0.3.3':
     resolution: {integrity: sha512-7/cYXYStDSLq0OCFuP5F9QDOncZjWbwtiy0nbPSflIMhveWbfj+vqFVGqeA6sh6crvOCbe8g2ZCbVys6Qi+rNw==}
     peerDependencies:
-      '@theokit/sdk': '>=4.4.1'
+      '@theokit/sdk': 5.8.0
 
   '@theokit/sdk-tools@0.27.4':
     resolution: {integrity: sha512-mIIGVWw4WSuHKUJTupIq6YOcsKsTFL353tNlCQaX2E3equKKM0E88dmo87WzdZDnnvlnuhOYnqbwRz033Z74cg==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
-      '@theokit/sdk': '>=5.0.0-next.1'
+      '@theokit/sdk': 5.8.0
       simple-git: ^3.0.0
       vitest: '>=2.0.0'
       zod: ^4.0.0
@@ -889,6 +889,33 @@ packages:
       simple-git:
         optional: true
       vitest:
+        optional: true
+
+  '@theokit/sdk@5.8.0':
+    resolution: {integrity: sha512-IB0XpmScIhSjGAyhm2CIg9wY+Sik5X4ov7dt3ck9u+5AbwIZtN3e4bhRk0mmLferKqa7Va3IGL0zzoPlsZ4lpg==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@lancedb/lancedb': ^0.30.0
+      '@opentelemetry/api': ^1.9.0
+      '@types/ws': '>=8.0.0'
+      better-sqlite3: ^12.0.0
+      proper-lockfile: ^4.1.2
+      sqlite-vec: ^0.1.0
+      ws: '>=8.0.0'
+    peerDependenciesMeta:
+      '@lancedb/lancedb':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@types/ws':
+        optional: true
+      better-sqlite3:
+        optional: true
+      proper-lockfile:
+        optional: true
+      sqlite-vec:
+        optional: true
+      ws:
         optional: true
 
   '@theokit/tui@0.80.0':
@@ -1156,6 +1183,10 @@ packages:
   convert-to-spaces@2.0.1:
     resolution: {integrity: sha512-rcQ1bsQO9799wq24uE5AM2tAILy4gXGIK/njFWcVQkGNZ96edlpY+A7bjwvzjYvLDyzmG1MmMLZhpcsb+klNMQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  croner@9.1.0:
+    resolution: {integrity: sha512-p9nwwR4qyT5W996vBZhdvBCnMhicY5ytZkR4D1Xj0wuTDEiMnjwR57Q3RXYY/s0EpX6Ay3vgIcfaR+ewGHsi+g==}
+    engines: {node: '>=18.0'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -1505,6 +1536,10 @@ packages:
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
+    hasBin: true
+
+  jsonrepair@3.15.0:
+    resolution: {integrity: sha512-wy8OTjwsJwQRnQJkKnMJJ9vcytRdBPAgIF/Hy6+s1dAj42BHMKiyL8JzEieIl3JY7idt8eyHwBWTO8mh/+mtwA==}
     hasBin: true
 
   keyv@4.5.4:
@@ -2499,24 +2534,31 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@theokit/agents-pty@0.2.1(@theokit/sdk@..+theokit-sdk+packages+sdk)':
+  '@theokit/agents-pty@0.2.1(@theokit/sdk@5.8.0(ws@8.21.3))':
     dependencies:
-      '@theokit/sdk-pty': 0.3.3(@theokit/sdk@..+theokit-sdk+packages+sdk)
+      '@theokit/sdk-pty': 0.3.3(@theokit/sdk@5.8.0(ws@8.21.3))
     transitivePeerDependencies:
       - '@theokit/sdk'
 
-  '@theokit/agents@14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(zod@4.4.3)':
+  '@theokit/agents@14.4.0(@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3))(react@19.2.8)(vitest@4.1.11)(ws@8.21.3)(zod@4.4.3)':
     dependencies:
       '@theokit/http': 2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)
-      '@theokit/presenter': 0.9.0(@theokit/sdk@..+theokit-sdk+packages+sdk)(zod@4.4.3)
-      '@theokit/sdk': link:../../theokit-sdk/packages/sdk
-      '@theokit/sdk-tools': 0.27.4(@theokit/sdk@..+theokit-sdk+packages+sdk)(vitest@4.1.11)(zod@4.4.3)
+      '@theokit/presenter': 0.9.0(@theokit/sdk@5.8.0(ws@8.21.3))(zod@4.4.3)
+      '@theokit/sdk': 5.8.0(ws@8.21.3)
+      '@theokit/sdk-tools': 0.27.4(@theokit/sdk@5.8.0(ws@8.21.3))(vitest@4.1.11)(zod@4.4.3)
       zod: 4.4.3
     optionalDependencies:
       react: 19.2.8
     transitivePeerDependencies:
+      - '@lancedb/lancedb'
+      - '@opentelemetry/api'
+      - '@types/ws'
+      - better-sqlite3
+      - proper-lockfile
       - simple-git
+      - sqlite-vec
       - vitest
+      - ws
 
   '@theokit/http@2.1.0(react@19.2.8)(reflect-metadata@0.2.2)(zod@4.4.3)':
     dependencies:
@@ -2525,23 +2567,31 @@ snapshots:
     optionalDependencies:
       react: 19.2.8
 
-  '@theokit/presenter@0.9.0(@theokit/sdk@..+theokit-sdk+packages+sdk)(zod@4.4.3)':
+  '@theokit/presenter@0.9.0(@theokit/sdk@5.8.0(ws@8.21.3))(zod@4.4.3)':
     dependencies:
-      '@theokit/sdk': link:../../theokit-sdk/packages/sdk
+      '@theokit/sdk': 5.8.0(ws@8.21.3)
       zod: 4.4.3
 
-  '@theokit/sdk-pty@0.3.3(@theokit/sdk@..+theokit-sdk+packages+sdk)':
+  '@theokit/sdk-pty@0.3.3(@theokit/sdk@5.8.0(ws@8.21.3))':
     dependencies:
-      '@theokit/sdk': link:../../theokit-sdk/packages/sdk
+      '@theokit/sdk': 5.8.0(ws@8.21.3)
     optionalDependencies:
       node-pty: 1.1.0
 
-  '@theokit/sdk-tools@0.27.4(@theokit/sdk@..+theokit-sdk+packages+sdk)(vitest@4.1.11)(zod@4.4.3)':
+  '@theokit/sdk-tools@0.27.4(@theokit/sdk@5.8.0(ws@8.21.3))(vitest@4.1.11)(zod@4.4.3)':
     dependencies:
-      '@theokit/sdk': link:../../theokit-sdk/packages/sdk
+      '@theokit/sdk': 5.8.0(ws@8.21.3)
       zod: 4.4.3
     optionalDependencies:
       vitest: 4.1.11(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(vite@7.3.6(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+
+  '@theokit/sdk@5.8.0(ws@8.21.3)':
+    dependencies:
+      croner: 9.1.0
+      jsonrepair: 3.15.0
+      zod: 4.4.3
+    optionalDependencies:
+      ws: 8.21.3
 
   '@theokit/tui@0.80.0(@types/react@19.2.18)(lowlight@3.3.0)(react@19.2.8)':
     dependencies:
@@ -2851,6 +2901,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   convert-to-spaces@2.0.1: {}
+
+  croner@9.1.0: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -3219,6 +3271,8 @@ snapshots:
   json-stable-stringify-without-jsonify@1.0.1: {}
 
   json5@2.2.3: {}
+
+  jsonrepair@3.15.0: {}
 
   keyv@4.5.4:
     dependencies:

@@ -78,8 +78,12 @@ minimumReleaseAgeExclude:
 # else depends on the exact pin — and that needs its own verification rather than riding along with
 # a version bump. Recorded here so the decision is visible instead of inherited.
 overrides:
-  # LOCAL VALIDATION — pinned to the working tree next door so a fix can be exercised in this
-  # TUI before any version is published. Restore the exact pin ('5.8.0' or its successor)
-  # and reinstall before cutting a release; a link here would publish against source nobody
-  # can install.
-  '@theokit/sdk': link:../../theokit-sdk/packages/sdk
+  # Pinned exactly. A `link:` to the sibling working tree is the validation posture, not a release
+  # one: it was used to exercise a fix in this TUI before publishing, and restored here afterwards.
+  # Measured 2026-09-15 — with the link the tree carried 4 type errors from two copies of zod 4.4.3
+  # (this project's and the linked package's own), and with the pin it carries none. Anyone
+  # re-linking should expect those four back and should not read them as a break.
+  #
+  # `tools/check-sdk-pin.mjs` refuses a mismatch between this override and the manifests, which is
+  # what stops a release going out against source nobody can install.
+  '@theokit/sdk': '5.8.0'
