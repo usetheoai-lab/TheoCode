@@ -28,7 +28,19 @@ const GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['Processes', ['/ps', '/stop']],
   ['Inspect', ['/status', '/usage', '/help', '/pwd', '/review']],
   ['Project + auth', ['/init', '/login', '/logout']],
+  // `/goal` was simply missing — 43 of the source's 46 were listed, and nothing said why the other
+  // three were not. An omission with no reason recorded is indistinguishable from an oversight,
+  // which is what this one was.
+  ['Objectives', ['/goal']],
 ]
+
+/**
+ * `/exit` and `/quit` END THE SESSION, so they cannot run inside the sequence above: whichever came
+ * first would kill the harness and every command after it would report as untested while looking
+ * skipped. They get their own session below, one command each, which is the only way to exercise a
+ * command whose effect is to stop being exercisable.
+ */
+const TERMINATING = ['/exit', '/quit'] as const
 
 /** What this frame has that the boot frame did not — what the user just saw appear. */
 function appeared(boot: string, after: string): string[] {
@@ -47,7 +59,7 @@ function appeared(boot: string, after: string): string[] {
     .filter((l) => !l.includes('Ask TheoCode anything'))
 }
 
-describe('TheoCode TUI — all 43 commands, each on a clean screen', () => {
+describe('TheoCode TUI — all 46 commands, each on a clean screen', () => {
   it('drives every command in its own session and reports what the user sees', async () => {
     const report: string[] = []
     let responded = 0
@@ -86,7 +98,11 @@ describe('TheoCode TUI — all 43 commands, each on a clean screen', () => {
 
     console.log(report.join('\n'))
     console.log(`\n  ${responded}/${total} commands answered on a clean screen\n`)
-    expect(total).toBe(43)
+    // 44 here, not 46: `/exit` and `/quit` have their own sessions below, because a command that
+    // ends the session cannot run inside a sequence that needs the session to continue. The number
+    // is asserted so that adding a command to the source without adding it here FAILS — this count
+    // said 43 while the source had 46, and the file called itself "all 43 commands".
+    expect(total).toBe(44)
     // `total` alone counts what was TYPED, not what worked: with only that assertion this test
     // stays green while all 43 commands render nothing. The list — rather than a count — is what
     // makes a failure actionable, because it names which command went silent.
@@ -127,4 +143,16 @@ describe('TheoCode TUI — all 43 commands, each on a clean screen', () => {
     tui.stop()
     expect(afterClear).not.toBe(withContent)
   }, 200_000)
+
+  for (const cmd of TERMINATING) {
+    it(`${cmd} ends the session instead of being ignored`, async () => {
+      // The claim is narrow on purpose: a terminating command must DO something. Asserting the
+      // process exits would assert ink-testing-library's teardown, not the product's.
+      const tui = await openTui()
+      const before = tui.frame()
+      const after = await tui.run(cmd)
+      tui.stop()
+      expect(after).not.toBe(before)
+    }, 200_000)
+  }
 })
