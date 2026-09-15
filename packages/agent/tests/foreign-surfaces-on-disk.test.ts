@@ -90,4 +90,33 @@ describe('counting what the foreign root holds', () => {
     // `doctor` fail on an install that is working exactly as intended.
     expect(() => foreignSurfacesOnDisk(join(root, 'nowhere'))).not.toThrow()
   })
+  it('test_an_audit_trail_subdirectory_is_not_counted_as_an_agent', () => {
+    // MEASURED 2026-09-15 in this repository, and the reason the count follows each loader rather
+    // than walking the tree: `.claude/agents/` held 139 files and 17 definitions. The other 122 sat
+    // in `review-*/` subdirectories — per-review audit trails, which the kit's own `cycle-review.md`
+    // says belong under `records/` precisely because "mixing the two put a run's trail where a
+    // reader looks for a roster".
+    //
+    // A row reporting 139 would have repeated that mistake inside the diagnostic, and an operator
+    // reading it would believe their roster was eight times its real size. `listSubagents` reads
+    // `.md` at the top level over a flat `readdirSync`; this counts what it would take.
+    surface('agents', ['real-one.md', 'real-two.md'])
+    const trail = join(root, '.claude', 'agents', 'review-something-2026-09-09')
+    mkdirSync(trail, { recursive: true })
+    for (const n of ['a.md', 'b.md', 'c.md']) writeFileSync(join(trail, n), 'trail')
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agents', files: 2, state: 'read' }])
+  })
+
+  it('test_a_non_markdown_file_beside_the_definitions_is_not_counted', () => {
+    // A README or a stray `.json` in the directory is not a subagent, and the loader skips it.
+    surface('agents', ['real.md', 'README.txt', 'notes.json'])
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agents', files: 1, state: 'read' }])
+  })
+
+  it('test_an_agent_memory_directory_without_a_memory_file_is_not_counted', () => {
+    // An empty `<agent>/` under `agent-memory/` is an agent that has written nothing yet, which is
+    // an ordinary first run and not a configured memory.
+    mkdirSync(join(root, '.claude', 'agent-memory', 'silent'), { recursive: true })
+    expect(foreignSurfacesOnDisk(root)).toEqual([])
+  })
 })
