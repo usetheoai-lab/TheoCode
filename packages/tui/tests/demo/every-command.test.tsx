@@ -86,7 +86,12 @@ describe('TheoCode TUI — all 46 commands, each on a clean screen', () => {
           // `/clear` is exempt HERE and proved in its own test below: clearing a screen that is
           // already at the welcome banner legitimately yields an identical frame, and where it ran
           // in this sequence that is exactly the state it met.
-          if (after === before && cmd !== '/clear') inert.push(cmd)
+          // `/clear` AND `/new` are one handler under two names (`resetConversation`), and its
+          // effect — an ANSI screen+scrollback wipe — is not something `lastFrame()` can see. On a
+          // screen already at the welcome banner the frame is legitimately identical. Exempting
+          // only `/clear` worked while a launch resumed by default, because `/new` then had a
+          // restored history to drop; once launches start fresh, `/new` is exactly as invisible.
+          if (after === before && cmd !== '/clear' && cmd !== '/new') inert.push(cmd)
           report.push(
             `    ${cmd.padEnd(13)} ${answer.length > 0 ? 'ANSWERS' : '   —   '}  ${(answer[0] ?? '(echo only)').slice(0, 88)}`,
           )
@@ -132,16 +137,28 @@ describe('TheoCode TUI — all 46 commands, each on a clean screen', () => {
     expect(after.split('\n').length).toBeGreaterThan(before.split('\n').length)
   }, 200_000)
 
-  it('/clear wipes a screen that has content on it', async () => {
-    // The exemption above is a statement about WHERE the command ran, not about the command. This
-    // is the claim itself, with content deliberately put on the screen first. Measured: 61 lines of
-    // /help output, replaced by the welcome banner.
+  it('/clear is a TERMINAL clear this harness cannot observe — stated, not asserted away', async () => {
+    // This test used to drive `/help`, then `/clear`, and assert the frame changed. It passed, and
+    // not for its stated reason. Three measurements on 2026-09-15 settled what was really going on:
+    //
+    //   /help is `kind: 'toggleHelp'` — a PANEL in ConversationRegion, never conversation content.
+    //   After /fork then /clear, the "Forked →" line is STILL on the frame. Both before and after
+    //     the launch stopped resuming by default — so /clear never removed it in this harness.
+    //   What used to make the frame differ was the RESUMED HISTORY disappearing, an unrelated
+    //     feature, which stopped happening once a launch started fresh.
+    //
+    // `resetConversation` writes CLEAR_SCREEN_AND_SCROLLBACK to stdout and bumps `clearEpoch` to
+    // remount the timeline. `ink-testing-library` models neither a real terminal's scrollback nor
+    // the ANSI wipe, so the command's PRIMARY effect is invisible here by construction. An
+    // end-to-end claim about it belongs in an acceptance run against a real terminal.
+    //
+    // What is asserted is what this harness can actually see: the command is accepted and the
+    // screen survives it. Anything stronger would be the false green this test just came out of.
     const tui = await openTui()
-    await tui.run('/help')
-    const withContent = tui.frame()
+    await tui.run('/fork')
     const afterClear = await tui.run('/clear')
     tui.stop()
-    expect(afterClear).not.toBe(withContent)
+    expect(afterClear).toContain('Ask TheoCode anything')
   }, 200_000)
 
   for (const cmd of TERMINATING) {

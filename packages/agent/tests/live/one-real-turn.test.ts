@@ -26,14 +26,26 @@
  * machine with a defect. The skip is loud in the report rather than silent.
  */
 import { tokenBudgetCompactionStrategy } from '@theokit/agents'
+import type { CompressibleMessage } from '@theokit/agents'
 import { describe, expect, it } from 'vitest'
 
-const OLLAMA = 'http://localhost:11434/v1'
+// Overridable so the SKIP path can be exercised. Pointing it at a dead port is the only way to
+// prove these tests report "skipped" rather than "passed" when no server is there — the defect this
+// file carried until 2026-09-15, when five guards were a bare `return` and vitest counted each of
+// them as a pass. A green run with the server up says nothing about the case the guards exist for.
+const OLLAMA = process.env.LIVE_BASE_URL ?? 'http://localhost:11434/v1'
 const MODEL = 'qwen2.5:1.5b'
 
+/**
+ * The probe must interrogate the SAME origin the tests call. It used to be a hardcoded
+ * `http://localhost:11434/api/tags` while the tests read `OLLAMA`, so the two could disagree — a
+ * server on any other port made the probe answer about a host nothing under test would contact,
+ * and the guard then waved through tests that could only fail. Derived from `OLLAMA` now, so the
+ * question asked is the question that matters.
+ */
 async function serverIsUp(): Promise<boolean> {
   try {
-    const res = await fetch('http://localhost:11434/api/tags', {
+    const res = await fetch(new URL('/api/tags', OLLAMA), {
       signal: AbortSignal.timeout(2000),
     })
     return res.ok
@@ -43,12 +55,8 @@ async function serverIsUp(): Promise<boolean> {
 }
 
 describe('a live turn, through the provider surface the product uses', () => {
-  it('completes one turn and returns non-empty content', async () => {
-    if (!(await serverIsUp())) {
-      // eslint-disable-next-line no-console -- a skipped live test must say why, or it reads as passing
-      console.warn('[live] no server on :11434 — skipping. Start one with `ollama serve`.')
-      return
-    }
+  it('completes one turn and returns non-empty content', async (ctx) => {
+    if (!(await serverIsUp())) ctx.skip()
 
     const res = await fetch(`${OLLAMA}/chat/completions`, {
       method: 'POST',
@@ -77,8 +85,8 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(content.toUpperCase()).toContain('READY')
   }, 180_000)
 
-  it('streams a turn rather than returning it whole', async () => {
-    if (!(await serverIsUp())) return
+  it('streams a turn rather than returning it whole', async (ctx) => {
+    if (!(await serverIsUp())) ctx.skip()
 
     const res = await fetch(`${OLLAMA}/chat/completions`, {
       method: 'POST',
@@ -110,8 +118,8 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(chunks).toBeGreaterThan(1)
   }, 180_000)
 
-  it('calls a tool it was given, with the argument the prompt implies', async () => {
-    if (!(await serverIsUp())) return
+  it('calls a tool it was given, with the argument the prompt implies', async (ctx) => {
+    if (!(await serverIsUp())) ctx.skip()
 
     const res = await fetch(`${OLLAMA}/chat/completions`, {
       method: 'POST',
@@ -149,8 +157,8 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(String(call?.arguments ?? '')).toContain('Lisbon')
   }, 240_000)
 
-  it('surfaces a provider error instead of hanging or inventing an answer', async () => {
-    if (!(await serverIsUp())) return
+  it('surfaces a provider error instead of hanging or inventing an answer', async (ctx) => {
+    if (!(await serverIsUp())) ctx.skip()
 
     const res = await fetch(`${OLLAMA}/chat/completions`, {
       method: 'POST',
@@ -167,8 +175,8 @@ describe('a live turn, through the provider surface the product uses', () => {
     expect(res.ok).toBe(false)
   }, 120_000)
 
-  it('compacts a transcript past its budget, with a LIVE model writing the summary', async () => {
-    if (!(await serverIsUp())) return
+  it('compacts a transcript past its budget, with a LIVE model writing the summary', async (ctx) => {
+    if (!(await serverIsUp())) ctx.skip()
 
     // 20 messages over a 50-token budget. Sized against the MACHINE, not against a guess: with a
     // stub summarizer this returns 2, and a short summary takes ~100s on this CPU-only host, so a
@@ -179,7 +187,17 @@ describe('a live turn, through the provider surface the product uses', () => {
       content: `Step ${String(i)}: rotate the deployment token, read docs/runbook-${String(i)}.md, and drain connections before swapping the image.`,
     }))
 
-    const summarize = async (toSummarize: { role: string; content: string }[]): Promise<string> => {
+    // The contract is `(older, template) => Promise<CompressibleMessage>` — a MESSAGE, not a
+    // string. Returning a bare string typechecked as `Promise<string>` and would have been handed
+    // to the strategy as the summarised turn, where `.role` and `.content` are read. The compiler
+    // caught it; the test would have failed at runtime on a field that is not there.
+    //
+    // The type is IMPORTED rather than written out: `role` is the union
+    // `'user' | 'assistant' | 'system'`, and a hand-rolled `role: string` is wider, so it does
+    // not satisfy the contract even once the shape is right.
+    const summarize = async (
+      toSummarize: CompressibleMessage[],
+    ): Promise<CompressibleMessage> => {
       const res = await fetch(`${OLLAMA}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer local' },
@@ -194,7 +212,7 @@ describe('a live turn, through the provider surface the product uses', () => {
         signal: AbortSignal.timeout(300_000),
       })
       const body = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-      return body.choices?.[0]?.message?.content ?? ''
+      return { role: 'user', content: body.choices?.[0]?.message?.content ?? '' }
     }
 
     const out = await tokenBudgetCompactionStrategy.compact(messages, { keepTokens: 50, summarize })

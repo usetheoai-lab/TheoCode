@@ -17,6 +17,8 @@ for `release.yml` in this repository will not find it, and should not have been 
 ## [Unreleased]
 
 ### Fixed
+- **A live test with no server now reports `skipped`, not `passed`.** Five guards were a bare `return`, which vitest counts as a pass, so a run with no model server reported five green tests that never executed. They use the test context's `skip()` now, proved both ways: dead server -> `5 skipped`, live server -> `5 passed`. The reachability probe also stopped interrogating a hardcoded host while the tests read a different one. (#B-093)
+- **The `/clear` demo test no longer passes for a reason unrelated to its claim.** It drove `/help` — a panel, never conversation content — and its frame-changed assertion was satisfied by resumed history disappearing. Measured: the `/fork` line survives `/clear` in this harness both before and after that change, because `ink-testing-library` models neither scrollback nor the ANSI wipe the command performs. The limit is now stated in the test instead of hidden by a green tick. (#B-094)
 - **A launch starts a fresh session; `--continue` (or `-c`) resumes the last one.** Resuming was decided by the mere presence of `.theokit/tui-session`, and nothing ever removes that file — so a directory used once resumed on every later launch, forever, with no flag to opt out. The only escape, `/new`, exists after the old context is already loaded. Measured on a restart whose purpose was to clear a session 46k tokens over its context window: it came back carrying it, announced by one parenthetical in the greeting. (#B-092)
 
 ### Added

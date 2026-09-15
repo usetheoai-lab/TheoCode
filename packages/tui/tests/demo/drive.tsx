@@ -124,11 +124,6 @@ export async function openTui(): Promise<Driver> {
       await wait(900)
       return settle()
     },
-    /** One raw key, for probing what a component actually listens for. */
-    key: async (sequence: string, settleMs = 300): Promise<void> => {
-      ui.stdin.write(sequence)
-      await wait(settleMs)
-    },
     frame: () => plain(ui.lastFrame()),
     stop: () => {
       ui.unmount()
