@@ -114,16 +114,21 @@ e: { active: readonly string[]; suppressedByTrust: boolean },
  * and it keeps this function from being a second resolution path of its own.
  */
 /** The disagreement between the declared skills and the disk, or no row when there is none. */
-function skillsOnDiskCheck(
-  found:
-    | {
-        readonly declaredButAbsent: readonly string[]
-        readonly presentButUndeclared: readonly string[]
-        readonly declaredUserOnlySoNotLoaded?: readonly string[]
-      }
-    | undefined,
-): Check[] {
-  if (found === undefined) return []
+type SkillsOnDiskFindings = {
+  readonly declaredButAbsent: readonly string[]
+  readonly presentButUndeclared: readonly string[]
+  readonly declaredUserOnlySoNotLoaded?: readonly string[]
+  readonly foreignRootSkills?: readonly string[]
+}
+
+/**
+ * One line per finding, in the order an operator can act on them.
+ *
+ * Split out of `skillsOnDiskCheck` when the foreign-root line pushed that function to complexity
+ * 11 against a max of 10 — the same gate that caught the subagent loader, and the same answer:
+ * extract rather than suppress.
+ */
+function skillsOnDiskParts(found: SkillsOnDiskFindings): string[] {
   const parts: string[] = []
   if (found.declaredButAbsent.length > 0)
     parts.push(`declared with no SKILL.md: ${found.declaredButAbsent.join(', ')}`)
@@ -133,12 +138,28 @@ function skillsOnDiskCheck(
   // names it, and it still does not load, because the resolver builds every root from `cwd`. Saying
   // "no SKILL.md" here named a cause that is false; saying nothing left a declared skill silently
   // inert. Naming the root is what makes the row actionable — the fix is to move the file.
-  if ((found.declaredUserOnlySoNotLoaded ?? []).length > 0)
+  const userOnly = found.declaredUserOnlySoNotLoaded ?? []
+  if (userOnly.length > 0)
     parts.push(
-      `on disk only under your own root, which is not read — move into the project to load: ${(
-        found.declaredUserOnlySoNotLoaded ?? []
-      ).join(', ')}`,
+      `on disk only under your own root, which is not read — move into the project to load: ${userOnly.join(', ')}`,
     )
+  // The foreign root is REPORTED, with no remedy attached — see `foreignRootSkills`. Without this
+  // line the whole row disappeared whenever the native root was clean, so a project whose skills
+  // all live under `.claude/skills/` got `skills: none` and nothing else. Measured 2026-09-15: 76
+  // on disk there, the model carrying 40 of them, and both surfaces answering "none".
+  const foreign = found.foreignRootSkills ?? []
+  if (foreign.length > 0)
+    parts.push(
+      `${String(foreign.length)} under .claude/skills/, loaded by the compatibility dialect ` +
+        `without a config line (this row cannot say which reached the model)`,
+    )
+  return parts
+}
+
+/** The disagreement between the declared skills and the disk, or no row when there is none. */
+function skillsOnDiskCheck(found: SkillsOnDiskFindings | undefined): Check[] {
+  if (found === undefined) return []
+  const parts = skillsOnDiskParts(found)
   if (parts.length === 0) return []
   // A warning, never a failure: neither direction breaks a working install, and exiting non-zero
   // over a skill someone is midway through writing would report work-in-progress as broken.

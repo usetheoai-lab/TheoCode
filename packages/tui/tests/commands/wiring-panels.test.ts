@@ -51,11 +51,20 @@ describe('B-070 — skillsPanelBody', () => {
     expect(body).toContain('not loaded')
   })
 
-  it('test_a_trusted_directory_with_no_skills_says_so_plainly', () => {
-    // Anti-vacuity floor: a panel that always warned would pass the test above.
-    expect(skillsPanelBody(wired({ active: [], requested: [], suppressedByTrust: false }))).toBe(
-      'no skills are enabled for this directory',
-    )
+  it('test_a_trusted_directory_with_no_skills_says_what_it_knows_and_what_it_cannot', () => {
+    // Anti-vacuity floor: a panel that always warned would pass the test above, so the empty case
+    // must NOT carry the suppressed wording.
+    //
+    // It used to assert 'no skills are enabled for this directory'. That sentence answered for two
+    // loading paths while the panel observes one: `.claude/skills/` reaches the model through the
+    // compatibility dialect, never through `.skills()`. Measured 2026-09-15 — the panel printed it
+    // while the model, in the same turn, listed forty skills and named one created minutes earlier
+    // under that root. The wording now scopes its claim and names the surface that can answer.
+    const body = skillsPanelBody(wired({ active: [], requested: [], suppressedByTrust: false }))
+    expect(body).toContain('the declared path wired none')
+    expect(body).toContain('.claude/skills/')
+    expect(body).toContain('doctor')
+    expect(body).not.toContain('DIRECTORY UNTRUSTED')
   })
 })
 

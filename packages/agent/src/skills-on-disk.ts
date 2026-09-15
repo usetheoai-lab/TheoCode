@@ -15,7 +15,29 @@ const ROOTS = [DEFAULT_HOME_DIR, '.claude'] as const
  */
 const NATIVE_ROOT = DEFAULT_HOME_DIR
 
+/** The other tool's root, reported but never given the "declare it" remedy. */
+const FOREIGN_ROOT = '.claude'
+
 export interface SkillsOnDisk {
+  /**
+   * Every `SKILL.md` under the FOREIGN project root (`.claude/skills/`), which loads through the
+   * compatibility dialect without any config line.
+   *
+   * Reported, never remedied. `presentButUndeclared` excludes this root because its remedy —
+   * "add a config line" — is false here, and the note there is right that a row of forty such
+   * names is noise somebody turns off. But excluding the root from the REMEDY is not a reason to
+   * exclude it from the ANSWER, and leaving it out entirely is what produced the failure this
+   * field exists to end: measured 2026-09-15, `doctor` printed `skills: none` and `/skills`
+   * printed "no skills are enabled for this directory" while, in the same turn, the model
+   * reported seeing 40 skills and named one created minutes earlier under that root.
+   *
+   * This is what is on DISK there. Which of them reached the model is a question this product
+   * cannot answer today — the SDK exposes the loaded set only through a system-prompt resolver,
+   * and `chat.ts` passes a static string — so a consumer of this field must not present it as
+   * "active". Trading a false "none" for a false count would be the same defect with a bigger
+   * number.
+   */
+  readonly foreignRootSkills: readonly string[]
   /** Declared in configuration, with no `SKILL.md` under any root — the operator's included. */
   readonly declaredButAbsent: readonly string[]
   /**
@@ -88,7 +110,9 @@ export function skillsOnDisk(
   const inNativeRoot = new Set(skillNamesIn(join(cwd, NATIVE_ROOT, 'skills')))
   const inUserRoot = new Set(skillNamesIn(join(home, DEFAULT_HOME_DIR, 'skills')))
   const named = new Set(declared)
+  const inForeignRoot = skillNamesIn(join(cwd, FOREIGN_ROOT, 'skills'))
   return {
+    foreignRootSkills: [...new Set(inForeignRoot)].sort(),
     declaredButAbsent: [...named]
       .filter((name) => !inProject.has(name) && !inUserRoot.has(name) && !inBundles.has(name))
       .sort(),
