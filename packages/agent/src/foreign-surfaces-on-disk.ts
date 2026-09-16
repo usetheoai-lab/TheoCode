@@ -26,6 +26,23 @@ import type { ForeignSurface } from './doctor/doctor.js'
  * The installed kit's own directories — `mechanisms`, `records`, `session-state`, `squad` — are
  * absent for the opposite reason: this product neither reads nor refuses them, so it has nothing
  * to report, and a row about them would crowd out the four it does act on.
+ *
+ * ## Coverage, checked rather than assumed
+ *
+ * `FOREIGN_SURFACES` in `setting-sources.ts` declares what the dialect admits: `skills`,
+ * `subagents`, `plugins`, `commands`, `context`. Held against this list on 2026-09-15, every one is
+ * accounted for and none by accident:
+ *
+ *     skills    -> `skills-on-disk`, which asks the better question
+ *     plugins   -> `skills-on-disk` too: `bundledSkillNames` walks
+ *                  `<plugins>/<bundle>/skills/<name>/SKILL.md`
+ *     subagents -> here, as `agents`
+ *     commands  -> here
+ *     context   -> the `[rules]` diagnostic the instruction tree already emits
+ *
+ * So `plugins` is absent from this list for the same reason `skills` is, not as an oversight. The
+ * check was worth running: a fix covering four of five surfaces would have left the fifth in the
+ * silence this whole file exists to end, and looked complete while doing it.
  */
 const SURFACES: readonly {
   readonly dir: ForeignSurface['dir']
