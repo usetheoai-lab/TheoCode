@@ -44,7 +44,13 @@ const SURFACES: readonly {
   { dir: 'commands', state: 'read', count: (d) => definitions(d) },
   // One per agent, at `<agent>/MEMORY.md` — the layout the reference prescribes, so a top-level
   // count would report every configured memory as absent.
-  { dir: 'agent-memory', state: 'read', count: (d) => memories(d) },
+  //
+  // `unread`, not `read`. MEASURED 2026-09-15: `applySubagentMemory` has no caller in this product
+  // and the published `@theokit/agents` does not export it, so nothing here consumes these files.
+  // Reporting `read` would tell an author their memory took effect when it did not — the
+  // accepted-and-ignored failure this row exists to prevent, caused by the row itself. Flip it to
+  // `read` in the same commit that wires the consumer, and not before.
+  { dir: 'agent-memory', state: 'unread', count: (d) => memories(d) },
   // REFUSED, and counted so the refusal is visible rather than implied by an absent row.
   { dir: 'workflows', state: 'refused', count: (d) => topLevel(d, '.js') },
 ]

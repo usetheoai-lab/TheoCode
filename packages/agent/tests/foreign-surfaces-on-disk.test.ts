@@ -91,7 +91,7 @@ describe('counting what the foreign root holds', () => {
     const d = join(root, '.claude', 'agent-memory', 'researcher')
     mkdirSync(d, { recursive: true })
     writeFileSync(join(d, 'MEMORY.md'), 'note')
-    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agent-memory', files: 1, state: 'read' }])
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agent-memory', files: 1, state: 'unread' }])
   })
 
   it('test_a_missing_foreign_root_is_not_an_error', () => {
@@ -141,5 +141,23 @@ describe('counting what the foreign root holds', () => {
     writeFileSync(join(dir, 'real.md'), '---\nname: real\ndescription: d\n---\nBody.\n')
     writeFileSync(join(dir, 'README.md'), '# Notes about this directory\n\nProse, not an agent.\n')
     expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agents', files: 1, state: 'read' }])
+  })
+  it('test_a_surface_nothing_here_consumes_is_not_reported_as_read', () => {
+    // MEASURED 2026-09-15: `.claude/agent-memory/` holds one directory, and NOTHING in this product
+    // reads it. `applySubagentMemory` has no caller here, and the published `@theokit/agents` does
+    // not export it — grep returns nothing for both. Zero of the 16 loaded agents declare `memory:`.
+    //
+    // So `read` would be false, and false in the exact way the surfaces rule exists to prevent: an
+    // author writes configuration, sees no complaint, and concludes it took effect. The row added to
+    // stop that was about to cause it.
+    //
+    // `unread` rather than `refused`, and the distinction is the whole point. `workflows` is refused
+    // — a decision, with a reason about this product. This is not a decision; it is work that has
+    // not landed, and collapsing the two would report a gap as a policy.
+    mkdirSync(join(root, '.claude', 'agent-memory', 'someone'), { recursive: true })
+    writeFileSync(join(root, '.claude', 'agent-memory', 'someone', 'MEMORY.md'), 'note')
+    expect(foreignSurfacesOnDisk(root)).toEqual([
+      { dir: 'agent-memory', files: 1, state: 'unread' },
+    ])
   })
 })

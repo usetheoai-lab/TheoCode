@@ -166,8 +166,15 @@ export interface ForeignSurface {
   readonly dir: string
   /** How many files it holds. A count, because presence and a loaded tree must not read alike. */
   readonly files: number
-  /** Whether this product acts on them. `refused` is a real state and not a failure. */
-  readonly state: 'read' | 'refused'
+  /**
+   * What this product does with them.
+   *
+   * `refused` is a DECISION, with a reason about this product — `workflows` is the case.
+   * `unread` is not a decision: the surface is present and nothing here consumes it yet. Keeping
+   * them apart matters because collapsing them reports a gap as a policy, and an author reading
+   * `refused` stops looking for the capability while an author reading `unread` knows it is coming.
+   */
+  readonly state: 'read' | 'refused' | 'unread'
 }
 
 /**
