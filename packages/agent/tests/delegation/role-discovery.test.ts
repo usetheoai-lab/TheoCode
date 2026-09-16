@@ -32,12 +32,24 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
-function writeRole(root: string, name: string, description = 'a role'): void {
+function writeRole(
+  root: string,
+  name: string,
+  description = 'a role',
+  memory?: string,
+): void {
   mkdirSync(join(root, '.theokit', 'agents'), { recursive: true })
+  const scope = memory === undefined ? '' : `memory: ${memory}\n`
   writeFileSync(
     join(root, '.theokit', 'agents', `${name}.md`),
-    `---\nname: ${name}\ndescription: ${description}\n---\nbody\n`,
+    `---\nname: ${name}\ndescription: ${description}\n${scope}---\nbody\n`,
   )
+}
+
+/** The note a `memory:` declaration is supposed to reach the prompt with. */
+function writeMemory(root: string, name: string, note: string): void {
+  mkdirSync(join(root, '.claude', 'agent-memory', name), { recursive: true })
+  writeFileSync(join(root, '.claude', 'agent-memory', name, 'MEMORY.md'), note)
 }
 
 describe('#65 — roles are discovered in the operator root as well as the project', () => {
@@ -86,5 +98,48 @@ describe('#65 — roles are discovered in the operator root as well as the proje
 
   it('test_neither_root_declaring_anything_is_not_an_error', async () => {
     expect(await discoverRoles({ cwd, home, projectAllowed: true })).toEqual({})
+  })
+})
+
+describe('the memory declaration reaches the prompt, through discoverRoles', () => {
+  /**
+   * `applyMemoryToRoles` was written, tested with five cases, committed — and CALLED BY NOBODY.
+   * `applySubagentMemory` had zero callers in this product, so an author wrote `memory: project`,
+   * saw no complaint, and concluded it took effect. Every test passed the whole time, because each
+   * one exercised a half. This is the test of the JOIN, and it is the one that was missing.
+   */
+  it('test_a_project_scope_reaches_the_prompt_from_the_root_the_agent_came_from', async () => {
+    writeRole(cwd, 'keeper', 'a role', 'project')
+    writeMemory(cwd, 'keeper', 'the note in the project')
+
+    const found = await discoverRoles({ cwd, home, projectAllowed: true })
+
+    expect(found.keeper?.prompt).toContain('the note in the project')
+  })
+
+  /**
+   * The root travels with each half on purpose. `user` resolves against home, and an operator's
+   * agent reading the PROJECT's notes is the failure mode that makes the three scopes differ —
+   * they differ in exactly one way, which is who can see what is written.
+   */
+  it('test_a_user_scope_reaches_the_prompt_from_home_not_from_the_project', async () => {
+    writeRole(home, 'crosser', 'a role', 'user')
+    writeMemory(home, 'crosser', 'the note in home')
+    writeMemory(cwd, 'crosser', 'THE PROJECT NOTE — must not be read')
+
+    const found = await discoverRoles({ cwd, home, projectAllowed: true })
+
+    expect(found.crosser?.prompt).toContain('the note in home')
+    expect(found.crosser?.prompt).not.toContain('must not be read')
+  })
+
+  /** The control that keeps the two above honest: without a declaration, nothing is appended. */
+  it('test_an_agent_that_declares_nothing_is_returned_untouched', async () => {
+    writeRole(cwd, 'plain')
+    writeMemory(cwd, 'plain', 'a note nobody asked for')
+
+    const found = await discoverRoles({ cwd, home, projectAllowed: true })
+
+    expect(found.plain?.prompt).not.toContain('a note nobody asked for')
   })
 })

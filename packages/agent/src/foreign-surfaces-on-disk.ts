@@ -62,12 +62,18 @@ const SURFACES: readonly {
   // One per agent, at `<agent>/MEMORY.md` — the layout the reference prescribes, so a top-level
   // count would report every configured memory as absent.
   //
-  // `unread`, not `read`. MEASURED 2026-09-15: `applySubagentMemory` has no caller in this product
-  // and the published `@theokit/agents` does not export it, so nothing here consumes these files.
-  // Reporting `read` would tell an author their memory took effect when it did not — the
-  // accepted-and-ignored failure this row exists to prevent, caused by the row itself. Flip it to
-  // `read` in the same commit that wires the consumer, and not before.
-  { dir: 'agent-memory', state: 'unread', count: (d) => memories(d) },
+  // `read` since 2026-09-16, and the condition the previous comment set is the one that was met:
+  // `discoverRoles` now calls `applySubagentMemory` through `applyMemoryToRoles`, once per half,
+  // with the root each half came from. Three tests read a note back out of `discoverRoles` — one
+  // per scope that resolves against a root — so this row is backed by the journey, not by the
+  // function existing.
+  //
+  // Flipping it took two releases, and the second is why the rule says to wire before claiming.
+  // `14.5.0` shipped the applier with no caller; wiring it here ran `user` for the first time and
+  // it threw — `applySubagentMemory` passed `{ home }` where `resolveAgentMemory` reads `homeDir`.
+  // Had this row been flipped when the function appeared, it would have reported `read` while the
+  // one scope that crosses projects could not resolve at all.
+  { dir: 'agent-memory', state: 'read', count: (d) => memories(d) },
   // REFUSED, and counted so the refusal is visible rather than implied by an absent row.
   { dir: 'workflows', state: 'refused', count: (d) => topLevel(d, '.js') },
 ]
