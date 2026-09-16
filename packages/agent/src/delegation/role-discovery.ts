@@ -1,8 +1,14 @@
 import { homedir } from 'node:os'
 
 import { discoverSubagents } from '@theokit/agents'
+// `applySubagentMemory` is on the `./config` subpath, not the root: it lives in
+// `src/config/agent-memory.ts` and the root barrel does not re-export it. Importing it from
+// the root type-checks — the bundled `.d.ts` declares it — and throws at RUNTIME with
+// `does not provide an export named`. Measured 2026-09-16, and the types never said a word.
+import { applySubagentMemory } from '@theokit/agents/config'
 
 import { FOREIGN_SURFACES } from '../setting-sources.js'
+import { applyMemoryToRoles } from './role-memory.js'
 import type { SubagentDefinition } from '@theokit/agents'
 
 /**
@@ -71,5 +77,11 @@ export async function discoverRoles(opts: {
         })
       : Promise.resolve({}),
   ])
-  return { ...mine, ...theirs }
+  // The root travels with each half, and that is the whole decision here. `project` and `local`
+  // resolve against the root the agent came FROM; `user` resolves against home. Applying after the
+  // merge would lose it — by then both halves share a key space and the origin is gone.
+  return {
+    ...applyMemoryToRoles(mine, home, home, applySubagentMemory),
+    ...applyMemoryToRoles(theirs, opts.cwd, home, applySubagentMemory),
+  }
 }

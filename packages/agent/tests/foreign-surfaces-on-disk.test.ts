@@ -91,7 +91,7 @@ describe('counting what the foreign root holds', () => {
     const d = join(root, '.claude', 'agent-memory', 'researcher')
     mkdirSync(d, { recursive: true })
     writeFileSync(join(d, 'MEMORY.md'), 'note')
-    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agent-memory', files: 1, state: 'unread' }])
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agent-memory', files: 1, state: 'read' }])
   })
 
   it('test_a_missing_foreign_root_is_not_an_error', () => {
@@ -142,22 +142,31 @@ describe('counting what the foreign root holds', () => {
     writeFileSync(join(dir, 'README.md'), '# Notes about this directory\n\nProse, not an agent.\n')
     expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agents', files: 1, state: 'read' }])
   })
-  it('test_a_surface_nothing_here_consumes_is_not_reported_as_read', () => {
-    // MEASURED 2026-09-15: `.claude/agent-memory/` holds one directory, and NOTHING in this product
-    // reads it. `applySubagentMemory` has no caller here, and the published `@theokit/agents` does
-    // not export it — grep returns nothing for both. Zero of the 16 loaded agents declare `memory:`.
+  it('test_agent_memory_is_read_because_a_consumer_finally_reads_it', () => {
+    // `read` since 2026-09-16. This asserted `unread` until then, on a measurement that was true
+    // when written: `applySubagentMemory` had no caller here and the published `@theokit/agents`
+    // did not export it, so `read` would have told an author their memory took effect when it did
+    // not — the accepted-and-ignored failure the surfaces rule exists to prevent.
     //
-    // So `read` would be false, and false in the exact way the surfaces rule exists to prevent: an
-    // author writes configuration, sees no complaint, and concludes it took effect. The row added to
-    // stop that was about to cause it.
+    // What changed is a call, not a claim. `discoverRoles` now runs `applyMemoryToRoles` over each
+    // half with the root that half came from, and three tests in `delegation/role-discovery` read a
+    // note back OUT of it — one per scope that resolves against a root. The row is backed by the
+    // journey rather than by the function existing.
     //
-    // `unread` rather than `refused`, and the distinction is the whole point. `workflows` is refused
-    // — a decision, with a reason about this product. This is not a decision; it is work that has
-    // not landed, and collapsing the two would report a gap as a policy.
+    // The wait earned its keep, and this is the part worth reading twice. `@theokit/agents@14.5.0`
+    // shipped the applier with no caller anywhere. Wiring it here ran the `user` scope for the
+    // first time and it THREW: the applier passed `{ home }` where `resolveAgentMemory` reads
+    // `homeDir`, so the one root that crosses projects could not resolve at all. Six tests upstream
+    // had covered that function and all six declared `project`. Had this row been flipped when the
+    // function appeared, it would have reported `read` over a capability that was one third broken,
+    // and nothing here would have contradicted it. `14.5.1` is the fix.
+    //
+    // `unread` keeps its meaning and currently has no instance. `workflows` is `refused` — a
+    // decision, with a reason about this product; `unread` is work that has not landed. Collapsing
+    // the two would report a gap as a policy, which is why the vocabulary keeps all three even when
+    // one of them describes nothing today.
     mkdirSync(join(root, '.claude', 'agent-memory', 'someone'), { recursive: true })
     writeFileSync(join(root, '.claude', 'agent-memory', 'someone', 'MEMORY.md'), 'note')
-    expect(foreignSurfacesOnDisk(root)).toEqual([
-      { dir: 'agent-memory', files: 1, state: 'unread' },
-    ])
+    expect(foreignSurfacesOnDisk(root)).toEqual([{ dir: 'agent-memory', files: 1, state: 'read' }])
   })
 })
