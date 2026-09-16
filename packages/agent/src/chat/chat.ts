@@ -1,3 +1,4 @@
+import { basename } from 'node:path'
 import { homedir } from 'node:os'
 import { AgentBuilder, ConfigurationError, loadMcpJson } from '@theokit/agents'
 
@@ -23,7 +24,7 @@ import type { InteractiveBackend } from '@theokit/agents/interactive'
 import { PtyInteractiveBackend } from '@theokit/agents-pty'
 import { z } from 'zod'
 
-import { MAX_AGGREGATE, composeInstructions, loadAgentsMd, loadUserAgentsMd } from '../context/index.js'
+import { MAX_AGGREGATE, agentsMdChain, composeInstructions, loadAgentsMd, loadUserAgentsMd } from '../context/index.js'
 import type { RulesLoad } from '../context/rules.js'
 import { userSkills } from '../context/user-skills.js'
 import type { InlineSkill } from '@theokit/sdk'
@@ -46,6 +47,7 @@ import type { SessionPtyOwner } from '../pty/index.js'
 import { ToolRegistry, resolveToolScope } from '../tools/index.js'
 import { declareAgent, toolsNamed } from '../composition/agent-spec.js'
 import { refuseForeignHook } from '../hooks/foreign-hook-gate.js'
+import { skillReadTool } from '../context/readable-skills.js'
 import { settingSourcesFor } from '../setting-sources.js'
 
 /** B-055 — told when a PreToolUse hook blocks a tool call, so a surface can render it. */
@@ -205,7 +207,22 @@ export async function buildChatAgent(overrides: {
   // type, T1.2 made name and description options, and the adapter stopped existing — it did not shrink,
   // it vanished. `askUser` remains the fallback; the preferred asker comes from the context.
   const profileScopedTools = profileTools(overrides?.surface, ask, abandonQuestion)
-  const allTools = [...profileScopedTools, ...(overrides?.extraTools ?? [])]
+  // B-099 — the tool the system prompt has been telling the model to call.
+  //
+  // `instructions.ts` says "call `skill_read` with its name to load the steps", and nothing added
+  // it. The SDK does not add it for you — "The SDK NEVER auto-injects it — bring-your-own-tools
+  // stays intact" — and describes what that leaves behind: "the entire on-disk surface was
+  // advertised to the model and unreadable by it". Measured 2026-09-15 beside Claude Code on the
+  // same project: it loaded a skill body and returned the token inside; this product answered that
+  // the required tool was not available, over 75 skills sitting under `.claude/skills/`.
+  //
+  // Absent when there is nothing to read, so a project with no skills does not carry a tool whose
+  // every answer would be "no such skill".
+  const allTools = [
+    ...profileScopedTools,
+    ...(await skillReadTool(overrides.cwd)),
+    ...(overrides?.extraTools ?? []),
+  ]
   return allTools.reduce((acc, tool) => acc.tool(tool), chain).build()
 }
 
@@ -655,6 +672,11 @@ function baseAgent(ctx: {
     projectDocument(ctx.posture, ctx.cwd, ctx.rules, ctx.operatorHome),
     overrides?.appendInstructions ?? '',
     { maxChars: MAX_AGGREGATE, warn: (m: string) => process.stderr.write(`${m}\n`) },
+    // The header names the files the document was actually read from. It used to say "from
+    // AGENTS.md" unconditionally while the loader accepts THEO.md, AGENTS.md and CLAUDE.md, so a
+    // project holding only one of the others was told about a file it does not have — and the
+    // agent, asked where a rule came from, answered with a path nobody could open.
+    agentsMdChain(ctx.cwd).map((f) => basename(f)),
   )
 
   const agent =

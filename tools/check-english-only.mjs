@@ -232,7 +232,11 @@ function main() {
   if (violations.length === 0) {
     if (!process.argv.includes('--quiet')) {
       console.log(
-        `english-only: clean (${String(lexicons.enForms)} EN forms, ${String(lexicons.ptForms)} PT forms)`,
+        // The two numbers are the LEXICON SIZES, printed as a non-vacuity floor: a clean result
+        // over dictionaries that failed to load is the same output as a clean repository. Said as
+        // "loaded" because the earlier wording — `484091 PT forms` beside the word `clean` — reads
+        // as 484 091 Portuguese words FOUND, which is the opposite of what the line reports.
+        `english-only: clean (lexicons loaded: ${String(lexicons.enForms)} EN, ${String(lexicons.ptForms)} PT forms)`,
       )
     }
     process.exit(0)

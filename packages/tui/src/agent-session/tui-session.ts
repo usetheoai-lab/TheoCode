@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { resolveEffectiveConfig, type ReasoningEffort } from '@theocode/agent/config'
 import type { AttachedImage } from '@theocode/agent/context'
 
-import { loadOrCreateSessionId } from '../persistence/index.js'
+import { loadOrCreateSessionId, persistSessionId } from '../persistence/index.js'
 import { workingDirectory } from '../working-directory.js'
 
 export interface TuiSession {
@@ -29,6 +29,11 @@ export interface TuiSession {
 export interface SessionOptions {
   readonly cwd?: string
   readonly sessionPointer: string
+  /**
+   * Whether to READ the pointer. It is written either way, so a later `--continue` can find the
+   * session; reading it is what makes this launch inherit the previous conversation.
+   */
+  readonly resume?: boolean
   readonly loadSession?: (pointer: string, fresh: () => string) => string
   readonly loadConfig?: typeof resolveEffectiveConfig
 }
@@ -40,7 +45,22 @@ export function createTuiSession(opts: SessionOptions): TuiSession {
 
   let cfg = loadConfig({ cwd })
   let effort: ReasoningEffort = cfg.reasoning_effort
-  let session = loadSession(opts.sessionPointer, () => `tui-${randomUUID()}`)
+  // READING the pointer is what makes this launch inherit a conversation; WRITING it is what makes
+  // the NEXT launch able to. Only the first is gated by `resume`.
+  //
+  // The pointer used to be written as a side effect of `loadOrCreateSessionId`, which generates and
+  // persists when the file is absent. Making resume opt-in bypassed that function on the default
+  // path, and nothing wrote the pointer any more: `--continue` had nothing to find unless the user
+  // had first typed `/new`, the only other writer. Measured in a clean workspace after a full
+  // session — a turn, a delegation, a custom command — and the file was not there.
+  const freshSession = () => `tui-${randomUUID()}`
+  let session: string
+  if (opts.resume === true) {
+    session = loadSession(opts.sessionPointer, freshSession)
+  } else {
+    session = freshSession()
+    void persistSessionId(opts.sessionPointer, session)
+  }
   let images: AttachedImage[] | undefined
   let model: string | undefined
   let fixedModel: string | undefined

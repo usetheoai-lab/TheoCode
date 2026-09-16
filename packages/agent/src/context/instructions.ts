@@ -116,8 +116,8 @@ green run.
   and note residual risks or testing gaps.
 
 ## Final-answer style
-- Plain text; the CLI styles it. Be concise, lead with the outcome, skip heavy formatting for simple
-  confirmations. Don't dump large files you wrote — reference paths only.
+- Markdown; code in fenced blocks. Be concise, lead with the outcome, skip heavy formatting for
+  simple confirmations. Don't dump large files you wrote — reference paths only.
 - Reference code as a clickable \`file:line\` (e.g. \`agents/chat.ts:37\`) — a standalone path each time,
   no \`file://\`/\`https://\` URIs, no line ranges.
 - For code changes: lead with a one-line what-changed, then where/why. Offer next steps only if natural;

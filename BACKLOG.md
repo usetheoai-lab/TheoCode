@@ -8114,3 +8114,81 @@ shipped: |
 
   Verified on the built binary in both directions: the bundled skill no longer appears in the row,
   and a skill declared nowhere on disk still does.
+
+## B-175 — `doctor` is silent about four surfaces the operator configured   [ ]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-15 by running `node dist/theocode.mjs doctor` in this repository and counting
+  what is on disk against what the report names.
+
+  | surface                   | files on disk | named by `doctor` |
+  |---------------------------|---------------|-------------------|
+  | `.claude/agents/`         | **139**       | no                |
+  | `.claude/commands/`       | 5             | no                |
+  | `.claude/agent-memory/`   | 1             | no                |
+  | `.claude/workflows/`      | 1             | no                |
+
+  The positive control is what makes this interpretable: `skills-on-disk` IS reported — "91 under
+  `.claude/skills/`, loaded by the compatibility dialect without a config line". So the report can
+  speak about a foreign-root surface and does; these four are four missing checks rather than a
+  design principle that diagnostics stay inside the native root.
+
+  A grep of the whole report for `agent-memory`, `workflow`, `subagent` and `command` returns
+  nothing. 14 checks run and none of them is about the 139 agent definitions this product loads.
+why_now: found while assembling per-surface evidence after the suites went green. `rules/foreign-config-surfaces.md` states the principle this violates in its own anti-pattern list — "Reporting a refusal in a docblock and nowhere a consumer reads. A control that cannot be observed produces the same silence as one that does not work." The same applies to a control that IS working: an operator cannot tell 139 loaded agents from zero
+related: B-152 established "no row in `doctor`" as a real symptom worth naming, for `commands` specifically. That item is closed and this one is about the REPORT's coverage rather than about any one surface reaching nothing
+shipped_in: the `foreign-surfaces` row, wired through `foreignSurfacesOnDisk` in the agent package and measured by the CLI like `skillsOnDisk` beside it. VERIFIED in the real report, not by test alone: `! foreign-surfaces: under .claude/ — agents: 16 read · commands: 5 read · agent-memory: 1 unread · workflows: 1 refused`, and the check count went 14 -> 15. CORRECTION during the same session: the row first said `agents: 139`, counting every file under the directory. Only 17 are definitions — the other 122 are per-review audit trails in `review-*/` subdirectories, which `cycle-review.md` says belong under `records/` because "mixing the two put a run's trail where a reader looks for a roster". Reporting 139 would have repeated that mistake inside the diagnostic and told an operator their roster was eight times its size. The count now follows each surface's own loader, and two of the three regression tests added for it FAIL against the previous rule — checked by running them against it, not assumed. SECOND correction, one layer finer and found the same way — by probing the real directory rather than the fixture: 17 `.md` at the top level, 16 that the loader returns. The odd one is `README.md`, documentation with no frontmatter. The count now requires the opening fence, and the row matches the loader exactly: 16 and 16. THIRD correction, and the sharpest: the row said `agent-memory: 1 read` while NOTHING here reads it — `applySubagentMemory` has no caller in this product and the published `@theokit/agents` does not export it. The row built to prevent accepted-and-ignored was about to cause it. A third state exists now: `unread` is a surface nothing consumes yet, kept distinct from `refused`, which is a decision with a reason — collapsing them would report a gap as a policy. Three earlier tests failed when this landed, because their fixtures wrote `x` — a count asserted over content nothing could load, which is how they had agreed with a counter that was over-reporting.
+fixed_in: 6ccc4c6
+status: shipped
+dod:
+  - `doctor` names each of the four surfaces with what it found, in the shape `skills-on-disk` already uses
+  - a surface that is present and NOT read is distinguishable in the report from one that is present and read
+  - the check counts files rather than asserting presence, so an empty directory and a loaded one do not read alike
+
+## B-176 — 45 unfixable errors from an installed dependency disabled three other gates   [x]
+
+domain: theokit
+repo: theokit
+suggested_mode: review
+source: discover-review
+evidence: |
+  MEASURED 2026-09-15 while adding a row to `doctor`, when `npm run lint` came back red and the
+  errors were not in the code I had touched.
+
+  `eslint.config.mjs` ignored `dist`, `node_modules`, `deadcode-output` and `codex` — not
+  `.claude/`. So ESLint linted the INSTALLED KIT: `npx eslint .claude --no-ignore` reports **45
+  errors**, every one `no-undef` on `args`, `log`, `agent`, `pipeline` or `parallel` inside
+  `mechanisms/fleet/*.js`. Those are globals the Workflow runtime supplies and no file declares —
+  ESLint is correct about the text and wrong about the program — and the files are gitignored
+  (`.gitignore:23`), so no fix could be committed from this repository anyway.
+
+  The cost was not noise. The script is `eslint . && knip --no-progress && node
+  tools/check-english-only.mjs --quiet && npm run depcruise`, and `&&` short-circuits:
+
+  | stage                  | before        | after                              |
+  |------------------------|---------------|------------------------------------|
+  | `eslint .`             | failed        | passes                             |
+  | `knip`                 | **never ran** | passes                             |
+  | `check-english-only`   | **never ran** | passes                             |
+  | `depcruise`            | **never ran** | 291 modules, 782 deps, 0 violations |
+
+  Three gates were switched off by a fourth that could never go green, and nothing said so: the
+  output ended at the ESLint summary, which reads like the whole chain reporting.
+
+  CORRECTION to the first reading, measured rather than assumed: **CI was never affected.**
+  `git ls-files .claude` returns 0 and no CI step installs the kit, so the directory does not
+  exist there, ESLint never saw it, and the chain ran whole. The breakage was LOCAL and total —
+  every machine with the kit installed. That is smaller than "CI was green while three gates
+  never ran" and still worth fixing: the local gate is the one a person runs before pushing, so
+  the cost fell entirely on whoever was trying to check their own work.
+why_now: found because a red gate on my own change turned out not to be about my change. A gate that is permanently red is a gate nobody reads, and this one took three others down with it
+fixed_in: adfdfd7
+status: shipped
+shipped_in: `.claude/**` added to the ESLint ignore list, with the measurement written beside it in the config — the convention the `#39` note in that file already set. `npm run lint` exits 0, verified by the real exit code rather than through a pipe
+dod:
+  - `npm run lint` exits 0 on a clean tree, and every stage of the chain executes
+  - the ignore entry states what was measured and why the project cannot fix what it stops linting

@@ -80,6 +80,8 @@ describe('#67 — declared against what is on disk', () => {
       declaredButAbsent: [],
       presentButUndeclared: [],
       declaredUserOnlySoNotLoaded: [],
+      // The foreign root is reported now; these fixtures put nothing under `.claude/skills/`.
+      foreignRootSkills: [],
     })
   })
 
@@ -141,6 +143,8 @@ describe('#67 — declared against what is on disk', () => {
       declaredButAbsent: [],
       presentButUndeclared: [],
       declaredUserOnlySoNotLoaded: [],
+      // The foreign root is reported now; these fixtures put nothing under `.claude/skills/`.
+      foreignRootSkills: [],
     })
   })
 
@@ -206,6 +210,8 @@ describe('#67 — declared against what is on disk', () => {
       declaredButAbsent: [],
       presentButUndeclared: [],
       declaredUserOnlySoNotLoaded: [],
+      // The foreign root is reported now; these fixtures put nothing under `.claude/skills/`.
+      foreignRootSkills: [],
     })
   })
 })

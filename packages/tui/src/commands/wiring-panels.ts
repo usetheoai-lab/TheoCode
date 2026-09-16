@@ -33,7 +33,17 @@ function renderWiredEntity(
 
 export function skillsPanelBody(wired: WiredCapabilities | undefined): string {
   return renderWiredEntity(wired?.skills, {
-    empty: 'no skills are enabled for this directory',
+    // B-070 forbids a config re-read here, and this listing is therefore blind to one whole
+    // loading path: `.claude/skills/` reaches the model through the compatibility dialect, never
+    // through `.skills()`, so it cannot appear. The old wording — "no skills are enabled for this
+    // directory" — asserted about BOTH paths what this panel knows about one. Measured
+    // 2026-09-15: it printed that while the model, in the same turn, listed forty skills and named
+    // one created minutes earlier under that root. `doctor` counts the disk and is named here
+    // because it is the surface that can answer.
+    empty:
+      'no skills reached this listing — the declared path wired none.\n' +
+      'Skills under .claude/skills/ load by the compatibility dialect and are not visible here.\n' +
+      'Run `theocode doctor` for what is on disk.',
     suppressed:
       'DIRECTORY UNTRUSTED — these skills are configured and were NOT loaded, so nothing in them is steering the agent:',
   })
